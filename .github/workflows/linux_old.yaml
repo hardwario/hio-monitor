@@ -1,0 +1,82 @@
+name: Linux Old Glib Compatible Release
+
+on:
+  release:
+    types: [created]
+
+env:
+  QT_VERSION: "6.5.1"
+  QT_MODULES: "qtconnectivity"
+  BUILD_TYPE: RelWithDebInfo
+
+jobs:
+  linux-build:
+    runs-on: ubuntu-20.04
+    steps:
+    
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        aqtversion: '==3.1.*'
+        version: ${{ env.QT_VERSION }}
+        host: 'linux'
+        target: 'desktop'
+        arch: 'gcc_64'
+        modules: ${{ env.QT_MODULES }}
+        tools: 'tools_cmake'
+
+    - name: Make build dir
+      run: mkdir build
+    
+    - name: Configure CMake
+      run: |
+        cmake -S . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j20
+
+    - name: Setup FUSE
+      run: |
+        sudo apt-get install fuse
+        sudo modprobe fuse
+        sudo addgroup fuse
+        sudo adduser $USER fuse
+
+    - name: Install build dependencies
+      run : |
+        sudo apt install libxcb-cursor0
+        sudo apt-get install -y appstream
+
+    - name: Download linuxdeploy tool
+      run: |
+        wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+        wget https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+        chmod +x linuxdeploy*.AppImage
+    
+    - name: Make AppDir
+      run: mkdir AppDir
+
+    - name: Rename binary
+      run: |
+        mv "build/HARDWARIO Monitor" build/hiomon
+
+    - name: Build AppImage
+      run: |
+        export QML_SOURCES_PATHS=.
+        ./linuxdeploy-x86_64.AppImage --appdir AppDir -e build/hiomon -i ./resources/icon.png -d ./ci/linux/hiomon.desktop --plugin qt --output appimage
+
+    - name: Rename AppImage
+      run: |
+        mv hiomon-x86_64.AppImage hio-monitor-${{ github.ref_name }}-linux-old.AppImage
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: hio-monitor-${{ github.ref_name }}-linux-old.AppImage
+      env:
+        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}

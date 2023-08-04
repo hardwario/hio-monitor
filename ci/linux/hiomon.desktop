@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=hiomon
+Comment=Monitor and control HARDWARIO Chester
+Exec=hiomon
+Icon=icon
+Type=Application
+Categories=Utility;

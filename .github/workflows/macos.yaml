@@ -1,0 +1,84 @@
+name: Macos Release
+
+on:
+  release:
+    types: [created]
+
+env:
+  QT_VERSION: "6.5.1"
+  QT_MODULES: "qtconnectivity"
+  BUILD_TYPE: RelWithDebInfo
+  APP: 'hiomon.app'
+  QT_PATH: 'Qt/6.5.1/macos/'
+
+jobs:
+  macos-build:
+    if: false
+    runs-on: macos-latest
+    steps:
+    
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        aqtversion: '==3.1.*'
+        version: ${{ env.QT_VERSION }}
+        host: 'mac'
+        target: 'desktop'
+        arch: 'clang_64'
+        modules: ${{ env.QT_MODULES }}
+        tools: 'tools_cmake'
+        dir: '${{ github.workspace }}/'
+
+    - name: Make build dir
+      run: mkdir build
+    
+    - name: Configure CMake
+      run: |
+        cmake -S . -B ${{ github.workspace }}/build -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+    
+    - name: Build
+      run: cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }} -j20
+  
+    - name: List binary dependencies
+      run: otool -L "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/MacOS/HARDWARIO Monitor"
+
+    - name: Copy resources
+      run: |
+        mkdir -p "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Resources"
+        cp ${{ github.workspace }}/ci/macos/Info.plist "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/"
+        cp ${{ github.workspace }}/ci/macos/icon.icns "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Resources/"
+
+    - name: Copy shared libs
+      run: |
+        mkdir -p "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Frameworks"
+        # big R because Jlink and Qt uses the symlinks
+        cp -R ${{ github.workspace }}/lib/jlink/macos/* "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Frameworks/"
+
+    - name: Point to bundle shared libs dir
+      run: |
+        install_name_tool -change Output/Release/arm64/libjlinkarm.7.86.8.dylib @executable_path/../Frameworks/libjlinkarm.7.86.8.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
+        install_name_tool -change Output/Release/x86_64/libjlinkarm.7.86.8.dylib @executable_path/../Frameworks/libjlinkarm.7.86.8.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
+        install_name_tool -id @executable_path/../Frameworks/libjlinkarm.7.86.8.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
+        codesign --remove-signature build/HARDWARIO\ Monitor.app
+        codesign --force --deep --sign - build/HARDWARIO\ Monitor.app        
+    
+    - name: Make dmg
+      run: |
+        ${{ env.QT_PATH }}/bin/macdeployqt "${{ github.workspace }}/build/HARDWARIO Monitor.app" -qmldir="${{ github.workspace }}/build/qml" -fs=APFS -libpath="${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Frameworks/" -dmg
+
+    - run: mv "${{ github.workspace }}/build/HARDWARIO Monitor.dmg" ${{ github.workspace }}/hio-monitor-${{ github.ref_name }}-macos.dmg
+
+    - name: Archive
+      run: zip -r -y -X hio-monitor-${{ github.ref_name }}-macos.zip ${{ github.workspace }}/hio-monitor-${{ github.ref_name }}-macos.dmg
+    
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: ${{ github.workspace }}/hio-monitor-${{ github.ref_name }}-macos.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}

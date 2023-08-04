@@ -1,0 +1,34 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/icons/attach.png</file>
+        <file>resources/icons/bt.png</file>
+        <file>resources/icons/btdisconnect.png</file>
+        <file>resources/icons/btdiscover.png</file>
+        <file>resources/icons/clear.png</file>
+        <file>resources/icons/cli.png</file>
+        <file>resources/icons/detach.png</file>
+        <file>resources/icons/flash.png</file>
+        <file>resources/icons/resume.png</file>
+        <file>resources/icons/search.png</file>
+        <file>resources/icons/pause.png</file>
+        <file>resources/icons/select.png</file>
+        <file>resources/icons/filter.png</file>
+        <file>resources/icons/send.png</file>
+        <file>resources/icons/wall.png</file>
+        <file>resources/icons/signal.png</file>
+        <file>resources/icons/hwNoTitle.png</file>
+        <file>resources/icons/hwTitle.png</file>
+        <file>resources/icons/weaksignal.png</file>
+        <file>resources/icons/okaysignal.png</file>
+        <file>resources/icons/goodsignal.png</file>
+        <file>resources/icons/bestsignal.png</file>
+        <file>resources/fonts/Inter-Bold.ttf</file>
+        <file>resources/fonts/Inter-Regular.ttf</file>
+        <file>resources/fonts/UbuntuMono-Regular.ttf</file>
+        <file>resources/icons/undo.png</file>
+        <file>resources/icons/notification.png</file>
+        <file>resources/icons/hwMainIcon.svg</file>
+        <file>resources/icons/hwMainIcon.png</file>
+        <file>resources/icons/down.png</file>
+    </qresource>
+</RCC>
