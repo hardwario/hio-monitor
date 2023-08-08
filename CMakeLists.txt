@@ -47,8 +47,6 @@ if(WIN32)
         target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE JLinkARM)
     endif()
 elseif(APPLE)
-    set(MACOSX_BUNDLE_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/icon.icns")
-    set(MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/Info.plist")
     qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/icon.icns")
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/macos)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE jlinkarm)
@@ -66,6 +64,8 @@ set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
     AUTORCC TRUE
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/icon.icns"
+    MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/Info.plist"
     MACOSX_BUNDLE_GUI_IDENTIFIER com.hardwario.hiomon
     INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/src"
     OUTPUT_NAME "HARDWARIO Monitor"
