@@ -30,5 +30,6 @@
         <file>resources/icons/hwMainIcon.svg</file>
         <file>resources/icons/hwMainIcon.png</file>
         <file>resources/icons/down.png</file>
+        <file>resources/icons/downclicked.png</file>
     </qresource>
 </RCC>

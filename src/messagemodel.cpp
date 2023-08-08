@@ -1,5 +1,35 @@
 #include "messagemodel.h"
 
+MessageModel::MessageModel(QObject *parent) : QAbstractListModel(parent) {}
+
+int MessageModel::rowCount(const QModelIndex &parent) const {
+    Q_UNUSED(parent)
+    return _model.size();
+}
+
+QVariant MessageModel::data(const QModelIndex &index, int role) const {
+    if (!index.isValid())
+        return QVariant();
+
+    if (index.row() >= _model.size())
+        return QVariant();
+
+    auto messsage = _model.at(index.row());
+    switch (role) {
+    case Qt::DisplayRole:
+        return QVariant::fromValue(messsage);
+    default:
+        return QVariant();
+    }
+}
+
+bool MessageModel::setData(const QModelIndex &index, const QVariant &value, int role) {
+    Q_UNUSED(index)
+    Q_UNUSED(value)
+    Q_UNUSED(role)
+    return false;
+}
+
 QString MessageModel::getColorByMessageTag(const QString& tag) {
     if (tag == "dbg")
         return "<font color='#B392F0'>";
@@ -13,12 +43,11 @@ QString MessageModel::getColorByMessageTag(const QString& tag) {
 }
 
 int MessageModel::indexOf(const QString &term) {
-    auto messages = stringList();
-    if(messages.empty())
+    if(_model.empty())
         return -1;
     auto re = QRegularExpression(term, QRegularExpression::CaseInsensitiveOption);
-    for(auto i = 0; i < messages.count(); i++) {
-        auto match = re.match(messages.at(i));
+    for(auto i = 0; i < _model.count(); i++) {
+        auto match = re.match(_model.at(i));
         if(match.hasMatch()) {
             return i;
         }
@@ -29,10 +58,9 @@ int MessageModel::indexOf(const QString &term) {
 QStringList MessageModel::getWithFilter(const QString &term) {
     QStringList result;
     QString plainText;
-    auto messages = stringList();
     auto re = QRegularExpression(term, QRegularExpression::CaseInsensitiveOption);
-    for(int i = 0; i < messages.count(); i++) {
-        auto cur = messages.at(i);
+    for(int i = 0; i < _model.count(); i++) {
+        auto cur = _model.at(i);
         plainText = stripHTML(cur);
         auto match = re.match(plainText);
         if(match.hasMatch()) {
@@ -67,20 +95,30 @@ void MessageModel::addMessage(QString message) {
                        message +
                        "</font>";
     }
-    insertRow(rowCount());
-    setData(index(rowCount()-1), finalMessage);
+    beginInsertRows(QModelIndex(), rowCount(), rowCount());
+    _model.append(finalMessage);
+    endInsertRows();
+}
+
+QHash<int, QByteArray> MessageModel::roleNames() const {
+    QHash<int, QByteArray> roles;
+    roles[Qt::DisplayRole] = "display";
+    return roles;
 }
 
 void MessageModel::addWithColor(const QString& message, const QString& color) {
     QString finalMessage =  "<font color=" + color +  ">" +
                            message.toHtmlEscaped() +
                            "</font>";
-    insertRow(rowCount());
-    setData(index(rowCount()-1), finalMessage);
+    beginInsertRows(QModelIndex(), rowCount(), rowCount());
+    _model.append(finalMessage);
+    endInsertRows();
 }
 
 void MessageModel::clear() {
-    removeRows(0, rowCount());
+    beginResetModel();
+    _model.clear();
+    endResetModel();
 }
 
 void MessageModel::registerQmlType() {

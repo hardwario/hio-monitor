@@ -117,6 +117,5 @@ QtObject {
             }
             lastCheckedIndex = i
         }
-        view.forceActiveFocus()
     }
 }

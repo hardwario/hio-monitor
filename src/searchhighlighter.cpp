@@ -34,6 +34,7 @@ void Search::highlightBlock(const QString &text) {
 }
 
 void Search::reset() {
+    qDebug() << "Search: reset";
     searchText.clear();
     _matchedInds.clear();
     rehighlight();

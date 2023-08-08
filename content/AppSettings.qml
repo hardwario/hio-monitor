@@ -4,7 +4,6 @@ import QtQuick 2.15
 QtObject {
 
     property string hardwarioWebUrl: "https://www.hardwario.com/"
-    property int scrollThreshold: 30
     property int maxViewLines: 10000
 
     // page names
@@ -39,6 +38,7 @@ QtObject {
     property string undoIcon: "../resources/icons/undo.png"
     property string notificationIcon: "../resources/icons/notification.png"
     property string downIcon: "../resources/icons/down.png"
+    property string downClickedIcon: "../resources/icons/downclicked.png"
 
     // Colors
     property string hoverColor: "#424242"

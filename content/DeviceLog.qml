@@ -6,31 +6,28 @@ Rectangle {
     id: _root
     color: Material.background
     property int hborderWidth: _root.width + 10
-    property bool searchStarted: false
-    property bool filterStarted: false
 
     Connections {
         target: chester
         onDeviceLogReceived: (msg) => {
             textView.append(msg)
         }
+        onAttachSucceeded: {
+            textView.scrollToBottom()
+        }
     }
 
     function reset() {
-        if (searchStarted) {
-            searchStarted = false
+        if (search.mode === "search") {
             toolPanel.setUndoVisible(false)
             search.resetHighlights()
             textView.deselectOnPress = true
-            return
-        }
-        if (filterStarted) {
-            filterStarted = false
+        } else {
             toolPanel.setUndoVisible(false)
             textView.undoFilter()
             textInput.visible = true
-            return
         }
+        textInput.focus = true
     }
 
     Connections {
@@ -38,9 +35,6 @@ Rectangle {
         onClearClicked: {
             _root.reset()
             textView.clear()
-        }
-        onDownClicked: {
-            textView.scrollToBottom()
         }
         onPauseClicked: {
             textView.togglePause()
@@ -70,11 +64,14 @@ Rectangle {
             top: placeholderText.bottom
             topMargin: 5
             bottom: textInput.top
+            bottomMargin: 5
         }
+
         onFocusedChanged: {
             if (!search.isSearching)
                 textInput.focus = true
         }
+
         Component.onCompleted: {
             search.view = listView
             textView.newItemArrived.connect(function() {
@@ -150,6 +147,7 @@ Rectangle {
             width: parent.leftPadding
             hoverEnabled: true
             onClicked: {
+                console.log("Switch from mode:", search.mode)
                 if (search.mode === "search") {
                     search.mode = "filter"
                     modeImage.source = AppSettings.filterIcon
@@ -157,6 +155,7 @@ Rectangle {
                     search.mode = "search"
                     modeImage.source = AppSettings.searchIcon
                 }
+                console.log("Current mode:", search.mode)
             }
         }
 
@@ -166,17 +165,15 @@ Rectangle {
                 return
             if (search.mode === "search") {
                 search.searchFor(pattern)
-                searchStarted = true
                 textView.deselectOnPress = false
                 search.findNext()
             } else {
                 textView.filterFor(pattern)
                 textInput.visible = false
-                filterStarted = true
             }
             toolPanel.setUndoVisible(true)
             textInput.text = ""
-            textView.forceActiveFocus()
+            textView.listView.focus = true
         }
 
         // F5 to _root.reset search and Enter to start searching

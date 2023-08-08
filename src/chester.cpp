@@ -277,7 +277,7 @@ void Chester::attach()
                     line.replace('\n', "");
 
                     if (line.length() > 0) {
-                        qDebug() << "Read device log:" << QString(line);
+//                        qDebug() << "Read device log:" << QString(line);
                         _logFile->write(QString(line));
                         emit deviceLogReceived(QString(line));
                     }

@@ -39,6 +39,9 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
+//    MessageModel messageModel;
+//    engine.rootContext()->setContextProperty("messageModel", &messageModel);
+
     DeviceModel deviceModel;
     QSortFilterProxyModel proxyModel;
     proxyModel.setSourceModel(&deviceModel);

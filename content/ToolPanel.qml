@@ -5,7 +5,7 @@ import QtQuick.Controls.Material 2.15
 Rectangle {
     id: _root
     color: Material.background
-    property var consoleButtons: [ detach, clear, pause, undo, down ]
+    property var consoleButtons: [ detach, clear, pause, undo ]
     property var bluetoothButtons: [ disconnect, clear ]
     property var consoleWelcomeButtons: [ attach ]
     property var bluetoothWelcomeButtons: [ scan, connect ]
@@ -16,6 +16,7 @@ Rectangle {
     signal disconnectClicked()
     signal downClicked()
     signal undoClicked()
+    signal autoscrollClicked()
 
     Rectangle {
         anchors.left: parent.left
@@ -159,14 +160,6 @@ Rectangle {
             visibleOnInit: false
             onButtonClicked: {
                 undoClicked()
-            }
-        }
-
-        ToolButton {
-            id: down
-            iconSource: AppSettings.downIcon
-            onButtonClicked: {
-                downClicked()
             }
         }
 

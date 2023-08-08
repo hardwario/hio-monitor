@@ -39,6 +39,7 @@ Rectangle {
                 for (var i = 0; i < lines.length; ++i) {
                     textView.append(lines[i]);
                 }
+                textView.scrollToBottom()
             }
         }
     }

@@ -7,29 +7,16 @@ Item {
     property alias focused: view.focus
     property alias listView: view
     property bool deselectOnPress: true
-    property bool paused: false
     property var msgsBuffer: []
     signal newItemArrived
     signal scrollDetected
-
-    onPausedChanged: (paused) => {
-        if (paused)
-            return
-        if (_root.msgsBuffer.length > 0) {
-            for (var i in _root.msgsBuffer) {
-                _root.append(_root.msgsBuffer[i])
-            }
-            scrollToBottom()
-        }
-        _root.msgsBuffer = []
-    }
 
     function scrollToBottom() {
         view.positionViewAtEnd()
     }
 
     function togglePause() {
-        _root.paused = !_root.paused
+        view.autoScroll = !view.autoScroll
     }
 
     function clear() {
@@ -45,10 +32,6 @@ Item {
     }
 
     function append(msg) {
-        if (_root.paused) {
-            _root.msgsBuffer.push(msg)
-            return
-        }
         messagesModel.addMessage(msg)
     }
 
@@ -57,29 +40,24 @@ Item {
     }
 
     function undoFilter() {
-        view.model = null
         view.model = messagesModel
+        Qt.callLater(view.forceLayout)
         filteredModel.clear()
-        _root.paused = false
-        view.forceLayout()
     }
 
     function filterFor(term) {
-        _root.paused = true // some kind of mutex, otherwise new comming data will be in filter result due to race condition
         var filteredMessagesArray = messagesModel.getWithFilter(term)
         if (filteredMessagesArray.length <= 0) {
             notify.showError("No match for: " + term)
             return
         }
         filteredModel.clear()
-        console.log("Filtered messages for the term: ", term)
+        console.log("Filtered messages for the term:", term)
         for (var i = 0; i < filteredMessagesArray.length; ++i) {
             console.log(filteredMessagesArray[i])
             filteredModel.addMessage(filteredMessagesArray[i])
         }
-        view.model = null
         view.model = filteredModel
-        view.forceLayout()
     }
 
     // Shortcuts for manual scrolling
@@ -123,6 +101,9 @@ Item {
             minimumSize: 0.1
             width: 10
         }
+        Component.onCompleted: {
+            positionViewAtEnd()
+        }
 
         property bool autoScroll: true
 
@@ -139,19 +120,14 @@ Item {
                 view.model.clear()
                 return
             }
-            view.autoscroll()
+            if (view.autoScroll) {
+               Qt.callLater(view.positionViewAtEnd)
+            }
             newItemArrived()
         }
 
         onContentYChanged: {
             scrollDetected()
-        }
-
-        function autoscroll() {
-            var scrolledToBottom = view.contentY >= view.contentHeight - view.height - AppSettings.scrollThreshold
-            if (scrolledToBottom && view.autoScroll && view.count > 0) {
-                _root.scrollToBottom()
-            }
         }
 
         function getSelectedText() {
@@ -207,7 +183,7 @@ Item {
 
             TextEdit {
                 id: textEdit
-                width: view.width
+                width: view.width - 30
                 wrapMode: Text.Wrap
                 textFormat: TextEdit.RichText
                 selectByMouse: false
@@ -216,7 +192,7 @@ Item {
                 topPadding: 1
                 font.family: textFont.name
                 font.pixelSize: 16
-                text: model.display
+                text: modelData
 
                 Connections {
                     target: selectionArea
@@ -303,7 +279,9 @@ Item {
             }
             [selStartIndex, selStartPos] = indexAndPos(mouseX, mouseY)
             mouseDrag = true
-            view.forceActiveFocus()
+            console.log("clicked on text view")
+//            view.forceActiveFocus()
+            view.focus = true
         }
 
         onReleased: {

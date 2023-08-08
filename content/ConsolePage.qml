@@ -6,7 +6,6 @@ import hiomon 1.0
 
 Item {
     id: _root
-
     property string name: AppSettings.consoleName
     property int minItemWidth: 250
 
@@ -38,7 +37,7 @@ Item {
             color: SplitHandle.pressed ? AppSettings.grayColor : AppSettings.borderColor
             containmentMask: Item {
                 x: (handleDelegate.width - width) / 2
-                width: 35
+                width: 5
                 height: splitView.height
             }
         }
