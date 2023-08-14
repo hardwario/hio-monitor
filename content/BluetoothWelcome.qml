@@ -158,6 +158,7 @@ Item {
                     target: toolPanel
                     onScanClicked: {
                         if (!checkBt()) return
+                        notify.showInfo("Scanning...")
                         bluetooth.startScan()
                         devices.visible = true
                         devicesFocusScope.forceActiveFocus()

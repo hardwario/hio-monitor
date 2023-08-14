@@ -22,10 +22,12 @@ qt6_add_qml_module(content
         ConsoleWelcome.qml
         TextView.qml
         TextLabel.qml
-        Bluetooth.qml
+        BluetoothPage.qml
         AppNotification.qml
         AppSettings.qml
         LoadingIndicator.qml
         Search.qml
         BtDeviceInfo.qml
+        FlashPage.qml
+
 )

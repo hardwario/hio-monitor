@@ -15,6 +15,7 @@
 #include "messagemodel.h"
 #include "devicemodel.h"
 #include "filehandler.h"
+#include "flash.h"
 
 static void initBackend() {
     SearchComponent::registerQmlType();
@@ -39,9 +40,6 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
-//    MessageModel messageModel;
-//    engine.rootContext()->setContextProperty("messageModel", &messageModel);
-
     DeviceModel deviceModel;
     QSortFilterProxyModel proxyModel;
     proxyModel.setSourceModel(&deviceModel);
@@ -54,9 +52,11 @@ int main(int argc, char *argv[])
     // TODO: connect sendCommandSucceeded signals intead of passing the file as an asrgument
     const auto chester = new Chester(&engine, commandHistoryFile);
     const auto bluetooth = new Bluetooth(&engine, &proxyModel, commandHistoryFile);
+    const auto flash = new Flash(&engine);
 
     engine.rootContext()->setContextProperty("chester", chester);
     engine.rootContext()->setContextProperty("bluetooth", bluetooth);
+    engine.rootContext()->setContextProperty("flash", flash);
 
     const QUrl url(u"qrc:Main/main.qml"_qs);
     QObject::connect(

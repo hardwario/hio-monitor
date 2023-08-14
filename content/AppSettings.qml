@@ -11,6 +11,7 @@ QtObject {
     property string bluetoothWelcomeName: "WBluetooth"
     property string consoleName: "Condole"
     property string bluetoothName: "Bluetooth"
+    property string flashName: "Flash"
 
     // Icons
     property string attachIcon: "../resources/icons/attach.png"
@@ -36,9 +37,8 @@ QtObject {
     property string goodSignalIcon: "../resources/icons/goodsignal.png"
     property string bestSignalIcon: "../resources/icons/bestsignal.png"
     property string undoIcon: "../resources/icons/undo.png"
-    property string notificationIcon: "../resources/icons/notification.png"
-    property string downIcon: "../resources/icons/down.png"
-    property string downClickedIcon: "../resources/icons/downclicked.png"
+    property string folderIcon: "../resources/icons/folder.png"
+    property string startIcon: "../resources/icons/start.png"
 
     // Colors
     property string hoverColor: "#424242"

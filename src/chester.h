@@ -5,13 +5,14 @@
 #include <QThread>
 #include <QDebug>
 #include <QTimer>
-#include <QRandomGenerator>
 #include <JLinkARMDLL.h>
 #include "filehandler.h"
+#include "deviceInterface.h"
 
-class Chester : public QObject
+class Chester : public DeviceInterface
 {
     Q_OBJECT
+    Q_INTERFACES(DeviceInterface)
 
     static void jlinkLogHandler(const char *msg);
     static void jlinkErrHandler(const char *msg);
@@ -21,10 +22,9 @@ class Chester : public QObject
     QThread *logReaderThread = nullptr;
 public:
     explicit Chester(QObject *parent = nullptr, FileHandler *commandHistoryFile = nullptr);
-    Q_INVOKABLE QVariant getCommandHistory();
+    Q_INVOKABLE QVariant getCommandHistory() override;
 public slots:
-    void sendCommand(const QString &command);
-    
+    void sendCommand(const QString &command) override;
 signals:
     void attachRequested();
     void detachRequested();
@@ -34,9 +34,6 @@ signals:
     void detachFailed();
     void messageReadingFailed();
     void logReadingFailed();
-    void sendCommandSucceeded(const QString &command);
-    void sendCommandFailed(const QString &command);
-    void deviceMessageReceived(const QString &msg);
     void deviceLogReceived(const QString &msg);
 
 private slots:

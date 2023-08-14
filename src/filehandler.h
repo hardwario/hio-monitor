@@ -24,8 +24,6 @@ private:
     QFile _file;
     QString _fileName;
     QReadWriteLock _lock;
-
-
     QString createDir();
 };
 #endif // FILEHANDLER_H

@@ -35,6 +35,11 @@ set(PROJECT_SOURCES
     src/messagemodel.cpp
     src/devicemodel.h
     src/devicemodel.cpp
+    src/flash.h
+    src/flash.cpp
+    src/filedownloader.h
+    src/filedownloader.cpp
+    src/deviceInterface.h
 )
 
 if(WIN32)

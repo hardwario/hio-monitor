@@ -1,7 +1,7 @@
 #include "chester.h"
 
 Chester::Chester(QObject *parent, FileHandler *commandHistoryFile)
-    : QObject(parent)
+    : DeviceInterface(parent)
 {
     connect(this, &Chester::attachRequested,
             this, &Chester::attach);

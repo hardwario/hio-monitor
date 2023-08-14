@@ -1,7 +1,7 @@
 #include "bluetooth.h"
 
 Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, FileHandler *commandHistoryFile)
-    : QObject(parent), _model(model) {
+    : DeviceInterface(parent), _model(model) {
     qRegisterMetaType<DeviceInfo*>("DeviceInfo*");
 
     _workerThread = new QThread(this);
@@ -30,6 +30,10 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, FileHandler 
 Bluetooth::~Bluetooth() {
     _workerThread->quit();
     _workerThread->wait();
+}
+
+QVariant Bluetooth::getCommandHistory() {
+    return QVariant::fromValue(_commandHistoryFile->readAll());
 }
 
 void Bluetooth::startScan() {

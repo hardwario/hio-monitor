@@ -9,6 +9,18 @@ Rectangle {
     property var bluetoothButtons: [ disconnect, clear ]
     property var consoleWelcomeButtons: [ attach ]
     property var bluetoothWelcomeButtons: [ scan, connect ]
+    property var flashButtons: [ browse, flash ]
+
+    property var pageNameButtonMap: ({ });
+
+    Component.onCompleted: {
+        pageNameButtonMap[AppSettings.consoleWelcomeName] = consoleWelcomeButtons
+        pageNameButtonMap[AppSettings.bluetoothWelcomeName] = bluetoothWelcomeButtons
+        pageNameButtonMap[AppSettings.consoleName] = consoleButtons
+        pageNameButtonMap[AppSettings.bluetoothName] = bluetoothButtons
+        pageNameButtonMap[AppSettings.flashName] = flashButtons
+    }
+
     signal clearClicked()
     signal pauseClicked()
     signal connectClicked()
@@ -17,6 +29,9 @@ Rectangle {
     signal downClicked()
     signal undoClicked()
     signal autoscrollClicked()
+    signal browseFilesClicked()
+    signal flashClicked()
+    signal sendCommand()
 
     Rectangle {
         anchors.left: parent.left
@@ -163,40 +178,40 @@ Rectangle {
             }
         }
 
+        ToolButton {
+            id: browse
+            iconSource: AppSettings.folderIcon
+            textContent: "Browse"
+            borderHighlight: true
+            onButtonClicked: {
+                borderHighlight = false
+                flash.borderHighlight = true
+                browseFilesClicked()
+            }
+        }
+
+        ToolButton {
+            id: flash
+            iconSource: AppSettings.resumeIcon
+            textContent: "Run"
+            onButtonClicked: {
+                borderHighlight = false
+                flashClicked()
+                sendCommand()
+            }
+        }
+
         Connections {
             target: stackView
             onCurrentItemChanged: {
                 var currentPageName = stackView.currentItem.name
-                if (currentPageName === AppSettings.consoleWelcomeName) {
-                    _root.hideAll(consoleButtons)
-                    _root.hideAll(bluetoothWelcomeButtons)
-                    _root.hideAll(bluetoothButtons)
 
-                    _root.showAll(consoleWelcomeButtons)
-                    return
-                }
-                if (currentPageName === AppSettings.bluetoothWelcomeName) {
-                    _root.hideAll(consoleButtons)
-                    _root.hideAll(consoleWelcomeButtons)
-                    _root.hideAll(bluetoothButtons)
-                    _root.showAll(bluetoothWelcomeButtons)
-                    return
-                }
-                if (currentPageName === AppSettings.consoleName) {
-                    _root.hideAll(bluetoothWelcomeButtons)
-                    _root.hideAll(consoleWelcomeButtons)
-                    _root.hideAll(bluetoothButtons)
-
-                    _root.showAll(consoleButtons)
-                    return
-                }
-                if (currentPageName === AppSettings.bluetoothName) {
-                    _root.hideAll(bluetoothWelcomeButtons)
-                    _root.hideAll(consoleWelcomeButtons)
-                    _root.hideAll(consoleButtons)
-
-                    _root.showAll(bluetoothButtons)
-                    return
+                for (var pageName in _root.pageNameButtonMap) {
+                    var buttons = pageNameButtonMap[pageName]
+                    _root.hideAll(buttons)
+                    if (currentPageName === pageName) {
+                        _root.showAll(buttons)
+                    }
                 }
             }
         }

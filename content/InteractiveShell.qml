@@ -7,17 +7,27 @@ Rectangle {
     property alias textInput: textInput
     property int hborderWidth: _root.width + 10
     property var device: undefined
+    property string labelText: "Interactive shell"
+
+    function sendCommand(cmd) {
+        if (cmd === "") return
+        device.sendCommand(cmd)
+    }
 
     Connections {
         target: toolPanel
         onClearClicked: {
             textView.clear()
         }
+        onSendCommand: {
+            _root.sendCommand(textInput.text)
+            textInput.text = ""
+        }
     }
 
     TextLabel {
         id: placeholderText
-        text: "Interactive shell"
+        text: _root.labelText
         bindFocusTo: textInput.focus || textView.focused
     }
 
@@ -54,7 +64,7 @@ Rectangle {
         font.family: textFont.name
         font.pixelSize: 14
         property bool isHistoryVisible: false
-        property var history: chester.getCommandHistory()
+        property var history: device.getCommandHistory()
         height: 45
         anchors {
             topMargin: 10
@@ -99,7 +109,7 @@ Rectangle {
             target: device
             onSendCommandSucceeded: (command) => {
                 textView.appendWithColor("> " + command, AppSettings.greenColor)
-                  cmdHistory.append(command)
+                cmdHistory.append(command)
             }
             onSendCommandFailed: (command) => {
                 textView.appendWithColor("> " + command, AppSettings.redColor)
@@ -131,6 +141,7 @@ Rectangle {
                 event.accepted = true
             }
         }
+
         Keys.onReturnPressed: (event) => {
             if (cmdHistory.visible) {
                 text = cmdHistory.getSelected()
@@ -138,11 +149,8 @@ Rectangle {
                 event.accepted = true
                 return
             }
-            var command = text
-            if (command === "")
-                return
-            text = ""
-            device.sendCommand(command)
+            _root.sendCommand(textInput.text)
+            textInput.text = ""
             event.accepted = true
         }
 

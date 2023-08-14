@@ -13,8 +13,6 @@
         <file>resources/icons/pause.png</file>
         <file>resources/icons/select.png</file>
         <file>resources/icons/filter.png</file>
-        <file>resources/icons/send.png</file>
-        <file>resources/icons/wall.png</file>
         <file>resources/icons/signal.png</file>
         <file>resources/icons/hwNoTitle.png</file>
         <file>resources/icons/hwTitle.png</file>
@@ -29,7 +27,6 @@
         <file>resources/icons/notification.png</file>
         <file>resources/icons/hwMainIcon.svg</file>
         <file>resources/icons/hwMainIcon.png</file>
-        <file>resources/icons/down.png</file>
-        <file>resources/icons/downclicked.png</file>
+        <file>resources/icons/folder.png</file>
     </qresource>
 </RCC>
