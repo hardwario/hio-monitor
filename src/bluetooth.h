@@ -4,7 +4,7 @@
 #include <QSortFilterProxyModel>
 #include <QObject>
 #include <QThread>
-#include "filehandler.h"
+#include "historyfile.h"
 #include "deviceinfo.h"
 #include "bluetoothworker.h"
 #include "deviceInterface.h"
@@ -16,7 +16,7 @@ class Bluetooth : public DeviceInterface {
     Q_INTERFACES(DeviceInterface)
     Q_PROPERTY(bool isOn READ isBluetoothEnabled NOTIFY bluetoothChanged)
 public:
-    explicit Bluetooth(QObject *parent = nullptr, QSortFilterProxyModel *model = nullptr, FileHandler *commandHistoryFile = nullptr);
+    explicit Bluetooth(QObject *parent = nullptr, QSortFilterProxyModel *model = nullptr, HistoryFile *commandHistoryFile = nullptr);
     ~Bluetooth();
     Q_INVOKABLE QVariant getCommandHistory() override;
     Q_INVOKABLE void startScan();
@@ -34,6 +34,8 @@ signals:
     void stopScanRequested();
     void deviceDisconnected();
     void disconnectRequested();
+    void deviceScanCanceled();
+    void deviceScanFinished();
     void errorOnConnect(QString msg);
     void connectRequested(DeviceInfo* device);
     void sendCommandRequested(const QString &command);
@@ -43,14 +45,13 @@ public slots:
     void sendCommand(const QString &command) override;
 
 private slots:
-    bool isPaired(DeviceInfo* device);
     void checkMessageForCommandFailure(const QString &message);
 private:
     QSortFilterProxyModel *_model = nullptr;
     bool _bluetoothEnabled = false;
 
     QString _currentCommand;
-    FileHandler *_commandHistoryFile;
+    HistoryFile *_commandHistoryFile;
   
     // Ensure Bluetooth won't block UI
     QThread *_workerThread;

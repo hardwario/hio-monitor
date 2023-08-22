@@ -6,7 +6,7 @@
 #include <QDebug>
 #include <QTimer>
 #include <JLinkARMDLL.h>
-#include "filehandler.h"
+#include "historyfile.h"
 #include "deviceInterface.h"
 
 class Chester : public DeviceInterface
@@ -21,10 +21,11 @@ class Chester : public DeviceInterface
     QThread *messageReaderThread = nullptr;
     QThread *logReaderThread = nullptr;
 public:
-    explicit Chester(QObject *parent = nullptr, FileHandler *commandHistoryFile = nullptr);
+    explicit Chester(QObject *parent = nullptr, HistoryFile *commandHistoryFile = nullptr);
     Q_INVOKABLE QVariant getCommandHistory() override;
 public slots:
     void sendCommand(const QString &command) override;
+    bool isConnected();
 signals:
     void attachRequested();
     void detachRequested();
@@ -35,15 +36,13 @@ signals:
     void messageReadingFailed();
     void logReadingFailed();
     void deviceLogReceived(const QString &msg);
-
 private slots:
     void checkMessageForCommandFailure(const QString &message);
     void attach();
     void detach();
 private:
-    bool isConnected();
-    FileHandler *_logFile = nullptr;
-    FileHandler *_commandHistoryFile = nullptr;
+    HistoryFile *_logFile = nullptr;
+    HistoryFile *_commandHistoryFile = nullptr;
     QString _currentCommand;
 };
 

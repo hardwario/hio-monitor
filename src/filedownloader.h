@@ -7,6 +7,8 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QMetaEnum>
+#include <QDir>
+#include <QSaveFile>
 
 class FileDownloader : public QObject
 {
@@ -14,12 +16,14 @@ class FileDownloader : public QObject
 public:
     explicit FileDownloader(QUrl imageUrl, QObject *parent = 0);
     QByteArray downloadedData() const;
+    void save(const QString& fileName);
+    void remove(const QString& fileName);
 signals:
     void downloaded();
     void errorOccured(QString err);
 private slots:
     void fileDownloaded(QNetworkReply* pReply);
-    void checkError(QNetworkReply* pReply);
+    bool isErrorOccured(QNetworkReply* pReply);
 private:
     QNetworkAccessManager _webCtrl;
     QByteArray _downloadedData;

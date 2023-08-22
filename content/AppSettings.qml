@@ -3,6 +3,7 @@ import QtQuick 2.15
 
 QtObject {
 
+    property string hardwarioCatalogAppWebUrl: "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/"
     property string hardwarioWebUrl: "https://www.hardwario.com/"
     property int maxViewLines: 10000
 
@@ -39,6 +40,7 @@ QtObject {
     property string undoIcon: "../resources/icons/undo.png"
     property string folderIcon: "../resources/icons/folder.png"
     property string startIcon: "../resources/icons/start.png"
+    property string catalogIcon: "../resources/icons/catalog.png"
 
     // Colors
     property string hoverColor: "#424242"

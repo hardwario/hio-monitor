@@ -5,11 +5,11 @@ import QtQuick.Controls.Material 2.15
 Rectangle {
     id: _root
     color: Material.background
-    property var consoleButtons: [ detach, clear, pause, undo ]
-    property var bluetoothButtons: [ disconnect, clear ]
+    property var consoleButtons: [ detach, clearCli, pause, undo ]
+    property var bluetoothButtons: [ disconnect, clearBt ]
     property var consoleWelcomeButtons: [ attach ]
     property var bluetoothWelcomeButtons: [ scan, connect ]
-    property var flashButtons: [ browse, flash ]
+    property var flashButtons: [ browse, run, catalog, clearFlash ]
 
     property var pageNameButtonMap: ({ });
 
@@ -30,7 +30,7 @@ Rectangle {
     signal undoClicked()
     signal autoscrollClicked()
     signal browseFilesClicked()
-    signal flashClicked()
+    signal runClicked()
     signal sendCommand()
 
     Rectangle {
@@ -56,6 +56,12 @@ Rectangle {
         })
     }
 
+    function highlightOnlyThis(button, arr) {
+        arr.forEach((btn) => {
+            btn.borderHighlight = btn.textContent === button.textContent
+        })
+    }
+
     component ToolButton: SideButton {
         visible: true
         borderHighlight: false
@@ -77,9 +83,6 @@ Rectangle {
                 scanClicked()
                 if (bluetooth.isOn) {
                     scan.borderHighlight = false
-                    connect.borderHighlight = true
-                    connect.visibleOnInit = true
-                    connect.visible = true
                 }
             }
         }
@@ -88,17 +91,19 @@ Rectangle {
             id: connect
             textContent: "Connect"
             iconSource: AppSettings.selectIcon
-            visibleOnInit: false
+            visibleOnInit: true
             onButtonClicked: {
                 connectClicked()
                 console.log("Connect clicked")
             }
-
             Connections {
                 target: bluetooth
                 onDeviceConnected: {
                     console.log("Device connected")
                     connect.borderHighlight = false
+                }
+                onDeviceDiscovered: {
+                    highlightOnlyThis(connect, bluetoothWelcomeButtons)
                 }
             }
         }
@@ -111,14 +116,7 @@ Rectangle {
             onButtonClicked: {
                 console.log("Disconnect clicked")
                 disconnectClicked()
-            }
-
-            Connections {
-                target: bluetooth
-                onDeviceDisconnected: {
-                    console.log("Device disconnected")
-                    scan.borderHighlight = true
-                }
+                highlightOnlyThis(scan, bluetoothWelcomeButtons)
             }
         }
 
@@ -138,15 +136,6 @@ Rectangle {
             iconSource: AppSettings.detachIcon
             onButtonClicked: {
                 chester.detachRequested()
-            }
-        }
-
-        ToolButton {
-            id: clear
-            textContent: "Clear"
-            iconSource: AppSettings.clearIcon
-            onButtonClicked: {
-                clearClicked()
             }
         }
 
@@ -184,20 +173,68 @@ Rectangle {
             textContent: "Browse"
             borderHighlight: true
             onButtonClicked: {
-                borderHighlight = false
-                flash.borderHighlight = true
                 browseFilesClicked()
             }
         }
 
         ToolButton {
-            id: flash
+            id: run
+            iconHeight: 20
+            iconWidth: 20
             iconSource: AppSettings.resumeIcon
             textContent: "Run"
+            borderHighlight: flash.ready
             onButtonClicked: {
-                borderHighlight = false
-                flashClicked()
+                runClicked()
                 sendCommand()
+            }
+        }
+
+        ToolButton {
+            id: catalog
+            iconSource: AppSettings.catalogIcon
+            textContent: "Catalog"
+            onButtonClicked: {
+                Qt.openUrlExternally(AppSettings.hardwarioCatalogAppWebUrl)
+            }
+        }
+
+        ToolButton {
+            id: clearCli
+            textContent: "Clear"
+            iconSource: AppSettings.clearIcon
+            onButtonClicked: {
+                clearClicked()
+            }
+        }
+
+        ToolButton {
+            id: clearBt
+            textContent: "Clear"
+            iconSource: AppSettings.clearIcon
+            onButtonClicked: {
+                clearClicked()
+            }
+        }
+
+        ToolButton {
+            id: clearFlash
+            textContent: "Clear"
+            iconSource: AppSettings.clearIcon
+            onButtonClicked: {
+                clearClicked()
+            }
+        }
+
+        Connections {
+            target: flash
+            onReadyChanged: {
+                if (flash.ready) {
+                    highlightOnlyThis(run, flashButtons)
+                }
+            }
+            onFinished: {
+                highlightOnlyThis(browse, flashButtons)
             }
         }
 
@@ -205,13 +242,9 @@ Rectangle {
             target: stackView
             onCurrentItemChanged: {
                 var currentPageName = stackView.currentItem.name
-
                 for (var pageName in _root.pageNameButtonMap) {
                     var buttons = pageNameButtonMap[pageName]
-                    _root.hideAll(buttons)
-                    if (currentPageName === pageName) {
-                        _root.showAll(buttons)
-                    }
+                    currentPageName === pageName ? _root.showAll(buttons) : _root.hideAll(buttons)
                 }
             }
         }

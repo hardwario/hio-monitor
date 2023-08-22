@@ -5,6 +5,7 @@
 #include <QIcon>
 #include <QLockFile>
 #include <QDir>
+#include <QObject>
 
 #include "app_environment.h"
 #include "import_qml_components_plugins.h"
@@ -14,7 +15,7 @@
 #include "bluetooth.h"
 #include "messagemodel.h"
 #include "devicemodel.h"
-#include "filehandler.h"
+#include "historyfile.h"
 #include "flash.h"
 
 static void initBackend() {
@@ -48,10 +49,11 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("deviceModel", &deviceModel);
     engine.rootContext()->setContextProperty("sortDeviceModel", &proxyModel);
 
-    auto commandHistoryFile = new FileHandler("hardwario-monitor-command-history.txt");
+    auto commandHistoryFile = new HistoryFile("hardwario-monitor-command-history.txt");
     // TODO: connect sendCommandSucceeded signals intead of passing the file as an asrgument
     const auto chester = new Chester(&engine, commandHistoryFile);
     const auto bluetooth = new Bluetooth(&engine, &proxyModel, commandHistoryFile);
+    //flash->setRttStarted(true)
     const auto flash = new Flash(&engine);
 
     engine.rootContext()->setContextProperty("chester", chester);

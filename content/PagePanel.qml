@@ -134,9 +134,6 @@ Rectangle {
                 setCheckedButton(flashButton)
                 setCurrentPage(flashPage)
             }
-            Connections {
-                target: bluetooth
-            }
         }
     }
 

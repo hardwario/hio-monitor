@@ -53,7 +53,7 @@ QHash<int, QByteArray> DeviceModel::roleNames() const {
 void DeviceModel::addDevice(const QBluetoothDeviceInfo &info) {
     auto it = std::find_if(_devices.begin(), _devices.end(),
                            [&info](DeviceInfo *dev) {
-                               return info.address().toString() == dev->getAddress();
+                               return info.name() == dev->getName();
                            });
     if (it == _devices.end()) {
         beginInsertRows(QModelIndex(), rowCount(), rowCount());

@@ -12,17 +12,36 @@ FileDownloader::FileDownloader(QUrl imageUrl, QObject *parent) :
 void FileDownloader::fileDownloaded(QNetworkReply* pReply) {
     _downloadedData = pReply->readAll();
     pReply->deleteLater();
-    emit downloaded();
+    if (!isErrorOccured(pReply)) {
+        emit downloaded();
+    }
 }
 
-void FileDownloader::checkError(QNetworkReply* pReply) {
+bool FileDownloader::isErrorOccured(QNetworkReply* pReply) {
     auto err = pReply->error();
-    if (err != QNetworkReply::NetworkError::NoError) {
-        QString str = QString(QMetaEnum::fromType<QNetworkReply::NetworkError>().valueToKey(err));
+    bool isErr = err != QNetworkReply::NetworkError::NoError;
+    if (isErr) {
+        auto str = QString(QMetaEnum::fromType<QNetworkReply::NetworkError>().valueToKey(err));
         emit errorOccured(str);
     }
+    return isErr;
 }
 
 QByteArray FileDownloader::downloadedData() const {
     return _downloadedData;
+}
+
+void FileDownloader::save(const QString& fileName) {
+    QSaveFile file(fileName);
+    file.open(QIODevice::WriteOnly);
+    file.write(downloadedData());
+    // Calling commit() is mandatory, otherwise nothing will be written.
+    file.commit();
+    qDebug() << "Downloaded hex file saved to the " << QDir::currentPath() + "/" + fileName;
+}
+
+void FileDownloader::remove(const QString& fileName) {
+    QFile file(fileName);
+    file.remove();
+    qDebug() << "File " << fileName << "sucesfully deleted";
 }

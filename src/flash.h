@@ -4,25 +4,52 @@
 #include <QObject>
 #include <QDebug>
 #include "deviceInterface.h"
-#include "filehandler.h"
+#include <nrfjprogdll.h>
+#include "filedownloader.h"
+#include <QThread>
+#include <QRegularExpression>
 
 class Flash : public DeviceInterface {
     Q_OBJECT
     Q_INTERFACES(DeviceInterface)
+    QThread *flashThread = nullptr;
 public:
     explicit Flash(QObject *parent = nullptr);
+    Q_PROPERTY(bool ready READ isReady NOTIFY readyChanged)
+    Q_PROPERTY(bool running MEMBER _isRunning)
     Q_INVOKABLE QVariant getCommandHistory() override;
+signals:
+    void readyChanged();
+    void finished();
 public slots:
     void sendCommand(const QString &command) override;
-signals:
-    void errorOccured(const QString &err);
+    void setHexPath(const QString &path);
+    void defaultFlash();
+    bool isReady() {
+        return _isReady;
+    }
 private slots:
-    bool isPath(const QString &str);
     bool tryDownload(const QString &str);
-//    void run(const QString &command);
+    bool loadDll();
+    void freeDll();
+    bool checkErr(nrfjprogdll_err_t err, const QString& context);
+    void flash(QString filepath);
+    QString makeMessage(QString tag, QString msg);
+    void setReady(bool value) {
+        _isReady = value;
+        emit readyChanged();
+    }
 private:
-    QByteArray _programFile;
-    FileHandler *_commandHistoryFile = nullptr;
+    bool _isReady = false;
+    bool _isRunning = false;
+    bool _isFileDownloaded = false;
+    QString _hexPath;
+    FileDownloader *_downloader = nullptr;
+    QString _helpMessage =
+"Type the hex value and press Enter to start downloading the CHESTER Catalog Application.\n" \
+"Browse: select program file on your computer.\n" \
+"Run: start the flashing process.\n" \
+"Catalog: open catalog application list in browser.\n";
 };
 
 #endif // FLASH_H
