@@ -54,7 +54,7 @@ Item {
 
         Timer {
             id: timer
-            interval: 2500;
+            interval: 3500;
             running: false;
             repeat: false
             onTriggered: popup.close()

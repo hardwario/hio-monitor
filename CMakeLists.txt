@@ -23,8 +23,8 @@ set(PROJECT_SOURCES
     src/searchcomponent.cpp
     src/chester.h
     src/chester.cpp
-    src/filehandler.h
-    src/filehandler.cpp
+    src/historyfile.h
+    src/historyfile.cpp
     src/bluetooth.h
     src/bluetooth.cpp
     src/bluetoothworker.h
@@ -35,25 +35,28 @@ set(PROJECT_SOURCES
     src/messagemodel.cpp
     src/devicemodel.h
     src/devicemodel.cpp
+    src/flash.h
+    src/flash.cpp
+    src/filedownloader.h
+    src/filedownloader.cpp
+    src/deviceInterface.h
 )
 
 if(WIN32)
     qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/ci/windows/hiomon.rc")
-    if(CMAKE_SIZEOF_VOID_P MATCHES 8)
-        target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/windows)
-        target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE JLink_x64)
-    else()
-        target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/windows)
-        target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE JLinkARM)
-    endif()
+    target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/windows)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE JLink_x64)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE nrfjprog)
 elseif(APPLE)
     qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/icon.icns")
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/macos)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE jlinkarm)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE nrfjprogdll)
 elseif(UNIX)
     qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES})
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/linux)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE jlinkarm)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE nrfjprogdll)
 endif()
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
@@ -67,12 +70,16 @@ set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
     MACOSX_BUNDLE_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/icon.icns"
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/Info.plist"
     MACOSX_BUNDLE_GUI_IDENTIFIER com.hardwario.hiomon
-    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
     OUTPUT_NAME "HARDWARIO Monitor"
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/jlink
+)
+
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nrfjprog
 )
 
 qt_add_resources(${CMAKE_PROJECT_NAME} "configuration"

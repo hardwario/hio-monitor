@@ -5,13 +5,14 @@
 #include <QThread>
 #include <QDebug>
 #include <QTimer>
-#include <QRandomGenerator>
 #include <JLinkARMDLL.h>
-#include "filehandler.h"
+#include "historyfile.h"
+#include "deviceInterface.h"
 
-class Chester : public QObject
+class Chester : public DeviceInterface
 {
     Q_OBJECT
+    Q_INTERFACES(DeviceInterface)
 
     static void jlinkLogHandler(const char *msg);
     static void jlinkErrHandler(const char *msg);
@@ -20,11 +21,11 @@ class Chester : public QObject
     QThread *messageReaderThread = nullptr;
     QThread *logReaderThread = nullptr;
 public:
-    explicit Chester(QObject *parent = nullptr, FileHandler *commandHistoryFile = nullptr);
-    Q_INVOKABLE QVariant getCommandHistory();
+    explicit Chester(QObject *parent = nullptr, HistoryFile *commandHistoryFile = nullptr);
+    Q_INVOKABLE QVariant getCommandHistory() override;
 public slots:
-    void sendCommand(const QString &command);
-    
+    void sendCommand(const QString &command) override;
+    bool isConnected();
 signals:
     void attachRequested();
     void detachRequested();
@@ -34,19 +35,14 @@ signals:
     void detachFailed();
     void messageReadingFailed();
     void logReadingFailed();
-    void sendCommandSucceeded(const QString &command);
-    void sendCommandFailed(const QString &command);
-    void deviceMessageReceived(const QString &msg);
     void deviceLogReceived(const QString &msg);
-
 private slots:
     void checkMessageForCommandFailure(const QString &message);
     void attach();
     void detach();
 private:
-    bool isConnected();
-    FileHandler *_logFile = nullptr;
-    FileHandler *_commandHistoryFile = nullptr;
+    HistoryFile *_logFile = nullptr;
+    HistoryFile *_commandHistoryFile = nullptr;
     QString _currentCommand;
 };
 

@@ -7,17 +7,36 @@ Rectangle {
     property alias textInput: textInput
     property int hborderWidth: _root.width + 10
     property var device: undefined
+    property string labelText: "Interactive shell"
+    property bool enableHistory: true
+
+    function sendCommand(cmd) {
+        if (cmd === "") return
+        device.sendCommand(cmd)
+    }
+
+    function addMessage(msg) {
+        var lines = msg.split('\n');
+        for (var i = 0; i < lines.length; ++i) {
+            textView.append(lines[i]);
+        }
+        textView.scrollToBottom()
+    }
 
     Connections {
         target: toolPanel
         onClearClicked: {
             textView.clear()
         }
+        onSendCommand: {
+            _root.sendCommand(textInput.text)
+            textInput.text = ""
+        }
     }
 
     TextLabel {
         id: placeholderText
-        text: "Interactive shell"
+        text: _root.labelText
         bindFocusTo: textInput.focus || textView.focused
     }
 
@@ -35,11 +54,7 @@ Rectangle {
         Connections {
             target: device
             onDeviceMessageReceived: (msg) => {
-                var lines = msg.split('\n');
-                for (var i = 0; i < lines.length; ++i) {
-                    textView.append(lines[i]);
-                }
-                textView.scrollToBottom()
+                _root.addMessage(msg)
             }
         }
     }
@@ -47,6 +62,7 @@ Rectangle {
     CommandHistory {
         id: cmdHistory
         textInput: textInput
+        device: _root.device
     }
 
     TextField {
@@ -54,7 +70,7 @@ Rectangle {
         font.family: textFont.name
         font.pixelSize: 14
         property bool isHistoryVisible: false
-        property var history: chester.getCommandHistory()
+        property var history: cmdHistory.getHistory()
         height: 45
         anchors {
             topMargin: 10
@@ -99,7 +115,6 @@ Rectangle {
             target: device
             onSendCommandSucceeded: (command) => {
                 textView.appendWithColor("> " + command, AppSettings.greenColor)
-                  cmdHistory.append(command)
             }
             onSendCommandFailed: (command) => {
                 textView.appendWithColor("> " + command, AppSettings.redColor)
@@ -117,9 +132,11 @@ Rectangle {
                 event.accepted = true
             }
             if (event.key === Qt.Key_R && (event.modifiers & Qt.ControlModifier)) {
-                cmdHistory.visible = !cmdHistory.visible
-                cmdHistory.resetList()
-                cmdHistory.filter()
+                if (enableHistory) {
+                    cmdHistory.visible = !cmdHistory.visible
+                    cmdHistory.resetList()
+                    cmdHistory.filter()
+                }
                 event.accepted = true
             }
             if (event.key === Qt.Key_Up) {
@@ -131,6 +148,7 @@ Rectangle {
                 event.accepted = true
             }
         }
+
         Keys.onReturnPressed: (event) => {
             if (cmdHistory.visible) {
                 text = cmdHistory.getSelected()
@@ -138,11 +156,8 @@ Rectangle {
                 event.accepted = true
                 return
             }
-            var command = text
-            if (command === "")
-                return
-            text = ""
-            device.sendCommand(command)
+            _root.sendCommand(textInput.text)
+            textInput.text = ""
             event.accepted = true
         }
 

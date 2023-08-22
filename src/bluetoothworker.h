@@ -21,6 +21,8 @@ signals:
     void deviceConnected();
     void deviceDisconnected();
     void probablyUnpaired();
+    void deviceScanCanceled();
+    void deviceScanFinished();
 public slots:
     void startScan();
     void stopScan();

@@ -1,0 +1,8 @@
+# QtCreator
+*.autosave
+
+# QtCreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
+
+CMakeLists.txt.user

@@ -1,14 +1,14 @@
 #include "chester.h"
 
-Chester::Chester(QObject *parent, FileHandler *commandHistoryFile)
-    : QObject(parent)
+Chester::Chester(QObject *parent, HistoryFile *commandHistoryFile)
+    : DeviceInterface(parent)
 {
     connect(this, &Chester::attachRequested,
             this, &Chester::attach);
     connect(this, &Chester::detachRequested,
             this, &Chester::detach);
 
-    _logFile = new FileHandler("hardwario-monitor-console.log");
+    _logFile = new HistoryFile("hardwario-monitor-console.log");
     _commandHistoryFile = commandHistoryFile;
 }
 
@@ -26,7 +26,7 @@ void Chester::checkMessageForCommandFailure(const QString &message) {
         qDebug() << "Command failed";
         emit sendCommandFailed(_currentCommand);
     } else {
-        _commandHistoryFile->writeUnique(_currentCommand);
+        _commandHistoryFile->writeMoveOnMatch(_currentCommand);
         emit sendCommandSucceeded(_currentCommand);
     }
 }
@@ -223,7 +223,7 @@ void Chester::attach()
                     line.replace('\n', "");
 
                     if (line.length() > 0) {
-                        qDebug() << "Read device message:" << QString(line);
+//                        qDebug() << "Read device message:" << QString(line);
                         if (isFirstMessage) {
                             checkMessageForCommandFailure(QString(line));
                             isFirstMessage = false;

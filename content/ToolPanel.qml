@@ -5,10 +5,22 @@ import QtQuick.Controls.Material 2.15
 Rectangle {
     id: _root
     color: Material.background
-    property var consoleButtons: [ detach, clear, pause, undo ]
-    property var bluetoothButtons: [ disconnect, clear ]
+    property var consoleButtons: [ detach, clearCli, pause, undo ]
+    property var bluetoothButtons: [ disconnect, clearBt ]
     property var consoleWelcomeButtons: [ attach ]
     property var bluetoothWelcomeButtons: [ scan, connect ]
+    property var flashButtons: [ browse, run, catalog, clearFlash ]
+
+    property var pageNameButtonMap: ({ });
+
+    Component.onCompleted: {
+        pageNameButtonMap[AppSettings.consoleWelcomeName] = consoleWelcomeButtons
+        pageNameButtonMap[AppSettings.bluetoothWelcomeName] = bluetoothWelcomeButtons
+        pageNameButtonMap[AppSettings.consoleName] = consoleButtons
+        pageNameButtonMap[AppSettings.bluetoothName] = bluetoothButtons
+        pageNameButtonMap[AppSettings.flashName] = flashButtons
+    }
+
     signal clearClicked()
     signal pauseClicked()
     signal connectClicked()
@@ -17,6 +29,9 @@ Rectangle {
     signal downClicked()
     signal undoClicked()
     signal autoscrollClicked()
+    signal browseFilesClicked()
+    signal runClicked()
+    signal sendCommand()
 
     Rectangle {
         anchors.left: parent.left
@@ -41,6 +56,12 @@ Rectangle {
         })
     }
 
+    function highlightOnlyThis(button, arr) {
+        arr.forEach((btn) => {
+            btn.borderHighlight = btn.textContent === button.textContent
+        })
+    }
+
     component ToolButton: SideButton {
         visible: true
         borderHighlight: false
@@ -62,9 +83,6 @@ Rectangle {
                 scanClicked()
                 if (bluetooth.isOn) {
                     scan.borderHighlight = false
-                    connect.borderHighlight = true
-                    connect.visibleOnInit = true
-                    connect.visible = true
                 }
             }
         }
@@ -73,17 +91,19 @@ Rectangle {
             id: connect
             textContent: "Connect"
             iconSource: AppSettings.selectIcon
-            visibleOnInit: false
+            visibleOnInit: true
             onButtonClicked: {
                 connectClicked()
                 console.log("Connect clicked")
             }
-
             Connections {
                 target: bluetooth
                 onDeviceConnected: {
                     console.log("Device connected")
                     connect.borderHighlight = false
+                }
+                onDeviceDiscovered: {
+                    highlightOnlyThis(connect, bluetoothWelcomeButtons)
                 }
             }
         }
@@ -96,14 +116,7 @@ Rectangle {
             onButtonClicked: {
                 console.log("Disconnect clicked")
                 disconnectClicked()
-            }
-
-            Connections {
-                target: bluetooth
-                onDeviceDisconnected: {
-                    console.log("Device disconnected")
-                    scan.borderHighlight = true
-                }
+                highlightOnlyThis(scan, bluetoothWelcomeButtons)
             }
         }
 
@@ -123,15 +136,6 @@ Rectangle {
             iconSource: AppSettings.detachIcon
             onButtonClicked: {
                 chester.detachRequested()
-            }
-        }
-
-        ToolButton {
-            id: clear
-            textContent: "Clear"
-            iconSource: AppSettings.clearIcon
-            onButtonClicked: {
-                clearClicked()
             }
         }
 
@@ -163,40 +167,84 @@ Rectangle {
             }
         }
 
+        ToolButton {
+            id: browse
+            iconSource: AppSettings.folderIcon
+            textContent: "Browse"
+            borderHighlight: true
+            onButtonClicked: {
+                browseFilesClicked()
+            }
+        }
+
+        ToolButton {
+            id: run
+            iconHeight: 20
+            iconWidth: 20
+            iconSource: AppSettings.resumeIcon
+            textContent: "Run"
+            borderHighlight: flash.ready
+            onButtonClicked: {
+                runClicked()
+                sendCommand()
+            }
+        }
+
+        ToolButton {
+            id: catalog
+            iconSource: AppSettings.catalogIcon
+            textContent: "Catalog"
+            onButtonClicked: {
+                Qt.openUrlExternally(AppSettings.hardwarioCatalogAppWebUrl)
+            }
+        }
+
+        ToolButton {
+            id: clearCli
+            textContent: "Clear"
+            iconSource: AppSettings.clearIcon
+            onButtonClicked: {
+                clearClicked()
+            }
+        }
+
+        ToolButton {
+            id: clearBt
+            textContent: "Clear"
+            iconSource: AppSettings.clearIcon
+            onButtonClicked: {
+                clearClicked()
+            }
+        }
+
+        ToolButton {
+            id: clearFlash
+            textContent: "Clear"
+            iconSource: AppSettings.clearIcon
+            onButtonClicked: {
+                clearClicked()
+            }
+        }
+
+        Connections {
+            target: flash
+            onReadyChanged: {
+                if (flash.ready) {
+                    highlightOnlyThis(run, flashButtons)
+                }
+            }
+            onFinished: {
+                highlightOnlyThis(browse, flashButtons)
+            }
+        }
+
         Connections {
             target: stackView
             onCurrentItemChanged: {
                 var currentPageName = stackView.currentItem.name
-                if (currentPageName === AppSettings.consoleWelcomeName) {
-                    _root.hideAll(consoleButtons)
-                    _root.hideAll(bluetoothWelcomeButtons)
-                    _root.hideAll(bluetoothButtons)
-
-                    _root.showAll(consoleWelcomeButtons)
-                    return
-                }
-                if (currentPageName === AppSettings.bluetoothWelcomeName) {
-                    _root.hideAll(consoleButtons)
-                    _root.hideAll(consoleWelcomeButtons)
-                    _root.hideAll(bluetoothButtons)
-                    _root.showAll(bluetoothWelcomeButtons)
-                    return
-                }
-                if (currentPageName === AppSettings.consoleName) {
-                    _root.hideAll(bluetoothWelcomeButtons)
-                    _root.hideAll(consoleWelcomeButtons)
-                    _root.hideAll(bluetoothButtons)
-
-                    _root.showAll(consoleButtons)
-                    return
-                }
-                if (currentPageName === AppSettings.bluetoothName) {
-                    _root.hideAll(bluetoothWelcomeButtons)
-                    _root.hideAll(consoleWelcomeButtons)
-                    _root.hideAll(consoleButtons)
-
-                    _root.showAll(bluetoothButtons)
-                    return
+                for (var pageName in _root.pageNameButtonMap) {
+                    var buttons = pageNameButtonMap[pageName]
+                    currentPageName === pageName ? _root.showAll(buttons) : _root.hideAll(buttons)
                 }
             }
         }

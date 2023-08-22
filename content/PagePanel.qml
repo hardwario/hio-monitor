@@ -9,7 +9,8 @@ Rectangle {
     property var buttons: []
 
     Component.onCompleted: {
-        buttons = [consoleButton, bluetoothButton]
+        buttons = [consoleButton, bluetoothButton, flashButton]
+        stackView.push(flashPage, StackView.Immediate)
         stackView.push(bluetoothWelcomePage, StackView.Immediate)
         stackView.push(consoleWelcomePage, StackView.Immediate)
     }
@@ -36,8 +37,13 @@ Rectangle {
         visible: false
     }
 
-    Bluetooth {
+    BluetoothPage {
         id: bluetoothPage
+        visible: false
+    }
+
+    FlashPage {
+        id: flashPage
         visible: false
     }
 
@@ -109,21 +115,24 @@ Rectangle {
                 target: bluetooth
                 onDeviceConnected: {
                     bluetoothButton.showWelcomePage = false
-                    // can't bind checked property to current stackview's item :(
-                    if (consoleButton.checked) {
-                        consoleButton.checked = false
-                        bluetoothButton.checked = true
-                    }
+                    setCheckedButton(bluetoothButton)
                     setCurrentPage(bluetoothPage)
                 }
                 onDeviceDisconnected: {
                     bluetoothButton.showWelcomePage = true
-                    if (consoleButton.checked) {
-                        consoleButton.checked = false
-                        bluetoothButton.checked = true
-                    }
+                    setCheckedButton(bluetoothButton)
                     setCurrentPage(bluetoothWelcomePage)
                 }
+            }
+        }
+
+        PageButton {
+            id: flashButton
+            textContent: "Flash"
+            iconSource: AppSettings.flashIcon
+            onButtonClicked: {
+                setCheckedButton(flashButton)
+                setCurrentPage(flashPage)
             }
         }
     }

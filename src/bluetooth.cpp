@@ -1,7 +1,7 @@
 #include "bluetooth.h"
 
-Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, FileHandler *commandHistoryFile)
-    : QObject(parent), _model(model) {
+Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, HistoryFile *commandHistoryFile)
+    : DeviceInterface(parent), _model(model) {
     qRegisterMetaType<DeviceInfo*>("DeviceInfo*");
 
     _workerThread = new QThread(this);
@@ -20,6 +20,8 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, FileHandler 
     connect(_worker, &BluetoothWorker::errorOccured, this, &Bluetooth::errorOnConnect);
     connect(_worker, &BluetoothWorker::deviceConnected, this, &Bluetooth::deviceConnected);
     connect(_worker, &BluetoothWorker::deviceDisconnected, this, &Bluetooth::deviceDisconnected);
+    connect(_worker, &BluetoothWorker::deviceScanCanceled, this, &Bluetooth::deviceScanCanceled);
+    connect(_worker, &BluetoothWorker::deviceScanFinished, this, &Bluetooth::deviceScanFinished);
     // TODO: find a way to check pairing status on windows
     connect(_worker, &BluetoothWorker::probablyUnpaired, this, &Bluetooth::deviceIsUnpaired);
 
@@ -30,6 +32,10 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, FileHandler 
 Bluetooth::~Bluetooth() {
     _workerThread->quit();
     _workerThread->wait();
+}
+
+QVariant Bluetooth::getCommandHistory() {
+    return QVariant::fromValue(_commandHistoryFile->readAll());
 }
 
 void Bluetooth::startScan() {
@@ -49,31 +55,9 @@ void Bluetooth::disconnect() {
     emit disconnectRequested();
 }
 
-bool Bluetooth::isPaired(DeviceInfo* device) {
-QBluetoothLocalDevice localDevice;
-#if defined Q_OS_LINUX || defined Q_OS_DARWIN
-    auto deviceAddr = QBluetoothAddress(device->getAddress());
-    if (localDevice.pairingStatus(deviceAddr) == QBluetoothLocalDevice::Unpaired) {
-        localDevice.requestPairing(deviceAddr, QBluetoothLocalDevice::AuthorizedPaired);
-    }
-
-    if (localDevice.pairingStatus(deviceAddr) == QBluetoothLocalDevice::Unpaired) {
-        qDebug() << "Device is in unpaired state";
-        emit deviceIsUnpaired();
-        return false;
-    }
-    return true;
-#else
-    // for some reason pairingStatus on Windows always returns Unpaired
-    localDevice.pairingStatus(QBluetoothAddress(device->getAddress()));
-    return true;
-#endif
-}
-
 void Bluetooth::connectToByIndex(int index) {
     DeviceInfo* device = qvariant_cast<DeviceInfo*>(_model->data(_model->index(index, 0), Qt::DisplayRole));
     if(device) {
-        if(!isPaired(device)) return;
         emit connectRequested(device);
     } else {
         qDebug() << "cannot retrieve device from model";
@@ -88,7 +72,7 @@ void Bluetooth::checkMessageForCommandFailure(const QString &message) {
     } else {
         qDebug() << "Bluetooth send command succeeded: " << _currentCommand;
         emit sendCommandSucceeded(_currentCommand);
-        _commandHistoryFile->writeUnique(_currentCommand);
+        _commandHistoryFile->writeMoveOnMatch(_currentCommand);
     }
     emit deviceMessageReceived(message);
 }

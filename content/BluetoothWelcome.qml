@@ -87,7 +87,14 @@ Item {
         }
         onDeviceDiscovered: (device) => {
             deviceModel.addDevice(device)
-//            console.log("Rssi from model ", devices.currentItem.model.rssi)
+        }
+        onDeviceScanFinished: {
+            progress.visible = false
+            notify.showInfo("Device scanning finished")
+        }
+        onDeviceScanCanceled: {
+            progress.visible = false
+            notify.showWrn("Device scanning canceled")
         }
     }
 
@@ -158,6 +165,8 @@ Item {
                     target: toolPanel
                     onScanClicked: {
                         if (!checkBt()) return
+                        notify.showInfo("Scanning...")
+                        progress.visible = true
                         bluetooth.startScan()
                         devices.visible = true
                         devicesFocusScope.forceActiveFocus()
@@ -177,5 +186,13 @@ Item {
                 delegate: BtDeviceInfo {}
             }
         }
+    }
+
+    ProgressBar {
+        id: progress
+        from: 0.0
+        visible: false
+        indeterminate: true
+        width: _root.width
     }
 }

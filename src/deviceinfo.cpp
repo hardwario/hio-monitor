@@ -37,7 +37,7 @@ void DeviceInfo::setWriteMode(QLowEnergyService::WriteMode mode) {
 QString DeviceInfo::getAddress() const {
 #ifdef Q_OS_DARWIN
     // workaround for Core Bluetooth:
-    return _device.deviceUuid().toString();
+    return "";
 #else
     return _device.address().toString();
 #endif

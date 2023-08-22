@@ -62,7 +62,7 @@ Item {
             id: hwIcon
             source: AppSettings.hwNoTitleIcon
             smooth: true
-            height: infoColumn.height
+            height: 2*device.height
             width: height - 6
             anchors {
                 right: infoColumn.left
@@ -87,6 +87,7 @@ Item {
             Text {
                 id: deviceAddress
                 text: deviceItem.model.address
+                visible: text !== ""
                 color: Qt.darker(AppSettings.whiteColor, 1.3)
                 font.family: textFont.name
                 anchors.horizontalCenter: parent.horizontalCenter

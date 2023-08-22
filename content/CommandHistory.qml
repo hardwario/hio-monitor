@@ -6,6 +6,7 @@ Item {
     visible: false
     required property TextField textInput
     property var history: []
+    property var device: undefined
     property bool lastShowed: false
 
     Component.onCompleted: {
@@ -13,7 +14,11 @@ Item {
     }
 
     function updateHistory() {
-        history = chester.getCommandHistory()
+        history = device.getCommandHistory()
+    }
+
+    function getHistory() {
+        return history
     }
 
     function up() {
@@ -37,14 +42,6 @@ Item {
         }
     }
 
-    function append(command) {
-        if (history.indexOf(command) !== -1) {
-            history.push(command)
-        }
-        resetList()
-    }
-
-
     function setLast() {
         listView.currentIndex = listView.model.length - 1
     }
@@ -62,6 +59,7 @@ Item {
         updateHistory()
         listView.model = history
         setLast()
+        listView.forceLayout()
     }
 
     function filter() {
@@ -93,6 +91,7 @@ Item {
             snapMode: ListView.SnapToItem
             clip: true
             Component.onCompleted: {
+                if (!history) return
                 listView.model = textInput.history
                 listView.currentIndex = listView.model.length - 1
             }

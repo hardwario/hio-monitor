@@ -7,6 +7,16 @@ BluetoothWorker::BluetoothWorker(QObject *parent) : QObject(parent) {
 
     connect(_deviceDiscoveryAgent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered,
             this, &BluetoothWorker::handleDeviceDiscovered);
+    connect(_deviceDiscoveryAgent, &QBluetoothDeviceDiscoveryAgent::errorOccurred,
+            [this](QBluetoothDeviceDiscoveryAgent::Error error) {
+                auto errorStr = _control->errorString();
+                qDebug() << "Device discovery agent error: " << error;
+                emit errorOccured("Cannot connect to remote device due to: " + errorStr);
+            });
+    connect(_deviceDiscoveryAgent, &QBluetoothDeviceDiscoveryAgent::finished,
+            this, &BluetoothWorker::deviceScanFinished);
+    connect(_deviceDiscoveryAgent, &QBluetoothDeviceDiscoveryAgent::canceled,
+            this, &BluetoothWorker::deviceScanCanceled);
 
     _primaryUUID = QBluetoothUuid::fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
     _rxUUID = QBluetoothUuid::fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
