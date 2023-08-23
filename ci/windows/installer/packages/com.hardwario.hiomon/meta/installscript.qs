@@ -110,5 +110,3 @@ handleLinux = function()
         console.log("Error moving libraries");
     }
 }
-
-
