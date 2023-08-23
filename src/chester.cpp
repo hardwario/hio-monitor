@@ -8,8 +8,10 @@ Chester::Chester(QObject *parent, HistoryFile *commandHistoryFile)
     connect(this, &Chester::detachRequested,
             this, &Chester::detach);
 
-    _logFile = new HistoryFile("hardwario-monitor-console.log");
+    _logFile = new HistoryFile(this, "hardwario-monitor-console.log");
     _commandHistoryFile = commandHistoryFile;
+    connect(_commandHistoryFile, &HistoryFile::historyChanged,
+            this, &Chester::historyChanged);
 }
 
 QVariant Chester::getCommandHistory() {

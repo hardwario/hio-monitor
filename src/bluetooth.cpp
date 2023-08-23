@@ -27,6 +27,8 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, HistoryFile 
 
     _workerThread->start();
     _commandHistoryFile = commandHistoryFile;
+    connect(_commandHistoryFile, &HistoryFile::historyChanged,
+            this, &Bluetooth::historyChanged);
 }
 
 Bluetooth::~Bluetooth() {

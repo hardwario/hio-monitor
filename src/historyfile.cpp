@@ -1,6 +1,7 @@
 #include "historyfile.h"
 
-HistoryFile::HistoryFile(const QString& fileName) {
+HistoryFile::HistoryFile(QObject *parent, const QString& fileName) : QObject(parent)
+{
     _fileName = fileName;
     _file.setFileName(createDir());
 }
@@ -24,14 +25,16 @@ void HistoryFile::write(QString message) {
     stream << message << "\n";
     _file.close();
     _lock.unlock();
+    emit historyChanged();
 }
 
 void HistoryFile::writeMoveOnMatch(QString message) {
     message = message.trimmed();
     if (message.isEmpty()) return;
-    qDebug() << "Write unique: " << message;
+    qDebug() << "Write with move: " << message;
     auto messages = readAll();
     auto ind = messages.lastIndexOf(message);
+    qDebug() << ind;
     if (ind != -1) {
         messages.remove(ind);
         messages.append(message);
@@ -49,6 +52,7 @@ void HistoryFile::writeMoveOnMatch(QString message) {
     } else {
         write(message);
     }
+    emit historyChanged();
 }
 
 QVector<QString> HistoryFile::readAll() {

@@ -16,9 +16,9 @@ Rectangle {
     }
 
     function addMessage(msg) {
-        var lines = msg.split('\n');
+        var lines = msg.split('\n')
         for (var i = 0; i < lines.length; ++i) {
-            textView.append(lines[i]);
+            textView.append(lines[i])
         }
         textView.scrollToBottom()
     }
@@ -70,7 +70,6 @@ Rectangle {
         font.family: textFont.name
         font.pixelSize: 14
         property bool isHistoryVisible: false
-        property var history: cmdHistory.getHistory()
         height: 45
         anchors {
             topMargin: 10
@@ -153,6 +152,7 @@ Rectangle {
             if (cmdHistory.visible) {
                 text = cmdHistory.getSelected()
                 cmdHistory.visible = false
+                cmdHistory.resetList()
                 event.accepted = true
                 return
             }
@@ -162,6 +162,8 @@ Rectangle {
         }
 
         onTextChanged: {
+            if (textInput.text === "")
+                cmdHistory.setLast()
             cmdHistory.filter()
         }
     }

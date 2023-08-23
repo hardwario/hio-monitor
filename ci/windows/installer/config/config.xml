@@ -7,7 +7,7 @@
     <StartMenuDir>HARDWARIO Monitor</StartMenuDir>
     <TargetDir>@ApplicationsDir@/HARDWARIO Monitor</TargetDir>
     <WizardStyle>Modern</WizardStyle>
-    <InstallerApplicationIcon>iconInstaller</InstallerApplicationIcon>
+    <InstallerApplicationIcon>icons</InstallerApplicationIcon>
     <ProductUrl>https://www.hardwario.com</ProductUrl>
     <Logo>logo.svg</Logo>
     <WizardShowPageList>false</WizardShowPageList>

@@ -2,6 +2,7 @@
 #define HISTORYFILE_H
 
 #include <QFile>
+#include <QObject>
 #include <QTextStream>
 #include <QDateTime>
 #include <QCoreApplication>
@@ -9,10 +10,11 @@
 #include <QStandardPaths>
 #include <QReadWriteLock>
 
-class HistoryFile
+class HistoryFile : public QObject
 {
+    Q_OBJECT
 public:
-    HistoryFile(const QString& fileName);
+    HistoryFile(QObject *parent = nullptr, const QString& fileName = "");
     ~HistoryFile() {
         if (_file.isOpen())
             _file.close();
@@ -20,6 +22,8 @@ public:
     void write(QString message);
     void writeMoveOnMatch(QString message);
     QVector<QString> readAll();
+signals:
+    void historyChanged();
 private:
     QFile _file;
     QString _fileName;

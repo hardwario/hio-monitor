@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 
     app.setOrganizationName("HARDWARIO");
     app.setOrganizationDomain("IoT");
-    app.setWindowIcon(QIcon(":/resources/icons/hwMainIcon.svg"));
+    app.setWindowIcon(QIcon(":/resources/icons.ico"));
     initBackend();
 
     QQmlApplicationEngine engine;
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("deviceModel", &deviceModel);
     engine.rootContext()->setContextProperty("sortDeviceModel", &proxyModel);
 
-    auto commandHistoryFile = new HistoryFile("hardwario-monitor-command-history.txt");
+    auto commandHistoryFile = new HistoryFile(&engine, "hardwario-monitor-command-history.txt");
     // TODO: connect sendCommandSucceeded signals intead of passing the file as an asrgument
     const auto chester = new Chester(&engine, commandHistoryFile);
     const auto bluetooth = new Bluetooth(&engine, &proxyModel, commandHistoryFile);

@@ -24,9 +24,9 @@
         <file>resources/fonts/Inter-Regular.ttf</file>
         <file>resources/fonts/UbuntuMono-Regular.ttf</file>
         <file>resources/icons/undo.png</file>
-        <file>resources/icons/hwMainIcon.svg</file>
-        <file>resources/icons/hwMainIcon.png</file>
         <file>resources/icons/folder.png</file>
         <file>resources/icons/catalog.png</file>
+        <file>resources/icons.ico</file>
+        <file>resources/icons.icns</file>
     </qresource>
 </RCC>

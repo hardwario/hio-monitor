@@ -43,13 +43,17 @@ set(PROJECT_SOURCES
 )
 
 if(WIN32)
-    qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/ci/windows/hiomon.rc")
+    set(app_icon_resource_windows "${CMAKE_CURRENT_SOURCE_DIR}/ci/windows/hiomon.rc")
+    qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES} ${app_icon_resource_windows})
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/windows)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE JLink_x64)
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/nrfjprog/windows)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE nrfjprog)
 elseif(APPLE)
-    qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/icon.icns")
+    set(app_icon_macos "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons.icns")
+    set_source_files_properties(${app_icon_macos} PROPERTIES
+              MACOSX_PACKAGE_LOCATION "Resources")
+    qt_add_executable(${CMAKE_PROJECT_NAME} MACOSX_BUNDLE ${PROJECT_SOURCES} ${app_icon_macos})
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/macos)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE jlinkarm)
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/nrfjprog/macos)
@@ -70,7 +74,7 @@ set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
     AUTORCC TRUE
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE
-    MACOSX_BUNDLE_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/icon.icns"
+    MACOSX_BUNDLE_ICON_FILE icon.icns
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ci/macos/Info.plist"
     MACOSX_BUNDLE_GUI_IDENTIFIER com.hardwario.hiomon
     INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"

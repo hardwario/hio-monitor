@@ -5,16 +5,16 @@ import hiomon 1.0
 Item {
     visible: false
     required property TextField textInput
-    property var history: []
-    property var device: undefined
-    property bool lastShowed: false
+    required property var device
+    property var history: device.history
+    property int index: 0
 
-    Component.onCompleted: {
-        updateHistory()
+    onVisibleChanged: {
+        resetList()
     }
 
-    function updateHistory() {
-        history = device.getCommandHistory()
+    onHistoryChanged: {
+        resetList()
     }
 
     function getHistory() {
@@ -22,41 +22,38 @@ Item {
     }
 
     function up() {
-        if (listView.model.length - 1 === listView.currentIndex && !visible && !lastShowed) {
-            textInput.text = getSelected()
-            lastShowed = true
-            return
-        }
-        listView.decrementCurrentIndex()
-        if (!visible) {
-            textInput.text = getSelected()
-            lastShowed = false
-        }
+        dec()
+        textInput.text = getSelected()
+    }
+
+    function inc() {
+        if (index < listView.model.length)
+            index++
+    }
+
+    function dec() {
+        if (index > 0)
+            index--
     }
 
     function down() {
-        listView.incrementCurrentIndex()
-        if (!visible) {
-            textInput.text = lastShowed ? "" : getSelected()
-            lastShowed = listView.model.length - 1 === listView.currentIndex
-        }
+        inc()
+        textInput.text = getSelected()
     }
 
     function setLast() {
+        index = listView.model.length
         listView.currentIndex = listView.model.length - 1
     }
 
-    function getLast() {
-        setLast()
-        return listView.model[listView.currentIndex]
-    }
-
     function getSelected() {
-        return listView.model[listView.currentIndex]
+        if (index === listView.model.length)
+            return ""
+        return listView.model[index]
     }
 
     function resetList() {
-        updateHistory()
+        if(!history) return
         listView.model = history
         setLast()
         listView.forceLayout()
@@ -88,12 +85,12 @@ Item {
             id: listView
             implicitHeight: parent.height
             implicitWidth: parent.width
+            model: history
             snapMode: ListView.SnapToItem
             clip: true
+
             Component.onCompleted: {
-                if (!history) return
-                listView.model = textInput.history
-                listView.currentIndex = listView.model.length - 1
+                resetList()
             }
 
             delegate: Item {
