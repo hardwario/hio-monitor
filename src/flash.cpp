@@ -137,6 +137,7 @@ bool Flash::checkErr(nrfjprogdll_err_t err, const QString& context) {
             emit deviceMessageReceived(makeMessage("err", context + " unknown Error"));
             break;
         }
+        emit errorOccured();
         freeDll();
     }
     return isSuccess;

@@ -1,4 +1,5 @@
 import QtQuick 2.12
+import Qt.labs.folderlistmodel
 import QtQuick.Dialogs
 import QtCore
 import QtQuick.Controls.Material 2.15
@@ -20,7 +21,7 @@ Item {
 
     FileDialog {
         id: fileDialog
-        nameFilters: [ "All files (*.hex)" ]
+        nameFilters: [ "All files (*.hex)", "All files (*)" ]
         currentFolder: StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]
         onAccepted: {
             console.log("Selected file:", selectedFile)
@@ -158,6 +159,11 @@ Item {
         onFinished: {
             progress.value = 0.0
             progress.visible = false
+        }
+        onErrorOccured: {
+            progress.value = 0.0
+            progress.visible = false
+            notify.showErr("Flash process failed")
         }
     }
 }

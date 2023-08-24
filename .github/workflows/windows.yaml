@@ -13,73 +13,71 @@ env:
 jobs:
   windows-build:
     runs-on: windows-latest
-
     steps:
-        
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
-    
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v3
-      with:
-        aqtversion: '==3.1.*'
-        version: ${{ env.QT_VERSION }}
-        host: 'windows'
-        target: 'desktop'
-        arch: 'win64_msvc2019_64'
-        dir: '${{ github.workspace }}'
-        modules: ${{ env.QT_MODULES }}
-        tools: 'tools_cmake tools_ifw'
-    
-    - name: Configure MSVC
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-        arch: x64
-        spectre: true
-  
-    - name: Make build dir
-      run: mkdir build
-    
-    - name: Configure CMake
-      run: |
-        cmake -T host=x64 -G "Visual Studio 17 2022" -A x64 -S . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-    
-    - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j20
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
 
-    - name: Make release dir
-      run: mkdir release
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          aqtversion: "==3.1.*"
+          version: ${{ env.QT_VERSION }}
+          host: "windows"
+          target: "desktop"
+          arch: "win64_msvc2019_64"
+          dir: "${{ github.workspace }}"
+          modules: ${{ env.QT_MODULES }}
+          tools: "tools_cmake tools_ifw"
 
-    - name: Move artifact to release dir
-      run: mv '.\build\${{env.BUILD_TYPE}}\HARDWARIO Monitor.exe' .\release\
-    
-    - name: Import shared libraries
-      run: |
-        ${{ github.workspace }}/Qt/${{ env.QT_VERSION }}/${{ env.COMPILER_NAME }}/bin/windeployqt.exe --qmldir .'.\release\HARDWARIO Monitor.exe' --release
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          spectre: true
 
-    - name: Remove build dir
-      run: Remove-Item .\build -Recurse -Force -Confirm:$false
+      - name: Make build dir
+        run: mkdir build
 
-    - name: Archive
-      run: > 
-        "C:\Program Files\7-Zip\7z.exe" a -t7z -mx=9 
-        ./ci/windows/installer/packages/com.hardwario.hiomon/data/data.7z 
-        ./release/*
-      shell: cmd
-    
-    - name: Update version in package info
-      run: sed -i "s/1.0.0/${{ github.ref_name }}/g" .\ci\windows\installer\packages\com.hardwario.hiomon\meta\package.xml
+      - name: Configure CMake
+        run: |
+          cmake -T host=x64 -G "Visual Studio 17 2022" -A x64 -S . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
-    - name: Make Installer
-      run: .\Qt\Tools\QtInstallerFramework\4.6\bin\binarycreator.exe -c .\ci\windows\installer\config\config.xml -p .\ci\windows\installer\packages\ hio-monitor-${{ github.ref_name }}-windows.exe
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j20
 
-    # Sign installer with a third-party action
+      - name: Make release dir
+        run: mkdir release
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: hio-monitor-${{ github.ref_name }}-windows.exe
-      env:
-        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+      - name: Move artifact to release dir
+        run: mv '.\build\${{env.BUILD_TYPE}}\HARDWARIO Monitor.exe' .\release\
+
+      - name: Import shared libraries
+        run: |
+          ${{ github.workspace }}/Qt/${{ env.QT_VERSION }}/${{ env.COMPILER_NAME }}/bin/windeployqt.exe --qmldir .'.\release\HARDWARIO Monitor.exe' --release
+
+      - name: Remove build dir
+        run: Remove-Item .\build -Recurse -Force -Confirm:$false
+
+      - name: Archive
+        run: >
+          "C:\Program Files\7-Zip\7z.exe" a -t7z -mx=9 
+          ./ci/windows/installer/packages/com.hardwario.hiomon/data/data.7z 
+          ./release/*
+        shell: cmd
+
+      - name: Update version in package info
+        run: sed -i "s/1.0.0/${{ github.ref_name }}/g" .\ci\windows\installer\packages\com.hardwario.hiomon\meta\package.xml
+
+      - name: Make Installer
+        run: .\Qt\Tools\QtInstallerFramework\4.6\bin\binarycreator.exe -c .\ci\windows\installer\config\config.xml -p .\ci\windows\installer\packages\ hio-monitor-${{ github.ref_name }}-windows.exe
+
+      # Sign installer with a third-party action
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: hio-monitor-${{ github.ref_name }}-windows.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}

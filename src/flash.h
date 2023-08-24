@@ -21,6 +21,7 @@ public:
 signals:
     void readyChanged();
     void finished();
+    void errorOccured();
 public slots:
     void sendCommand(const QString &command) override;
     void setHexPath(const QString &path);

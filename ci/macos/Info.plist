@@ -5,7 +5,7 @@
 	<key>CFBundleExecutable</key>
 	<string>HARDWARIO Monitor</string>
 	<key>CFBundleIconFile</key>
-	<string>icon.icns</string>
+	<string>icons.icns</string>
 	<key>CFBundleGetInfoString</key>
 	<string>Created by Qt/QMake</string>
 	<key>CFBundleIdentifier</key>

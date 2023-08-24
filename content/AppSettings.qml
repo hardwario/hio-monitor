@@ -3,9 +3,9 @@ import QtQuick 2.15
 
 QtObject {
 
-    property string hardwarioCatalogAppWebUrl: "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/"
+    property string hardwarioCatalogAppWebUrl: "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/#application-firmware"
     property string hardwarioWebUrl: "https://www.hardwario.com/"
-    property int maxViewLines: 10000
+    property int maxViewLines: 100000
 
     // page names
     property string consoleWelcomeName: "WCondole"

@@ -48,7 +48,7 @@ jobs:
         run: |
           mkdir -p "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Resources"
           cp ${{ github.workspace }}/ci/macos/Info.plist "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/"
-          cp ${{ github.workspace }}/ci/macos/icon.icns "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Resources/"
+          cp ${{ github.workspace }}/resources/icons.icns "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Resources/"
 
       - name: Copy shared libs
         run: |
@@ -75,7 +75,7 @@ jobs:
       - run: mv "${{ github.workspace }}/build/HARDWARIO Monitor.dmg" ${{ github.workspace }}/hio-monitor-${{ github.ref_name }}-macos.dmg
 
       - name: Archive
-        run: zip -r -y -X hio-monitor-${{ github.ref_name }}-macos.zip ${{ github.workspace }}/hio-monitor-${{ github.ref_name }}-macos.dmg
+        run: zip -r -y -X hio-monitor-${{ github.ref_name }}-macos.zip hio-monitor-${{ github.ref_name }}-macos.dmg
 
       - name: Release
         uses: softprops/action-gh-release@v1

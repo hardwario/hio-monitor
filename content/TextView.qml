@@ -172,7 +172,7 @@ Item {
                 id: rowNumbers
                 text: index + 1
                 // before 10000 the width 30 is okay but then it should be bigger
-                width: text.length > 4 ? text.length * 10 + 1 : 30
+                width: text.length > 4 ? text.length * 10 + 1 : 40
                 topPadding: textEdit.topPadding
                 horizontalAlignment: Text.AlignRight
                 verticalAlignment: Text.AlignVCenter
