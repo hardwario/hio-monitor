@@ -22,7 +22,7 @@ class Chester : public DeviceInterface
     QThread *logReaderThread = nullptr;
 public:
     explicit Chester(QObject *parent = nullptr, HistoryFile *commandHistoryFile = nullptr);
-    Q_INVOKABLE QVariant getCommandHistory() override;
+    QVariant getCommandHistory() override;
 public slots:
     void sendCommand(const QString &command) override;
     bool isConnected();

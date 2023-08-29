@@ -79,7 +79,7 @@ QString MessageModel::stripHTML(QString text) {
 
 
 void MessageModel::addMessage(QString message) {
-    // qDebug() << "addMessage " << message;
+//     qDebug() << "message model addMessage " << message;
     static QRegularExpression regex("^\\[\\d+:\\d+:\\d+\\.\\d+,\\d+\\] <(dbg|inf|wrn|err)>");
     auto match = regex.match(message);
     QString finalMessage;

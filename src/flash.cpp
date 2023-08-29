@@ -1,6 +1,7 @@
 #include "flash.h"
 
 Flash::Flash(QObject *parent) : DeviceInterface(parent) {
+    _name = "flash";
     QDir("DownloadedPrograms").exists();
 };
 

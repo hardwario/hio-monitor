@@ -3,6 +3,7 @@
 Chester::Chester(QObject *parent, HistoryFile *commandHistoryFile)
     : DeviceInterface(parent)
 {
+    _name = "chester";
     connect(this, &Chester::attachRequested,
             this, &Chester::attach);
     connect(this, &Chester::detachRequested,
@@ -28,8 +29,8 @@ void Chester::checkMessageForCommandFailure(const QString &message) {
         qDebug() << "Command failed";
         emit sendCommandFailed(_currentCommand);
     } else {
-        _commandHistoryFile->writeMoveOnMatch(_currentCommand);
         emit sendCommandSucceeded(_currentCommand);
+        _commandHistoryFile->writeMoveOnMatch(_currentCommand);
     }
 }
 
@@ -225,7 +226,7 @@ void Chester::attach()
                     line.replace('\n', "");
 
                     if (line.length() > 0) {
-//                        qDebug() << "Read device message:" << QString(line);
+                        qDebug() << "Read device message:" << QString(line);
                         if (isFirstMessage) {
                             checkMessageForCommandFailure(QString(line));
                             isFirstMessage = false;
@@ -279,7 +280,7 @@ void Chester::attach()
                     line.replace('\n', "");
 
                     if (line.length() > 0) {
-//                        qDebug() << "Read device log:" << QString(line);
+                        qDebug() << "Read device log:" << QString(line);
                         _logFile->write(QString(line));
                         emit deviceLogReceived(QString(line));
                     }

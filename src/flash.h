@@ -17,7 +17,7 @@ public:
     explicit Flash(QObject *parent = nullptr);
     Q_PROPERTY(bool ready READ isReady NOTIFY readyChanged)
     Q_PROPERTY(bool running MEMBER _isRunning)
-    Q_INVOKABLE QVariant getCommandHistory() override;
+    QVariant getCommandHistory() override;
 signals:
     void readyChanged();
     void finished();

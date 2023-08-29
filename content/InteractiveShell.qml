@@ -54,7 +54,11 @@ Rectangle {
         Connections {
             target: device
             onDeviceMessageReceived: (msg) => {
-                _root.addMessage(msg)
+                if (device.name === "bluetooth") {
+                    _root.addMessage(msg)
+                } else {
+                    textView.append(msg)
+                }
             }
         }
     }
