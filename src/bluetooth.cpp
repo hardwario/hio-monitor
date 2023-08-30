@@ -4,6 +4,7 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, HistoryFile 
     : DeviceInterface(parent), _model(model) {
     qRegisterMetaType<DeviceInfo*>("DeviceInfo*");
 
+    _name = "bluetooth";
     _workerThread = new QThread(this);
     _worker = new BluetoothWorker();
     _worker->moveToThread(_workerThread);

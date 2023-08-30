@@ -32,6 +32,7 @@ Item {
     }
 
     function append(msg) {
+        console.log("TextView append", msg)
         messagesModel.addMessage(msg)
     }
 
@@ -41,7 +42,7 @@ Item {
 
     function undoFilter() {
         view.model = messagesModel
-        Qt.callLater(view.forceLayout)
+        view.forceLayout()
         filteredModel.clear()
     }
 
@@ -102,7 +103,7 @@ Item {
             width: 10
         }
         Component.onCompleted: {
-            positionViewAtEnd()
+            _root.scrollToBottom()
         }
 
         property bool autoScroll: true
@@ -121,7 +122,7 @@ Item {
                 return
             }
             if (view.autoScroll) {
-               Qt.callLater(view.positionViewAtEnd)
+               _root.scrollToBottom()
             }
             newItemArrived()
         }
@@ -279,8 +280,6 @@ Item {
             }
             [selStartIndex, selStartPos] = indexAndPos(mouseX, mouseY)
             mouseDrag = true
-            console.log("clicked on text view")
-//            view.forceActiveFocus()
             view.focus = true
         }
 
