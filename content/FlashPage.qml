@@ -127,7 +127,10 @@ Item {
 
     Connections {
         target: toolPanel
-        onBrowseFilesClicked: {
+        onClearFlashClicked: {
+            flashShell.clear()
+        }
+        onBrowseClicked: {
             if (flash.running) {
                 notify.showWrn("Please wait for the flashing process to complete!")
                 return

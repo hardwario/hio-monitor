@@ -31,13 +31,15 @@ QByteArray FileDownloader::downloadedData() const {
     return _downloadedData;
 }
 
-void FileDownloader::save(const QString& fileName) {
-    QSaveFile file(fileName);
+QString FileDownloader::save(const QString& fileName) {
+    auto path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/" + fileName;
+    QSaveFile file(path);
     file.open(QIODevice::WriteOnly);
     file.write(downloadedData());
     // Calling commit() is mandatory, otherwise nothing will be written.
     file.commit();
-    qDebug() << "Downloaded hex file saved to the " << QDir::currentPath() + "/" + fileName;
+    qDebug() << "Downloaded hex file saved to the " << path;
+    return path;
 }
 
 void FileDownloader::remove(const QString& fileName) {

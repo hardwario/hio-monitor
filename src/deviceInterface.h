@@ -2,6 +2,11 @@
 #define DEVICEINTERFACE_H
 
 #include <QObject>
+#include <QDebug>
+#include <QRegularExpression>
+#include <QFile>
+#include <QThread>
+#include <QMutex>
 
 class DeviceInterface : public QObject {
     Q_OBJECT
@@ -12,8 +17,32 @@ public:
     virtual ~DeviceInterface(){}
     virtual QVariant getCommandHistory() = 0;
     QString _name;
+    QMutex _mut;
 public slots:
     virtual void sendCommand(const QString &command) = 0;
+    void batchSendCommand(QString fileName) {
+        static QRegularExpression re(".*?(?=[A-Z]:)");
+        fileName.remove(re);
+        qDebug() << "batchSendCommand filename " << fileName;
+        // TODO: sync threads and refactor this
+        auto *thread = QThread::create([this, fileName]{
+            QFile _file(fileName);
+            if(_file.open(QIODevice::ReadOnly)) {
+                QTextStream in(&_file);
+                while (!in.atEnd()) {
+                    auto line = in.readLine();
+                    qDebug() << "batchSendCommand send " << line;
+                    this->sendCommand(line);
+                    QThread::msleep(50);
+                }
+                _file.close();
+            } else {
+                qDebug() << "Cannot open file " << fileName;
+            }
+            return;
+        });
+        thread->start();
+    }
 signals:
     void sendCommandSucceeded(const QString &command);
     void sendCommandFailed(const QString &command);

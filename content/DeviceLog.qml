@@ -17,6 +17,11 @@ Rectangle {
         }
     }
 
+    function clear() {
+        _root.reset()
+        textView.clear()
+    }
+
     function reset() {
         if (search.mode === "search") {
             toolPanel.setUndoVisible(false)
@@ -32,10 +37,6 @@ Rectangle {
 
     Connections {
         target: toolPanel
-        onClearClicked: {
-            _root.reset()
-            textView.clear()
-        }
         onPauseClicked: {
             textView.togglePause()
         }

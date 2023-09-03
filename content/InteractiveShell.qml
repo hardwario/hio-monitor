@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 
+
 Rectangle {
     id: _root
     color: Material.background
@@ -23,11 +24,12 @@ Rectangle {
         textView.scrollToBottom()
     }
 
+    function clear() {
+        textView.clear()
+    }
+
     Connections {
         target: toolPanel
-        onClearClicked: {
-            textView.clear()
-        }
         onSendCommand: {
             _root.sendCommand(textInput.text)
             textInput.text = ""
@@ -59,6 +61,7 @@ Rectangle {
                 } else {
                     textView.append(msg)
                 }
+                textView.scrollToBottom()
             }
         }
     }

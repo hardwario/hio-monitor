@@ -44,6 +44,7 @@ private:
     HistoryFile *_logFile = nullptr;
     HistoryFile *_commandHistoryFile = nullptr;
     QString _currentCommand;
+    QString _lastCommand;
 };
 
 #endif //CHESTER_H

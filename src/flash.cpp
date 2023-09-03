@@ -2,7 +2,6 @@
 
 Flash::Flash(QObject *parent) : DeviceInterface(parent) {
     _name = "flash";
-    QDir("DownloadedPrograms").exists();
 };
 
 QVariant Flash::getCommandHistory() {
@@ -46,9 +45,8 @@ bool Flash::tryDownload(const QString &str) {
     connect(_downloader, &FileDownloader::downloaded,
             [this, str] {
                 qDebug() << "flash program file downloaded!";
-                _hexPath = str + ".hex";
-                emit deviceMessageReceived(makeMessage("inf", "flash program file saved to: " + QDir::currentPath() + "/" + _hexPath));
-                _downloader->save(_hexPath);
+                _hexPath = _downloader->save(str + ".hex");
+                emit deviceMessageReceived(makeMessage("inf", "flash program file saved to: " + _hexPath));
                 setReady(true);
                 _isFileDownloaded = true;
             });
@@ -138,8 +136,8 @@ bool Flash::checkErr(nrfjprogdll_err_t err, const QString& context) {
             emit deviceMessageReceived(makeMessage("err", context + " unknown Error"));
             break;
         }
+        _isRunning = false;
         emit errorOccured();
-        freeDll();
     }
     return isSuccess;
 }
@@ -155,7 +153,8 @@ bool Flash::loadDll() {
 void Flash::freeDll() {
     qDebug() << "close dll";
     if(_isFileDownloaded) {
-        _downloader->remove(QDir::currentPath() + "/" + _hexPath);
+        _downloader->remove(_hexPath);
+        emit deviceMessageReceived(makeMessage("inf", "flash program file removed from: " + _hexPath));
         _hexPath.clear();
     }
     NRFJPROG_close_dll();

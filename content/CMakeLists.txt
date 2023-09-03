@@ -29,5 +29,4 @@ qt6_add_qml_module(content
         Search.qml
         BtDeviceInfo.qml
         FlashPage.qml
-
 )

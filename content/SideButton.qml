@@ -6,13 +6,14 @@ Rectangle {
     property string iconSource
     property string textContent
     property bool checked: false
+    property bool borderHighlight: false
+    property bool visibleOnInit: true
     property int iconWidth: 24
     property int iconHeight: 24
     signal buttonClicked()
 
     border.color: _root.borderHighlight ? Material.accent : "transparent"
     border.width: 2
-    property bool borderHighlight: false
 
     onCheckedChanged: {
         leftBorder.height = checked ? _root.height : 0

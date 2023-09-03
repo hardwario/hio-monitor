@@ -42,6 +42,7 @@ Item {
     }
 
     function setLast() {
+        if (!listView.model) return
         index = listView.model.length
         listView.currentIndex = listView.model.length - 1
     }

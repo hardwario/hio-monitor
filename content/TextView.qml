@@ -122,7 +122,7 @@ Item {
                 return
             }
             if (view.autoScroll) {
-               _root.scrollToBottom()
+               view.positionViewAtEnd()
             }
             newItemArrived()
         }
@@ -172,7 +172,6 @@ Item {
             Text {
                 id: rowNumbers
                 text: index + 1
-                // before 10000 the width 30 is okay but then it should be bigger
                 width: text.length > 4 ? text.length * 10 + 1 : 40
                 topPadding: textEdit.topPadding
                 horizontalAlignment: Text.AlignRight
@@ -184,7 +183,7 @@ Item {
 
             TextEdit {
                 id: textEdit
-                width: view.width - 30
+                width: view.width - 35
                 wrapMode: Text.Wrap
                 textFormat: TextEdit.RichText
                 selectByMouse: false

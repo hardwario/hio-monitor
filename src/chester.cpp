@@ -24,14 +24,23 @@ bool Chester::isConnected() {
 }
 
 void Chester::checkMessageForCommandFailure(const QString &message) {
+    _commandHistoryFile->writeMoveOnMatch(_currentCommand);
     if (message.contains("command not found") ||
         message.contains("wrong")) {
         qDebug() << "Command failed";
+        _mut.lock();
         emit sendCommandFailed(_currentCommand);
-    } else {
-        emit sendCommandSucceeded(_currentCommand);
-        _commandHistoryFile->writeMoveOnMatch(_currentCommand);
+        _mut.unlock();
+        return;
     }
+    // sometimes message received in chunks,
+    // so I don't want to print the same command multiple times
+    if (_currentCommand != _lastCommand) {
+        _mut.lock();
+        emit sendCommandSucceeded(_currentCommand);
+        _mut.unlock();
+    }
+    _lastCommand = _currentCommand;
 }
 
 void Chester::sendCommand(const QString &command) {

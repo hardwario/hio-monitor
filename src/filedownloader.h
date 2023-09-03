@@ -9,6 +9,7 @@
 #include <QMetaEnum>
 #include <QDir>
 #include <QSaveFile>
+#include <QStandardPaths>
 
 class FileDownloader : public QObject
 {
@@ -16,7 +17,7 @@ class FileDownloader : public QObject
 public:
     explicit FileDownloader(QUrl imageUrl, QObject *parent = 0);
     QByteArray downloadedData() const;
-    void save(const QString& fileName);
+    QString save(const QString& fileName);
     void remove(const QString& fileName);
 signals:
     void downloaded();
