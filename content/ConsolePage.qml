@@ -3,6 +3,9 @@ import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 import hiomon 1.0
+import Qt.labs.folderlistmodel
+import QtQuick.Dialogs
+import QtCore
 
 Item {
     id: _root
@@ -22,6 +25,16 @@ Item {
         }
         onDetachFailed: {
             notify.showError("Detach Failed!")
+        }
+    }
+
+    FileDialog {
+        id: fileDialog
+        nameFilters: [ "All files (*)" ]
+        currentFolder: StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]
+        onAccepted: {
+            console.log("Selected file:", selectedFile)
+            consoleShell.device.batchSendCommand(fileDialog.selectedFile)
         }
     }
 
@@ -53,6 +66,17 @@ Item {
             id: deviceLog
             SplitView.preferredWidth: _root.width / 2
             SplitView.minimumWidth: _root.minItemWidth
+        }
+    }
+
+    Connections {
+        target: toolPanel
+        onBatchCliClicked: {
+            fileDialog.open()
+        }
+        onClearCliClicked: {
+            consoleShell.clear()
+            deviceLog.clear()
         }
     }
 }

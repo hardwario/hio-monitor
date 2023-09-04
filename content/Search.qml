@@ -14,6 +14,7 @@ QtObject {
 
     signal noMatch
 
+
     onSearchTermChanged: {
         var firstMatchInd = view.indexOf(searchTerm)
         if (firstMatchInd === -1) {

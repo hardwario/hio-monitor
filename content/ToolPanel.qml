@@ -5,8 +5,8 @@ import QtQuick.Controls.Material 2.15
 Rectangle {
     id: _root
     color: Material.background
-    property var consoleButtons: [ detach, clearCli, pause, undo ]
-    property var bluetoothButtons: [ disconnect, clearBt ]
+    property var consoleButtons: [ detach, clearCli, pause, undo, batchCli ]
+    property var bluetoothButtons: [ disconnect, clearBt, batchBt ]
     property var consoleWelcomeButtons: [ attach ]
     property var bluetoothWelcomeButtons: [ scan, connect ]
     property var flashButtons: [ browse, run, catalog, clearFlash ]
@@ -21,7 +21,9 @@ Rectangle {
         pageNameButtonMap[AppSettings.flashName] = flashButtons
     }
 
-    signal clearClicked()
+    signal clearCliClicked()
+    signal clearBtClicked()
+    signal clearFlashClicked()
     signal pauseClicked()
     signal connectClicked()
     signal scanClicked()
@@ -29,9 +31,11 @@ Rectangle {
     signal downClicked()
     signal undoClicked()
     signal autoscrollClicked()
-    signal browseFilesClicked()
+    signal browseClicked()
     signal runClicked()
     signal sendCommand()
+    signal batchCliClicked()
+    signal batchBtClicked()
 
     Rectangle {
         anchors.left: parent.left
@@ -173,7 +177,7 @@ Rectangle {
             textContent: "Browse"
             borderHighlight: true
             onButtonClicked: {
-                browseFilesClicked()
+                browseClicked()
             }
         }
 
@@ -204,7 +208,7 @@ Rectangle {
             textContent: "Clear"
             iconSource: AppSettings.clearIcon
             onButtonClicked: {
-                clearClicked()
+                clearCliClicked()
             }
         }
 
@@ -213,7 +217,7 @@ Rectangle {
             textContent: "Clear"
             iconSource: AppSettings.clearIcon
             onButtonClicked: {
-                clearClicked()
+                clearBtClicked()
             }
         }
 
@@ -222,7 +226,29 @@ Rectangle {
             textContent: "Clear"
             iconSource: AppSettings.clearIcon
             onButtonClicked: {
-                clearClicked()
+                clearFlashClicked()
+            }
+        }
+
+        ToolButton {
+            id: batchBt
+            textContent: "Batch"
+            visible: false
+            visibleOnInit: false
+            iconSource: AppSettings.clearIcon
+            onButtonClicked: {
+                batchBtClicked()
+            }
+        }
+
+        ToolButton {
+            id: batchCli
+            visible: false
+            visibleOnInit: false
+            textContent: "Batch"
+            iconSource: AppSettings.clearIcon
+            onButtonClicked: {
+                batchCliClicked()
             }
         }
 

@@ -41,20 +41,23 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -T host=x64 -G "Visual Studio 17 2022" -A x64 -S . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake -T host=x64 -G "Visual Studio 17 2022" -A x64 -S . -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
       - name: Build
-        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j20
+        run: cmake --build ${{ github.workspace }}/build --config ${{env.BUILD_TYPE}} -j20
 
       - name: Make release dir
         run: mkdir release
 
       - name: Move artifact to release dir
-        run: mv '.\build\${{env.BUILD_TYPE}}\HARDWARIO Monitor.exe' .\release\
+        run: mv '.\build\${{ env.BUILD_TYPE }}\HARDWARIO Monitor.exe' .\release\
 
       - name: Import shared libraries
         run: |
           ${{ github.workspace }}/Qt/${{ env.QT_VERSION }}/${{ env.COMPILER_NAME }}/bin/windeployqt.exe --qmldir .'.\release\HARDWARIO Monitor.exe' --release
+
+      - name: Copy nrfjprog.dll (windeployqt can not find it)
+        run: cp .\lib\nrfjprog\windows\nrfjprog.dll .\release\
 
       - name: Remove build dir
         run: Remove-Item .\build -Recurse -Force -Confirm:$false
@@ -67,7 +70,9 @@ jobs:
         shell: cmd
 
       - name: Update version in package info
-        run: sed -i "s/1.0.0/${{ github.ref_name }}/g" .\ci\windows\installer\packages\com.hardwario.hiomon\meta\package.xml
+        run: |
+          sed -i "s/1.0.0/${{ github.ref_name }}/g" .\ci\windows\installer\packages\com.hardwario.hiomon\meta\package.xml
+          sed -i "s/1.0.0/${{ github.ref_name }}/g" .\ci\windows\installer\config\config.xml
 
       - name: Make Installer
         run: .\Qt\Tools\QtInstallerFramework\4.6\bin\binarycreator.exe -c .\ci\windows\installer\config\config.xml -p .\ci\windows\installer\packages\ hio-monitor-${{ github.ref_name }}-windows.exe

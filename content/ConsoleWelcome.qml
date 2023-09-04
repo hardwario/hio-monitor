@@ -3,6 +3,7 @@ import QtQuick.Controls.Material 2.15
 
 Item {
     property string name: AppSettings.consoleWelcomeName
+
     Image {
         id: img
         source: AppSettings.cliIcon

@@ -60,6 +60,9 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("bluetooth", bluetooth);
     engine.rootContext()->setContextProperty("flash", flash);
 
+    QObject::connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
+                     chester, &Chester::detachRequested);
+
     const QUrl url(u"qrc:Main/main.qml"_qs);
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreated, &app,

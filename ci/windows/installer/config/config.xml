@@ -3,11 +3,11 @@
     <Name>HARDWARIO Monitor</Name>
     <Version>1.0.0</Version>
     <Title>HARDWARIO Monitor Installer</Title>
-    <Publisher>HARDWARIO s.r.o.</Publisher>
+    <Publisher>HARDWARIO a.s</Publisher>
     <StartMenuDir>HARDWARIO Monitor</StartMenuDir>
     <TargetDir>@ApplicationsDir@/HARDWARIO Monitor</TargetDir>
     <WizardStyle>Modern</WizardStyle>
-    <InstallerApplicationIcon>icons</InstallerApplicationIcon>
+    <InstallerApplicationIcon>icon</InstallerApplicationIcon>
     <ProductUrl>https://www.hardwario.com</ProductUrl>
     <Logo>logo.svg</Logo>
     <WizardShowPageList>false</WizardShowPageList>
