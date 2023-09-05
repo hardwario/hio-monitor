@@ -51,6 +51,7 @@ private:
     bool _bluetoothEnabled = false;
 
     QString _currentCommand;
+    QString _lastCommand;
     HistoryFile *_commandHistoryFile;
   
     // Ensure Bluetooth won't block UI

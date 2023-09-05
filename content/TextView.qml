@@ -40,6 +40,10 @@ Item {
         messagesModel.addWithColor(msg, color)
     }
 
+    function replaceWithColor(msg, oldColor, newColor) {
+        return messagesModel.replaceWithColor(msg, oldColor, newColor)
+    }
+
     function undoFilter() {
         view.model = messagesModel
         view.forceLayout()

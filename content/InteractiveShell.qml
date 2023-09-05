@@ -121,9 +121,15 @@ Rectangle {
             target: device
             onSendCommandSucceeded: (command) => {
                 textView.appendWithColor("> " + command, AppSettings.greenColor)
+                textView.scrollToBottom()
             }
             onSendCommandFailed: (command) => {
-                textView.appendWithColor("> " + command, AppSettings.redColor)
+                const cmd = "> " + command
+                const res = textView.replaceWithColor(cmd, AppSettings.greenColor, AppSettings.redColor)
+                if (!res) {
+                    textView.appendWithColor(cmd, AppSettings.redColor)
+                }
+                textView.scrollToBottom()
             }
         }
 

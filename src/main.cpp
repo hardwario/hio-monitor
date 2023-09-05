@@ -62,6 +62,8 @@ int main(int argc, char *argv[])
 
     QObject::connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
                      chester, &Chester::detachRequested);
+    QObject::connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
+                     bluetooth, &Bluetooth::disconnectRequested);
 
     const QUrl url(u"qrc:Main/main.qml"_qs);
     QObject::connect(

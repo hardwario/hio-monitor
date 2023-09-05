@@ -42,6 +42,28 @@ QString MessageModel::getColorByMessageTag(const QString& tag) {
     return "<font color='#D1D5DA'>";
 }
 
+QString MessageModel::colorMsg(const QString& message, const QString& color) {
+    return "<font color=" + color +  ">" +
+           message.toHtmlEscaped() +
+           "</font>";
+}
+
+bool MessageModel::replaceWithColor(const QString& message, const QString& oldColor, const QString& newColor) {
+    auto searchMsg = colorMsg(message, oldColor);
+    auto index = this->indexOf(searchMsg);
+    auto isMatch = index != -1;
+    if (isMatch) {
+        auto newMessage = colorMsg(message, newColor);
+        beginRemoveRows(QModelIndex(), index, index);
+        _model.removeAt(index);
+        endRemoveRows();
+        beginInsertRows(QModelIndex(), index, index);
+        _model.insert(index, newMessage);
+        endInsertRows();
+    }
+    return isMatch;
+}
+
 int MessageModel::indexOf(const QString &term) {
     if(_model.empty())
         return -1;
@@ -88,13 +110,9 @@ void MessageModel::addMessage(QString message) {
         finalMessage = getColorByMessageTag(tag) +
                        match.captured(0).toHtmlEscaped() +
                        "</font>" +
-                       "<font color='#D1D5DA'>" +
-                       message.mid(match.capturedEnd()).toHtmlEscaped() +
-                       "</font>";
+                       colorMsg(message.mid(match.capturedEnd()), "#D1D5DA");
     } else {
-        finalMessage = "<font color='#D1D5DA'>" +
-                       message +
-                       "</font>";
+        finalMessage = colorMsg(message, "#D1D5DA");
     }
     beginInsertRows(QModelIndex(), rowCount(), rowCount());
     _model.append(finalMessage);
@@ -108,11 +126,8 @@ QHash<int, QByteArray> MessageModel::roleNames() const {
 }
 
 void MessageModel::addWithColor(const QString& message, const QString& color) {
-    QString finalMessage =  "<font color=" + color +  ">" +
-                           message.toHtmlEscaped() +
-                           "</font>";
     beginInsertRows(QModelIndex(), rowCount(), rowCount());
-    _model.append(finalMessage);
+    _model.append(colorMsg(message, color));
     endInsertRows();
 }
 

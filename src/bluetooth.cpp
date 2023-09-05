@@ -70,18 +70,22 @@ void Bluetooth::connectToByIndex(int index) {
 void Bluetooth::checkMessageForCommandFailure(const QString &message) {
     if (message.contains("command not found") ||
         message.contains("wrong")) {
-        qDebug() << "Command failed";
+        qDebug() << "Bluetooth send command failed";
         emit sendCommandFailed(_currentCommand);
     } else {
-        qDebug() << "Bluetooth send command succeeded: " << _currentCommand;
-        emit sendCommandSucceeded(_currentCommand);
-        _commandHistoryFile->writeMoveOnMatch(_currentCommand);
+        if (_currentCommand != _lastCommand) {
+            emit sendCommandSucceeded(_currentCommand);
+        }
     }
+    _lastCommand = _currentCommand;
     emit deviceMessageReceived(message);
 }
 
 void Bluetooth::sendCommand(const QString &command) {
     _currentCommand = command;
+    _lastCommand = _currentCommand;
+    _commandHistoryFile->writeMoveOnMatch(_currentCommand);
+    emit sendCommandSucceeded(_currentCommand);
     emit sendCommandRequested(command);
 }
 

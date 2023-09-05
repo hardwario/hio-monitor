@@ -25,9 +25,11 @@ public:
     Q_INVOKABLE void addMessage(QString message);
     Q_INVOKABLE void addWithColor(const QString& message, const QString& color);
     Q_INVOKABLE void clear();
+    Q_INVOKABLE bool replaceWithColor(const QString& message, const QString& oldColor, const QString& newColor);
     Q_INVOKABLE int indexOf(const QString &term);
     Q_INVOKABLE QStringList getWithFilter(const QString &term);
 private:
+    QString colorMsg(const QString& message, const QString& color);
     QString getColorByMessageTag(const QString &tag);
     QString stripHTML(QString text);
     QStringList _model;
