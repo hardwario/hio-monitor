@@ -28,5 +28,6 @@
         <file>resources/icons/catalog.png</file>
         <file>resources/icons.ico</file>
         <file>resources/icons.icns</file>
+        <file>resources/icons/batch.png</file>
     </qresource>
 </RCC>

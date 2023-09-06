@@ -41,6 +41,7 @@ QtObject {
     property string folderIcon: "../resources/icons/folder.png"
     property string startIcon: "../resources/icons/start.png"
     property string catalogIcon: "../resources/icons/catalog.png"
+    property string batchIcon: "../resources/icons/batch.png"
 
     // Colors
     property string hoverColor: "#424242"

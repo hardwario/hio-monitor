@@ -6,7 +6,6 @@
 #include <QRegularExpression>
 #include <QFile>
 #include <QThread>
-#include <QMutex>
 
 class DeviceInterface : public QObject {
     Q_OBJECT
@@ -17,7 +16,6 @@ public:
     virtual ~DeviceInterface(){}
     virtual QVariant getCommandHistory() = 0;
     QString _name;
-    QMutex _mut;
 public slots:
     virtual void sendCommand(const QString &command) = 0;
     void batchSendCommand(QString fileName) {
@@ -33,7 +31,7 @@ public slots:
                     auto line = in.readLine();
                     qDebug() << "batchSendCommand send " << line;
                     this->sendCommand(line);
-                    QThread::msleep(50);
+                    QThread::msleep(150);
                 }
                 _file.close();
             } else {

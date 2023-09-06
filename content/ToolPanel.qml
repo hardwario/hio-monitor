@@ -233,9 +233,7 @@ Rectangle {
         ToolButton {
             id: batchBt
             textContent: "Batch"
-            visible: false
-            visibleOnInit: false
-            iconSource: AppSettings.clearIcon
+            iconSource: AppSettings.batchIcon
             onButtonClicked: {
                 batchBtClicked()
             }
@@ -243,10 +241,8 @@ Rectangle {
 
         ToolButton {
             id: batchCli
-            visible: false
-            visibleOnInit: false
             textContent: "Batch"
-            iconSource: AppSettings.clearIcon
+            iconSource: AppSettings.batchIcon
             onButtonClicked: {
                 batchCliClicked()
             }
