@@ -1,6 +1,6 @@
 # HARDWARIO MONITOR
 
-## Documnentation
+## Documentation
 
 [link](https://docs.hardwario.com/chester/developer-tools/hardwario-monitor)
 
