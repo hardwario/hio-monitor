@@ -36,7 +36,7 @@ jobs:
 
       - name: Update app version
         run: |
-          sed -i "s/set(APP_VERSION .*)/set(APP_VERSION \"${{ github.ref_name }}\")/" CMakeLists.txt
+          sed -i '' -E 's/set\(APP_VERSION .*\)/set(APP_VERSION "${{ github.ref_name }}")/' CMakeLists.txt
 
       - name: Configure CMake
         run: |
