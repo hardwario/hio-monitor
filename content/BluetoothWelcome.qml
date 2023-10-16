@@ -58,7 +58,7 @@ Item {
     }
 
     function checkBt() {
-        var isOn = bluetooth.isOn
+        const isOn = bluetooth.isOn
         if (!isOn) notify.showError("Bluetooth is trurned off")
         return isOn
     }

@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
     QObject::connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
                      bluetooth, &Bluetooth::disconnectRequested);
 
+    engine.rootContext()->setContextProperty("APP_VERSION", APP_VERSION);
+
     const QUrl url(u"qrc:Main/main.qml"_qs);
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreated, &app,

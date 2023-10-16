@@ -15,6 +15,8 @@ if (Qt6_VERSION VERSION_LESS 6.5.0)
 message(FATAL_ERROR "You need Qt 6.5.0 or newer to build the application.")
 endif()
 
+set(APP_VERSION "v1.0.0")
+
 set(PROJECT_SOURCES
     src/main.cpp
     src/searchhighlighter.h
@@ -67,6 +69,8 @@ elseif(UNIX)
 endif()
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
+
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE APP_VERSION="${APP_VERSION}")
 
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
     AUTOMOC TRUE

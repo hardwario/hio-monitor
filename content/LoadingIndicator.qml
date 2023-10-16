@@ -77,8 +77,7 @@ Popup {
             onTriggered: {
                 if (root._currentIndex === 7) {
                     root._currentIndex = 0;
-                }
-                else {
+                } else {
                     root._currentIndex++;
                 }
             }
@@ -88,8 +87,8 @@ Popup {
         }
 
         function _getPosOnCircle(angleInDegree) {
-            var centerX = root.width / 2, centerY = root.height / 2;
-            var posX = 0, posY = 0;
+            let centerX = root.width / 2, centerY = root.height / 2;
+            let posX = 0, posY = 0;
 
             posX = centerX + root._innerRadius * Math.cos(_toRadian(angleInDegree));
             posY = centerY - root._innerRadius * Math.sin(_toRadian(angleInDegree));

@@ -28,6 +28,7 @@ public:
     Q_INVOKABLE bool replaceWithColor(const QString& message, const QString& oldColor, const QString& newColor);
     Q_INVOKABLE int indexOf(const QString &term);
     Q_INVOKABLE QStringList getWithFilter(const QString &term);
+    Q_INVOKABLE void setModel(const QStringList model);
 private:
     QString colorMsg(const QString& message, const QString& color);
     QString getColorByMessageTag(const QString &tag);

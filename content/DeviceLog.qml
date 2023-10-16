@@ -161,7 +161,7 @@ Rectangle {
         }
 
         Keys.onReturnPressed: {
-            var pattern = textInput.text
+            const pattern = textInput.text
             if (pattern === "")
                 return
             if (search.mode === "search") {
@@ -180,7 +180,7 @@ Rectangle {
         // F5 to _root.reset search and Enter to start searching
         Keys.onPressed: (event) => {
             if ((event.key === Qt.Key_C) && (event.modifiers & Qt.ControlModifier)) {
-                var txtIn = textInput.selectedText
+                const txtIn = textInput.selectedText
                 if (txtIn !== "") {
                     textInput.copy()
                 } else {

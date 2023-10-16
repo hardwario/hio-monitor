@@ -60,7 +60,7 @@ Rectangle {
     function setCurrentPage(page) {
         if (!stackView)
             return
-        var cur = stackView.currentItem
+        const cur = stackView.currentItem
         if (cur === page)
             return
         stackView.replace(cur, page, StackView.Immediate)
@@ -82,7 +82,6 @@ Rectangle {
             textContent: "Console"
             iconSource: AppSettings.cliIcon
             checked: true
-            showWelcomePage: true
             onButtonClicked: {
                 setCheckedButton(consoleButton)
                 loadingIndicator.close()

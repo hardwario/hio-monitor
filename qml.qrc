@@ -29,5 +29,6 @@
         <file>resources/icons.ico</file>
         <file>resources/icons.icns</file>
         <file>resources/icons/batch.png</file>
+        <file>resources/icons/send.png</file>
     </qresource>
 </RCC>

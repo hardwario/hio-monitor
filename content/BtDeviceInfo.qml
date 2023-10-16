@@ -9,7 +9,7 @@ Item {
     required property var model
 
     function colorByState() {
-        var res = Material.background
+        let res = Material.background
         if (mouseArea.containsMouse)
             res = AppSettings.hoverColor
         if (devices.currentIndex === index)
@@ -18,7 +18,7 @@ Item {
     }
 
     function chooseColor(rssi) {
-        var res = Qt.darker(AppSettings.whiteColor)
+        let res = Qt.darker(AppSettings.whiteColor)
         if (rssi <= -90)
             res = "#F97583"
         else if (rssi <= -67)
@@ -31,7 +31,7 @@ Item {
     }
 
     function chooseIcon(rssi) {
-        var res = AppSettings.signalIcon
+        let res = AppSettings.signalIcon
         if (rssi <= -90)
             res = AppSettings.weakSignalIcon
         else if (rssi <= -67)

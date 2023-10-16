@@ -11,7 +11,7 @@ ApplicationWindow {
     height: 680
     minimumWidth: 1024
     minimumHeight: 680
-    title: "HARDWARIO Monitor"
+    title: "HARDWARIO Monitor " + APP_VERSION
 
     onActiveFocusItemChanged: console.log("activeFocusItem", activeFocusItem)
 

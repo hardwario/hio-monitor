@@ -26,7 +26,7 @@ Rectangle {
     color: color()
 
     function color() {
-        var res = Material.background
+        let res = Material.background
         if (mouseArea.containsMouse)
             res = AppSettings.hoverColor
         if (mouseArea.pressed)

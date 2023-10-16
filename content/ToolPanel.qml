@@ -263,9 +263,9 @@ Rectangle {
         Connections {
             target: stackView
             onCurrentItemChanged: {
-                var currentPageName = stackView.currentItem.name
-                for (var pageName in _root.pageNameButtonMap) {
-                    var buttons = pageNameButtonMap[pageName]
+                let currentPageName = stackView.currentItem.name
+                for (let pageName in _root.pageNameButtonMap) {
+                    let buttons = pageNameButtonMap[pageName]
                     currentPageName === pageName ? _root.showAll(buttons) : _root.hideAll(buttons)
                 }
             }

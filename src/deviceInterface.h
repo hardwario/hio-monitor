@@ -22,7 +22,6 @@ public slots:
         static QRegularExpression re(".*?(?=[A-Z]:)");
         fileName.remove(re);
         qDebug() << "batchSendCommand filename " << fileName;
-        // TODO: sync threads and refactor this
         auto *thread = QThread::create([this, fileName]{
             QFile _file(fileName);
             if(_file.open(QIODevice::ReadOnly)) {

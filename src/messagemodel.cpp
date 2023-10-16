@@ -43,7 +43,7 @@ QString MessageModel::getColorByMessageTag(const QString& tag) {
 }
 
 QString MessageModel::colorMsg(const QString& message, const QString& color) {
-    return "<font color=" + color +  ">" +
+    return "<font color='" + color +  "'>" +
            message.toHtmlEscaped() +
            "</font>";
 }
@@ -99,9 +99,8 @@ QString MessageModel::stripHTML(QString text) {
     return doc.toPlainText();
 }
 
-
 void MessageModel::addMessage(QString message) {
-//     qDebug() << "message model addMessage " << message;
+//    qDebug() << "message model addMessage " << message;
     static QRegularExpression regex("^\\[\\d+:\\d+:\\d+\\.\\d+,\\d+\\] <(dbg|inf|wrn|err)>");
     auto match = regex.match(message);
     QString finalMessage;
@@ -117,6 +116,10 @@ void MessageModel::addMessage(QString message) {
     beginInsertRows(QModelIndex(), rowCount(), rowCount());
     _model.append(finalMessage);
     endInsertRows();
+}
+
+void MessageModel::setModel(const QStringList model) {
+    _model = model;
 }
 
 QHash<int, QByteArray> MessageModel::roleNames() const {

@@ -69,17 +69,17 @@ QtObject {
     }
 
     function highlightCurrentAndDeselectPrevious() {
-        let keys = Object.keys(matches)
-        let prevItem = view.itemAtIndex(parseInt(keys[prevRow]))
+        const keys = Object.keys(matches)
+        const prevItem = view.itemAtIndex(parseInt(keys[prevRow]))
         if (prevItem) prevItem.textEditObj.deselect()
 
         prevRow = curRowIndex
-        let curRow = parseInt(keys[curRowIndex])
+        const curRow = parseInt(keys[curRowIndex])
         scrollTo(curRow)
-        let item = view.itemAtIndex(curRow)
+        const item = view.itemAtIndex(curRow)
         if (!item) return // should not be the case, but who knows what could happen, right?
         view.currentIndex = curRow
-        let ind = currentMatch()[curItemInd]
+        const ind = currentMatch()[curItemInd]
         item.textEditObj.select(ind, ind + searchTerm.length)
     }
 
@@ -97,8 +97,8 @@ QtObject {
         curRowIndex = 0
         curItemInd = -1
         prevRow = -1
-        for (var i = 0; i < view.count; ++i) {
-            var item = view.itemAtIndex(i)
+        for (let i = 0; i < view.count; ++i) {
+            const item = view.itemAtIndex(i)
             if (!item) continue
             item.reset()
         }
@@ -109,10 +109,10 @@ QtObject {
         searchTerm = term
         if (!isSearching)
             return
-        for (var i = lastCheckedIndex; i < view.count; ++i) {
-            var item = view.itemAtIndex(i)
+        for (let i = lastCheckedIndex; i < view.count; ++i) {
+            const item = view.itemAtIndex(i)
             if (!item) continue
-            var inds = item.searchFor(searchTerm)
+            const inds = item.searchFor(searchTerm)
             if (inds.length > 0) {
                 matches[i] = inds
             }

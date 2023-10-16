@@ -17,8 +17,8 @@ Rectangle {
     }
 
     function addMessage(msg) {
-        var lines = msg.split('\n')
-        for (var i = 0; i < lines.length; ++i) {
+        const lines = msg.split('\n')
+        for (let i = 0; i < lines.length; ++i) {
             textView.append(lines[i])
         }
         textView.scrollToBottom()
@@ -31,6 +31,7 @@ Rectangle {
     Connections {
         target: toolPanel
         onSendCommand: {
+            // flash page command run
             _root.sendCommand(textInput.text)
             textInput.text = ""
         }
@@ -115,6 +116,38 @@ Rectangle {
                 font.pixelSize: 24
                 color: AppSettings.grayColor
             }
+            Rectangle {
+                width: parent.height - 7
+                height: parent.height - 1
+                anchors {
+                    right: parent.right
+                    verticalCenter: parent.verticalCenter
+                }
+                color: mouseArea.containsMouse ? AppSettings.hoverColor : Material.background
+                Image {
+                    id: icon
+                    anchors {
+                        right: parent.right
+                        rightMargin: 5
+                        verticalCenter: parent.verticalCenter
+                    }
+                    source: AppSettings.sendIcon
+                    smooth: true
+                    width: 20
+                    height: 20
+                }
+            }
+        }
+        MouseArea {
+            id: mouseArea
+            anchors.right: parent.right
+            height: parent.height
+            width: 40
+            hoverEnabled: true
+            onClicked: {
+                _root.sendCommand(textInput.text)
+                textInput.text = ""
+            }
         }
 
         Connections {
@@ -124,7 +157,7 @@ Rectangle {
                 textView.scrollToBottom()
             }
             onSendCommandFailed: (command) => {
-                const cmd = "> " + command
+                let cmd = "> " + command
                 const res = textView.replaceWithColor(cmd, AppSettings.greenColor, AppSettings.redColor)
                 if (!res) {
                     textView.appendWithColor(cmd, AppSettings.redColor)
@@ -135,7 +168,7 @@ Rectangle {
 
         Keys.onPressed: (event) => {
             if ((event.key === Qt.Key_C) && (event.modifiers & Qt.ControlModifier)) {
-                var txtIn = textInput.selectedText
+                const txtIn = textInput.selectedText
                 if (txtIn !== "") {
                     textInput.copy()
                 } else {
@@ -161,23 +194,24 @@ Rectangle {
             }
         }
 
-        Keys.onReturnPressed: (event) => {
-            if (cmdHistory.visible) {
-                text = cmdHistory.getSelected()
-                cmdHistory.visible = false
-                cmdHistory.resetList()
-                event.accepted = true
-                return
-            }
-            _root.sendCommand(textInput.text)
-            textInput.text = ""
-            event.accepted = true
-        }
-
         onTextChanged: {
             if (textInput.text === "")
                 cmdHistory.setLast()
             cmdHistory.filter()
         }
+    }
+
+    Keys.onReturnPressed: (event) => {
+        if (cmdHistory.visible) {
+            console.log(cmdHistory.getSelected())
+            textInput.text = cmdHistory.getSelected()
+            cmdHistory.visible = false
+            cmdHistory.resetList()
+            event.accepted = true
+            return
+        }
+        _root.sendCommand(textInput.text)
+        textInput.text = ""
+        event.accepted = true
     }
 }

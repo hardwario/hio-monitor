@@ -26,6 +26,11 @@ Item {
         textInput.text = getSelected()
     }
 
+    function down() {
+        inc()
+        textInput.text = getSelected()
+    }
+
     function inc() {
         if (index < listView.model.length)
             index++
@@ -36,14 +41,9 @@ Item {
             index--
     }
 
-    function down() {
-        inc()
-        textInput.text = getSelected()
-    }
-
     function setLast() {
         if (!listView.model) return
-        index = listView.model.length
+        index = listView.model.length - 1
         listView.currentIndex = listView.model.length - 1
     }
 
@@ -54,7 +54,7 @@ Item {
     }
 
     function resetList() {
-        if(!history) return
+        if (!history) return
         listView.model = history
         setLast()
         listView.forceLayout()

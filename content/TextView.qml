@@ -32,7 +32,7 @@ Item {
     }
 
     function append(msg) {
-        console.log("TextView append", msg)
+//        console.log("TextView append", msg)
         messagesModel.addMessage(msg)
     }
 
@@ -51,18 +51,15 @@ Item {
     }
 
     function filterFor(term) {
-        var filteredMessagesArray = messagesModel.getWithFilter(term)
+        const filteredMessagesArray = messagesModel.getWithFilter(term)
         if (filteredMessagesArray.length <= 0) {
             notify.showError("No match for: " + term)
             return
         }
         filteredModel.clear()
-        console.log("Filtered messages for the term:", term)
-        for (var i = 0; i < filteredMessagesArray.length; ++i) {
-            console.log(filteredMessagesArray[i])
-            filteredModel.addMessage(filteredMessagesArray[i])
-        }
+        filteredModel.setModel(filteredMessagesArray)
         view.model = filteredModel
+        view.forceLayout()
     }
 
     // Shortcuts for manual scrolling
@@ -136,9 +133,9 @@ Item {
         }
 
         function getSelectedText() {
-            var selectedText = ""
-            for (var i = 0; i < view.count; ++i) {
-                var item = view.itemAtIndex(i)
+            let selectedText = ""
+            for (let i = 0; i < view.count; ++i) {
+                const item = view.itemAtIndex(i)
                 if (item && (item.textEditObj.selectionStart !== item.textEditObj.selectionEnd))
                     selectedText += item.textEditObj.selectedText + "\n"
             }
@@ -260,17 +257,16 @@ Item {
         }
 
         function deselectCurrentArea() {
-            for (var i = realStartIndex; i <= realEndIndex; ++i) {
-                var item = view.itemAtIndex(i);
+            for (let i = realStartIndex; i <= realEndIndex; ++i) {
+                const item = view.itemAtIndex(i);
                 if (item)
                     item.reset();
             }
         }
 
         onPositionChanged: {
-            if (!mouseDrag)
-                return
-            var [index, pos] = indexAndPos(mouseX, mouseY)
+            if (!mouseDrag) return
+            const [index, pos] = indexAndPos(mouseX, mouseY)
             if (index !== -1 && pos !== -1) {
                 [selEndIndex, selEndPos] = [index, pos]
                 selectionChanged()
