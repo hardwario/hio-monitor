@@ -69,14 +69,32 @@ jobs:
 
           install_name_tool -change Output/Release/x86_64/libnrfjprogdll.dylib @executable_path/../Frameworks/libnrfjprogdll.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
           install_name_tool -id @executable_path/../Frameworks/libnrfjprogdll.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
-          codesign --remove-signature build/HARDWARIO\ Monitor.app
-          codesign --force --deep --sign - build/HARDWARIO\ Monitor.app
 
-      - name: Make dmg
+      - name: Install certificate
         run: |
-          ${{ env.QT_PATH }}/bin/macdeployqt "${{ github.workspace }}/build/HARDWARIO Monitor.app" -qmldir="${{ github.workspace }}/build/qml" -fs=APFS -libpath="${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Frameworks/" -dmg
+          echo -n ${{ secrets.MACOS_CERTIFICATE_BASE64 }} | base64 --decode > certificate.p12
 
-      - run: mv "${{ github.workspace }}/build/HARDWARIO Monitor.dmg" ${{ github.workspace }}/hio-monitor-${{ github.ref_name }}-macos.dmg
+          security create-keychain -p "${{ secrets.MACOS_KEYCHAIN_PWD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.MACOS_KEYCHAIN_PWD }}" build.keychain
+          security import certificate.p12 -k build.keychain -P "${{ secrets.MACOS_CERTIFICATE_PWD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.MACOS_KEYCHAIN_PWD }}" build.keychain
+
+      - name: Make dmg and sign
+        run: |
+          ${{ env.QT_PATH }}/bin/macdeployqt "build/HARDWARIO Monitor.app" -qmldir="build/qml" -fs=APFS -libpath="build/HARDWARIO Monitor.app/Contents/Frameworks/" -dmg -sign-for-notarization="${{ secrets.MACOS_INTENT }}" -codesign="${{ secrets.MACOS_INTENT }}" -timestamp -hardened-runtime
+
+      - name: Notarize
+        run: |
+          xcrun notarytool submit "build/HARDWARIO Monitor.dmg" --apple-id "${{ secrets.MACOS_APPLE_ID }}" --password "${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}" --team-id "${{ secrets.MACOS_INTENT }}" --wait
+
+      - name: Staple
+        run: |
+          xcrun stapler staple "build/HARDWARIO Monitor.dmg"
+
+      - name: Rename
+        run: |
+          mv "build/HARDWARIO Monitor.dmg" hio-monitor-${{ github.ref_name }}-macos.dmg
 
       - name: Archive
         run: zip -r -y -X hio-monitor-${{ github.ref_name }}-macos.zip hio-monitor-${{ github.ref_name }}-macos.dmg

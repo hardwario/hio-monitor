@@ -35,6 +35,23 @@ Rectangle {
         textInput.focus = true
     }
 
+    function filterOrSearch() {
+        const pattern = textInput.text
+        if (pattern === "")
+            return
+        if (search.mode === "search") {
+            search.searchFor(pattern)
+            textView.deselectOnPress = false
+            search.findNext()
+        } else {
+            textView.filterFor(pattern)
+            textInput.visible = false
+        }
+        toolPanel.setUndoVisible(true)
+        textInput.text = ""
+        textView.listView.focus = true
+    }
+
     Connections {
         target: toolPanel
         onPauseClicked: {
@@ -130,7 +147,7 @@ Rectangle {
                     left: parent.left
                     verticalCenter: parent.verticalCenter
                 }
-                color: mouseArea.containsMouse ? AppSettings.hoverColor : Material.background
+                color: mouseAreaMode.containsMouse ? AppSettings.hoverColor : Material.background
                 Image {
                     id: modeImage
                     source: AppSettings.searchIcon
@@ -140,15 +157,48 @@ Rectangle {
                     smooth: true
                 }
             }
+            Rectangle {
+                id: sendIcon
+                width: parent.height - 7
+                height: parent.height - 1
+                anchors {
+                    right: parent.right
+                    verticalCenter: parent.verticalCenter
+                }
+                color: mouseAreaSend.containsMouse ? AppSettings.hoverColor : Material.background
+                Image {
+                    id: icon
+                    anchors {
+                        right: parent.right
+                        rightMargin: 5
+                        verticalCenter: parent.verticalCenter
+                    }
+                    source: AppSettings.sendIcon
+                    smooth: true
+                    width: 20
+                    height: 20
+                }
+            }
         }
+
         MouseArea {
-            id: mouseArea
+            id: mouseAreaSend
+            anchors.right: parent.right
+            height: parent.height
+            width: 40
+            hoverEnabled: true
+            onClicked: {
+                _root.filterOrSearch()
+            }
+        }
+
+        MouseArea {
+            id: mouseAreaMode
             anchors.left: parent.left
             height: parent.height
             width: parent.leftPadding
             hoverEnabled: true
             onClicked: {
-                console.log("Switch from mode:", search.mode)
                 if (search.mode === "search") {
                     search.mode = "filter"
                     modeImage.source = AppSettings.filterIcon
@@ -156,25 +206,11 @@ Rectangle {
                     search.mode = "search"
                     modeImage.source = AppSettings.searchIcon
                 }
-                console.log("Current mode:", search.mode)
             }
         }
 
         Keys.onReturnPressed: {
-            const pattern = textInput.text
-            if (pattern === "")
-                return
-            if (search.mode === "search") {
-                search.searchFor(pattern)
-                textView.deselectOnPress = false
-                search.findNext()
-            } else {
-                textView.filterFor(pattern)
-                textInput.visible = false
-            }
-            toolPanel.setUndoVisible(true)
-            textInput.text = ""
-            textView.listView.focus = true
+            _root.filterOrSearch()
         }
 
         // F5 to _root.reset search and Enter to start searching

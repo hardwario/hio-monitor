@@ -15,7 +15,7 @@ if (Qt6_VERSION VERSION_LESS 6.5.0)
 message(FATAL_ERROR "You need Qt 6.5.0 or newer to build the application.")
 endif()
 
-set(APP_VERSION "v1.0.0")
+set(APP_VERSION "")
 
 set(PROJECT_SOURCES
     src/main.cpp
