@@ -1,7 +1,7 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Controls.Material 2.15
-import QtQuick.Layouts 1.15
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Controls.Material
+import QtQuick.Layouts
 import hiomon 1.0
 
 ApplicationWindow {
@@ -21,12 +21,12 @@ ApplicationWindow {
 
     FontLoader {
         id: textFont
-        source: "../resources/fonts/UbuntuMono-Regular.ttf"
+        source: "qrc:/fonts/ubuntu-mono"
     }
 
     FontLoader {
         id: labelFont
-        source: "../resources/fonts/Inter-Regular.ttf"
+        source: "qrc:/fonts/inter"
     }
 
     AppNotification {

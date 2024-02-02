@@ -14,24 +14,28 @@ Item {
 
     Connections {
         target: chester
-        onAttachSucceeded: {
+        function onAttachSucceeded() {
             notify.showInfo("Attach Succeeded!")
         }
-        onAttachFailed: {
+
+        function onAttachFailed() {
             notify.showError("Attach Failed!")
         }
-        onDetachSucceeded: {
+
+        function onDetachSucceeded() {
             notify.showInfo("Detach Succeeded!")
         }
-        onDetachFailed: {
+
+        function onDetachFailed() {
             notify.showError("Detach Failed!")
         }
     }
 
     FileDialog {
         id: fileDialog
-        nameFilters: [ "All files (*)" ]
-        currentFolder: StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]
+        nameFilters: ["All files (*)"]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.HomeLocation)[0]
         onAccepted: {
             console.log("Selected file:", selectedFile)
             consoleShell.device.batchSendCommand(fileDialog.selectedFile)
@@ -71,10 +75,11 @@ Item {
 
     Connections {
         target: toolPanel
-        onBatchCliClicked: {
+        function onBatchCliClicked() {
             fileDialog.open()
         }
-        onClearCliClicked: {
+
+        function onClearCliClicked() {
             consoleShell.clear()
             deviceLog.clear()
         }

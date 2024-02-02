@@ -1,21 +1,17 @@
 cmake_minimum_required(VERSION 3.21.1)
 
-set(BUILD_QDS_COMPONENTS ON CACHE BOOL "Build design studio components")
-
 project(hmonitor LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(QT NAMES Qt6 COMPONENTS Gui Qml Quick Bluetooth)
-find_package(Qt6 REQUIRED COMPONENTS Core Qml Quick Bluetooth)
-qt_standard_project_setup()
+find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Qml Quick Bluetooth)
 
-if (Qt6_VERSION VERSION_LESS 6.5.0)
-message(FATAL_ERROR "You need Qt 6.5.0 or newer to build the application.")
+if (Qt6_VERSION VERSION_GREATER_EQUAL 6.5)
+    qt_standard_project_setup()
 endif()
 
-set(APP_VERSION "")
+set(APP_VERSION "1.0.0")
 
 set(PROJECT_SOURCES
     src/main.cpp
@@ -25,8 +21,6 @@ set(PROJECT_SOURCES
     src/searchcomponent.cpp
     src/chester.h
     src/chester.cpp
-    src/historyfile.h
-    src/historyfile.cpp
     src/bluetooth.h
     src/bluetooth.cpp
     src/bluetoothworker.h
@@ -41,18 +35,20 @@ set(PROJECT_SOURCES
     src/flash.cpp
     src/filedownloader.h
     src/filedownloader.cpp
+    src/historyfile.h
+    src/historyfile.cpp
     src/deviceInterface.h
 )
 
 if(WIN32)
-    set(app_icon_resource_windows "${CMAKE_CURRENT_SOURCE_DIR}/ci/windows/hiomon.rc")
-    qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES} ${app_icon_resource_windows})
+    set(app_icon_windows "${CMAKE_CURRENT_SOURCE_DIR}/ci/windows/hiomon.rc")
+    qt_add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_SOURCES} ${app_icon_windows})
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/jlink/windows)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE JLink_x64)
     target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE lib/nrfjprog/windows)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE nrfjprog)
 elseif(APPLE)
-    set(app_icon_macos "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons.icns")
+    set(app_icon_macos "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/icons.icns")
     set_source_files_properties(${app_icon_macos} PROPERTIES
               MACOSX_PACKAGE_LOCATION "Resources")
     qt_add_executable(${CMAKE_PROJECT_NAME} MACOSX_BUNDLE ${PROJECT_SOURCES} ${app_icon_macos})
@@ -99,10 +95,10 @@ qt_add_resources(${CMAKE_PROJECT_NAME} "configuration"
         qtquickcontrols2.conf
 )
 
-qt_add_resources(${CMAKE_PROJECT_NAME} "res"
+qt_add_resources(${CMAKE_PROJECT_NAME} "resources"
     PREFIX "/"
     FILES
-        qml.qrc
+        res.qrc
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
@@ -113,8 +109,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Bluetooth
 )
 
-if (${BUILD_QDS_COMPONENTS})
-    include(${CMAKE_CURRENT_SOURCE_DIR}/qmlcomponents)
-endif ()
+add_subdirectory(views)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/qmlmodules)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+    viewsplugin
+)

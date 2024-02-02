@@ -15,8 +15,9 @@ Item {
 
     FileDialog {
         id: fileDialog
-        nameFilters: [ "All files (*)" ]
-        currentFolder: StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]
+        nameFilters: ["All files (*)"]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.HomeLocation)[0]
         onAccepted: {
             console.log("Selected file:", selectedFile)
             bluetoothShell.device.batchSendCommand(selectedFile)
@@ -25,14 +26,16 @@ Item {
 
     Connections {
         target: toolPanel
-        onDisconnectClicked: {
+        function onDisconnectClicked() {
             loadingIndicator.open()
             bluetooth.disconnect()
         }
-        onBatchBtClicked: {
+
+        function onBatchBtClicked() {
             fileDialog.open()
         }
-        onClearBtClicked: {
+
+        function onClearBtClicked() {
             bluetoothShell.clear()
         }
     }

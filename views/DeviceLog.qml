@@ -9,10 +9,11 @@ Rectangle {
 
     Connections {
         target: chester
-        onDeviceLogReceived: (msg) => {
+        function onDeviceLogReceived(msg) {
             textView.append(msg)
         }
-        onAttachSucceeded: {
+
+        function onAttachSucceeded() {
             textView.scrollToBottom()
         }
     }
@@ -54,10 +55,11 @@ Rectangle {
 
     Connections {
         target: toolPanel
-        onPauseClicked: {
+        function onPauseClicked() {
             textView.togglePause()
         }
-        onUndoClicked: {
+
+        function onUndoClicked() {
             _root.reset()
         }
     }
@@ -92,26 +94,28 @@ Rectangle {
 
         Component.onCompleted: {
             search.view = listView
-            textView.newItemArrived.connect(function() {
+            textView.newItemArrived.connect(function () {
                 search.searchFor(search.searchTerm)
             })
-            textView.scrollDetected.connect(function() {
+            textView.scrollDetected.connect(function () {
                 search.searchFor(search.searchTerm)
             })
         }
 
-        Keys.onPressed: (event) => {
-            if (event.key === Qt.Key_N && event.modifiers === Qt.NoModifier) {
-                search.findNext()
-                event.accepted = true
-            } else if (event.key === Qt.Key_N && event.modifiers === Qt.ShiftModifier) {
-                search.findPrevious()
-                event.accepted = true
-            } else if (event.key === Qt.Key_F5) {
-                _root.reset()
-                event.accepted = true
-            } 
-        }
+        Keys.onPressed: event => {
+                            if (event.key === Qt.Key_N
+                                && event.modifiers === Qt.NoModifier) {
+                                search.findNext()
+                                event.accepted = true
+                            } else if (event.key === Qt.Key_N
+                                       && event.modifiers === Qt.ShiftModifier) {
+                                search.findPrevious()
+                                event.accepted = true
+                            } else if (event.key === Qt.Key_F5) {
+                                _root.reset()
+                                event.accepted = true
+                            }
+                        }
     }
 
     // Input field that is used to start searching for a pattern
@@ -214,26 +218,26 @@ Rectangle {
         }
 
         // F5 to _root.reset search and Enter to start searching
-        Keys.onPressed: (event) => {
-            if ((event.key === Qt.Key_C) && (event.modifiers & Qt.ControlModifier)) {
-                const txtIn = textInput.selectedText
-                if (txtIn !== "") {
-                    textInput.copy()
-                } else {
-                    textView.copy()
-                }
-                event.accepted = true 
-            } else if (event.key === Qt.Key_F5) {
-                _root.reset()
-                event.accepted = true
-            } else if (event.key === Qt.Key_Up) {
-                textView.scrollUp()
-                event.accepted = true;
-            } else if (event.key === Qt.Key_Down) {
-                textView.scrollDown()
-                event.accepted = true;
-            }
-        }
+        Keys.onPressed: event => {
+                            if ((event.key === Qt.Key_C)
+                                && (event.modifiers & Qt.ControlModifier)) {
+                                const txtIn = textInput.selectedText
+                                if (txtIn !== "") {
+                                    textInput.copy()
+                                } else {
+                                    textView.copy()
+                                }
+                                event.accepted = true
+                            } else if (event.key === Qt.Key_F5) {
+                                _root.reset()
+                                event.accepted = true
+                            } else if (event.key === Qt.Key_Up) {
+                                textView.scrollUp()
+                                event.accepted = true
+                            } else if (event.key === Qt.Key_Down) {
+                                textView.scrollDown()
+                                event.accepted = true
+                            }
+                        }
     }
 }
-

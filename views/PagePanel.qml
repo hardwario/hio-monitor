@@ -18,11 +18,14 @@ Rectangle {
     function setCheckedButton(button) {
         if (button.checked)
             return
-        buttons.forEach((button) => {
+
+        buttons.forEach(function (button) {
             button.checked = false
         })
+
         button.checked = true
     }
+
     // right line
     Rectangle {
         anchors.right: parent.right
@@ -82,18 +85,22 @@ Rectangle {
             textContent: "Console"
             iconSource: AppSettings.cliIcon
             checked: true
+
             onButtonClicked: {
                 setCheckedButton(consoleButton)
                 loadingIndicator.close()
-                showWelcomePage ? setCurrentPage(consoleWelcomePage) : setCurrentPage(consolePage)
+
+                const page = showWelcomePage ? consoleWelcomePage : consolePage
+                setCurrentPage(page)
             }
+
             Connections {
                 target: chester
-                onAttachSucceeded: {
+                function onAttachSucceeded() {
                     consoleButton.showWelcomePage = false
                     setCurrentPage(consolePage)
                 }
-                onDetachSucceeded: {
+                function onDetachSucceeded() {
                     consoleButton.showWelcomePage = true
                     setCurrentPage(consoleWelcomePage)
                 }
@@ -104,20 +111,28 @@ Rectangle {
             id: bluetoothButton
             textContent: "Bluetooth"
             iconSource: AppSettings.btIcon
+
             onButtonClicked: {
                 setCheckedButton(bluetoothButton)
-                showWelcomePage ? setCurrentPage(bluetoothWelcomePage) : setCurrentPage(bluetoothPage)
+
+                const page = showWelcomePage ? bluetoothWelcomePage : bluetoothPage
+
+                setCurrentPage(page)
+
                 if (loadingIndicator.opened)
                     loadingIndicator.open()
             }
+
             Connections {
                 target: bluetooth
-                onDeviceConnected: {
+
+                function onDeviceConnected() {
                     bluetoothButton.showWelcomePage = false
                     setCheckedButton(bluetoothButton)
                     setCurrentPage(bluetoothPage)
                 }
-                onDeviceDisconnected: {
+
+                function onDeviceDisconnected() {
                     bluetoothButton.showWelcomePage = true
                     setCheckedButton(bluetoothButton)
                     setCurrentPage(bluetoothWelcomePage)
@@ -129,6 +144,7 @@ Rectangle {
             id: flashButton
             textContent: "Flash"
             iconSource: AppSettings.flashIcon
+
             onButtonClicked: {
                 setCheckedButton(flashButton)
                 setCurrentPage(flashPage)

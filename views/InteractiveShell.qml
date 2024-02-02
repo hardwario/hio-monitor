@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 
-
 Rectangle {
     id: _root
     color: Material.background
@@ -12,13 +11,14 @@ Rectangle {
     property bool enableHistory: true
 
     function sendCommand(cmd) {
-        if (cmd === "") return
+        if (cmd === "")
+            return
         device.sendCommand(cmd)
     }
 
     function addMessage(msg) {
         const lines = msg.split('\n')
-        for (let i = 0; i < lines.length; ++i) {
+        for (var i = 0; i < lines.length; ++i) {
             textView.append(lines[i])
         }
         textView.scrollToBottom()
@@ -30,7 +30,7 @@ Rectangle {
 
     Connections {
         target: toolPanel
-        onSendCommand: {
+        function onSendCommand() {
             // flash page command run
             _root.sendCommand(textInput.text)
             textInput.text = ""
@@ -54,9 +54,10 @@ Rectangle {
         onFocusedChanged: {
             textInput.focus = true
         }
+
         Connections {
             target: device
-            onDeviceMessageReceived: (msg) => {
+            function onDeviceMessageReceived(msg) {
                 if (device.name === "bluetooth") {
                     _root.addMessage(msg)
                 } else {
@@ -152,13 +153,16 @@ Rectangle {
 
         Connections {
             target: device
-            onSendCommandSucceeded: (command) => {
+            function onSendCommandSucceeded(command) {
                 textView.appendWithColor("> " + command, AppSettings.greenColor)
                 textView.scrollToBottom()
             }
-            onSendCommandFailed: (command) => {
+
+            function onSendCommandFailed(command) {
                 let cmd = "> " + command
-                const res = textView.replaceWithColor(cmd, AppSettings.greenColor, AppSettings.redColor)
+                const res = textView.replaceWithColor(cmd,
+                                                      AppSettings.greenColor,
+                                                      AppSettings.redColor)
                 if (!res) {
                     textView.appendWithColor(cmd, AppSettings.redColor)
                 }
@@ -166,33 +170,35 @@ Rectangle {
             }
         }
 
-        Keys.onPressed: (event) => {
-            if ((event.key === Qt.Key_C) && (event.modifiers & Qt.ControlModifier)) {
-                const txtIn = textInput.selectedText
-                if (txtIn !== "") {
-                    textInput.copy()
-                } else {
-                    textView.copy()
-                }
-                event.accepted = true
-            }
-            if (event.key === Qt.Key_R && (event.modifiers & Qt.ControlModifier)) {
-                if (enableHistory) {
-                    cmdHistory.visible = !cmdHistory.visible
-                    cmdHistory.resetList()
-                    cmdHistory.filter()
-                }
-                event.accepted = true
-            }
-            if (event.key === Qt.Key_Up) {
-                cmdHistory.up()
-                event.accepted = true
-            }
-            if (event.key === Qt.Key_Down) {
-                cmdHistory.down()
-                event.accepted = true
-            }
-        }
+        Keys.onPressed: event => {
+                            if ((event.key === Qt.Key_C)
+                                && (event.modifiers & Qt.ControlModifier)) {
+                                const txtIn = textInput.selectedText
+                                if (txtIn !== "") {
+                                    textInput.copy()
+                                } else {
+                                    textView.copy()
+                                }
+                                event.accepted = true
+                            }
+                            if (event.key === Qt.Key_R
+                                && (event.modifiers & Qt.ControlModifier)) {
+                                if (enableHistory) {
+                                    cmdHistory.visible = !cmdHistory.visible
+                                    cmdHistory.resetList()
+                                    cmdHistory.filter()
+                                }
+                                event.accepted = true
+                            }
+                            if (event.key === Qt.Key_Up) {
+                                cmdHistory.up()
+                                event.accepted = true
+                            }
+                            if (event.key === Qt.Key_Down) {
+                                cmdHistory.down()
+                                event.accepted = true
+                            }
+                        }
 
         onTextChanged: {
             if (textInput.text === "")
@@ -201,17 +207,17 @@ Rectangle {
         }
     }
 
-    Keys.onReturnPressed: (event) => {
-        if (cmdHistory.visible) {
-            console.log(cmdHistory.getSelected())
-            textInput.text = cmdHistory.getSelected()
-            cmdHistory.visible = false
-            cmdHistory.resetList()
-            event.accepted = true
-            return
-        }
-        _root.sendCommand(textInput.text)
-        textInput.text = ""
-        event.accepted = true
-    }
+    Keys.onReturnPressed: event => {
+                              if (cmdHistory.visible) {
+                                  console.log(cmdHistory.getSelected())
+                                  textInput.text = cmdHistory.getSelected()
+                                  cmdHistory.visible = false
+                                  cmdHistory.resetList()
+                                  event.accepted = true
+                                  return
+                              }
+                              _root.sendCommand(textInput.text)
+                              textInput.text = ""
+                              event.accepted = true
+                          }
 }

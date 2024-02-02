@@ -11,18 +11,19 @@ Item {
     property bool isRttRunning: false
 
     Component.onCompleted: {
-        chester.attachSucceeded.connect(function() {
+        chester.attachSucceeded.connect(function () {
             isRttRunning = true
         })
-        chester.detachSucceeded.connect(function() {
+        chester.detachSucceeded.connect(function () {
             isRttRunning = false
         })
     }
 
     FileDialog {
         id: fileDialog
-        nameFilters: [ "All files (*.hex)", "All files (*)" ]
-        currentFolder: StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]
+        nameFilters: ["All files (*.hex)", "All files (*)"]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.HomeLocation)[0]
         onAccepted: {
             console.log("Selected file:", selectedFile)
             flash.setHexPath(selectedFile)
@@ -94,7 +95,8 @@ Item {
 
             Text {
                 id: pairingWarningMessage
-                text: qsTr("Click the Catalog button to browse the CHESTER Catalog Applications\n\n")
+                text: qsTr(
+                          "Click the Catalog button to browse the CHESTER Catalog Applications\n\n")
                 anchors {
                     top: steps.bottom
                     topMargin: 55
@@ -127,28 +129,34 @@ Item {
 
     Connections {
         target: toolPanel
-        onClearFlashClicked: {
+        function onClearFlashClicked() {
             flashShell.clear()
         }
-        onBrowseClicked: {
+
+        function onBrowseClicked() {
             if (flash.running) {
-                notify.showWrn("Please wait for the flashing process to complete!")
+                notify.showWrn(
+                            "Please wait for the flashing process to complete!")
                 return
             }
             notify.showInfo("Please choose the .hex file")
             fileDialog.open()
         }
-        onRunClicked: {
+
+        function onRunClicked() {
             if (flash.running) {
-                notify.showWrn("Please wait for the flashing process to complete!")
+                notify.showWrn(
+                            "Please wait for the flashing process to complete!")
                 return
             }
             if (isRttRunning) {
-                notify.showWrn("Please detach from a device via Console page then Run flash process again!")
+                notify.showWrn(
+                            "Please detach from a device via Console page then Run flash process again!")
                 return
             }
             if (!flash.ready) {
-                notify.showWrn("Try to enter a hex from Catalog or Browse for a file first!")
+                notify.showWrn(
+                            "Try to enter a hex from Catalog or Browse for a file first!")
                 return
             }
             notify.showInfo("Start flashing the device...")
@@ -159,11 +167,12 @@ Item {
 
     Connections {
         target: flash
-        onFinished: {
+        function onFinished() {
             progress.value = 0.0
             progress.visible = false
         }
-        onErrorOccured: {
+
+        function onErrorOccured() {
             progress.value = 0.0
             progress.visible = false
             notify.showErr("Flash process failed")

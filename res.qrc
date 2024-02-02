@@ -1,0 +1,36 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="attach">resources/icons/attach.png</file>
+        <file alias="batch">resources/icons/batch.png</file>
+        <file alias="signal-best">resources/icons/bestsignal.png</file>
+        <file alias="bt-icon">resources/icons/bt.png</file>
+        <file alias="bt-disconnect">resources/icons/btdisconnect.png</file>
+        <file alias="bt-discover">resources/icons/btdiscover.png</file>
+        <file alias="catalog">resources/icons/catalog.png</file>
+        <file alias="clear">resources/icons/clear.png</file>
+        <file alias="cli">resources/icons/cli.png</file>
+        <file alias="detach">resources/icons/detach.png</file>
+        <file alias="filter">resources/icons/filter.png</file>
+        <file alias="flash">resources/icons/flash.png</file>
+        <file alias="folder">resources/icons/folder.png</file>
+        <file alias="signal-good">resources/icons/goodsignal.png</file>
+        <file alias="hw-no-title">resources/icons/hwNoTitle.png</file>
+        <file alias="hw-title">resources/icons/hwTitle.png</file>
+        <file>resources/icons/icon.png</file>
+        <file>resources/icons/icons.icns</file>
+        <file alias="favicon">resources/icons/icons.ico</file>
+        <file alias="signal-okay">resources/icons/okaysignal.png</file>
+        <file alias="pause">resources/icons/pause.png</file>
+        <file alias="resume">resources/icons/resume.png</file>
+        <file alias="search">resources/icons/search.png</file>
+        <file alias="select">resources/icons/select.png</file>
+        <file alias="send">resources/icons/send.png</file>
+        <file alias="signal-empty">resources/icons/signal.png</file>
+        <file alias="undo">resources/icons/undo.png</file>
+        <file alias="signal-weak">resources/icons/weaksignal.png</file>
+    </qresource>
+    <qresource prefix="/fonts">
+        <file alias="inter">resources/fonts/Inter-Regular.ttf</file>
+        <file alias="ubuntu-mono">resources/fonts/UbuntuMono-Regular.ttf</file>
+    </qresource>
+</RCC>

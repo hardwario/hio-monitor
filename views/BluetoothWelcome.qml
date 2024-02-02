@@ -59,40 +59,51 @@ Item {
 
     function checkBt() {
         const isOn = bluetooth.isOn
-        if (!isOn) notify.showError("Bluetooth is trurned off")
+        if (!isOn)
+            notify.showError("Bluetooth is trurned off")
         return isOn
     }
 
     Connections {
         target: bluetooth
-        onBluetoothChanged: {
+
+        function onBluetoothChanged() {
             if (!bluetooth.isOn)
                 notify.showError("Bluetooth is turned off")
         }
-        onErrorOnConnect: (msg) => {
+
+        function onErrorOnConnect(msg) {
             notify.showError(msg)
             loadingIndicator.close()
         }
-        onDeviceConnected: {
+
+        function onDeviceConnected() {
             loadingIndicator.close()
             notify.showWrn("Connected to: " + devices.currentItem.model.name)
         }
-        onDeviceDisconnected: {
+
+        function onDeviceDisconnected() {
             loadingIndicator.close()
-            notify.showWrn("Disconnected from: " + devices.currentItem.model.name)
+            notify.showWrn(
+                        "Disconnected from: " + devices.currentItem.model.name)
         }
-        onDeviceIsUnpaired: {
-            notify.showWrn("Device " + devices.currentItem.model.name + " is unpaired, please pair the device")
+
+        function onDeviceIsUnpaired() {
+            notify.showWrn("Device " + devices.currentItem.model.name
+                           + " is unpaired, please pair the device")
             loadingIndicator.close()
         }
-        onDeviceDiscovered: (device) => {
+
+        function onDeviceDiscovered(device) {
             deviceModel.addDevice(device)
         }
-        onDeviceScanFinished: {
+
+        function onDeviceScanFinished() {
             progress.visible = false
             notify.showInfo("Device scanning finished")
         }
-        onDeviceScanCanceled: {
+
+        function onDeviceScanCanceled() {
             progress.visible = false
             notify.showWrn("Device scanning canceled")
         }
@@ -135,18 +146,18 @@ Item {
                 top: placeholderText.bottom
             }
 
-            Keys.onPressed: (event) => {
-                switch(event) {
-                    case Qt.Key_Up:
-                        devices.decrementCurrentIndex()
-                        event.accepted = true
-                        break
-                    case Qt.Key_Down:
-                        devices.incrementCurrentIndex()
-                        event.accepted = true
-                        break
-                }
-            }
+            Keys.onPressed: event => {
+                                switch (event) {
+                                    case Qt.Key_Up:
+                                    devices.decrementCurrentIndex()
+                                    event.accepted = true
+                                    break
+                                    case Qt.Key_Down:
+                                    devices.incrementCurrentIndex()
+                                    event.accepted = true
+                                    break
+                                }
+                            }
 
             ListView {
                 id: devices
@@ -163,16 +174,18 @@ Item {
 
                 Connections {
                     target: toolPanel
-                    onScanClicked: {
-                        if (!checkBt()) return
+                    function onScanClicked() {
+                        if (!checkBt())
+                            return
                         notify.showInfo("Scanning...")
                         progress.visible = true
                         bluetooth.startScan()
                         devices.visible = true
                         devicesFocusScope.forceActiveFocus()
                     }
-                    onConnectClicked: {
-                        if (!checkBt()) return
+                    function onConnectClicked() {
+                        if (!checkBt())
+                            return
                         if (devices.model.rowCount() === 0) {
                             notify.showError("No devices were found")
                             return

@@ -7,9 +7,6 @@
 #include <QDir>
 #include <QObject>
 
-#include "app_environment.h"
-#include "import_qml_components_plugins.h"
-#include "import_qml_plugins.h"
 #include "searchcomponent.h"
 #include "chester.h"
 #include "bluetooth.h"
@@ -25,7 +22,6 @@ static void initBackend() {
 
 int main(int argc, char *argv[]) 
 {
-    set_qt_environment();
     QGuiApplication app(argc, argv);
 
     QLockFile lockFile(QDir::temp().absoluteFilePath("HARDWARIOMonitor.lock"));
@@ -36,7 +32,7 @@ int main(int argc, char *argv[])
 
     app.setOrganizationName("HARDWARIO");
     app.setOrganizationDomain("IoT");
-    app.setWindowIcon(QIcon(":/resources/icons.ico"));
+    app.setWindowIcon(QIcon(":/icons/favicon"));
     initBackend();
 
     QQmlApplicationEngine engine;
@@ -67,19 +63,7 @@ int main(int argc, char *argv[])
 
     engine.rootContext()->setContextProperty("APP_VERSION", APP_VERSION);
 
-    const QUrl url(u"qrc:Main/main.qml"_qs);
-    QObject::connect(
-        &engine, &QQmlApplicationEngine::objectCreated, &app,
-        [url](QObject *obj, const QUrl &objUrl) {
-            if (!obj && url == objUrl)
-                QCoreApplication::exit(-1);
-        },
-        Qt::QueuedConnection);
-
-    engine.addImportPath(QCoreApplication::applicationDirPath() + "/qml");
-    engine.addImportPath(":/");
-
-    engine.load(url);
+    engine.load(QUrl("qrc:/views/main.qml"));
 
     if (engine.rootObjects().isEmpty())
         return -1;

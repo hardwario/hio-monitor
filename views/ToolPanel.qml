@@ -1,17 +1,17 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Controls.Material 2.15
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Controls.Material
 
 Rectangle {
     id: _root
     color: Material.background
-    property var consoleButtons: [ detach, clearCli, pause, undo, batchCli ]
-    property var bluetoothButtons: [ disconnect, clearBt, batchBt ]
-    property var consoleWelcomeButtons: [ attach ]
-    property var bluetoothWelcomeButtons: [ scan, connect ]
-    property var flashButtons: [ browse, run, catalog, clearFlash ]
+    property var consoleButtons: [detach, clearCli, pause, undo, batchCli]
+    property var bluetoothButtons: [disconnect, clearBt, batchBt]
+    property var consoleWelcomeButtons: [attach]
+    property var bluetoothWelcomeButtons: [scan, connect]
+    property var flashButtons: [browse, run, catalog, clearFlash]
 
-    property var pageNameButtonMap: ({ });
+    property var pageNameButtonMap: ({})
 
     Component.onCompleted: {
         pageNameButtonMap[AppSettings.consoleWelcomeName] = consoleWelcomeButtons
@@ -21,21 +21,21 @@ Rectangle {
         pageNameButtonMap[AppSettings.flashName] = flashButtons
     }
 
-    signal clearCliClicked()
-    signal clearBtClicked()
-    signal clearFlashClicked()
-    signal pauseClicked()
-    signal connectClicked()
-    signal scanClicked()
-    signal disconnectClicked()
-    signal downClicked()
-    signal undoClicked()
-    signal autoscrollClicked()
-    signal browseClicked()
-    signal runClicked()
-    signal sendCommand()
-    signal batchCliClicked()
-    signal batchBtClicked()
+    signal clearCliClicked
+    signal clearBtClicked
+    signal clearFlashClicked
+    signal pauseClicked
+    signal connectClicked
+    signal scanClicked
+    signal disconnectClicked
+    signal downClicked
+    signal undoClicked
+    signal autoscrollClicked
+    signal browseClicked
+    signal runClicked
+    signal sendCommand
+    signal batchCliClicked
+    signal batchBtClicked
 
     Rectangle {
         anchors.left: parent.left
@@ -49,21 +49,21 @@ Rectangle {
     }
 
     function hideAll(arr) {
-        arr.forEach((button) => {
-            button.visible = false
-        })
+        arr.forEach(button => {
+                        button.visible = false
+                    })
     }
 
     function showAll(arr) {
-        arr.forEach((button) => {
-            button.visible = button.visibleOnInit
-        })
+        arr.forEach(button => {
+                        button.visible = button.visibleOnInit
+                    })
     }
 
     function highlightOnlyThis(button, arr) {
-        arr.forEach((btn) => {
-            btn.borderHighlight = btn.textContent === button.textContent
-        })
+        arr.forEach(btn => {
+                        btn.borderHighlight = btn.textContent === button.textContent
+                    })
     }
 
     component ToolButton: SideButton {
@@ -96,17 +96,17 @@ Rectangle {
             textContent: "Connect"
             iconSource: AppSettings.selectIcon
             visibleOnInit: true
-            onButtonClicked: {
+            function onButtonClicked() {
                 connectClicked()
                 console.log("Connect clicked")
             }
             Connections {
                 target: bluetooth
-                onDeviceConnected: {
+                function onDeviceConnected() {
                     console.log("Device connected")
                     connect.borderHighlight = false
                 }
-                onDeviceDiscovered: {
+                function onDeviceDiscovered() {
                     highlightOnlyThis(connect, bluetoothWelcomeButtons)
                 }
             }
@@ -250,23 +250,25 @@ Rectangle {
 
         Connections {
             target: flash
-            onReadyChanged: {
+            function onReadyChanged() {
                 if (flash.ready) {
                     highlightOnlyThis(run, flashButtons)
                 }
             }
-            onFinished: {
+            function onFinished() {
                 highlightOnlyThis(browse, flashButtons)
             }
         }
 
         Connections {
             target: stackView
-            onCurrentItemChanged: {
+            function onCurrentItemChanged() {
                 let currentPageName = stackView.currentItem.name
                 for (let pageName in _root.pageNameButtonMap) {
                     let buttons = pageNameButtonMap[pageName]
-                    currentPageName === pageName ? _root.showAll(buttons) : _root.hideAll(buttons)
+                    currentPageName === pageName ? _root.showAll(
+                                                       buttons) : _root.hideAll(
+                                                       buttons)
                 }
             }
         }
