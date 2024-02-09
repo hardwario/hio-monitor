@@ -15,26 +15,29 @@ void Search::setSearchText(const QString &text) {
 
 void Search::highlightBlock(const QString &text) {
     if (searchText.isEmpty()) return;
+
     _matchedInds.clear();
+
     QRegularExpression re(QRegularExpression::escape(searchText),
                           QRegularExpression::CaseInsensitiveOption);
     QRegularExpressionMatchIterator i = re.globalMatch(text);
     int blockPosition = currentBlock().position();
+
     while (i.hasNext()) {
         QRegularExpressionMatch match = i.next();
         int start = static_cast<int>(match.capturedStart());
         int newBlockPosition = blockPosition + start;
+
         if (!_matchedInds.contains(newBlockPosition)) {
-            qDebug() << "Search: new match on: " << newBlockPosition;
             _matchedInds.append(newBlockPosition);
         }
+
         int length = static_cast<int>(match.capturedLength());
         setFormat(start, length, format);
     }
 }
 
 void Search::reset() {
-    qDebug() << "Search: reset";
     searchText.clear();
     _matchedInds.clear();
     rehighlight();

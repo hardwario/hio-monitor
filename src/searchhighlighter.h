@@ -15,6 +15,7 @@ public:
     QVector<int> getMatchedInds() {
         return _matchedInds;
     }
+
 protected:
     void highlightBlock(const QString &text) override;
 

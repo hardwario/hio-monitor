@@ -1,4 +1,4 @@
-#include "bluetoothworker.h"
+#include "btworker.h"
 
 BluetoothWorker::BluetoothWorker(QObject *parent) : QObject(parent) {
     _deviceDiscoveryAgent = new QBluetoothDeviceDiscoveryAgent(this);
@@ -26,22 +26,23 @@ BluetoothWorker::BluetoothWorker(QObject *parent) : QObject(parent) {
 BluetoothWorker::~BluetoothWorker() {
     stopScan();
     disconnect();
-    delete _deviceDiscoveryAgent;
     delete _control;
     delete _service;
+    delete _deviceDiscoveryAgent;
 }
 
 void BluetoothWorker::startScan() {
     qDebug() << "Scanning...";
     _deviceDiscoveryAgent->start(QBluetoothDeviceDiscoveryAgent::LowEnergyMethod);
 }
+
 void BluetoothWorker::stopScan() {
     _deviceDiscoveryAgent->stop();
 }
+
 void BluetoothWorker::disconnect() {
     if (_control)
         _control->disconnectFromDevice();
-    qDebug() << "Disconnected from device";
 }
 
 void BluetoothWorker::handleDeviceDiscovered(const QBluetoothDeviceInfo &device) {
@@ -51,7 +52,7 @@ void BluetoothWorker::handleDeviceDiscovered(const QBluetoothDeviceInfo &device)
     }
 }
 
-void BluetoothWorker::connectTo(DeviceInfo* device) {
+void BluetoothWorker::connectTo(BtDeviceInfo* device) {
     // Disconnect and delete old connection
     if (_control) {
         _control->disconnectFromDevice();
@@ -59,7 +60,6 @@ void BluetoothWorker::connectTo(DeviceInfo* device) {
         _control = nullptr;
     }
 
-    qDebug() << "Connecting to device" << device->getName();
     _control = QLowEnergyController::createCentral(device->getDevice(), this);
     _control->setRemoteAddressType(QLowEnergyController::PublicAddress);
 
@@ -77,6 +77,7 @@ void BluetoothWorker::connectTo(DeviceInfo* device) {
                 qDebug() << "Cannot connect to remote device due to: " << error;
                 emit errorOccured("Cannot connect to remote device due to: " + errorStr);
             });
+
     connect(_control, &QLowEnergyController::connected, this,
             [this]() {
                 qDebug() << "Controller connected. Search services...";
@@ -96,44 +97,34 @@ void BluetoothWorker::connectTo(DeviceInfo* device) {
 
 void BluetoothWorker::findCharacteristics() {
     for (const auto &characteristic : _service->characteristics()) {
-        qDebug() << "Characteristic: " << characteristic.uuid();
         if (characteristic.uuid() == _rxUUID) {
-            qDebug() << "Found RX characteristic";
             chester_rx = characteristic;
-            if (characteristic.properties() & QLowEnergyCharacteristic::Write) {
-                qDebug() << "The characteristic is writable";
-            } else {
-                qDebug() << "The characteristic is not writable";
-            }
+
             _writeMode = QLowEnergyService::WriteMode::WriteWithResponse;
+
             if (characteristic.properties() == QLowEnergyCharacteristic::PropertyType::WriteNoResponse)
                 _writeMode = QLowEnergyService::WriteMode::WriteWithoutResponse;
-            qDebug() << "Write mode: " << _writeMode;
         }
+
         if (characteristic.uuid() == _txUUID) {
-            qDebug() << "Found TX characteristic";
             chester_tx = characteristic;
-            if (chester_tx.properties() & QLowEnergyCharacteristic::Notify) {
-                qDebug() << "The characteristic supports notifications";
-            } else {
-                qDebug() << "The characteristic does not support notifications";
-            }
         }
     }
 }
 
 void BluetoothWorker::serviceDiscovered(const QBluetoothUuid &gatt) {
     if (gatt == _primaryUUID) {
-        qDebug() << "Primary service discovered";
         if (_service) {
             _service ->deleteLater();
             _service = nullptr;
         }
+
         _service = _control->createServiceObject(gatt, this);
         if (!_service) {
             qDebug() << "Cannot create service for uuid: " << gatt.toString();
             return;
         }
+
         _foundPrimary = true;
     }
 }
@@ -148,12 +139,8 @@ void BluetoothWorker::serviceScanDone() {
             this, &BluetoothWorker::serviceStateChanged);
     connect(_service, &QLowEnergyService::characteristicChanged,
             this, &BluetoothWorker::characteristicChanged);
-    connect(_service, &QLowEnergyService::characteristicRead,
-            this, &BluetoothWorker::characteristicRead);
     connect(_service, &QLowEnergyService::descriptorWritten,
             this, &BluetoothWorker::descriptorWritten);
-    connect(_service, &QLowEnergyService::descriptorRead,
-            this, &BluetoothWorker::descriptorRead);
 
     connect(_service, &QLowEnergyService::errorOccurred, this,
             [this](QLowEnergyService::ServiceError error) {
@@ -164,24 +151,15 @@ void BluetoothWorker::serviceScanDone() {
             });
 
     _service->discoverDetails();
-
     findCharacteristics();
 }
 
-void BluetoothWorker::characteristicRead(const QLowEnergyCharacteristic &characteristic, const QByteArray &value) {
-    qDebug() << "Characteristic read: " << characteristic.uuid() << ", value: " << value;
-}
 
 void BluetoothWorker::descriptorWritten(const QLowEnergyDescriptor &descriptor, const QByteArray &value) {
     if (descriptor.isValid() && !_connectionEstablished) {
         _connectionEstablished = true;
         emit deviceConnected();
     }
-    qDebug() << "Descriptor written: " << descriptor.uuid() << ", new value: " << value;
-}
-
-void BluetoothWorker::descriptorRead(const QLowEnergyDescriptor &descriptor, const QByteArray &value) {
-    qDebug() << "Descriptor read: " << descriptor.uuid() << ", value: " << value;
 }
 
 void BluetoothWorker::characteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &value) {
@@ -199,18 +177,13 @@ void BluetoothWorker::characteristicChanged(const QLowEnergyCharacteristic &char
     emit deviceMessageReceived(receivedMessage);
 }
 
-void BluetoothWorker::serviceStateChanged(QLowEnergyService::ServiceState newState) {
-    qDebug() << "State changed: " << newState;
+void BluetoothWorker::serviceStateChanged(QLowEnergyService::ServiceState newState) {;
     if (newState == QLowEnergyService::RemoteServiceDiscovered) {
         findCharacteristics();
-        if (!chester_tx.isValid()) {
-            qCritical() << "tx characteristic is invalid";
-        }
         auto descriptor = chester_tx.descriptor(QBluetoothUuid::DescriptorType::ClientCharacteristicConfiguration);
+
         if (descriptor.isValid()) {
             _service->writeDescriptor(descriptor, QByteArray::fromHex("0100"));
-        } else {
-            qCritical() << "Descriptor for characteristic" << chester_tx.uuid() << "is invalid. Cannot write to enable notifications";
         }
     }
 }
@@ -220,17 +193,19 @@ void BluetoothWorker::sendCommand(const QString &command) {
         qDebug() << "Bt service is not init, command send abonded";
         return;
     }
+
     if (_service->state() != QLowEnergyService::RemoteServiceDiscovered) {
         emit errorOccured("Service is not in discovered state, can not write to it. Try reset the device.");
         return;
     }
+
     if (!chester_rx.isValid()) {
         qCritical() << "rx characteristic is invalid";
         emit errorOccured("Devices's write characteristic is invalid. Try reset the device.");
         return;
     }
+
     QByteArray value = command.toUtf8();
     value.append('\n');
-    qDebug() << "Sending: " << value;
     _service->writeCharacteristic(chester_rx, value, _writeMode);
 }

@@ -1,9 +1,12 @@
-import QtQuick 2.12
-import QtQuick.Controls.Material 2.15
-import Qt.labs.folderlistmodel
-import QtQuick.Dialogs
 import QtCore
+import QtQuick
+import QtQuick.Dialogs
+import Qt.labs.folderlistmodel
+import QtQuick.Controls.Material
 
+// BluetoothPage is the page for interacting with Chester via Bluetooth.
+// It provides an InteractiveShell with the same functionality as the ConsolePage.
+// Device's log is not supported via Bluetooth, thus DeviceLog is not included.
 Item {
     property string name: AppSettings.bluetoothName
 
@@ -13,13 +16,13 @@ Item {
         device: bluetooth
     }
 
+    // file dialog for choosing file with batch commands in it.
     FileDialog {
         id: fileDialog
         nameFilters: ["All files (*)"]
         currentFolder: StandardPaths.standardLocations(
                            StandardPaths.HomeLocation)[0]
         onAccepted: {
-            console.log("Selected file:", selectedFile)
             bluetoothShell.device.batchSendCommand(selectedFile)
         }
     }

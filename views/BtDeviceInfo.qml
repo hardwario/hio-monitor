@@ -1,24 +1,32 @@
-import QtQuick 2.15
-import QtQuick.Controls.Material 2.15
+import QtQuick
+import QtQuick.Controls.Material
 
+// BtDeviceInfo is a bluetooth device list item object.
+// It's meant to be used as the ListView delegate, that's why below it accesses model object.
 Item {
     id: deviceItem
-    height: devices.height * 0.15
-    width: devices.width
+
+    height: deviceView.height * 0.15
+    width: deviceView.width
+
     required property int index
     required property var model
 
     function colorByState() {
         let res = Material.background
+
         if (mouseArea.containsMouse)
             res = AppSettings.hoverColor
-        if (devices.currentIndex === index)
+
+        if (deviceView.currentIndex === index)
             res = Qt.lighter(AppSettings.borderColor)
+
         return res
     }
 
     function chooseColor(rssi) {
         let res = Qt.darker(AppSettings.whiteColor)
+
         if (rssi <= -90)
             res = "#F97583"
         else if (rssi <= -67)
@@ -27,11 +35,13 @@ Item {
             res = "#85E89D"
         else if (rssi <= -30)
             res = "#85E89D"
+
         return res
     }
 
     function chooseIcon(rssi) {
         let res = AppSettings.signalIcon
+
         if (rssi <= -90)
             res = AppSettings.weakSignalIcon
         else if (rssi <= -67)
@@ -40,6 +50,7 @@ Item {
             res = AppSettings.goodSignalIcon
         else if (rssi <= -30)
             res = AppSettings.bestSignalIcon
+
         return res
     }
 
@@ -48,7 +59,7 @@ Item {
         anchors.fill: deviceItem
         hoverEnabled: true
         onClicked: {
-            devices.currentIndex = index
+            deviceView.currentIndex = index
         }
     }
 
@@ -62,7 +73,7 @@ Item {
             id: hwIcon
             source: AppSettings.hwNoTitleIcon
             smooth: true
-            height: 2*device.height
+            height: 2 * device.height
             width: height - 6
             anchors {
                 right: infoColumn.left
@@ -75,6 +86,7 @@ Item {
             id: infoColumn
             anchors.centerIn: parent
             width: parent.width / 3
+
             Text {
                 id: device
                 text: deviceItem.model.name
@@ -97,9 +109,9 @@ Item {
 
         Text {
             id: deviceRssi
-            text: model.rssi
-            visible: model.rssi !== 0
-            color: chooseColor(model.rssi)
+            text: deviceItem.model.rssi
+            visible: deviceItem.model.rssi !== 0
+            color: chooseColor(deviceItem.model.rssi)
             font.family: textFont.name
             anchors {
                 left: infoColumn.right
@@ -111,8 +123,8 @@ Item {
 
         Image {
             id: signalImage
-            visible: model.rssi !== 0
-            source: chooseIcon(model.rssi)
+            visible: deviceItem.model.rssi !== 0
+            source: chooseIcon(deviceItem.model.rssi)
             width: 24
             height: 24
             anchors {

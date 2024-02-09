@@ -1,12 +1,13 @@
-#ifndef DEVICEMODEL_H
-#define DEVICEMODEL_H
+#ifndef BTDEVICEMODEL_H
+#define BTDEVICEMODEL_H
 
-#include <QtCore/QAbstractListModel>
-#include <QtCore/QList>
 #include <QQmlEngine>
-#include "deviceinfo.h"
+#include <QtCore/QList>
+#include <QtCore/QAbstractListModel>
 
-class DeviceModel : public QAbstractListModel {
+#include "btdeviceinfo.h"
+
+class BtDeviceModel : public QAbstractListModel {
     Q_OBJECT
 public:
     enum Roles {
@@ -17,7 +18,7 @@ public:
         SortRole
     };
 
-    explicit DeviceModel(QObject *parent = nullptr);
+    explicit BtDeviceModel(QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
 
@@ -29,7 +30,7 @@ public:
 
     Q_INVOKABLE void addDevice(const QBluetoothDeviceInfo &info);
 private:
-    QList<DeviceInfo*> _devices;
+    QList<BtDeviceInfo*> _devices;
 };
 
-#endif // DEVICEMODEL_H
+#endif // BTDEVICEMODEL_H

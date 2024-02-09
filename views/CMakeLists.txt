@@ -24,7 +24,7 @@ qt6_add_qml_module(views
         AppNotification.qml
         AppSettings.qml
         LoadingIndicator.qml
-        Search.qml
+        SearchHelper.qml
         BtDeviceInfo.qml
         FlashPage.qml
 )

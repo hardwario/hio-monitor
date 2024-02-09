@@ -5,11 +5,13 @@ SearchComponent::SearchComponent(QObject* parent)
 
 QQuickTextDocument* SearchComponent::findTextDocument(QObject* parentObject) {
     for (int i = 0; i < parentObject->children().size(); i++) {
-        QObject* child = parentObject->children().at(i);
+        auto child = parentObject->children().at(i);
         QVariant property = child->property("textDocument");
+
         if (property.isValid()) {
             return property.value<QQuickTextDocument*>();
         }
+
         auto result = findTextDocument(child);
         if(result) return result;
     }
@@ -36,9 +38,4 @@ void SearchComponent::searchFor(const QString &pattern) {
 
 QVector<int> SearchComponent::getMatchedInds() {
     return _highlight->getMatchedInds();
-}
-
-void SearchComponent::registerQmlType() {
-    qmlRegisterType<SearchComponent>("hiomon", 1,
-                                       0, "SearchComponent");
 }

@@ -1,15 +1,16 @@
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
 
-#include <QSortFilterProxyModel>
 #include <QObject>
 #include <QThread>
+#include <QSortFilterProxyModel>
+
 #include "historyfile.h"
-#include "deviceinfo.h"
-#include "bluetoothworker.h"
+#include "btdeviceinfo.h"
+#include "btworker.h"
 #include "deviceInterface.h"
 
-Q_DECLARE_METATYPE(DeviceInfo*)
+Q_DECLARE_METATYPE(BtDeviceInfo*)
 
 class Bluetooth : public DeviceInterface {
     Q_OBJECT
@@ -37,7 +38,7 @@ signals:
     void deviceScanCanceled();
     void deviceScanFinished();
     void errorOnConnect(QString msg);
-    void connectRequested(DeviceInfo* device);
+    void connectRequested(BtDeviceInfo* device);
     void sendCommandRequested(const QString &command);
 public slots:
     void disconnect();

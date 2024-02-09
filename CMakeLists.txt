@@ -23,14 +23,14 @@ set(PROJECT_SOURCES
     src/chester.cpp
     src/bluetooth.h
     src/bluetooth.cpp
-    src/bluetoothworker.h
-    src/bluetoothworker.cpp
-    src/deviceinfo.h
-    src/deviceinfo.cpp
+    src/btworker.h
+    src/btworker.cpp
+    src/btdeviceinfo.h
+    src/btdeviceinfo.cpp
     src/messagemodel.h
     src/messagemodel.cpp
-    src/devicemodel.h
-    src/devicemodel.cpp
+    src/btdevicemodel.h
+    src/btdevicemodel.cpp
     src/flash.h
     src/flash.cpp
     src/filedownloader.h

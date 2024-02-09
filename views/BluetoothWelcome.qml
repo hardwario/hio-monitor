@@ -1,6 +1,10 @@
-import QtQuick 2.12
-import QtQuick.Controls.Material 2.15
+import QtQuick
+import QtQuick.Controls.Material
 
+// BluetoothWelcome is the welcome page for the Bluetooth page.
+// It has a discovery button to start scanning for the nearby Chester devices.
+// It shows all the discovered devices in a list view and then the user can connect to the device.
+// It has a guidaince message for the user.
 Item {
     id: _root
     property string name: AppSettings.bluetoothWelcomeName
@@ -11,10 +15,9 @@ Item {
         anchors {
             top: parent.top
             left: parent.left
-            right: devicesView.left
+            right: devices.left
         }
 
-        // Icon to be displayed at top
         Image {
             id: img
             source: AppSettings.btIcon
@@ -27,7 +30,6 @@ Item {
             }
         }
 
-        // Welcome message text
         Text {
             id: welcomeMessage
             text: qsTr("Welcome to the Bluetooth page!\n\nTo start using it, click the Scan button to discover the nearby devices then choose your device and click Connect button.")
@@ -59,8 +61,10 @@ Item {
 
     function checkBt() {
         const isOn = bluetooth.isOn
+
         if (!isOn)
             notify.showError("Bluetooth is trurned off")
+
         return isOn
     }
 
@@ -79,17 +83,17 @@ Item {
 
         function onDeviceConnected() {
             loadingIndicator.close()
-            notify.showWrn("Connected to: " + devices.currentItem.model.name)
+            notify.showWrn("Connected to: " + deviceView.currentItem.model.name)
         }
 
         function onDeviceDisconnected() {
             loadingIndicator.close()
             notify.showWrn(
-                        "Disconnected from: " + devices.currentItem.model.name)
+                        "Disconnected from: " + deviceView.currentItem.model.name)
         }
 
         function onDeviceIsUnpaired() {
-            notify.showWrn("Device " + devices.currentItem.model.name
+            notify.showWrn("Device " + deviceView.currentItem.model.name
                            + " is unpaired, please pair the device")
             loadingIndicator.close()
         }
@@ -110,14 +114,14 @@ Item {
     }
 
     Rectangle {
-        id: devicesView
+        id: devices
         anchors.right: parent.right
         color: Material.background
         height: parent.height
         width: appWindow.width / 4
 
         Component.onCompleted: {
-            devices.forceActiveFocus()
+            deviceView.forceActiveFocus()
         }
 
         Rectangle {
@@ -130,14 +134,14 @@ Item {
 
         TextLabel {
             id: placeholderText
-            bindFocusTo: devicesFocusScope.activeFocus || devicesView.focus
+            bindFocusTo: devicesFocusScope.activeFocus || parent.focus
             text: "Devices"
         }
 
         FocusScope {
             id: devicesFocusScope
-            width: devicesView.width
-            height: devicesView.height
+            width: parent.width
+            height: parent.height
 
             anchors {
                 right: parent.right
@@ -146,21 +150,21 @@ Item {
                 top: placeholderText.bottom
             }
 
-            Keys.onPressed: event => {
-                                switch (event) {
-                                    case Qt.Key_Up:
-                                    devices.decrementCurrentIndex()
-                                    event.accepted = true
-                                    break
-                                    case Qt.Key_Down:
-                                    devices.incrementCurrentIndex()
-                                    event.accepted = true
-                                    break
-                                }
-                            }
+            Keys.onPressed: function (event) {
+                switch (event) {
+                case Qt.Key_Up:
+                    deviceView.decrementCurrentIndex()
+                    event.accepted = true
+                    break
+                case Qt.Key_Down:
+                    deviceView.incrementCurrentIndex()
+                    event.accepted = true
+                    break
+                }
+            }
 
             ListView {
-                id: devices
+                id: deviceView
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
                 height: parent.height
@@ -174,25 +178,30 @@ Item {
 
                 Connections {
                     target: toolPanel
+
                     function onScanClicked() {
                         if (!checkBt())
                             return
+
                         notify.showInfo("Scanning...")
                         progress.visible = true
                         bluetooth.startScan()
-                        devices.visible = true
+                        deviceView.visible = true
                         devicesFocusScope.forceActiveFocus()
                     }
+
                     function onConnectClicked() {
                         if (!checkBt())
                             return
-                        if (devices.model.rowCount() === 0) {
+
+                        if (deviceView.model.rowCount() === 0) {
                             notify.showError("No devices were found")
                             return
                         }
+
                         notify.showInfo("Connecting...")
                         loadingIndicator.open()
-                        bluetooth.connectToByIndex(devices.currentIndex)
+                        bluetooth.connectToByIndex(deviceView.currentIndex)
                     }
                 }
 

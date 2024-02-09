@@ -1,11 +1,11 @@
 #ifndef CHESTER_H
 #define CHESTER_H
 
-#include <QObject>
-#include <QThread>
 #include <QDebug>
 #include <QTimer>
+#include <QThread>
 #include <JLinkARMDLL.h>
+
 #include "historyfile.h"
 #include "deviceInterface.h"
 
@@ -20,26 +20,31 @@ class Chester : public DeviceInterface
     QThread *attachThread = nullptr;
     QThread *messageReaderThread = nullptr;
     QThread *logReaderThread = nullptr;
+
 public:
     explicit Chester(QObject *parent = nullptr, HistoryFile *commandHistoryFile = nullptr);
     QVariant getCommandHistory() override;
+
 public slots:
-    void sendCommand(const QString &command) override;
     bool isConnected();
+    void sendCommand(const QString &command) override;
+
 signals:
+    void attachFailed();
+    void detachFailed();
     void attachRequested();
     void detachRequested();
     void attachSucceeded();
-    void attachFailed();
     void detachSucceeded();
-    void detachFailed();
-    void messageReadingFailed();
     void logReadingFailed();
+    void messageReadingFailed();
     void deviceLogReceived(const QString &msg);
+
 private slots:
     void checkMessageForCommandFailure(const QString &message);
     void attach();
     void detach();
+
 private:
     HistoryFile *_logFile = nullptr;
     HistoryFile *_commandHistoryFile = nullptr;

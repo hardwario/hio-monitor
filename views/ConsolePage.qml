@@ -1,12 +1,19 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Controls.Material 2.15
-import QtQuick.Layouts 1.15
-import hiomon 1.0
-import Qt.labs.folderlistmodel
-import QtQuick.Dialogs
 import QtCore
+import QtQuick
+import QtQuick.Dialogs
+import QtQuick.Layouts
+import QtQuick.Controls
+// Qt.labs.folderlistmodel should be there because of linux's FileDialog bug on ubuntu
+import Qt.labs.folderlistmodel
+import QtQuick.Controls.Material
 
+import hiomon 1.0
+
+// ConsolePage is a page for console-like interaction with a device.
+// It works over a J-Link RTT connection.
+// It has two views: InteractiveShell and DeviceLog.
+// InteractiveShell is a console-like input/output widget with mouse support and CommandHistory.
+// DeviceLog is a log of all messages received from the device where log levels are colored.
 Item {
     id: _root
     property string name: AppSettings.consoleName
@@ -14,6 +21,7 @@ Item {
 
     Connections {
         target: chester
+
         function onAttachSucceeded() {
             notify.showInfo("Attach Succeeded!")
         }
@@ -31,13 +39,13 @@ Item {
         }
     }
 
+    // select file with batch commands
     FileDialog {
         id: fileDialog
         nameFilters: ["All files (*)"]
         currentFolder: StandardPaths.standardLocations(
                            StandardPaths.HomeLocation)[0]
         onAccepted: {
-            console.log("Selected file:", selectedFile)
             consoleShell.device.batchSendCommand(fileDialog.selectedFile)
         }
     }
@@ -52,6 +60,7 @@ Item {
             implicitWidth: 1
             implicitHeight: 1
             color: SplitHandle.pressed ? AppSettings.grayColor : AppSettings.borderColor
+
             containmentMask: Item {
                 x: (handleDelegate.width - width) / 2
                 width: 5
@@ -75,6 +84,7 @@ Item {
 
     Connections {
         target: toolPanel
+
         function onBatchCliClicked() {
             fileDialog.open()
         }

@@ -1,6 +1,8 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
+import QtQuick
+import QtQuick.Controls
 
+// AppNotification is a notification manager for the app.
+// It meant to be instatiated in the main window to be accessible globally.
 Item {
     function showInfo(msg) {
         popup.message = msg
@@ -37,11 +39,13 @@ Item {
 
         property string message: ""
         property string msgColor: AppSettings.whiteColor
+
         background: Rectangle {
             width: parent.width
             color: AppSettings.darkColor
             border.color: AppSettings.borderColor
             z: parent.z
+
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: popup.message
@@ -54,15 +58,15 @@ Item {
 
         Timer {
             id: timer
-            interval: 3500;
-            running: false;
+            interval: 3500
+            running: false
             repeat: false
             onTriggered: popup.close()
         }
 
         onVisibleChanged: {
-            if(visible)
-                timer.running = true;
+            if (visible)
+                timer.running = true
         }
     }
 }

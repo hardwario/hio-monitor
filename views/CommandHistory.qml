@@ -1,7 +1,9 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
+import QtQuick
+import QtQuick.Controls
+
 import hiomon 1.0
 
+// CommandHistory is a command history list with navigation, item filtering and selection.
 Item {
     visible: false
     required property TextField textInput
@@ -42,29 +44,43 @@ Item {
     }
 
     function setLast() {
-        if (!listView.model) return
+        if (!listView.model)
+            return
+
         index = listView.model.length - 1
         listView.currentIndex = listView.model.length - 1
     }
 
     function getSelected() {
-        if (index === listView.model.length)
+        if (listView.model.length === 0) {
             return ""
+        }
+
+        if (index === listView.model.length) {
+            return ""
+        }
+
         return listView.model[index]
     }
 
     function resetList() {
-        if (!history) return
+        if (!history)
+            return
+
         listView.model = history
         setLast()
         listView.forceLayout()
     }
 
     function filter() {
-        if (!popup.visible) return
-        listView.model = history.filter(function(value) {
-            return value.toLowerCase().indexOf(textInput.text.toLowerCase()) !== -1;
+        if (!popup.visible)
+            return
+
+        listView.model = history.filter(function (value) {
+            return value.toLowerCase().indexOf(
+                        textInput.text.toLowerCase()) !== -1
         })
+
         setLast()
     }
 
@@ -98,12 +114,14 @@ Item {
                 width: listView.width
                 height: listView.height / 4
                 property bool isCurrent: ListView.isCurrentItem
+
                 Rectangle {
                     id: delegateRectangle
                     width: parent.width
                     height: parent.height
                     anchors.centerIn: parent
-                    color: isCurrent ? Qt.lighter(popup.background.color) : popup.background.color
+                    color: isCurrent ? Qt.lighter(
+                                           popup.background.color) : popup.background.color
 
                     Text {
                         text: modelData

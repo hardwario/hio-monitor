@@ -1,12 +1,12 @@
-#ifndef BLUETOOTHWORKER_H
-#define BLUETOOTHWORKER_H
+#ifndef BTWORKER_H
+#define BTWORKER_H
 
-#include <QObject>
+#include <QtBluetooth/qlowenergyservice.h>
+#include <QtBluetooth/qlowenergycontroller.h>
 #include <QtBluetooth/qbluetoothlocaldevice.h>
 #include <QtBluetooth/qbluetoothdevicediscoveryagent.h>
-#include <QtBluetooth/qlowenergycontroller.h>
-#include <QtBluetooth/qlowenergyservice.h>
-#include "deviceinfo.h"
+
+#include "btdeviceinfo.h"
 
 class BluetoothWorker : public QObject {
     Q_OBJECT
@@ -14,31 +14,33 @@ class BluetoothWorker : public QObject {
 public:
     BluetoothWorker(QObject *parent = nullptr);
     ~BluetoothWorker();
+
 signals:
-    void deviceDiscovered(const QBluetoothDeviceInfo &device);
-    void deviceMessageReceived(const QString &message);
-    void errorOccured(QString msg);
     void deviceConnected();
-    void deviceDisconnected();
     void probablyUnpaired();
+    void deviceDisconnected();
     void deviceScanCanceled();
     void deviceScanFinished();
+    void errorOccured(QString msg);
+    void deviceMessageReceived(const QString &message);
+    void deviceDiscovered(const QBluetoothDeviceInfo &device);
+
 public slots:
-    void startScan();
     void stopScan();
+    void startScan();
     void disconnect();
-    void connectTo(DeviceInfo* device);
+    void connectTo(BtDeviceInfo* device);
     void sendCommand(const QString &command);
+
 private slots:
     void serviceScanDone();
     void findCharacteristics();
     void serviceDiscovered(const QBluetoothUuid &gatt);
     void handleDeviceDiscovered(const QBluetoothDeviceInfo &device);
     void serviceStateChanged(QLowEnergyService::ServiceState state);
-    void descriptorRead(const QLowEnergyDescriptor &descriptor, const QByteArray &value);
-    void characteristicRead(const QLowEnergyCharacteristic &info, const QByteArray &value);
     void descriptorWritten(const QLowEnergyDescriptor &descriptor, const QByteArray &value);
     void characteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &value);
+
 private:
     QBluetoothDeviceDiscoveryAgent *_deviceDiscoveryAgent;
     QBluetoothLocalDevice *_localDevice;
@@ -59,4 +61,4 @@ private:
     bool _connectionEstablished = false;
 };
 
-#endif // BLUETOOTHWORKER_H
+#endif // BTWORKER_H

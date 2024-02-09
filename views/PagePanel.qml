@@ -1,8 +1,11 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Controls.Material 2.15
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Controls.Material
+
 import hiomon 1.0
 
+// PagePanel is a navigator/router controller of the app.
+// It holds all possible pages and utilizes the StackView to switch them.
 Rectangle {
     id: _root
     color: Material.background
@@ -24,6 +27,17 @@ Rectangle {
         })
 
         button.checked = true
+    }
+
+    function setCurrentPage(page) {
+        if (!stackView)
+            return
+
+        const cur = stackView.currentItem
+        if (cur === page)
+            return
+
+        stackView.replace(cur, page, StackView.Immediate)
     }
 
     // right line
@@ -60,20 +74,11 @@ Rectangle {
         visible: true
     }
 
-    function setCurrentPage(page) {
-        if (!stackView)
-            return
-        const cur = stackView.currentItem
-        if (cur === page)
-            return
-        stackView.replace(cur, page, StackView.Immediate)
-    }
-
     component PageButton: SideButton {
         width: _root.width - 1
         height: _root.width
         checked: false
-        property bool showWelcomePage: true
+        property bool showWelcomePage: false
     }
 
     Column {
@@ -87,22 +92,24 @@ Rectangle {
             checked: true
 
             onButtonClicked: {
-                setCheckedButton(consoleButton)
+                _root.setCheckedButton(consoleButton)
                 loadingIndicator.close()
 
                 const page = showWelcomePage ? consoleWelcomePage : consolePage
-                setCurrentPage(page)
+                _root.setCurrentPage(page)
             }
 
             Connections {
                 target: chester
+
                 function onAttachSucceeded() {
                     consoleButton.showWelcomePage = false
-                    setCurrentPage(consolePage)
+                    _root.setCurrentPage(consolePage)
                 }
+
                 function onDetachSucceeded() {
                     consoleButton.showWelcomePage = true
-                    setCurrentPage(consoleWelcomePage)
+                    _root.setCurrentPage(consoleWelcomePage)
                 }
             }
         }
@@ -113,11 +120,11 @@ Rectangle {
             iconSource: AppSettings.btIcon
 
             onButtonClicked: {
-                setCheckedButton(bluetoothButton)
+                _root.setCheckedButton(bluetoothButton)
 
                 const page = showWelcomePage ? bluetoothWelcomePage : bluetoothPage
 
-                setCurrentPage(page)
+                _root.setCurrentPage(page)
 
                 if (loadingIndicator.opened)
                     loadingIndicator.open()
@@ -128,14 +135,14 @@ Rectangle {
 
                 function onDeviceConnected() {
                     bluetoothButton.showWelcomePage = false
-                    setCheckedButton(bluetoothButton)
-                    setCurrentPage(bluetoothPage)
+                    _root.setCheckedButton(bluetoothButton)
+                    _root.setCurrentPage(bluetoothPage)
                 }
 
                 function onDeviceDisconnected() {
                     bluetoothButton.showWelcomePage = true
-                    setCheckedButton(bluetoothButton)
-                    setCurrentPage(bluetoothWelcomePage)
+                    _root.setCheckedButton(bluetoothButton)
+                    _root.setCurrentPage(bluetoothWelcomePage)
                 }
             }
         }
@@ -146,8 +153,8 @@ Rectangle {
             iconSource: AppSettings.flashIcon
 
             onButtonClicked: {
-                setCheckedButton(flashButton)
-                setCurrentPage(flashPage)
+                _root.setCheckedButton(flashButton)
+                _root.setCurrentPage(flashPage)
             }
         }
     }

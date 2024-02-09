@@ -1,8 +1,10 @@
-import QtQuick 2.15
+import QtQuick
 
+// TextLabel is a custom text label which is mainly used in InteractiveShell and DeviceLog.
 Text {
     property string textValue: ""
     property bool bindFocusTo: false
+
     text: textValue
     font.bold: true
     font.family: labelFont.name
@@ -11,12 +13,14 @@ Text {
     height: 25
     horizontalAlignment: Text.AlignHCenter
     verticalAlignment: Text.AlignVCenter
+
     anchors {
         horizontalCenter: parent.horizontalCenter
         top: parent.top
         topMargin: 3
         bottomMargin: 3
     }
+
     // bottom line
     Rectangle {
         anchors {

@@ -1,12 +1,12 @@
 #ifndef DEVICEINTERFACE_H
 #define DEVICEINTERFACE_H
 
-#include <QObject>
-#include <QDebug>
-#include <QRegularExpression>
 #include <QFile>
+#include <QDebug>
 #include <QThread>
+#include <QRegularExpression>
 
+// It's an abstract class for flash, bluetooth and console device interaction.
 class DeviceInterface : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariant history READ getCommandHistory() NOTIFY historyChanged)
@@ -18,25 +18,23 @@ public:
     QString _name;
 public slots:
     virtual void sendCommand(const QString &command) = 0;
+
     void batchSendCommand(QString fileName) {
         static QRegularExpression re(".*?(?=[A-Z]:)");
         fileName.remove(re);
-        qDebug() << "batchSendCommand filename " << fileName;
-        auto *thread = QThread::create([this, fileName]{
+        auto thread = QThread::create([this, fileName]{
+
             QFile _file(fileName);
+
             if(_file.open(QIODevice::ReadOnly)) {
                 QTextStream in(&_file);
+
                 while (!in.atEnd()) {
-                    auto line = in.readLine();
-                    qDebug() << "batchSendCommand send " << line;
-                    this->sendCommand(line);
+                    this->sendCommand(in.readLine());
                     QThread::msleep(150);
                 }
                 _file.close();
-            } else {
-                qDebug() << "Cannot open file " << fileName;
             }
-            return;
         });
         thread->start();
     }

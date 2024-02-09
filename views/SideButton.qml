@@ -1,6 +1,7 @@
-import QtQuick 2.15
-import QtQuick.Controls.Material 2.15
+import QtQuick
+import QtQuick.Controls.Material
 
+// SideButton is a custom button component with image and label.
 Rectangle {
     id: _root
     property string iconSource
@@ -10,7 +11,7 @@ Rectangle {
     property bool visibleOnInit: true
     property int iconWidth: 24
     property int iconHeight: 24
-    signal buttonClicked()
+    signal buttonClicked
 
     border.color: _root.borderHighlight ? Material.accent : "transparent"
     border.width: 2
@@ -27,19 +28,22 @@ Rectangle {
 
     function color() {
         let res = Material.background
+
         if (mouseArea.containsMouse)
             res = AppSettings.hoverColor
         if (mouseArea.pressed)
             res = AppSettings.grayColor
+
         return res
     }
 
     Column {
         anchors.centerIn: parent
         spacing: 5
+
         Image {
             id: icon
-            source: iconSource
+            source: _root.iconSource
             smooth: true
             fillMode: Image.PreserveAspectFit
             width: _root.iconWidth
@@ -49,13 +53,22 @@ Rectangle {
 
         Text {
             id: textItem
-            visible: textContent !== ""
-            text: textContent
+            visible: _root.textContent !== ""
+            text: _root.textContent
             font.family: labelFont.name
             font.pixelSize: 12
-            color: AppSettings.grayColor
+            property color textColor: AppSettings.grayColor
+            color: textColor
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
+
+            // text color transition animation on click detected in MouseArea
+            Behavior on textColor {
+                ColorAnimation {
+                    duration: 200
+                    easing.type: Easing.InOutQuad
+                }
+            }
         }
     }
 
@@ -65,9 +78,13 @@ Rectangle {
         width: 3
         height: 0
         anchors.bottom: _root.bottom
+
         color: Material.accent
         Behavior on height {
-            PropertyAnimation { duration: 350; easing.type: Easing.InOutQuad }
+            PropertyAnimation {
+                duration: 350
+                easing.type: Easing.InOutQuad
+            }
         }
     }
 
@@ -79,10 +96,19 @@ Rectangle {
         onClicked: {
             leftBorder.height = _root.height
             _root.buttonClicked()
+
+            // button text color change on click
+            textItem.textColor = AppSettings.clickIndicatorColor
+            Qt.callLater(function () {
+                textItem.textColor = AppSettings.grayColor
+            })
         }
     }
 
     Behavior on color {
-        ColorAnimation { duration: 300; easing.type: Easing.InOutQuad }
+        ColorAnimation {
+            duration: 300
+            easing.type: Easing.InOutQuad
+        }
     }
 }

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
 
+// ToolPanel holds all the buttons and emits the signal of approriated clicked button.
 Rectangle {
     id: _root
     color: Material.background
@@ -49,21 +50,21 @@ Rectangle {
     }
 
     function hideAll(arr) {
-        arr.forEach(button => {
-                        button.visible = false
-                    })
+        arr.forEach(function (button) {
+            button.visible = false
+        })
     }
 
     function showAll(arr) {
-        arr.forEach(button => {
-                        button.visible = button.visibleOnInit
-                    })
+        arr.forEach(function (button) {
+            button.visible = button.visibleOnInit
+        })
     }
 
     function highlightOnlyThis(button, arr) {
-        arr.forEach(btn => {
-                        btn.borderHighlight = btn.textContent === button.textContent
-                    })
+        arr.forEach(function (btn) {
+            btn.borderHighlight = btn.textContent === button.textContent
+        })
     }
 
     component ToolButton: SideButton {
@@ -96,16 +97,19 @@ Rectangle {
             textContent: "Connect"
             iconSource: AppSettings.selectIcon
             visibleOnInit: true
+
             function onButtonClicked() {
                 connectClicked()
                 console.log("Connect clicked")
             }
+
             Connections {
                 target: bluetooth
+
                 function onDeviceConnected() {
-                    console.log("Device connected")
                     connect.borderHighlight = false
                 }
+
                 function onDeviceDiscovered() {
                     highlightOnlyThis(connect, bluetoothWelcomeButtons)
                 }
@@ -118,7 +122,6 @@ Rectangle {
             iconSource: AppSettings.btDisconnectIcon
             visible: false
             onButtonClicked: {
-                console.log("Disconnect clicked")
                 disconnectClicked()
                 highlightOnlyThis(scan, bluetoothWelcomeButtons)
             }
@@ -250,11 +253,13 @@ Rectangle {
 
         Connections {
             target: flash
+
             function onReadyChanged() {
                 if (flash.ready) {
                     highlightOnlyThis(run, flashButtons)
                 }
             }
+
             function onFinished() {
                 highlightOnlyThis(browse, flashButtons)
             }
@@ -263,7 +268,8 @@ Rectangle {
         Connections {
             target: stackView
             function onCurrentItemChanged() {
-                let currentPageName = stackView.currentItem.name
+                const currentPageName = stackView.currentItem.name
+
                 for (let pageName in _root.pageNameButtonMap) {
                     let buttons = pageNameButtonMap[pageName]
                     currentPageName === pageName ? _root.showAll(

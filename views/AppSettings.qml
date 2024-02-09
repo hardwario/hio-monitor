@@ -1,7 +1,9 @@
 pragma Singleton
 
-import QtQuick 2.15
+import QtQuick
 
+// AppSettings holds all the app settings/resources values.
+// It meant to be instatiated in the main window to be accessible globally.
 QtObject {
 
     property string hardwarioCatalogAppWebUrl: "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/#application-firmware"
@@ -55,4 +57,5 @@ QtObject {
     property string borderColor: "#2F363D"
     property string focusColor: "#79B8FF"
     property string wrnColor: "#FFAB70"
+    property string clickIndicatorColor: "#808080"
 }

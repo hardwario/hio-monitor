@@ -1,13 +1,13 @@
-#include "devicemodel.h"
+#include "btdevicemodel.h"
 
-DeviceModel::DeviceModel(QObject *parent) : QAbstractListModel(parent) {}
+BtDeviceModel::BtDeviceModel(QObject *parent) : QAbstractListModel(parent) {}
 
-int DeviceModel::rowCount(const QModelIndex &parent) const {
+int BtDeviceModel::rowCount(const QModelIndex &parent) const {
     Q_UNUSED(parent)
     return _devices.size();
 }
 
-QVariant DeviceModel::data(const QModelIndex &index, int role) const {
+QVariant BtDeviceModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid())
         return QVariant();
 
@@ -33,14 +33,14 @@ QVariant DeviceModel::data(const QModelIndex &index, int role) const {
     }
 }
 
-bool DeviceModel::setData(const QModelIndex &index, const QVariant &value, int role) {
+bool BtDeviceModel::setData(const QModelIndex &index, const QVariant &value, int role) {
     Q_UNUSED(index)
     Q_UNUSED(value)
     Q_UNUSED(role)
     return false;
 }
 
-QHash<int, QByteArray> DeviceModel::roleNames() const {
+QHash<int, QByteArray> BtDeviceModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[NameRole] = "name";
     roles[AddressRole] = "address";
@@ -50,14 +50,14 @@ QHash<int, QByteArray> DeviceModel::roleNames() const {
     return roles;
 }
 
-void DeviceModel::addDevice(const QBluetoothDeviceInfo &info) {
+void BtDeviceModel::addDevice(const QBluetoothDeviceInfo &info) {
     auto it = std::find_if(_devices.begin(), _devices.end(),
-                           [&info](DeviceInfo *dev) {
+                           [&info](BtDeviceInfo *dev) {
                                return info.name() == dev->getName();
                            });
     if (it == _devices.end()) {
         beginInsertRows(QModelIndex(), rowCount(), rowCount());
-        _devices.append(new DeviceInfo(info));
+        _devices.append(new BtDeviceInfo(info));
         endInsertRows();
     } else {
         (*it)->update(info);

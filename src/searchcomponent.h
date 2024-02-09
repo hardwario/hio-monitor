@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QQuickTextDocument>
+
 #include "searchhighlighter.h"
 
 class SearchComponent : public QObject
@@ -11,7 +12,6 @@ class SearchComponent : public QObject
     using inherited = QObject;
 public:
     explicit SearchComponent(QObject* parent = nullptr);
-    static void registerQmlType();
 
     Q_INVOKABLE void reset();
     Q_INVOKABLE void searchFor(const QString &pattern);

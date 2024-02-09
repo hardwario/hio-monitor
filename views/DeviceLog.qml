@@ -1,7 +1,10 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
+import QtQuick
+import QtQuick.Controls
+
 import hiomon 1.0
 
+// DeviceLog component is complex device log view with search and filter functionality.
+// Search functionality includes vim-like navigation with searched term highlighting.
 Rectangle {
     id: _root
     color: Material.background
@@ -14,6 +17,7 @@ Rectangle {
         }
 
         function onAttachSucceeded() {
+            // there might be some messages already in the buffer
             textView.scrollToBottom()
         }
     }
@@ -33,13 +37,15 @@ Rectangle {
             textView.undoFilter()
             textInput.visible = true
         }
-        textInput.focus = true
+
+        textInput.forceActiveFocus()
     }
 
     function filterOrSearch() {
         const pattern = textInput.text
         if (pattern === "")
             return
+
         if (search.mode === "search") {
             search.searchFor(pattern)
             textView.deselectOnPress = false
@@ -48,9 +54,10 @@ Rectangle {
             textView.filterFor(pattern)
             textInput.visible = false
         }
+
         toolPanel.setUndoVisible(true)
         textInput.text = ""
-        textView.listView.focus = true
+        textView.listView.forceActiveFocus()
     }
 
     Connections {
@@ -70,7 +77,7 @@ Rectangle {
         bindFocusTo: textInput.focus || textView.focused
     }
 
-    Search {
+    SearchHelper {
         id: search
         property string mode: "search"
     }
@@ -89,33 +96,36 @@ Rectangle {
 
         onFocusedChanged: {
             if (!search.isSearching)
-                textInput.focus = true
+                textInput.forceActiveFocus()
         }
 
+        // to keep searching while new data is arriving
+        // it won't do anything if the pattern is empty or search.isSearching is false
         Component.onCompleted: {
             search.view = listView
+
             textView.newItemArrived.connect(function () {
-                search.searchFor(search.searchTerm)
+                search.searchFor(search.pattern)
             })
+
             textView.scrollDetected.connect(function () {
-                search.searchFor(search.searchTerm)
+                search.searchFor(search.pattern)
             })
         }
 
-        Keys.onPressed: event => {
-                            if (event.key === Qt.Key_N
-                                && event.modifiers === Qt.NoModifier) {
-                                search.findNext()
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_N
-                                       && event.modifiers === Qt.ShiftModifier) {
-                                search.findPrevious()
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_F5) {
-                                _root.reset()
-                                event.accepted = true
-                            }
-                        }
+        Keys.onPressed: function (event) {
+            if (event.key === Qt.Key_N && event.modifiers === Qt.NoModifier) {
+                search.findNext()
+                event.accepted = true
+            } else if (event.key === Qt.Key_N
+                       && event.modifiers === Qt.ShiftModifier) {
+                search.findPrevious()
+                event.accepted = true
+            } else if (event.key === Qt.Key_F5) {
+                _root.reset()
+                event.accepted = true
+            }
+        }
     }
 
     // Input field that is used to start searching for a pattern
@@ -125,6 +135,7 @@ Rectangle {
         height: 45
         font.family: textFont.name
         font.pixelSize: 14
+
         anchors {
             topMargin: 5
             bottomMargin: 2
@@ -133,10 +144,12 @@ Rectangle {
             left: parent.left
         }
         leftPadding: 40 // so the text not overlaps with the search icon
+
         background: Rectangle {
             implicitHeight: Material.textFieldHeight
             color: Material.background
             border.width: 0
+
             // top border line
             Rectangle {
                 anchors.top: parent.top
@@ -144,6 +157,7 @@ Rectangle {
                 height: 1
                 color: AppSettings.borderColor
             }
+
             Rectangle {
                 width: parent.height - 7
                 height: parent.height - 1
@@ -152,6 +166,7 @@ Rectangle {
                     verticalCenter: parent.verticalCenter
                 }
                 color: mouseAreaMode.containsMouse ? AppSettings.hoverColor : Material.background
+
                 Image {
                     id: modeImage
                     source: AppSettings.searchIcon
@@ -161,15 +176,20 @@ Rectangle {
                     smooth: true
                 }
             }
+
             Rectangle {
                 id: sendIcon
+                visible: textInput.text !== ""
+
                 width: parent.height - 7
                 height: parent.height - 1
                 anchors {
                     right: parent.right
                     verticalCenter: parent.verticalCenter
                 }
+
                 color: mouseAreaSend.containsMouse ? AppSettings.hoverColor : Material.background
+
                 Image {
                     id: icon
                     anchors {
@@ -177,6 +197,7 @@ Rectangle {
                         rightMargin: 5
                         verticalCenter: parent.verticalCenter
                     }
+
                     source: AppSettings.sendIcon
                     smooth: true
                     width: 20
@@ -202,6 +223,7 @@ Rectangle {
             height: parent.height
             width: parent.leftPadding
             hoverEnabled: true
+
             onClicked: {
                 if (search.mode === "search") {
                     search.mode = "filter"
@@ -213,31 +235,35 @@ Rectangle {
             }
         }
 
+        Keys.onEnterPressed: {
+            _root.filterOrSearch()
+        }
+
         Keys.onReturnPressed: {
             _root.filterOrSearch()
         }
 
         // F5 to _root.reset search and Enter to start searching
-        Keys.onPressed: event => {
-                            if ((event.key === Qt.Key_C)
-                                && (event.modifiers & Qt.ControlModifier)) {
-                                const txtIn = textInput.selectedText
-                                if (txtIn !== "") {
-                                    textInput.copy()
-                                } else {
-                                    textView.copy()
-                                }
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_F5) {
-                                _root.reset()
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_Up) {
-                                textView.scrollUp()
-                                event.accepted = true
-                            } else if (event.key === Qt.Key_Down) {
-                                textView.scrollDown()
-                                event.accepted = true
-                            }
-                        }
+        Keys.onPressed: function (event) {
+            if ((event.key === Qt.Key_C)
+                    && (event.modifiers & Qt.ControlModifier)) {
+                const txtIn = textInput.selectedText
+                if (txtIn !== "") {
+                    textInput.copy()
+                } else {
+                    textView.copy()
+                }
+                event.accepted = true
+            } else if (event.key === Qt.Key_F5) {
+                _root.reset()
+                event.accepted = true
+            } else if (event.key === Qt.Key_Up) {
+                textView.scrollUp()
+                event.accepted = true
+            } else if (event.key === Qt.Key_Down) {
+                textView.scrollDown()
+                event.accepted = true
+            }
+        }
     }
 }

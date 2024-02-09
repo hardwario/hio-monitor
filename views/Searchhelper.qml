@@ -1,12 +1,14 @@
-import QtQuick 2.15
+import QtQuick
 
+// SearchHelper is a helper object that provides search functionality to a ListView.
+// It will continuously search for the pattern in the ListView.
 QtObject {
     id: searchEngine
 
     property ListView view: null
     property var matches: ({})
     property bool isSearching: false
-    property string searchTerm: ""
+    property string pattern: ""
     property int curRowIndex: 0
     property int curItemInd: -1
     property int prevRow: -1
@@ -14,14 +16,14 @@ QtObject {
 
     signal noMatch
 
-
-    onSearchTermChanged: {
-        var firstMatchInd = view.indexOf(searchTerm)
+    onPatternChanged: {
+        var firstMatchInd = view.indexOf(pattern)
         if (firstMatchInd === -1) {
             noMatch()
-            notify.showError("No match for: " + searchTerm)
+            notify.showError("No match for: " + pattern)
             return
         }
+
         isSearching = true
         lastCheckedIndex = firstMatchInd
         scrollTo(firstMatchInd)
@@ -32,11 +34,12 @@ QtObject {
     }
 
     function scrollTo(index) {
-        view.positionViewAtIndex(index, ListView.Center);
+        view.positionViewAtIndex(index, ListView.Center)
     }
 
     function findNext() {
-        if(!hasMatches()) return
+        if (!hasMatches())
+            return
 
         curItemInd++
 
@@ -52,7 +55,8 @@ QtObject {
     }
 
     function findPrevious() {
-        if(!hasMatches()) return
+        if (!hasMatches())
+            return
 
         curItemInd--
 
@@ -71,16 +75,20 @@ QtObject {
     function highlightCurrentAndDeselectPrevious() {
         const keys = Object.keys(matches)
         const prevItem = view.itemAtIndex(parseInt(keys[prevRow]))
-        if (prevItem) prevItem.textEditObj.deselect()
+        if (prevItem)
+            prevItem.textEditObj.deselect()
 
         prevRow = curRowIndex
         const curRow = parseInt(keys[curRowIndex])
         scrollTo(curRow)
+
         const item = view.itemAtIndex(curRow)
-        if (!item) return // should not be the case, but who knows what could happen, right?
+        if (!item)
+            return
+
         view.currentIndex = curRow
         const ind = currentMatch()[curItemInd]
-        item.textEditObj.select(ind, ind + searchTerm.length)
+        item.textEditObj.select(ind, ind + pattern.length)
     }
 
     function currentMatch() {
@@ -91,31 +99,40 @@ QtObject {
     function resetHighlights() {
         isSearching = false
         matches = {}
-        searchTerm = ""
+        pattern = ""
         view.focus = false
         lastCheckedIndex = 0
         curRowIndex = 0
         curItemInd = -1
         prevRow = -1
-        for (let i = 0; i < view.count; ++i) {
+        for (var i = 0; i < view.count; ++i) {
             const item = view.itemAtIndex(i)
-            if (!item) continue
+            if (!item)
+                continue
+
             item.reset()
         }
     }
 
     // meant to be called while isSearching is true
     function searchFor(term) {
-        searchTerm = term
+        if (term === "")
+            return
+
+        pattern = term
         if (!isSearching)
             return
-        for (let i = lastCheckedIndex; i < view.count; ++i) {
+
+        for (var i = lastCheckedIndex; i < view.count; ++i) {
             const item = view.itemAtIndex(i)
-            if (!item) continue
-            const inds = item.searchFor(searchTerm)
+            if (!item)
+                continue
+
+            const inds = item.searchFor(pattern)
             if (inds.length > 0) {
                 matches[i] = inds
             }
+
             lastCheckedIndex = i
         }
     }

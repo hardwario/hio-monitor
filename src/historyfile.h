@@ -1,14 +1,13 @@
 #ifndef HISTORYFILE_H
 #define HISTORYFILE_H
 
-#include <QFile>
-#include <QObject>
-#include <QTextStream>
-#include <QDateTime>
-#include <QCoreApplication>
 #include <QDir>
-#include <QStandardPaths>
+#include <QFile>
+#include <QDateTime>
+#include <QTextStream>
 #include <QReadWriteLock>
+#include <QStandardPaths>
+#include <QCoreApplication>
 
 class HistoryFile : public QObject
 {
@@ -22,8 +21,10 @@ public:
     void write(QString message);
     void writeMoveOnMatch(QString message);
     QVector<QString> readAll();
+
 signals:
     void historyChanged();
+
 private:
     QFile _file;
     QString _fileName;

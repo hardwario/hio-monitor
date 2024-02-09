@@ -30,11 +30,13 @@ void Chester::checkMessageForCommandFailure(const QString &message) {
         emit sendCommandFailed(_currentCommand);
         return;
     }
+
     // sometimes message received in chunks,
     // so I don't want to print the same command multiple times
     if (_currentCommand != _lastCommand) {
         emit sendCommandSucceeded(_currentCommand);
     }
+
     _lastCommand = _currentCommand;
 }
 
@@ -44,9 +46,11 @@ void Chester::sendCommand(const QString &command) {
         emit sendCommandFailed(command);
         return;
     }
+
     _currentCommand = command;
     _lastCommand = _currentCommand;
     _commandHistoryFile->writeMoveOnMatch(_currentCommand);
+
     QThread *thread = QThread::create([this, command]{
         qDebug() << "Sending command:" << command;
 
@@ -81,18 +85,15 @@ void Chester::sendCommand(const QString &command) {
     thread->start();
 }
 
-void Chester::jlinkLogHandler(const char *msg)
-{
+void Chester::jlinkLogHandler(const char *msg) {
     qInfo() << "J-Link Log:" << msg;
 }
 
-void Chester::jlinkErrHandler(const char *msg)
-{
+void Chester::jlinkErrHandler(const char *msg) {
     qWarning() << "J-Link Err:" << msg;
 }
 
-void Chester::attach()
-{
+void Chester::attach() {
     attachThread = QThread::create([this] {
         QTimer timer;
         timer.setSingleShot(true);
@@ -209,7 +210,6 @@ void Chester::attach()
                     qWarning() << "Call `JLINK_RTTERMINAL_Read` failed";
                     emit messageReadingFailed();
                     return;
-
                 } else if (bytesRead == 0) {
                     QThread::msleep(50);
                     continue;
@@ -300,10 +300,8 @@ void Chester::attach()
     attachThread->start();
 }
 
-void Chester::detach()
-{
-    qDebug() << "chester detach";
-    QThread *thread = QThread::create([this]{
+void Chester::detach() {
+    auto thread = QThread::create([this]{
         if (messageReaderThread) {
             qDebug() << "Requesting thread interruption for `messageReaderThread`";
             messageReaderThread->requestInterruption();

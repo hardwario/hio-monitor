@@ -1,13 +1,15 @@
-#ifndef DEVICEINFO_H
-#define DEVICEINFO_H
-
-#include <QtBluetooth/qbluetoothdeviceinfo.h>
-#include <QtBluetooth/qlowenergyservice.h>
+#ifndef BTDEVICEINFO_H
+#define BTDEVICEINFO_H
 
 #include <QtCore/qobject.h>
 #include <QtCore/qstring.h>
 
-class DeviceInfo: public QObject
+#include <QtBluetooth/qbluetoothuuid.h>
+#include <QtBluetooth/qlowenergyservice.h>
+#include <QtBluetooth/qbluetoothaddress.h>
+#include <QtBluetooth/qbluetoothdeviceinfo.h>
+
+class BtDeviceInfo: public QObject
 {
     Q_OBJECT
 
@@ -15,11 +17,11 @@ class DeviceInfo: public QObject
     Q_PROPERTY(QString deviceAddress READ getAddress NOTIFY deviceChanged)
     Q_PROPERTY(int deviceRssi READ getRSSI NOTIFY deviceChanged)
 
-    bool operator<(const DeviceInfo& other) const {
+    bool operator<(const BtDeviceInfo& other) const {
         return this->getRSSI() < other.getRSSI();
     }
 public:
-    DeviceInfo(const QBluetoothDeviceInfo &device);
+    BtDeviceInfo(const QBluetoothDeviceInfo &device);
     void update(const QBluetoothDeviceInfo &device);
     void setWriteMode(QLowEnergyService::WriteMode mode);
     QLowEnergyService::WriteMode getWriteMode() const;
@@ -38,4 +40,4 @@ private:
     int _rssi;
 };
 
-#endif // DEVICEINFO_H
+#endif // BTDEVICEINFO_H

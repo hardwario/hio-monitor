@@ -1,25 +1,21 @@
 #ifndef MESSAGEMODEL_H
 #define MESSAGEMODEL_H
 
-#include <QObject>
-#include <QStringListModel>
 #include <QVariant>
-#include <QRegularExpression>
 #include <QQmlEngine>
 #include <QTextDocument>
+#include <QStringListModel>
+#include <QRegularExpression>
 
 class MessageModel : public QAbstractListModel {
     Q_OBJECT
+
 public:
     explicit MessageModel(QObject *parent = nullptr);
-    static void registerQmlType();
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-
     bool setData(const QModelIndex &index, const QVariant &value, int role) override;
-
     QHash<int, QByteArray> roleNames() const override;
 
     Q_INVOKABLE void addMessage(QString message);
@@ -29,6 +25,7 @@ public:
     Q_INVOKABLE int indexOf(const QString &term);
     Q_INVOKABLE QStringList getWithFilter(const QString &term);
     Q_INVOKABLE void setModel(const QStringList model);
+
 private:
     QString colorMsg(const QString& message, const QString& color);
     QString getColorByMessageTag(const QString &tag);

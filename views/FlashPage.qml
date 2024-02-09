@@ -1,9 +1,15 @@
-import QtQuick 2.12
-import Qt.labs.folderlistmodel
-import QtQuick.Dialogs
 import QtCore
-import QtQuick.Controls.Material 2.15
+import QtQuick
+import QtQuick.Dialogs
+import Qt.labs.folderlistmodel
+import QtQuick.Controls.Material
 
+// FlashPage is a page for flashing the device with the selected hex file or the hex from the catalog application web url.
+// If user input something it will try to download the hex from the web assuming that user has typed a valid hex, if not it will show network error.
+// User can select file from the file dialog.
+// User have to detach from the device via Console page before starting the flash process.
+// User should not start the flash process if the RTT is running!!!
+// User should confirm the flash process by clicking the Run button.
 Item {
     id: _root
     property string name: AppSettings.flashName
@@ -14,6 +20,7 @@ Item {
         chester.attachSucceeded.connect(function () {
             isRttRunning = true
         })
+
         chester.detachSucceeded.connect(function () {
             isRttRunning = false
         })
@@ -25,7 +32,6 @@ Item {
         currentFolder: StandardPaths.standardLocations(
                            StandardPaths.HomeLocation)[0]
         onAccepted: {
-            console.log("Selected file:", selectedFile)
             flash.setHexPath(selectedFile)
         }
     }
@@ -47,7 +53,6 @@ Item {
             }
         }
 
-        // Welcome message and icon
         Item {
             id: welcome
             SplitView.preferredWidth: _root.width / 2
@@ -129,6 +134,7 @@ Item {
 
     Connections {
         target: toolPanel
+
         function onClearFlashClicked() {
             flashShell.clear()
         }
@@ -159,6 +165,7 @@ Item {
                             "Try to enter a hex from Catalog or Browse for a file first!")
                 return
             }
+
             notify.showInfo("Start flashing the device...")
             progress.visible = true
             flash.defaultFlash()
@@ -167,6 +174,7 @@ Item {
 
     Connections {
         target: flash
+
         function onFinished() {
             progress.value = 0.0
             progress.visible = false

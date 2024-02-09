@@ -1,9 +1,12 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
+import QtQuick
+import QtQuick.Controls
+
 import hiomon 1.0
 
+// TextView is a component that holds a text and provides searching and filtering functions.
 Item {
     id: _root
+
     property alias focused: view.focus
     property alias listView: view
     property bool deselectOnPress: true
@@ -32,7 +35,6 @@ Item {
     }
 
     function append(msg) {
-//        console.log("TextView append", msg)
         messagesModel.addMessage(msg)
     }
 
@@ -56,6 +58,7 @@ Item {
             notify.showError("No match for: " + term)
             return
         }
+
         filteredModel.clear()
         filteredModel.setModel(filteredMessagesArray)
         view.model = filteredModel
@@ -63,16 +66,17 @@ Item {
     }
 
     // Shortcuts for manual scrolling
-    Keys.onPressed: (event) => {
-        switch(event) {
-            case Qt.Key_Up:
-                view.contentY = Math.max(0, view.contentY - 20)
-                event.accepted = true
-                break
-            case Qt.Key_Down:
-                view.contentY = Math.min(view.contentHeight - view.height, view.contentY + 20)
-                event.accepted = true
-                break
+    Keys.onPressed: function (event) {
+        switch (event) {
+        case Qt.Key_Up:
+            view.contentY = Math.max(0, view.contentY - 20)
+            event.accepted = true
+            break
+        case Qt.Key_Down:
+            view.contentY = Math.min(view.contentHeight - view.height,
+                                     view.contentY + 20)
+            event.accepted = true
+            break
         }
     }
 
@@ -95,6 +99,9 @@ Item {
         model: messagesModel
         clip: true
         reuseItems: true
+
+        property bool autoScroll: true
+
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
         ScrollBar.vertical: ScrollBar {
@@ -103,11 +110,10 @@ Item {
             minimumSize: 0.1
             width: 10
         }
+
         Component.onCompleted: {
             _root.scrollToBottom()
         }
-
-        property bool autoScroll: true
 
         function indexOf(term) {
             return model.indexOf(term)
@@ -117,14 +123,16 @@ Item {
             return indexAt(x + contentX, y + contentY)
         }
 
-        onCountChanged: (count) => {
+        onCountChanged: function (count) {
             if (count >= AppSettings.maxViewLines) {
                 view.model.clear()
                 return
             }
+
             if (view.autoScroll) {
-               view.positionViewAtEnd()
+                view.positionViewAtEnd()
             }
+
             newItemArrived()
         }
 
@@ -134,13 +142,17 @@ Item {
 
         function getSelectedText() {
             let selectedText = ""
-            for (let i = 0; i < view.count; ++i) {
+
+            for (var i = 0; i < view.count; ++i) {
                 const item = view.itemAtIndex(i)
+
                 if (item && (item.textEditObj.selectionStart !== item.textEditObj.selectionEnd))
                     selectedText += item.textEditObj.selectedText + "\n"
             }
+
             if (selectedText.length > 0)
                 selectedText = selectedText.slice(0, -1)
+
             return selectedText
         }
 
@@ -204,16 +216,22 @@ Item {
 
                 // text selection handle
                 function updateSelection() {
-                    if (selectionArea.realStartIndex === -1 || selectionArea.realEndIndex === -1)
+                    if (selectionArea.realStartIndex === -1
+                            || selectionArea.realEndIndex === -1)
                         return
-                    if (index < selectionArea.realStartIndex || index > selectionArea.realEndIndex)
+                    if (index < selectionArea.realStartIndex
+                            || index > selectionArea.realEndIndex)
                         textEdit.select(0, 0)
-                    else if (index > selectionArea.realStartIndex && index < selectionArea.realEndIndex)
+                    else if (index > selectionArea.realStartIndex
+                             && index < selectionArea.realEndIndex)
                         textEdit.selectAll()
-                    else if (index === selectionArea.realStartIndex && index === selectionArea.realEndIndex)
-                        textEdit.select(selectionArea.realStartPos, selectionArea.realEndPos)
+                    else if (index === selectionArea.realStartIndex
+                             && index === selectionArea.realEndIndex)
+                        textEdit.select(selectionArea.realStartPos,
+                                        selectionArea.realEndPos)
                     else if (index === selectionArea.realStartIndex)
-                        textEdit.select(selectionArea.realStartPos, textEdit.length)
+                        textEdit.select(selectionArea.realStartPos,
+                                        textEdit.length)
                     else if (index === selectionArea.realEndIndex)
                         textEdit.select(0, selectionArea.realEndPos)
                 }
@@ -228,12 +246,12 @@ Item {
         property int selEndIndex
         property int selStartPos
         property int selEndPos
-        property int realStartIndex: Math.min(selectionArea.selStartIndex, selectionArea.selEndIndex)
-        property int realEndIndex: Math.max(selectionArea.selStartIndex, selectionArea.selEndIndex)
-        property int realStartPos: (selectionArea.selStartIndex < selectionArea.selEndIndex) ?
-                                    selectionArea.selStartPos : selectionArea.selEndPos
-        property int realEndPos: (selectionArea.selStartIndex < selectionArea.selEndIndex) ?
-                                    selectionArea.selEndPos : selectionArea.selStartPos
+        property int realStartIndex: Math.min(selectionArea.selStartIndex,
+                                              selectionArea.selEndIndex)
+        property int realEndIndex: Math.max(selectionArea.selStartIndex,
+                                            selectionArea.selEndIndex)
+        property int realStartPos: (selectionArea.selStartIndex < selectionArea.selEndIndex) ? selectionArea.selStartPos : selectionArea.selEndPos
+        property int realEndPos: (selectionArea.selStartIndex < selectionArea.selEndIndex) ? selectionArea.selEndPos : selectionArea.selStartPos
         property bool mouseDrag: false
 
         signal selectionChanged
@@ -250,23 +268,34 @@ Item {
             const index = view.indexAtRelative(x, y)
             if (index === -1)
                 return [-1, -1]
+
             const item = view.itemAtIndex(index)
             const relItemY = item.y - view.contentY
             const pos = item.positionAt(x, y - relItemY)
+
             return [index, pos]
         }
 
         function deselectCurrentArea() {
-            for (let i = realStartIndex; i <= realEndIndex; ++i) {
-                const item = view.itemAtIndex(i);
+            for (var i = realStartIndex; i <= realEndIndex; ++i) {
+                const item = view.itemAtIndex(i)
+
                 if (item)
-                    item.reset();
+                    item.reset()
             }
         }
 
         onPositionChanged: {
-            if (!mouseDrag) return
-            const [index, pos] = indexAndPos(mouseX, mouseY)
+            if (!mouseDrag) {
+                return
+            }
+
+            let res = []
+            res = indexAndPos(mouseX, mouseY)
+
+            const index = res[0]
+            const pos = res[1]
+
             if (index !== -1 && pos !== -1) {
                 [selEndIndex, selEndPos] = [index, pos]
                 selectionChanged()
@@ -277,6 +306,7 @@ Item {
             if (deselectOnPress) {
                 deselectCurrentArea()
             }
+
             [selStartIndex, selStartPos] = indexAndPos(mouseX, mouseY)
             mouseDrag = true
             view.focus = true

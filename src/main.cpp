@@ -1,23 +1,23 @@
-#include <QGuiApplication>
-#include <QQmlApplicationEngine>
-#include <QQmlContext>
-#include <QSortFilterProxyModel>
+#include <QDir>
 #include <QIcon>
 #include <QLockFile>
-#include <QDir>
-#include <QObject>
+#include <QQmlContext>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QSortFilterProxyModel>
 
-#include "searchcomponent.h"
+#include "flash.h"
 #include "chester.h"
 #include "bluetooth.h"
-#include "messagemodel.h"
-#include "devicemodel.h"
 #include "historyfile.h"
-#include "flash.h"
+#include "messagemodel.h"
+#include "btdevicemodel.h"
+#include "searchcomponent.h"
 
 static void initBackend() {
-    SearchComponent::registerQmlType();
-    MessageModel::registerQmlType();
+    qmlRegisterType<SearchComponent>("hiomon", 1,
+                                     0, "SearchComponent");
+    qmlRegisterType<MessageModel>("hiomon", 1, 0, "MessageModel");
 }
 
 int main(int argc, char *argv[]) 
@@ -37,11 +37,12 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
-    DeviceModel deviceModel;
+    BtDeviceModel deviceModel;
     QSortFilterProxyModel proxyModel;
     proxyModel.setSourceModel(&deviceModel);
-    proxyModel.setSortRole(DeviceModel::SortRole);
+    proxyModel.setSortRole(BtDeviceModel::SortRole);
     proxyModel.sort(0, Qt::DescendingOrder);
+
     engine.rootContext()->setContextProperty("deviceModel", &deviceModel);
     engine.rootContext()->setContextProperty("sortDeviceModel", &proxyModel);
 

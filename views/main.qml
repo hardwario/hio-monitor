@@ -48,6 +48,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             padding: 0
             spacing: 0
+
             LoadingIndicator {
                 id: loadingIndicator
                 anchors.centerIn: stackView

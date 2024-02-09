@@ -67,6 +67,7 @@ bool MessageModel::replaceWithColor(const QString& message, const QString& oldCo
 int MessageModel::indexOf(const QString &term) {
     if(_model.empty())
         return -1;
+
     auto re = QRegularExpression(term, QRegularExpression::CaseInsensitiveOption);
     for(auto i = 0; i < _model.count(); i++) {
         auto match = re.match(_model.at(i));
@@ -74,12 +75,14 @@ int MessageModel::indexOf(const QString &term) {
             return i;
         }
     }
+
     return -1;
 }
 
 QStringList MessageModel::getWithFilter(const QString &term) {
     QStringList result;
     QString plainText;
+
     auto re = QRegularExpression(term, QRegularExpression::CaseInsensitiveOption);
     for(int i = 0; i < _model.count(); i++) {
         auto cur = _model.at(i);
@@ -90,6 +93,7 @@ QStringList MessageModel::getWithFilter(const QString &term) {
             result.append(cur);
         }
     }
+
     return result;
 }
 
@@ -100,10 +104,10 @@ QString MessageModel::stripHTML(QString text) {
 }
 
 void MessageModel::addMessage(QString message) {
-//    qDebug() << "message model addMessage " << message;
     static QRegularExpression regex("^\\[\\d+:\\d+:\\d+\\.\\d+,\\d+\\] <(dbg|inf|wrn|err)>");
     auto match = regex.match(message);
     QString finalMessage;
+
     if (match.hasMatch()) {
         QString tag = match.captured(1);
         finalMessage = getColorByMessageTag(tag) +
@@ -113,6 +117,7 @@ void MessageModel::addMessage(QString message) {
     } else {
         finalMessage = colorMsg(message, "#D1D5DA");
     }
+
     beginInsertRows(QModelIndex(), rowCount(), rowCount());
     _model.append(finalMessage);
     endInsertRows();
@@ -138,8 +143,4 @@ void MessageModel::clear() {
     beginResetModel();
     _model.clear();
     endResetModel();
-}
-
-void MessageModel::registerQmlType() {
-    qmlRegisterType<MessageModel>("hiomon", 1, 0, "MessageModel");
 }

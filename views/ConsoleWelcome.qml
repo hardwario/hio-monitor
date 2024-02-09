@@ -1,6 +1,8 @@
-import QtQuick 2.12
-import QtQuick.Controls.Material 2.15
+import QtQuick
+import QtQuick.Controls.Material
 
+// ConsoleWelcome is a page that is shown when the console is opened for the first time.
+// It provides a guide on how to start using the console.
 Item {
     property string name: AppSettings.consoleWelcomeName
 
