@@ -11,7 +11,7 @@ if (Qt6_VERSION VERSION_GREATER_EQUAL 6.5)
     qt_standard_project_setup()
 endif()
 
-set(APP_VERSION "1.0.0")
+set(APP_VERSION "v0.0.0")
 
 set(PROJECT_SOURCES
     src/main.cpp
@@ -38,6 +38,8 @@ set(PROJECT_SOURCES
     src/historyfile.h
     src/historyfile.cpp
     src/deviceInterface.h
+    src/updatechecker.h
+    src/updatechecker.cpp
 )
 
 if(WIN32)

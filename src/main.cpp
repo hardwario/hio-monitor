@@ -12,12 +12,14 @@
 #include "historyfile.h"
 #include "messagemodel.h"
 #include "btdevicemodel.h"
+#include "updatechecker.h"
 #include "searchcomponent.h"
 
 static void initBackend() {
     qmlRegisterType<SearchComponent>("hiomon", 1,
                                      0, "SearchComponent");
     qmlRegisterType<MessageModel>("hiomon", 1, 0, "MessageModel");
+    qmlRegisterType<UpdateChecker>("hiomon", 1, 0, "UpdateChecker");
 }
 
 int main(int argc, char *argv[]) 
@@ -50,10 +52,8 @@ int main(int argc, char *argv[])
     // TODO: connect sendCommandSucceeded signals intead of passing the file as an asrgument
     const auto chester = new Chester(&engine, commandHistoryFile);
     const auto bluetooth = new Bluetooth(&engine, &proxyModel, commandHistoryFile);
-    //flash->setRttStarted(true)
     const auto flash = new Flash(&engine);
 
-    engine.rootContext()->setContextProperty("logFilePath", commandHistoryFile->getFilePath());
     engine.rootContext()->setContextProperty("chester", chester);
     engine.rootContext()->setContextProperty("bluetooth", bluetooth);
     engine.rootContext()->setContextProperty("flash", flash);

@@ -61,4 +61,8 @@ ApplicationWindow {
             Layout.preferredWidth: 80
         }
     }
+
+    UpdateDialog {
+        id: updateDialog
+    }
 }

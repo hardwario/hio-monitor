@@ -6,6 +6,7 @@ import QtQuick
 // It meant to be instatiated in the main window to be accessible globally.
 QtObject {
 
+    property string latestReleaseUrl: "https://github.com/hardwario/hio-monitor/releases/latest"
     property string hardwarioCatalogAppWebUrl: "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/#application-firmware"
     property string hardwarioWebUrl: "https://www.hardwario.com/"
     property int maxViewLines: 100000

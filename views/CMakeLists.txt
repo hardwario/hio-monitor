@@ -27,4 +27,5 @@ qt6_add_qml_module(views
         SearchHelper.qml
         BtDeviceInfo.qml
         FlashPage.qml
+        UpdateDialog.qml
 )
