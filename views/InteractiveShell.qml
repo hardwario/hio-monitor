@@ -129,31 +129,24 @@ Rectangle {
                 color: AppSettings.grayColor
             }
 
-            Rectangle {
-                id: sendIcon
+            SideButton {
+                id: sendButton
                 visible: textInput.text !== ""
 
-                width: parent.height - 7
-                height: parent.height - 1
                 anchors {
                     right: parent.right
                     verticalCenter: parent.verticalCenter
                 }
+                width: parent.height - 7
+                height: parent.height - 1
 
-                color: mouseArea.containsMouse ? AppSettings.hoverColor : Material.background
+                // TextField can not be anchored to the non parent or sibling item.
+                // That's why the custom mouse area is used to capture mouse, because TextField overlays default MouseArea of SideButton
+                customMouseArea: mouseArea
 
-                Image {
-                    id: icon
-                    anchors {
-                        right: parent.right
-                        rightMargin: 5
-                        verticalCenter: parent.verticalCenter
-                    }
-                    source: AppSettings.sendIcon
-                    smooth: true
-                    width: 20
-                    height: 20
-                }
+                iconSource: AppSettings.sendIcon
+                iconWidth: 20
+                iconHeight: 20
             }
         }
 

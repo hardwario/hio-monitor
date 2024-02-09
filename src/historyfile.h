@@ -21,6 +21,7 @@ public:
     void write(QString message);
     void writeMoveOnMatch(QString message);
     QVector<QString> readAll();
+    QString getFilePath() const { return _file.fileName(); }
 
 signals:
     void historyChanged();
@@ -29,6 +30,6 @@ private:
     QFile _file;
     QString _fileName;
     QReadWriteLock _lock;
-    QString createDir();
+    QString createFile();
 };
 #endif // HISTORYFILE_H

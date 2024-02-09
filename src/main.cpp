@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
     //flash->setRttStarted(true)
     const auto flash = new Flash(&engine);
 
+    engine.rootContext()->setContextProperty("logFilePath", commandHistoryFile->getFilePath());
     engine.rootContext()->setContextProperty("chester", chester);
     engine.rootContext()->setContextProperty("bluetooth", bluetooth);
     engine.rootContext()->setContextProperty("flash", flash);

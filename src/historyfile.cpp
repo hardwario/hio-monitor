@@ -3,10 +3,10 @@
 HistoryFile::HistoryFile(QObject *parent, const QString& fileName) : QObject(parent)
 {
     _fileName = fileName;
-    _file.setFileName(createDir());
+    _file.setFileName(createFile());
 }
 
-QString HistoryFile::createDir() {
+QString HistoryFile::createFile() {
     auto path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(path);
     QDir().mkdir(path);
@@ -20,7 +20,6 @@ void HistoryFile::write(QString message) {
     _lock.lockForWrite();
 
     if(!_file.isOpen()) {
-        _file.setFileName(createDir());
         _file.open(QIODevice::WriteOnly | QIODevice::Append);
     }
 
@@ -46,7 +45,7 @@ void HistoryFile::writeMoveOnMatch(QString message) {
         _lock.lockForWrite();
 
         if(!_file.isOpen()) {
-            _file.setFileName(createDir());
+
             _file.open(QIODevice::WriteOnly | QIODevice::Truncate);
         }
 
@@ -68,7 +67,6 @@ QVector<QString> HistoryFile::readAll() {
     _lock.lockForRead();
 
     if(!_file.isOpen()) {
-        _file.setFileName(createDir());
         _file.open(QIODevice::ReadOnly);
     }
 

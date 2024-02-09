@@ -45,6 +45,7 @@ QtObject {
     property string startIcon: "qrc:/icons/start"
     property string catalogIcon: "qrc:/icons/catalog"
     property string batchIcon: "qrc:/icons/batch"
+    property string openIcon: "qrc:/icons/open"
 
     // Colors
     property string hoverColor: "#424242"

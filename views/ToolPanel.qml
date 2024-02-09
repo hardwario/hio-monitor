@@ -6,7 +6,7 @@ import QtQuick.Controls.Material
 Rectangle {
     id: _root
     color: Material.background
-    property var consoleButtons: [detach, clearCli, pause, undo, batchCli]
+    property var consoleButtons: [detach, clearCli, pause, undo, batchCli, logFile]
     property var bluetoothButtons: [disconnect, clearBt, batchBt]
     property var consoleWelcomeButtons: [attach]
     property var bluetoothWelcomeButtons: [scan, connect]
@@ -37,6 +37,7 @@ Rectangle {
     signal sendCommand
     signal batchCliClicked
     signal batchBtClicked
+    signal openLogFileClicked
 
     Rectangle {
         anchors.left: parent.left
@@ -99,7 +100,7 @@ Rectangle {
             visibleOnInit: true
 
             function onButtonClicked() {
-                connectClicked()
+                onButtonClicked()
                 console.log("Connect clicked")
             }
 
@@ -248,6 +249,15 @@ Rectangle {
             iconSource: AppSettings.batchIcon
             onButtonClicked: {
                 batchCliClicked()
+            }
+        }
+
+        ToolButton {
+            id: logFile
+            textContent: "Log File"
+            iconSource: AppSettings.openIcon
+            onButtonClicked: {
+                openLogFileClicked()
             }
         }
 

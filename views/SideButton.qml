@@ -11,6 +11,7 @@ Rectangle {
     property bool visibleOnInit: true
     property int iconWidth: 24
     property int iconHeight: 24
+    property var customMouseArea: null
     signal buttonClicked
 
     border.color: _root.borderHighlight ? Material.accent : "transparent"
@@ -27,14 +28,17 @@ Rectangle {
     color: color()
 
     function color() {
-        let res = Material.background
+        // Determine which mouse area is active, defaulting to mouseArea if customMouseArea is not defined
+        var activeMouseArea = _root.customMouseArea || mouseArea
 
-        if (mouseArea.containsMouse)
-            res = AppSettings.hoverColor
-        if (mouseArea.pressed)
-            res = AppSettings.grayColor
-
-        return res
+        // Check for press state first, as it should take precedence over hover state
+        if (activeMouseArea.pressed) {
+            return AppSettings.clickIndicatorColor
+        } else if (activeMouseArea.containsMouse) {
+            return AppSettings.hoverColor
+        } else {
+            return Material.background
+        }
     }
 
     Column {
@@ -107,7 +111,7 @@ Rectangle {
 
     Behavior on color {
         ColorAnimation {
-            duration: 300
+            duration: 200
             easing.type: Easing.InOutQuad
         }
     }
