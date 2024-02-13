@@ -183,7 +183,7 @@ Item {
         function onErrorOccured() {
             progress.value = 0.0
             progress.visible = false
-            notify.showErr("Flash process failed")
+            notify.showError("Flash process failed")
         }
     }
 }

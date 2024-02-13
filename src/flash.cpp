@@ -169,10 +169,13 @@ void Flash::freeDll() {
 
 void Flash::flash(QString path) {
     flashThread = QThread::create([this, path]{
-        QByteArray byteArray = path.toUtf8();
-        const char* filepath = byteArray.constData();
-        qDebug() << "flash filepath " << filepath;
-        loadDll();
+
+        if (!loadDll()) {
+            return;
+        }
+
+        auto bytes = path.toUtf8(); // so it's not temporary
+        auto filepath = bytes.constData();
 
         nrfjprogdll_err_t err;
         err = NRFJPROG_connect_to_emu_without_snr(4000);
@@ -228,7 +231,6 @@ void Flash::flash(QString path) {
         }
 
         freeDll();
-        delete filepath;
         emit finished();
         emit deviceMessageReceived(makeMessage("inf", "flashing completed successfully!"));
     });

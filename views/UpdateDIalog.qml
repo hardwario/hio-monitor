@@ -13,10 +13,19 @@ Item {
         }
     }
 
+    Connections {
+        target: updateChecker
+
+        function onUpdateAvailableChanged(available) {
+            if (available) {
+                updateDialog.open()
+            }
+        }
+    }
+
     Dialog {
         id: updateDialog
         modal: true
-        visible: updateChecker.updateAvailable
         x: (appWindow.width - width) / 2
         y: (appWindow.height - height) / 2
 

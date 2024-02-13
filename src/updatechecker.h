@@ -24,7 +24,6 @@ public:
 
 signals:
     void updateAvailableChanged(bool available);
-    void readyToCheck();
 
 private slots:
     void onFinished(QNetworkReply *reply);
