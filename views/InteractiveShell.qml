@@ -57,6 +57,7 @@ Rectangle {
             top: placeholderText.bottom
             bottom: textInput.top
         }
+
         onFocusedChanged: {
             textInput.focus = true
         }

@@ -92,19 +92,11 @@ QtObject {
     }
 
     function currentMatch() {
-        let keys = Object.keys(matches)
+        const keys = Object.keys(matches)
         return matches[keys[curRowIndex]]
     }
 
     function resetHighlights() {
-        isSearching = false
-        matches = {}
-        pattern = ""
-        view.focus = false
-        lastCheckedIndex = 0
-        curRowIndex = 0
-        curItemInd = -1
-        prevRow = -1
         for (var i = 0; i < view.count; ++i) {
             const item = view.itemAtIndex(i)
             if (!item)

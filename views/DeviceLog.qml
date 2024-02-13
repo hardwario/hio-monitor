@@ -1,8 +1,8 @@
 import QtCore
 import QtQuick
 import QtQuick.Dialogs
-import Qt.labs.folderlistmodel
 import QtQuick.Controls
+import Qt.labs.folderlistmodel
 
 import hiomon 1.0
 
@@ -32,16 +32,19 @@ Rectangle {
 
     function reset() {
         if (search.mode === "search") {
-            toolPanel.setUndoVisible(false)
             search.resetHighlights()
             textView.deselectOnPress = true
-        } else {
+            search.isSearching = false
             toolPanel.setUndoVisible(false)
-            textView.undoFilter()
-            textInput.visible = true
         }
 
-        textInput.forceActiveFocus()
+        if (search.mode === "filter") {
+            textView.undoFilter()
+            textInput.visible = true
+            toolPanel.setUndoVisible(false)
+        }
+
+        textInput.focus = true
     }
 
     function filterOrSearch() {
@@ -114,8 +117,7 @@ Rectangle {
         }
 
         onFocusedChanged: {
-            if (!search.isSearching)
-                textInput.forceActiveFocus()
+            textInput.focus = !search.isSearching
         }
 
         // to keep searching while new data is arriving
