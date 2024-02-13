@@ -98,10 +98,8 @@ Rectangle {
             textContent: "Connect"
             iconSource: AppSettings.selectIcon
             visibleOnInit: true
-
-            function onButtonClicked() {
-                onButtonClicked()
-                console.log("Connect clicked")
+            onButtonClicked: {
+                connectClicked()
             }
 
             Connections {

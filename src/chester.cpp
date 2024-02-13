@@ -25,7 +25,8 @@ bool Chester::isConnected() {
 
 void Chester::checkMessageForCommandFailure(const QString &message) {
     if (message.contains("command not found") ||
-        message.contains("wrong")) {
+        message.contains("wrong") ||
+        message.contains("invalid")) {
         qDebug() << "Command failed";
         emit sendCommandFailed(_currentCommand);
         return;

@@ -9,6 +9,46 @@ Item {
     id: _root
     property string name: AppSettings.bluetoothWelcomeName
 
+    function isBtOn() {
+        const isOn = bluetooth.isOn
+
+        if (!isOn)
+            notify.showError("Bluetooth is trurned off")
+
+        return isOn
+    }
+
+    Connections {
+        target: toolPanel
+
+        function onScanClicked() {
+            if (!_root.isBtOn())
+                return
+
+            notify.showInfo("Scanning...")
+            progress.visible = true
+            bluetooth.startScan()
+            deviceView.visible = true
+            devicesFocusScope.forceActiveFocus()
+        }
+
+        function onConnectClicked() {
+
+            console.log("Connect clicked")
+            if (!_root.isBtOn())
+                return
+
+            if (deviceView.model.rowCount() === 0) {
+                notify.showError("No devices were found")
+                return
+            }
+
+            notify.showInfo("Connecting...")
+            loadingIndicator.open()
+            bluetooth.connectToByIndex(deviceView.currentIndex)
+        }
+    }
+
     // Welcome message and icon
     Item {
         id: welcome
@@ -57,15 +97,6 @@ Item {
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
         }
-    }
-
-    function checkBt() {
-        const isOn = bluetooth.isOn
-
-        if (!isOn)
-            notify.showError("Bluetooth is trurned off")
-
-        return isOn
     }
 
     Connections {
@@ -174,35 +205,6 @@ Item {
 
                 onCountChanged: {
                     currentIndex = 0
-                }
-
-                Connections {
-                    target: toolPanel
-
-                    function onScanClicked() {
-                        if (!checkBt())
-                            return
-
-                        notify.showInfo("Scanning...")
-                        progress.visible = true
-                        bluetooth.startScan()
-                        deviceView.visible = true
-                        devicesFocusScope.forceActiveFocus()
-                    }
-
-                    function onConnectClicked() {
-                        if (!checkBt())
-                            return
-
-                        if (deviceView.model.rowCount() === 0) {
-                            notify.showError("No devices were found")
-                            return
-                        }
-
-                        notify.showInfo("Connecting...")
-                        loadingIndicator.open()
-                        bluetooth.connectToByIndex(deviceView.currentIndex)
-                    }
                 }
 
                 delegate: BtDeviceInfo {}

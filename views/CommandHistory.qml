@@ -7,6 +7,7 @@ import hiomon 1.0
 Item {
     visible: false
     required property TextField textInput
+    // this is an interface that's defined in deviceinterface.h
     required property var device
     property var history: device.history
     property int index: 0
@@ -47,8 +48,9 @@ Item {
         if (!listView.model)
             return
 
-        index = listView.model.length - 1
-        listView.currentIndex = listView.model.length - 1
+        // index should point to length of the model for accessing the last command with up arrow
+        index = listView.model.length
+        listView.currentIndex = index - 1
     }
 
     function getSelected() {
@@ -96,6 +98,10 @@ Item {
 
         background: Rectangle {
             color: AppSettings.borderColor
+        }
+
+        onClosed: {
+            resetList()
         }
 
         ListView {

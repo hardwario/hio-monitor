@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Material
 import QtQuick.Controls.Material.impl
 
-// LoadingIndicator is just a busy spinning indecator.
+// LoadingIndicator is just a busy spinning indicator.
 Popup {
     id: busyPopup
     modal: false
@@ -26,6 +26,7 @@ Popup {
     }
 
     Item {
+        id: container
         property int radius: busyPopup.visible ? 25 : 0
         property color color: "#FAFAFA"
         property bool useCircle: false
@@ -45,19 +46,20 @@ Popup {
             delegate: Component {
                 Rectangle {
                     property int _rotation: (360 / repeater.model) * index
-                    property int _maxIndex: parent._currentIndex + 1
-                    property int _minIndex: parent._currentIndex - 1
+                    property int _maxIndex: container._currentIndex + 1
+                    property int _minIndex: container._currentIndex - 1
 
-                    width: parent.useCircle ? (parent.radius - parent._innerRadius)
-                                              * 2 : parent.width - (parent._innerRadius * 2)
-                    height: parent.useCircle ? width : width * 0.5
-                    x: parent._getPosOnCircle(_rotation).x
-                    y: parent._getPosOnCircle(_rotation).y
-                    radius: parent.useCircle ? width : 0
-                    color: parent.color
+                    width: container.useCircle ? (container.radius - container._innerRadius)
+                                                 * 2 : container.width
+                                                 - (container._innerRadius * 2)
+                    height: container.useCircle ? width : width * 0.5
+                    x: container._getPosOnCircle(_rotation).x
+                    y: container._getPosOnCircle(_rotation).y
+                    radius: container.useCircle ? width : 0
+                    color: container.color
                     opacity: (index >= _minIndex && index <= _maxIndex)
                              || (index === 0
-                                 && parent._currentIndex + 1 > 7) ? 1 : 0.3
+                                 && container._currentIndex + 1 > 7) ? 1 : 0.3
                     transform: Rotation {
                         angle: 360 - _rotation
                         origin {
@@ -82,10 +84,10 @@ Popup {
             repeat: true
             running: true
             onTriggered: {
-                if (parent._currentIndex === 7) {
-                    parent._currentIndex = 0
+                if (container._currentIndex === 7) {
+                    container._currentIndex = 0
                 } else {
-                    parent._currentIndex++
+                    container._currentIndex++
                 }
             }
         }
@@ -94,13 +96,13 @@ Popup {
         }
 
         function _getPosOnCircle(angleInDegree) {
-            let centerX = parent.width / 2, centerY = parent.height / 2
+            let centerX = container.width / 2, centerY = container.height / 2
             let posX = 0, posY = 0
 
-            posX = centerX + parent._innerRadius * Math.cos(_toRadian(
-                                                                angleInDegree))
-            posY = centerY - parent._innerRadius * Math.sin(_toRadian(
-                                                                angleInDegree))
+            posX = centerX + container._innerRadius * Math.cos(
+                        _toRadian(angleInDegree))
+            posY = centerY - container._innerRadius * Math.sin(
+                        _toRadian(angleInDegree))
             return Qt.point(posX, posY)
         }
     }

@@ -159,7 +159,7 @@ void Flash::freeDll() {
 
     if(_isFileDownloaded) {
         _downloader->remove(_hexPath);
-        emit deviceMessageReceived(makeMessage("inf", "cleaning app successful"));
+        emit deviceMessageReceived(makeMessage("inf", "remove file: " + _hexPath + " successful"));
         _hexPath.clear();
     }
 
