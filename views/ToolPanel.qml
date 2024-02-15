@@ -7,7 +7,7 @@ Rectangle {
     id: _root
     color: Material.background
     property var consoleButtons: [detach, clearCli, pause, undo, batchCli, logFile]
-    property var bluetoothButtons: [disconnect, clearBt, batchBt, logFile]
+    property var bluetoothButtons: [disconnect, clearBt, batchBt]
     property var consoleWelcomeButtons: [attach]
     property var bluetoothWelcomeButtons: [scan, connect]
     property var flashButtons: [browse, run, catalog, clearFlash]
