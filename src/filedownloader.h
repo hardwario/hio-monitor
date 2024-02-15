@@ -17,7 +17,7 @@ public:
     explicit FileDownloader(QUrl imageUrl, QObject *parent = 0);
     QByteArray downloadedData() const;
     QString save(const QString& fileName);
-    void remove(const QString& fileName);
+    bool remove(const QString& fileName);
 
 signals:
     void downloaded();

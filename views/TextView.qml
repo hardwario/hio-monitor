@@ -180,6 +180,7 @@ Item {
             function reset() {
                 internalSearch.reset()
                 textEdit.deselect()
+                view.forceLayout()
             }
 
             Text {

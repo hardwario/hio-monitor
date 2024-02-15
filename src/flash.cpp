@@ -12,7 +12,6 @@ void Flash::defaultFlash() {
     setReady(false);
     _isRunning = true;
     flash(_hexPath);
-    _hexPath.clear();
 }
 
 void Flash::sendCommand(const QString &command) {
@@ -155,10 +154,9 @@ bool Flash::loadDll() {
 }
 
 void Flash::freeDll() {
-    qDebug() << "close dll";
+    qDebug() << "close flash dll";
 
-    if(_isFileDownloaded) {
-        _downloader->remove(_hexPath);
+    if (_isFileDownloaded && _downloader->remove(_hexPath)) {
         emit deviceMessageReceived(makeMessage("inf", "remove file: " + _hexPath + " successful"));
         _hexPath.clear();
     }

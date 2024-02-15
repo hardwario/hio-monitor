@@ -7,7 +7,7 @@ Rectangle {
     id: _root
     color: Material.background
     property var consoleButtons: [detach, clearCli, pause, undo, batchCli, logFile]
-    property var bluetoothButtons: [disconnect, clearBt, batchBt]
+    property var bluetoothButtons: [disconnect, clearBt, batchBt, logFile]
     property var consoleWelcomeButtons: [attach]
     property var bluetoothWelcomeButtons: [scan, connect]
     property var flashButtons: [browse, run, catalog, clearFlash]
@@ -78,6 +78,7 @@ Rectangle {
     }
 
     Column {
+        id: buttons
         anchors.fill: parent
 
         ToolButton {
@@ -177,7 +178,6 @@ Rectangle {
             id: browse
             iconSource: AppSettings.folderIcon
             textContent: "Browse"
-            borderHighlight: true
             onButtonClicked: {
                 browseClicked()
             }
@@ -200,6 +200,7 @@ Rectangle {
             id: catalog
             iconSource: AppSettings.catalogIcon
             textContent: "Catalog"
+            borderHighlight: true
             onButtonClicked: {
                 Qt.openUrlExternally(AppSettings.hardwarioCatalogAppWebUrl)
             }

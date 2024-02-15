@@ -44,6 +44,7 @@ Rectangle {
             toolPanel.setUndoVisible(false)
         }
 
+        textView.togglePause()
         textInput.focus = true
     }
 
@@ -61,6 +62,7 @@ Rectangle {
             textInput.visible = false
         }
 
+        textView.togglePause()
         toolPanel.setUndoVisible(true)
         textInput.text = ""
         textView.listView.forceActiveFocus()

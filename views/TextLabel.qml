@@ -4,6 +4,7 @@ import QtQuick
 Text {
     property string textValue: ""
     property bool bindFocusTo: false
+    property int hborderWidth: 0
 
     text: textValue
     font.bold: true
@@ -27,7 +28,7 @@ Text {
             top: parent.bottom
             horizontalCenter: parent.horizontalCenter
         }
-        width: _root.hborderWidth
+        width: parent.hborderWidth
         height: 1
         color: AppSettings.borderColor
     }

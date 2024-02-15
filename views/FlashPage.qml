@@ -26,6 +26,76 @@ Item {
         })
     }
 
+    Connections {
+        target: toolPanel
+
+        function onClearFlashClicked() {
+            flashShell.clear()
+        }
+
+        function onBrowseClicked() {
+            if (flash.running) {
+                notify.showWrn(
+                            "Please wait for the flashing process to complete!")
+                return
+            }
+            notify.showInfo("Please choose the .hex file")
+            fileDialog.open()
+        }
+
+        function onRunClicked() {
+            if (flash.running) {
+                notify.showWrn(
+                            "Please wait for the flashing process to complete!")
+                return
+            }
+            if (isRttRunning) {
+                notify.showWrn(
+                            "Please detach from a device via Console page then Run flash process again!")
+                return
+            }
+            if (!flash.ready) {
+                notify.showWrn(
+                            "Try to enter a hex from Catalog or Browse for a file first!")
+                return
+            }
+
+            notify.showInfo("Start flashing the device...")
+            progress.visible = true
+            flash.defaultFlash()
+        }
+
+        function onOpenLogFileClicked() {
+            logFileDialog.open()
+        }
+    }
+
+    Connections {
+        target: flash
+
+        function onFinished() {
+            progress.value = 0.0
+            progress.visible = false
+        }
+
+        function onErrorOccured() {
+            progress.value = 0.0
+            progress.visible = false
+            notify.showError("Flash process failed")
+        }
+    }
+
+    // file dialog to open a log file
+    FileDialog {
+        id: logFileDialog
+        nameFilters: ["All files (*)"]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.AppDataLocation)[0]
+        onAccepted: {
+            Qt.openUrlExternally(selectedFile)
+        }
+    }
+
     FileDialog {
         id: fileDialog
         nameFilters: ["All files (*.hex)", "All files (*)"]
@@ -130,60 +200,5 @@ Item {
         visible: false
         indeterminate: true
         width: splitView.width
-    }
-
-    Connections {
-        target: toolPanel
-
-        function onClearFlashClicked() {
-            flashShell.clear()
-        }
-
-        function onBrowseClicked() {
-            if (flash.running) {
-                notify.showWrn(
-                            "Please wait for the flashing process to complete!")
-                return
-            }
-            notify.showInfo("Please choose the .hex file")
-            fileDialog.open()
-        }
-
-        function onRunClicked() {
-            if (flash.running) {
-                notify.showWrn(
-                            "Please wait for the flashing process to complete!")
-                return
-            }
-            if (isRttRunning) {
-                notify.showWrn(
-                            "Please detach from a device via Console page then Run flash process again!")
-                return
-            }
-            if (!flash.ready) {
-                notify.showWrn(
-                            "Try to enter a hex from Catalog or Browse for a file first!")
-                return
-            }
-
-            notify.showInfo("Start flashing the device...")
-            progress.visible = true
-            flash.defaultFlash()
-        }
-    }
-
-    Connections {
-        target: flash
-
-        function onFinished() {
-            progress.value = 0.0
-            progress.visible = false
-        }
-
-        function onErrorOccured() {
-            progress.value = 0.0
-            progress.visible = false
-            notify.showError("Flash process failed")
-        }
     }
 }

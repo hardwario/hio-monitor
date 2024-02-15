@@ -47,6 +47,7 @@ Rectangle {
         id: placeholderText
         text: _root.labelText
         bindFocusTo: textInput.focus || textView.focused
+        hborderWidth: _root.hborderWidth - 10
     }
 
     TextView {
@@ -106,7 +107,7 @@ Rectangle {
             // top line
             Rectangle {
                 anchors.top: parent.top
-                x: textInput.x - 5
+                x: textInput.x
                 width: _root.hborderWidth
                 height: 1
                 color: AppSettings.borderColor

@@ -1,5 +1,7 @@
 #include "filedownloader.h"
 
+#include <QFileDevice>
+
 FileDownloader::FileDownloader(QUrl imageUrl, QObject *parent) :
     QObject(parent)
 {
@@ -42,7 +44,14 @@ QString FileDownloader::save(const QString& fileName) {
     return path;
 }
 
-void FileDownloader::remove(const QString& fileName) {
+bool FileDownloader::remove(const QString& fileName) {
     QFile file(fileName);
-    file.remove();
+
+    file.setPermissions(file.permissions() |
+                    QFileDevice::WriteOwner |
+                    QFileDevice::WriteUser |
+                    QFileDevice::WriteGroup |
+                    QFileDevice::WriteOther);
+
+    return file.remove();
 }
