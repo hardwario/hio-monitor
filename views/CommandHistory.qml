@@ -48,7 +48,7 @@ Item {
         if (!listView.model)
             return
 
-        // index should point to length of the model for accessing the last command with up arrow
+        // if cmdHistory visible index should point to length of the model for accessing the last command with up arrow
         index = listView.model.length
         listView.currentIndex = index - 1
     }
@@ -58,11 +58,13 @@ Item {
             return ""
         }
 
-        if (index === listView.model.length) {
-            return ""
+        let ind = index
+
+        if (ind > 0) {
+            ind = ind - 1
         }
 
-        return listView.model[index]
+        return listView.model[ind]
     }
 
     function resetList() {

@@ -64,10 +64,6 @@ Item {
             progress.visible = true
             flash.defaultFlash()
         }
-
-        function onOpenLogFileClicked() {
-            logFileDialog.open()
-        }
     }
 
     Connections {
@@ -82,17 +78,6 @@ Item {
             progress.value = 0.0
             progress.visible = false
             notify.showError("Flash process failed")
-        }
-    }
-
-    // file dialog to open a log file
-    FileDialog {
-        id: logFileDialog
-        nameFilters: ["All files (*)"]
-        currentFolder: StandardPaths.standardLocations(
-                           StandardPaths.AppDataLocation)[0]
-        onAccepted: {
-            Qt.openUrlExternally(selectedFile)
         }
     }
 
