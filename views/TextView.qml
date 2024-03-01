@@ -26,16 +26,15 @@ Item {
 
     function clear() {
         messagesModel.clear()
-        filteredModel.clear()
     }
 
     function searchFor(term) {
-        messagesModel.searchAndHighlight(term)
         view.searchTermLength = term.length
+        messagesModel.searchAndHighlight(term)
     }
 
-    function resetSearch() {
-        messagesModel.resetHighlights()
+    function reset() {
+        messagesModel.reset()
         scrollToBottom()
     }
 
@@ -69,22 +68,10 @@ Item {
     function undoFilter() {
         view.model = messagesModel
         view.forceLayout()
-        filteredModel.clear()
     }
 
     function filterFor(term) {
-        const filteredMessagesArray = messagesModel.getWithFilter(term)
-        if (filteredMessagesArray.length <= 0) {
-            noMatchesFound()
-            return
-        }
-
-        matchesFound()
-
-        filteredModel.clear()
-        filteredModel.setModel(filteredMessagesArray)
-        view.model = filteredModel
-        view.forceLayout()
+        messagesModel.filterFor(term)
     }
 
     // Shortcuts for manual scrolling
@@ -111,10 +98,6 @@ Item {
         id: messagesModel
     }
 
-    MessageModel {
-        id: filteredModel
-    }
-
     Connections {
         target: messagesModel
 
@@ -123,7 +106,7 @@ Item {
                                                view.searchTermLength)
         }
 
-        function onSearchFoundMatch(found) {
+        function onFoundMatch(found) {
             if (found) {
                 matchesFound()
             } else {
@@ -138,11 +121,11 @@ Item {
         anchors.fill: parent
         model: messagesModel
         clip: true
-
         reuseItems: true
+
         property bool autoScroll: true
-        property int searchTermLength: 0
         property var previousItem: null
+        property int searchTermLength: 0
 
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick

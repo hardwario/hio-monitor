@@ -72,7 +72,7 @@ void MessageModel::searchAndHighlight(const QString& searchTerm) {
 
         if (firstMatch) {
             firstMatch = false;
-            emit searchFoundMatch(true);
+            emit foundMatch(true);
         }
 
         while (matchIterator.hasNext()) {
@@ -83,7 +83,7 @@ void MessageModel::searchAndHighlight(const QString& searchTerm) {
 
     // if no matches found, emit signal
     if (firstMatch) {
-        emit searchFoundMatch(false);
+        emit foundMatch(false);
     }
 
     endResetModel();
@@ -243,9 +243,18 @@ void MessageModel::addMessage(QString message) {
         finalMessage = message;
     }
 
-    beginInsertRows(QModelIndex(), rowCount(), rowCount());
-    _model.append(finalMessage);
-    endInsertRows();
+    bool append = true;
+    if (!_filterTerm.isEmpty()) {
+        append = stripHTML(finalMessage).contains(_filterTerm, Qt::CaseInsensitive);
+    }
+
+    if (append) {
+        beginInsertRows(QModelIndex(), rowCount(), rowCount());
+        _model.append(finalMessage);
+        endInsertRows();
+    } else {
+        _backupModel.append(finalMessage);
+    }
 }
 
 void MessageModel::addWithColor(const QString& message, const QString& color) {
@@ -305,20 +314,36 @@ void MessageModel::setModel(const QStringList model) {
     endResetModel();
 }
 
+void MessageModel::filterFor(const QString &term) {
+    if (term.isEmpty()) {
+        return;
+    }
+
+    _filterTerm = term;
+    _backupModel = _model;
+    auto filtered = getWithFilter(term);
+
+    bool isFiltered = !filtered.isEmpty();
+    if (isFiltered) {
+        setModel(filtered);
+    }
+
+    emit foundMatch(isFiltered);
+}
+
 QHash<int, QByteArray> MessageModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[Qt::DisplayRole] = "display";
     return roles;
 }
 
-void MessageModel::resetHighlights() {
-    if (_searchTerm.isEmpty()) {
-        return;
+void MessageModel::reset() {
+    if (!_backupModel.isEmpty()) {
+        setModel(_backupModel);
     }
 
-    setModel(_backupModel);
-
     _searchTerm.clear();
+    _filterTerm.clear();
     _matchedIndices.clear();
     _currentIndex = -1;
 }
@@ -349,7 +374,7 @@ void MessageModel::prevMatch() {
 
 void MessageModel::clear() {
     beginResetModel();
-    resetHighlights();
+    reset();
     _model.clear();
     endResetModel();
 }

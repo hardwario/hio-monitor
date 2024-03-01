@@ -32,17 +32,9 @@ Rectangle {
     }
 
     function reset() {
-        if (textView.mode === "search") {
-            textView.deselectOnPress = true
-            textView.resetSearch()
-            toolPanel.setUndoVisible(false)
-        }
-
-        if (textView.mode === "filter") {
-            textView.undoFilter()
-            textInput.visible = true
-            toolPanel.setUndoVisible(false)
-        }
+        textView.deselectOnPress = true
+        textView.reset()
+        toolPanel.setUndoVisible(false)
 
         textView.togglePause()
         textInput.visible = true
