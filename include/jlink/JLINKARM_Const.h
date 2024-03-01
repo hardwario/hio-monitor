@@ -24,7 +24,17 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #endif
 
 #include "TYPES.h"
-
+//
+// Originally, functions of type JLINK_API should have stdcall as calling type also under Linux / macOS.
+// Looks like we messed that up by forgetting __attribute((stdcall)).
+// As it is this way in the field for several years now (currently 2023, in the field for at least 7 years), we leave it as it is,
+// to not cause incompatibilities with several IDEs and applications that are available cross-platform and supporting J-Link for years without any issue.
+//
+// Also, not the end of the world because stdcall is almost only used under Windows (e.g. Visual Basic, VB.NET, ...) and quite uncommon under Linux / macOS.
+// It is also becoming more and more uncommon under Windows because it has no meaning for the x64 and arm64 architecture.
+//
+// Short: All good with not having stdcall for Linux / macOS as well as Windows other than x86 (WIN32).
+//
 #ifdef WIN32
   #define STDCALL __stdcall
 #else
@@ -290,6 +300,9 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #define JLINK_EMU_PRODUCT_ID_JLINK_LITE_ADI            (0x17)
 #define JLINK_EMU_PRODUCT_ID_ENERGY_MICRO_EFM32        (0x18)
 #define JLINK_EMU_PRODUCT_ID_JLINK_LITE_XMC4000        (0x19)
+#define JLINK_EMU_PRODUCT_ID_JLINK_PRO_POE             (0x1A)
+#define JLINK_EMU_PRODUCT_ID_FLASHER_HUB_12            (0x1B)
+#define JLINK_EMU_PRODUCT_ID_JLINK_OB_E1_ALIFSEMI      (0x1C)
 #define JLINK_EMU_PRODUCT_ID_JLINK_LITE_XMC4200        (0x20)
 #define JLINK_EMU_PRODUCT_ID_JLINK_LPC_LINK2           (0x21)
 #define JLINK_EMU_PRODUCT_ID_FLASHER_PRO               (0x22)
@@ -302,6 +315,7 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #define JLINK_EMU_PRODUCT_ID_JLINK_OPENSDA             (0x2C)
 #define JLINK_EMU_PRODUCT_ID_JLINK_OB_S124             (0x2D)
 #define JLINK_EMU_PRODUCT_ID_JLINK_OB_APOLLO4_CORETXM  (0x2E)
+#define JLINK_EMU_PRODUCT_ID_STLINK                    (0x2F)
 //
 // Versions before V7.66b (June 2022) reported 0xFE instead of JLINK_EMU_PRODUCT_ID_UNKNOWN for *any* unknown probe.
 // J-Link Commander versions before V6.54 (mid 2019) used 0xFE for identifying J-Trace PRO (which was garbage). Since V6.54 the DLL correctly returns 0x26 for J-Trace PRO probes.
@@ -334,6 +348,9 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #define JLINK_ERR_WRONG_USER_CONFIG            -272 // User configured DLL parameters incorrectly
 #define JLINK_ERR_NO_TARGET_DEVICE_SELECTED    -273 // User did not specify the core / device J-Link shall connect to
 #define JLINK_ERR_CPU_IN_LOW_POWER_MODE        -274
+#define JLINK_ERR_CPU_NOT_HALTED               -275 // Target CPU is not halted
+#define JLINK_ERR_READ_TARGET_MEMORY_FAILED    -276
+#define JLINK_ERR_TARGET_FEATURE_NOT_SUPPORTED -277 // Target does not support the selected feature (Usually returned when a hardware module is not available)
 
 /*********************************************************************
 *
@@ -391,16 +408,17 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #define JLINKARM_TIF_SPI               5
 #define JLINKARM_TIF_C2                6
 #define JLINKARM_TIF_CJTAG             7
-#define JLINKARM_TIF_SWIM              8   // Only used Flasher PRO/ATE internally. J-Link does not support SWIM interface (yet)
-#define JLINKARM_TIF_PDI               9   // Only used Flasher PRO/ATE internally. J-Link does not support PDI interface (yet)
+#define JLINKARM_TIF_SWIM              8   // Only used by Flasher PRO/ATE internally. J-Link does not support SWIM interface (yet)
+#define JLINKARM_TIF_PDI               9   // Only used by Flasher PRO/ATE internally. J-Link does not support PDI interface (yet)
 #define JLINKARM_TIF_MC2WJTAG_TDI      10  // Microchip 2-wire JTAG via TCK + TDI (e.g. BT5511 8051 core)
 #define JLINKARM_TIF_SPI_IDLE_CLK_LOW  11  // Microchip 2-wire JTAG via TCK + TDI (e.g. ATMega)
-#define JLINKARM_TIF_I2C               12  // Only used Flasher PRO/ATE internally. J-Link does not support I2C interface (yet)
-#define JLINKARM_TIF_SPI2FE            13  // Only used Flasher PRO/ATE internally. J-Link does not support SPI2FE interface (yet)
+#define JLINKARM_TIF_I2C               12  // Only used by Flasher PRO/ATE internally. J-Link does not support I2C interface (yet)
+#define JLINKARM_TIF_SPI2FE            13  // Only used by Flasher PRO/ATE internally. J-Link does not support SPI2FE interface (yet)
 #define JLINKARM_TIF_QSPI              14  // Currently, only supported by Flasher PRO
 //#define JLINKARM_TIF_ICSP_DSPIC      15  // Only used by Flasher PRO/ATE internally. J-Link does not support ICSP_DSPIC interface (yet)
 #define JLINKARM_TIF_AURIX_DAP         16  // Only used by Flasher PRO/ATE internally. J-Link does not support DAP interface (yet)
-#define JLINKARM_TIF_NUMTIFS           17  // Increment when adding a new interface
+#define JLINKARM_TIF_M16C              17  // Only used by Flasher PRO/ATE internally. J-Link does not support M16C interface (yet)
+#define JLINKARM_TIF_NUMTIFS           18  // Increment when adding a new interface
 //
 // Options for command string "SetcJTAGInitMode"
 // Note: When adding new ones here, also add them to JLINKARM_Exec to be accepted as symbolic values
@@ -408,6 +426,13 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #define JLINK_CJTAG_INIT_LONG_ACT_SEQ   (0)  // Long-form activation sequence with JScan0 boot & OScan1 enter afterwards (default)
 #define JLINK_CJTAG_INIT_SHORT_ACT_SEQ  (1)  // Short-form activation sequence with OScan1 boot (Needed for SiFive RISC-V targets)
 #define JLINK_CJTAG_INIT_WILIOT_ACT_SEQ (2)  // Short-form activation sequence with OScan1 boot + special for Wiliot chips
+
+//
+// Unfortunate double definition of value 14 for JLINKARM_TIF_QSPI and JLINKARM_TIF_SBL
+// As JLINKARM_TIF_SBL is only used from within the SBL PCode used during secure programming,
+// we can be somewhat confident, that there is no overlapping with JLINKARM_TIF_QSPI in the field.
+//
+#define JLINKARM_TIF_SBL               14  // Only supported by Flasher Secure
 
 /*********************************************************************
 *
@@ -595,6 +620,7 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #define JLINK_CORE_RX231            0x0D14FFFF
 #define JLINK_CORE_RX23T            0x0D15FFFF
 #define JLINK_CORE_RX24T            0x0D16FFFF
+#define JLINK_CORE_RX26T            0x0D17FFFF
 // RX1xx sub family
 #define JLINK_CORE_RX111            0x0D20FFFF  // Device family: 0x0D, sub family 0x20, revision not specified
 #define JLINK_CORE_RX110            0x0D21FFFF
@@ -612,6 +638,8 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #define JLINK_CORE_CORTEX_M55       0x0E0300FF
 #define JLINK_CORE_STAR             0x0E0400FF  // ARM China STAR core. Backward compatible to Cortex-M33
 #define JLINK_CORE_CORTEX_M85       0x0E0500FF
+#define JLINK_CORE_CORTEX_M52       0x0E0600FF
+#define JLINK_CORE_STAR_MC2         JLINK_CORE_CORTEX_M52  // Arm China marketing name for Cortex-M52 for locally inside China
 #define JLINK_CORE_CORTEX_A5        0x0F0000FF
 #define JLINK_CORE_POWER_PC         0x10FFFFFF
 #define JLINK_CORE_POWER_PC_N1      0x10FF00FF  // Core with Nexus-1  support
@@ -811,6 +839,8 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 #define JLINKARM_EMU_CAP_EX_SUPPORT_ECO_CPU         (79)
 #define JLINKARM_EMU_CAP_EX_SUPPORT_ECO_LOGIC       (80)
 #define JLINKARM_EMU_CAP_EX_SUPPORT_USB_WEB_SERVER  (81)
+#define JLINKARM_EMU_CAP_EX_SUPPORT_DORMANT_SWD     (82)
+#define JLINKARM_EMU_CAP_EX_SUPPORT_DORMANT_JTAG    (83)
 
 #define JLINKARM_EMUCOM_CHANNEL_TIME                (0x0000)        // Always returns 4 bytes: OS_Time
 #define JLINKARM_EMUCOM_CHANNEL_USER                (0x10000)       // The first 64k channels are reserved
@@ -863,6 +893,11 @@ Purpose : "C"- level interface of <JLinkARM.dll>
 // BP mode flags for Cadence Xtensa
 //
 // BP_MODE_ does not matter as there is only 1 CPU mode. J-Link will use narrow instruction (16-bit) if code density is supported by core and 24-bit instruction if there is no code density support
+//
+// BP mode flags for RISC-V
+//   BP_MODE0 Auto-detect if 32-bit or 16-bit BP instruction is to be used
+//   BP_MODE1 Force 32-bit BP instruction to be used for software BPs
+//   BP_MODE2 Force 16-bit BP instruction to be used for software BPs
 //
 // Flags for JLINKARM_BP_INFO (ImpFlags member)
 //
@@ -3499,13 +3534,18 @@ typedef enum {
   JLINK_RESET_TYPE_RESET_PIN         // Toggles reset pin in order to issue a reset. Requires reset pin to be connected, otherwise result will be unpredictable
 } JLINKARM_RESET_TYPE;
 
+//
+// Not used and must not be used in any global typedefs / array definitions / ... to define the number of elements of an array in JLINKARM_Const.h,
+// as adding elements to this enum would then make the DLL API binary incompatible.
+//
 typedef enum {
   JLINK_PCODE_OP_RESET=0,   // Deprecated, use JLINK_PCODE_OP_PCODE_DEVICE instead which gets *one* PCode with *multiple* entry points for connect, reset, etc.
   JLINK_PCODE_OP_CONNECT,   // Deprecated, use JLINK_PCODE_OP_PCODE_DEVICE instead which gets *one* PCode with *multiple* entry points for connect, reset, etc.
   JLINK_PCODE_OP_UNSECURE,  // Deprecated, use JLINK_PCODE_OP_PCODE_DEVICE instead which gets *one* PCode with *multiple* entry points for connect, reset, etc.
   JLINK_PCODE_OP_SETUP,     // Deprecated, use JLINK_PCODE_OP_PCODE_DEVICE instead which gets *one* PCode with *multiple* entry points for connect, reset, etc.
   JLINK_PCODE_OP_PCODE_DEVICE,
-  JLINK_PCODE_OP_NUM_OPERATIONS
+  JLINK_PCODE_OP_PCODE_DEVICE_USER,
+  JLINK_PCODE_OP_NUM_OPERATIONS     // Add new elements before this one
 } JLINK_PCODE_OPERATIONS;
 
 //
@@ -3652,6 +3692,11 @@ typedef struct {
 #define JLINKARM_DEVICE_FLAG_3RD_PARTY_SUPPORT (1 << 0)
 
 typedef struct {
+  //
+  // IMPORTANT!!!!:
+  // New elements must be added at the end of the struct.
+  // Otherwise, positions of existing elements in the struct would change and make the API binary incompatible.
+  //
   U32                     SizeOfStruct;           // Required. Use SizeofStruct = sizeof(JLINKARM_DEVICE_INFO)
   const char*             sName;
   U32                     CoreId;
@@ -3676,6 +3721,10 @@ typedef struct {
   // Supported since V7.68.
   //
   U32                     Flags;                  // Contains flags like "3rd party support"
+  //
+  // Supported since V7.88g
+  //
+  const char*             sJLinkScriptFile;       // Path to J-Link Script file associated with this device
 } JLINKARM_DEVICE_INFO;
 
 //
@@ -4239,6 +4288,11 @@ typedef struct {
   U8   TransferModeRdAddr;   // See JLINK_FLASHDL_SPI_TRANSFER_MODE enum
   U8   EraseType;            // ERASE_TYPE_SECTORS == 1, ERASE_TYPE_SECTORS_IF_REQUIRED == 2.
 } JLINK_FLASHDL_SPI_SETUP;
+
+typedef struct {
+  U32  iVCOM;           // USB layer member/interface number/... Used internally for sorting the list.
+  char acPort[512];     // Should be plenty of space for COM port name. Even under Linux / macOS where the COM port name is a complete path
+} JLINK_VCOM_INFO;
 
 //
 // Typedefs for JLINK_GetpFunc()

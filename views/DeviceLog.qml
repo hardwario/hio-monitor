@@ -39,7 +39,6 @@ Rectangle {
         textView.togglePause()
         textInput.visible = true
         textInput.focus = true
-        textView.heightMargin = 0
     }
 
     function filterOrSearch() {
@@ -60,7 +59,6 @@ Rectangle {
         textView.focus = true
         textInput.focus = false
         textInput.visible = false
-        textView.heightMargin = textInput.height
     }
 
     Connections {
@@ -106,16 +104,15 @@ Rectangle {
     TextLabel {
         id: placeholderText
         textValue: "Device Log"
-        bindFocusTo: textInput.focus || textView.focused
+        bindFocusTo: textInput.focus || textView.focused || textView.focus
         hborderWidth: _root.hborderWidth
     }
 
     TextView {
         id: textView
         property string mode: "search"
-        property int heightMargin: 0
 
-        height: parent.height - placeholderText.height + heightMargin - 10
+        height: parent.height - placeholderText.height - textInput.height - 20
 
         anchors {
             left: parent.left
