@@ -3,16 +3,18 @@ import QtQuick.Controls
 
 import hiomon 1.0
 
-// TextView is a component that holds a text and provides searching and filtering functions.
+// TextView is a component that holds a texts and provides searching and filtering functions.
 Item {
     id: _root
 
     property alias focused: view.focus
     property alias listView: view
     property bool deselectOnPress: true
-    property var msgsBuffer: []
+
     signal newItemArrived
     signal scrollDetected
+    signal noMatchesFound
+    signal matchesFound
 
     function scrollToBottom() {
         view.positionViewAtEnd()
@@ -25,6 +27,24 @@ Item {
     function clear() {
         messagesModel.clear()
         filteredModel.clear()
+    }
+
+    function searchFor(term) {
+        messagesModel.searchAndHighlight(term)
+        view.searchTermLength = term.length
+    }
+
+    function resetSearch() {
+        messagesModel.resetHighlights()
+        scrollToBottom()
+    }
+
+    function nextMatch() {
+        messagesModel.nextMatch()
+    }
+
+    function prevMatch() {
+        messagesModel.prevMatch()
     }
 
     function copy() {
@@ -55,9 +75,11 @@ Item {
     function filterFor(term) {
         const filteredMessagesArray = messagesModel.getWithFilter(term)
         if (filteredMessagesArray.length <= 0) {
-            notify.showError("No match for: " + term)
+            noMatchesFound()
             return
         }
+
+        matchesFound()
 
         filteredModel.clear()
         filteredModel.setModel(filteredMessagesArray)
@@ -93,14 +115,34 @@ Item {
         id: filteredModel
     }
 
+    Connections {
+        target: messagesModel
+
+        function onCurrentMatchPositionChanged(row, index) {
+            view.selectCurrentDeselectPrevious(row, index,
+                                               view.searchTermLength)
+        }
+
+        function onSearchFoundMatch(found) {
+            if (found) {
+                matchesFound()
+            } else {
+                noMatchesFound()
+                view.searchTermLength = 0
+            }
+        }
+    }
+
     ListView {
         id: view
         anchors.fill: parent
         model: messagesModel
         clip: true
-        reuseItems: true
 
+        reuseItems: true
         property bool autoScroll: true
+        property int searchTermLength: 0
+        property var previousItem: null
 
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
@@ -123,7 +165,13 @@ Item {
             return indexAt(x + contentX, y + contentY)
         }
 
-        onCountChanged: function (count) {
+        onCountChanged: {
+            const count = view.count
+
+            if (count === 0) {
+                return
+            }
+
             if (count >= AppSettings.maxViewLines) {
                 view.model.clear()
                 return
@@ -138,6 +186,29 @@ Item {
 
         onContentYChanged: {
             scrollDetected()
+        }
+
+        function selectCurrentDeselectPrevious(row, index, length) {
+            if (row < 0 || row >= count)
+                return
+
+            if (previousItem) {
+                previousItem.textEditObj.deselect()
+            } else {
+                // if there is no previous item, then the search has been just started, so scroll to the row
+                view.positionViewAtIndex(row, ListView.Beginning)
+            }
+
+            const item = view.itemAtIndex(row)
+
+            if (!item)
+                return
+
+            previousItem = item
+            item.textEditObj.deselect()
+            view.positionViewAtIndex(row, ListView.Center)
+            item.textEditObj.select(index, index + length)
+            view.forceLayout()
         }
 
         function getSelectedText() {
@@ -163,24 +234,8 @@ Item {
                 return textEdit.positionAt(x, y)
             }
 
-            // search only within row
-            SearchComponent {
-                id: internalSearch
-            }
-
-            Component.onCompleted: {
-                internalSearch.onCompleted()
-            }
-
-            function searchFor(term) {
-                internalSearch.searchFor(term)
-                return internalSearch.getMatchedInds()
-            }
-
             function reset() {
-                internalSearch.reset()
                 textEdit.deselect()
-                view.forceLayout()
             }
 
             Text {
@@ -199,6 +254,7 @@ Item {
                 id: textEdit
                 width: view.width - 35
                 wrapMode: Text.Wrap
+                readOnly: true
                 textFormat: TextEdit.RichText
                 selectByMouse: false
                 selectionColor: Material.accent
@@ -210,6 +266,7 @@ Item {
 
                 Connections {
                     target: selectionArea
+
                     function onSelectionChanged() {
                         textEdit.updateSelection()
                     }

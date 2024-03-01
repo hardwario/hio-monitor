@@ -13,11 +13,10 @@ ApplicationWindow {
     minimumHeight: 680
     title: "HARDWARIO Monitor " + APP_VERSION
 
-    onActiveFocusItemChanged: console.log("activeFocusItem", activeFocusItem)
-
+    // onActiveFocusItemChanged: console.log("activeFocusItem", activeFocusItem)
     Material.theme: Material.Dark
     Material.background: AppSettings.darkColor
-    Material.accent: AppSettings.primaryColor
+    Material.accent: AppSettings.focusColor
 
     FontLoader {
         id: textFont

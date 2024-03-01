@@ -15,6 +15,7 @@ Rectangle {
 
     Connections {
         target: chester
+
         function onDeviceLogReceived(msg) {
             textView.append(msg)
         }
@@ -31,21 +32,22 @@ Rectangle {
     }
 
     function reset() {
-        if (search.mode === "search") {
-            search.resetHighlights()
+        if (textView.mode === "search") {
             textView.deselectOnPress = true
-            search.isSearching = false
+            textView.resetSearch()
             toolPanel.setUndoVisible(false)
         }
 
-        if (search.mode === "filter") {
+        if (textView.mode === "filter") {
             textView.undoFilter()
             textInput.visible = true
             toolPanel.setUndoVisible(false)
         }
 
         textView.togglePause()
+        textInput.visible = true
         textInput.focus = true
+        textView.heightMargin = 0
     }
 
     function filterOrSearch() {
@@ -53,19 +55,33 @@ Rectangle {
         if (pattern === "")
             return
 
-        if (search.mode === "search") {
-            search.searchFor(pattern)
+        if (textView.mode === "search") {
+            textView.searchFor(pattern)
             textView.deselectOnPress = false
-            search.findNext()
+            textView.nextMatch()
         } else {
             textView.filterFor(pattern)
-            textInput.visible = false
         }
 
         textView.togglePause()
-        toolPanel.setUndoVisible(true)
         textInput.text = ""
-        textView.listView.forceActiveFocus()
+        textView.focus = true
+        textInput.focus = false
+        textInput.visible = false
+        textView.heightMargin = textInput.height
+    }
+
+    Connections {
+        target: textView
+
+        function onNoMatchesFound() {
+            _root.reset()
+        }
+
+        function onMatchesFound() {
+            textInput.visible = false
+            toolPanel.setUndoVisible(true)
+        }
     }
 
     // file dialog to open a log file
@@ -99,50 +115,32 @@ Rectangle {
         id: placeholderText
         textValue: "Device Log"
         bindFocusTo: textInput.focus || textView.focused
-    }
-
-    SearchHelper {
-        id: search
-        property string mode: "search"
+        hborderWidth: _root.hborderWidth
     }
 
     TextView {
         id: textView
-        height: parent.height - placeholderText.height - textInput.height
+        property string mode: "search"
+        property int heightMargin: 0
+
+        height: parent.height - placeholderText.height + heightMargin - 10
+
         anchors {
             left: parent.left
             right: parent.right
             top: placeholderText.bottom
             topMargin: 5
             bottom: textInput.top
-            bottomMargin: 5
-        }
-
-        onFocusedChanged: {
-            textInput.focus = !search.isSearching
-        }
-
-        // to keep searching while new data is arriving
-        // it won't do anything if the pattern is empty or search.isSearching is false
-        Component.onCompleted: {
-            search.view = listView
-
-            textView.newItemArrived.connect(function () {
-                search.searchFor(search.pattern)
-            })
-
-            textView.scrollDetected.connect(function () {
-                search.searchFor(search.pattern)
-            })
+            bottomMargin: 15
         }
 
         Keys.onPressed: function (event) {
             if (event.key === Qt.Key_N && event.modifiers === Qt.NoModifier) {
-                search.findNext()
+                textView.nextMatch()
                 event.accepted = true
             } else if (event.key === Qt.Key_N
                        && event.modifiers === Qt.ShiftModifier) {
-                search.findPrevious()
+                textView.prevMatch()
                 event.accepted = true
             } else if (event.key === Qt.Key_F5) {
                 _root.reset()
@@ -160,13 +158,14 @@ Rectangle {
         font.pixelSize: 14
 
         anchors {
-            topMargin: 5
-            bottomMargin: 2
             bottom: parent.bottom
+            bottomMargin: 2
             right: parent.right
             left: parent.left
         }
         leftPadding: 40 // so the text not overlaps with the search icon
+
+        placeholderText: textView.mode === "search" ? "Type to search..." : "Type to filter..."
 
         background: Rectangle {
             implicitHeight: Material.textFieldHeight
@@ -214,7 +213,6 @@ Rectangle {
                 // TextField can not be anchored to the non parent or sibling item.
                 // That's why the custom mouse area is used to capture mouse, because TextField overlays default MouseArea of SideButton
                 customMouseArea: mouseAreaSend
-
                 iconSource: AppSettings.sendIcon
                 iconWidth: 20
                 iconHeight: 20
@@ -240,11 +238,11 @@ Rectangle {
             hoverEnabled: true
 
             onClicked: {
-                if (search.mode === "search") {
-                    search.mode = "filter"
+                if (textView.mode === "search") {
+                    textView.mode = "filter"
                     modeImage.source = AppSettings.filterIcon
                 } else {
-                    search.mode = "search"
+                    textView.mode = "search"
                     modeImage.source = AppSettings.searchIcon
                 }
             }

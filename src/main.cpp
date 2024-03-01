@@ -13,11 +13,8 @@
 #include "messagemodel.h"
 #include "btdevicemodel.h"
 #include "updatechecker.h"
-#include "searchcomponent.h"
 
 static void initBackend() {
-    qmlRegisterType<SearchComponent>("hiomon", 1,
-                                     0, "SearchComponent");
     qmlRegisterType<MessageModel>("hiomon", 1, 0, "MessageModel");
     qmlRegisterType<UpdateChecker>("hiomon", 1, 0, "UpdateChecker");
 }
@@ -49,7 +46,6 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("sortDeviceModel", &proxyModel);
 
     auto commandHistoryFile = new HistoryFile(&engine, "hardwario-monitor-command-history.txt");
-    // TODO: connect sendCommandSucceeded signals intead of passing the file as an asrgument
     const auto chester = new Chester(&engine, commandHistoryFile);
     const auto bluetooth = new Bluetooth(&engine, &proxyModel, commandHistoryFile);
     const auto flash = new Flash(&engine);

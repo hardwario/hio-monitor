@@ -19,10 +19,6 @@ QVariant Chester::getCommandHistory() {
     return QVariant::fromValue(_commandHistoryFile->readAll());
 }
 
-bool Chester::isConnected() {
-    return JLINKARM_IsConnected() == 1;
-}
-
 void Chester::checkMessageForCommandFailure(const QString &message) {
     if (message.contains("command not found") ||
         message.contains("wrong") ||
@@ -42,7 +38,7 @@ void Chester::checkMessageForCommandFailure(const QString &message) {
 }
 
 void Chester::sendCommand(const QString &command) {
-    if (!this->isConnected()) {
+    if (!JLINKARM_IsConnected()) {
         qWarning() << "Device is not connected";
         emit sendCommandFailed(command);
         return;
@@ -199,7 +195,7 @@ void Chester::attach() {
             bool isFirstMessage = true;
             while (!QThread::currentThread()->isInterruptionRequested()) {
 
-                if (!this->isConnected()) {
+                if (!JLINKARM_IsConnected()) {
                     emit messageReadingFailed();
                     return;
                 }
@@ -252,7 +248,7 @@ void Chester::attach() {
 
             while (!QThread::currentThread()->isInterruptionRequested()) {
 
-                if (!this->isConnected()) {
+                if (!JLINKARM_IsConnected()) {
                     emit logReadingFailed();
                     return;
                 }

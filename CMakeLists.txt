@@ -15,10 +15,6 @@ set(APP_VERSION "v0.0.0")
 
 set(PROJECT_SOURCES
     src/main.cpp
-    src/searchhighlighter.h
-    src/searchhighlighter.cpp
-    src/searchcomponent.h
-    src/searchcomponent.cpp
     src/chester.h
     src/chester.cpp
     src/bluetooth.h

@@ -18,9 +18,9 @@ public:
         if (_file.isOpen())
             _file.close();
     }
+    QVector<QString> readAll();
     void write(QString message);
     void writeMoveOnMatch(QString message);
-    QVector<QString> readAll();
     QString getFilePath() const { return _file.fileName(); }
 
 signals:

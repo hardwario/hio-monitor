@@ -176,6 +176,7 @@ Item {
             device: flash
             enableHistory: false
             labelText: "Flash Shell"
+            inputHint: "Enter hex value from catalog applications"
         }
     }
 

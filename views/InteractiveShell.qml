@@ -10,6 +10,7 @@ Rectangle {
     property int hborderWidth: _root.width + 10
     property var device: undefined
     property string labelText: "Interactive shell"
+    property string inputHint: "Enter command"
     property bool enableHistory: true
 
     function sendCommand(cmd) {
@@ -47,7 +48,7 @@ Rectangle {
         id: placeholderText
         text: _root.labelText
         bindFocusTo: textInput.focus || textView.focused
-        hborderWidth: _root.hborderWidth - 10
+        hborderWidth: _root.hborderWidth
     }
 
     TextView {
@@ -57,10 +58,6 @@ Rectangle {
             right: parent.right
             top: placeholderText.bottom
             bottom: textInput.top
-        }
-
-        onFocusedChanged: {
-            textInput.focus = true
         }
 
         Connections {
@@ -88,7 +85,17 @@ Rectangle {
         id: textInput
         font.family: textFont.name
         font.pixelSize: 14
-        property bool isHistoryVisible: false
+
+        placeholderText: {
+            const enterCmd = "Enter command"
+
+            if (enableHistory) {
+                return cmdHistory.visible ? "Type to search for a command" : enterCmd
+            }
+
+            return inputHint === "" ? enterCmd : inputHint
+        }
+
         height: 45
         anchors {
             topMargin: 10
@@ -166,13 +173,14 @@ Rectangle {
 
         Connections {
             target: device
+
             function onSendCommandSucceeded(command) {
                 textView.appendWithColor("> " + command, AppSettings.greenColor)
                 textView.scrollToBottom()
             }
 
             function onSendCommandFailed(command) {
-                let cmd = "> " + command
+                const cmd = "> " + command
                 const res = textView.replaceWithColor(cmd,
                                                       AppSettings.greenColor,
                                                       AppSettings.redColor)

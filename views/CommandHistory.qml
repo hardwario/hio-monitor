@@ -91,7 +91,7 @@ Item {
     Popup {
         id: popup
         x: textInput.x
-        y: textInput.y - 101
+        y: textInput.y - 110
         width: textInput.width - 1
         height: 100
         visible: parent.visible

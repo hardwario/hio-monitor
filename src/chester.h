@@ -26,7 +26,6 @@ public:
     QVariant getCommandHistory() override;
 
 public slots:
-    bool isConnected();
     void sendCommand(const QString &command) override;
 
 signals:
@@ -41,9 +40,9 @@ signals:
     void deviceLogReceived(const QString &msg);
 
 private slots:
-    void checkMessageForCommandFailure(const QString &message);
     void attach();
     void detach();
+    void checkMessageForCommandFailure(const QString &message);
 
 private:
     HistoryFile *_logFile = nullptr;

@@ -279,8 +279,8 @@ Rectangle {
             function onCurrentItemChanged() {
                 const currentPageName = stackView.currentItem.name
 
-                for (let pageName in _root.pageNameButtonMap) {
-                    let buttons = pageNameButtonMap[pageName]
+                for (const pageName in _root.pageNameButtonMap) {
+                    const buttons = pageNameButtonMap[pageName]
                     currentPageName === pageName ? _root.showAll(
                                                        buttons) : _root.hideAll(
                                                        buttons)
