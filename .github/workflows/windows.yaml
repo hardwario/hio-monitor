@@ -30,9 +30,6 @@ jobs:
           modules: ${{ env.QT_MODULES }}
           tools: "tools_cmake tools_ifw"
 
-      - name: Show tree of Qt
-        run: tree .\Qt /F
-
       - name: Configure MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -83,7 +80,7 @@ jobs:
           sed -i "s/1.0.0/${{ github.ref_name }}/g" .\ci\windows\installer\config\config.xml
 
       - name: Make Installer
-        run: .\Qt\Tools\QtInstallerFramework\4.6\bin\binarycreator.exe -c .\ci\windows\installer\config\config.xml -p .\ci\windows\installer\packages\ hio-monitor-${{ github.ref_name }}-windows.exe
+        run: .\Qt\Tools\QtInstallerFramework\4.7\bin\binarycreator.exe -c .\ci\windows\installer\config\config.xml -p .\ci\windows\installer\packages\ hio-monitor-${{ github.ref_name }}-windows.exe
 
       # Sign installer with a third-party action
 
