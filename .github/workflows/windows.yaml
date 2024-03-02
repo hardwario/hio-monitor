@@ -30,6 +30,9 @@ jobs:
           modules: ${{ env.QT_MODULES }}
           tools: "tools_cmake tools_ifw"
 
+      - name: Show tree of Qt
+        run: tree .\Qt /F
+
       - name: Configure MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
