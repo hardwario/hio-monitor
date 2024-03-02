@@ -83,7 +83,7 @@ Rectangle {
 
         ToolButton {
             id: scan
-            textContent: "Scan"
+            textContent: "SCAN"
             borderHighlight: true
             iconSource: AppSettings.btDiscoverIcon
             onButtonClicked: {
@@ -96,7 +96,7 @@ Rectangle {
 
         ToolButton {
             id: connect
-            textContent: "Connect"
+            textContent: "CONNECT"
             iconSource: AppSettings.selectIcon
             visibleOnInit: true
             onButtonClicked: {
@@ -118,7 +118,7 @@ Rectangle {
 
         ToolButton {
             id: disconnect
-            textContent: "Disconnect"
+            textContent: "DISCONNECT"
             iconSource: AppSettings.btDisconnectIcon
             visible: false
             onButtonClicked: {
@@ -129,7 +129,7 @@ Rectangle {
 
         ToolButton {
             id: attach
-            textContent: "Attach"
+            textContent: "ATTACH"
             iconSource: AppSettings.attachIcon
             borderHighlight: true
             onButtonClicked: {
@@ -139,7 +139,7 @@ Rectangle {
 
         ToolButton {
             id: detach
-            textContent: "Detach"
+            textContent: "DETACH"
             iconSource: AppSettings.detachIcon
             onButtonClicked: {
                 chester.detachRequested()
@@ -148,18 +148,18 @@ Rectangle {
 
         ToolButton {
             id: pause
-            iconHeight: 20
-            iconWidth: 20
-            textContent: "Pause"
+            iconHeight: textContent === "PAUSE" ? 15 : 20
+            iconWidth: textContent === "PAUSE" ? 15 : 20
+            textContent: "PAUSE"
             iconSource: AppSettings.pauseIcon
             onButtonClicked: {
                 pauseClicked()
                 if (pause.iconSource === AppSettings.pauseIcon) {
                     pause.iconSource = AppSettings.resumeIcon
-                    pause.textContent = "Resume"
+                    pause.textContent = "RESUME"
                 } else {
                     pause.iconSource = AppSettings.pauseIcon
-                    pause.textContent = "Pause"
+                    pause.textContent = "PAUSE"
                 }
             }
         }
@@ -167,7 +167,7 @@ Rectangle {
         ToolButton {
             id: undo
             iconSource: AppSettings.undoIcon
-            textContent: "Undo"
+            textContent: "UNDO"
             visibleOnInit: false
             onButtonClicked: {
                 undoClicked()
@@ -177,7 +177,7 @@ Rectangle {
         ToolButton {
             id: browse
             iconSource: AppSettings.folderIcon
-            textContent: "Browse"
+            textContent: "BROWSE"
             onButtonClicked: {
                 browseClicked()
             }
@@ -188,7 +188,7 @@ Rectangle {
             iconHeight: 20
             iconWidth: 20
             iconSource: AppSettings.resumeIcon
-            textContent: "Run"
+            textContent: "RUN"
             borderHighlight: flash.ready
             onButtonClicked: {
                 runClicked()
@@ -199,7 +199,7 @@ Rectangle {
         ToolButton {
             id: catalog
             iconSource: AppSettings.catalogIcon
-            textContent: "Catalog"
+            textContent: "CATALOG"
             borderHighlight: true
             onButtonClicked: {
                 Qt.openUrlExternally(AppSettings.hardwarioCatalogAppWebUrl)
@@ -208,7 +208,7 @@ Rectangle {
 
         ToolButton {
             id: clearCli
-            textContent: "Clear"
+            textContent: "CLEAR"
             iconSource: AppSettings.clearIcon
             onButtonClicked: {
                 clearCliClicked()
@@ -217,7 +217,7 @@ Rectangle {
 
         ToolButton {
             id: clearBt
-            textContent: "Clear"
+            textContent: "CLEAR"
             iconSource: AppSettings.clearIcon
             onButtonClicked: {
                 clearBtClicked()
@@ -226,7 +226,7 @@ Rectangle {
 
         ToolButton {
             id: clearFlash
-            textContent: "Clear"
+            textContent: "CLEAR"
             iconSource: AppSettings.clearIcon
             onButtonClicked: {
                 clearFlashClicked()
@@ -235,7 +235,7 @@ Rectangle {
 
         ToolButton {
             id: batchBt
-            textContent: "Batch"
+            textContent: "BATCH"
             iconSource: AppSettings.batchIcon
             onButtonClicked: {
                 batchBtClicked()
@@ -244,7 +244,7 @@ Rectangle {
 
         ToolButton {
             id: batchCli
-            textContent: "Batch"
+            textContent: "BATCH"
             iconSource: AppSettings.batchIcon
             onButtonClicked: {
                 batchCliClicked()
@@ -253,7 +253,7 @@ Rectangle {
 
         ToolButton {
             id: logFile
-            textContent: "Log File"
+            textContent: "LOG FILE"
             iconSource: AppSettings.openIcon
             onButtonClicked: {
                 openLogFileClicked()

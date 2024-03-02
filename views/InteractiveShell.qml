@@ -9,7 +9,7 @@ Rectangle {
     property alias textInput: textInput
     property int hborderWidth: _root.width + 10
     property var device: undefined
-    property string labelText: "Interactive shell"
+    property string labelText: "INTERACTIVE SHELL"
     property string inputHint: "Enter command"
     property bool enableHistory: true
 
@@ -114,8 +114,8 @@ Rectangle {
             // top line
             Rectangle {
                 anchors.top: parent.top
-                x: textInput.x
                 width: _root.hborderWidth
+                x: -5
                 height: 1
                 color: AppSettings.borderColor
             }

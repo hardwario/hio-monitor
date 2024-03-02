@@ -12,6 +12,7 @@ Rectangle {
     property int iconWidth: 24
     property int iconHeight: 24
     property var customMouseArea: null
+    property string customColor: ""
     signal buttonClicked
 
     border.color: _root.borderHighlight ? Material.accent : "transparent"
@@ -29,7 +30,7 @@ Rectangle {
 
     function color() {
         // Determine which mouse area is active, defaulting to mouseArea if customMouseArea is not defined
-        var activeMouseArea = _root.customMouseArea || mouseArea
+        const activeMouseArea = _root.customMouseArea || mouseArea
 
         // Check for press state first, as it should take precedence over hover state
         if (activeMouseArea.pressed) {
@@ -37,7 +38,7 @@ Rectangle {
         } else if (activeMouseArea.containsMouse) {
             return AppSettings.hoverColor
         } else {
-            return Material.background
+            return customColor === "" ? Material.background : customColor
         }
     }
 
@@ -61,7 +62,7 @@ Rectangle {
             text: _root.textContent
             font.family: labelFont.name
             font.pixelSize: 12
-            property color textColor: AppSettings.grayColor
+            property color textColor: AppSettings.whiteColor
             color: textColor
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
@@ -104,7 +105,7 @@ Rectangle {
             // button text color change on click
             textItem.textColor = AppSettings.clickIndicatorColor
             Qt.callLater(function () {
-                textItem.textColor = AppSettings.grayColor
+                textItem.textColor = AppSettings.whiteColor
             })
         }
     }

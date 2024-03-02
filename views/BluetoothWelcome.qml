@@ -72,13 +72,27 @@ Item {
 
         Text {
             id: welcomeMessage
-            text: qsTr("Welcome to the Bluetooth page!\n\nTo start using it, click the Scan button to discover the nearby devices then choose your device and click Connect button.")
+            text: qsTr("Welcome to the Bluetooth page.")
             anchors {
                 top: img.bottom
-                topMargin: 35
+                topMargin: 40
             }
-            color: AppSettings.grayColor
-            font.pixelSize: 22
+            color: AppSettings.whiteColor
+            font.pixelSize: 24
+            width: parent.width
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        Text {
+            id: guideMessage
+            text: qsTr("To start using it, click the SCAN button to discover the nearby devices then choose your device and click CONNECT button.")
+            anchors {
+                top: welcomeMessage.bottom
+                topMargin: 24
+            }
+            color: AppSettings.whiteColor
+            font.pixelSize: 20
             width: parent.width
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
@@ -86,10 +100,10 @@ Item {
 
         Text {
             id: pairingWarningMessage
-            text: qsTr("If the pairing window does not appear when you connect, try pairing the CHESTER device using the bluetooth system tool!")
+            text: qsTr("If the pairing window does not appear when you connect, try pairing the CHESTER device using the bluetooth system tool.")
             anchors {
-                top: welcomeMessage.bottom
-                topMargin: 55
+                top: guideMessage.bottom
+                topMargin: 48
             }
             color: AppSettings.wrnColor
             font.pixelSize: 16
@@ -166,7 +180,7 @@ Item {
         TextLabel {
             id: placeholderText
             bindFocusTo: devicesFocusScope.activeFocus || parent.focus
-            text: "Devices"
+            text: "DEVICES"
         }
 
         FocusScope {

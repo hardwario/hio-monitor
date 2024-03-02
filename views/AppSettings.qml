@@ -51,7 +51,7 @@ QtObject {
     // Colors
     property string hoverColor: "#424242"
     property string grayColor: "#6B6A6A"
-    property string whiteColor: "#D1D5DA"
+    property string whiteColor: "#ebf2fc"
     property string darkColor: "#252532"
     property string primaryColor: "#F9826C"
     property string greenColor: "#85E89D"

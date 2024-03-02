@@ -36,7 +36,7 @@ Item {
         function onBrowseClicked() {
             if (flash.running) {
                 notify.showWrn(
-                            "Please wait for the flashing process to complete!")
+                            "Please wait for the flashing process to complete.")
                 return
             }
             notify.showInfo("Please choose the .hex file")
@@ -46,17 +46,17 @@ Item {
         function onRunClicked() {
             if (flash.running) {
                 notify.showWrn(
-                            "Please wait for the flashing process to complete!")
+                            "Please wait for the flashing process to complete.")
                 return
             }
             if (isRttRunning) {
                 notify.showWrn(
-                            "Please detach from a device via Console page then Run flash process again!")
+                            "Please detach from a device via Console page then RUN flash process again.")
                 return
             }
             if (!flash.ready) {
                 notify.showWrn(
-                            "Try to enter a hex from Catalog or Browse for a file first!")
+                            "Try to enter a hex from CATALOG or BROWSE for a file first.")
                 return
             }
 
@@ -117,7 +117,7 @@ Item {
             Image {
                 id: img
                 source: AppSettings.flashIcon
-                width: 100
+                width: 200
                 height: 200
                 anchors {
                     top: parent.top
@@ -128,13 +128,13 @@ Item {
 
             Text {
                 id: welcomeMessage
-                text: qsTr("Welcome to the Flash page!\n\n")
+                text: qsTr("Welcome to the Flash page.")
                 anchors {
                     top: img.bottom
-                    topMargin: 35
+                    topMargin: 40
                 }
-                color: AppSettings.grayColor
-                font.pixelSize: 22
+                color: AppSettings.whiteColor
+                font.pixelSize: 24
                 width: parent.width
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
@@ -142,12 +142,13 @@ Item {
 
             Text {
                 id: steps
-                text: qsTr("Enter the hex value of the CHESTER catalog application in the input field.\nOr click Browse and select the .hex file on your computer.\nThen click the Run button.")
+                text: qsTr("Enter the hex value of the CHESTER catalog application in the input field.\nOr click BROWSE and select the .hex file on your computer.\nThen click the RUN button.")
                 anchors {
                     top: welcomeMessage.bottom
+                    topMargin: 24
                 }
-                color: AppSettings.grayColor
-                font.pixelSize: 22
+                color: AppSettings.whiteColor
+                font.pixelSize: 20
                 width: parent.width
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
@@ -156,10 +157,10 @@ Item {
             Text {
                 id: pairingWarningMessage
                 text: qsTr(
-                          "Click the Catalog button to browse the CHESTER Catalog Applications\n\n")
+                          "Click the CATALOG button to browse the CHESTER Catalog Applications\n\n")
                 anchors {
                     top: steps.bottom
-                    topMargin: 55
+                    topMargin: 48
                 }
                 color: AppSettings.wrnColor
                 font.pixelSize: 16
@@ -175,8 +176,8 @@ Item {
             SplitView.minimumWidth: _root.minItemWidth
             device: flash
             enableHistory: false
-            labelText: "Flash Shell"
-            inputHint: "Enter hex value from catalog applications"
+            labelText: "FLASH SHELL"
+            inputHint: "Enter hex value from CATALOG applications"
         }
     }
 

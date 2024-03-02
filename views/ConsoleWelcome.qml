@@ -10,33 +10,49 @@ Item {
         id: img
         source: AppSettings.cliIcon
         width: 250
-        height: 200
+        height: 250
         anchors {
             top: parent.top
             topMargin: 75
             horizontalCenter: parent.horizontalCenter
         }
     }
+
     Text {
         id: welcomeMessage
-        text: qsTr("Welcome to the Console page!\n\nTo start using it, click the Attach button to connect to your device.")
-        color: AppSettings.grayColor
-        font.pixelSize: 22
+        text: qsTr("Welcome to the Console page.")
+        color: AppSettings.whiteColor
+        font.pixelSize: 24
         wrapMode: Text.WordWrap
         width: parent.width / 2.5
         horizontalAlignment: Text.AlignHCenter
         anchors {
             top: img.bottom
-            topMargin: 35
+            topMargin: 40
             horizontalCenter: parent.horizontalCenter
         }
     }
 
     Text {
-        text: qsTr("Ensure that the device is connected via USB!")
+        id: guideMessage
+        text: qsTr("To start using it, click the ATTACH button to connect to your device.")
+        color: AppSettings.whiteColor
+        font.pixelSize: 20
+        wrapMode: Text.WordWrap
+        width: parent.width / 2.5
+        horizontalAlignment: Text.AlignHCenter
         anchors {
             top: welcomeMessage.bottom
-            topMargin: 55
+            topMargin: 24
+            horizontalCenter: parent.horizontalCenter
+        }
+    }
+
+    Text {
+        text: qsTr("Ensure that the device is connected via USB.")
+        anchors {
+            top: guideMessage.bottom
+            topMargin: 48
         }
         color: AppSettings.wrnColor
         font.pixelSize: 16

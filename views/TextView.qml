@@ -65,11 +65,6 @@ Item {
         return messagesModel.replaceWithColor(msg, oldColor, newColor)
     }
 
-    function undoFilter() {
-        view.model = messagesModel
-        view.forceLayout()
-    }
-
     function filterFor(term) {
         messagesModel.filterFor(term)
     }

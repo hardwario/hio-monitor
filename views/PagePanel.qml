@@ -87,9 +87,10 @@ Rectangle {
 
         PageButton {
             id: consoleButton
-            textContent: "Console"
+            textContent: "CONSOLE"
             iconSource: AppSettings.cliIcon
             checked: true
+            customColor: checked ? "#121219" : ""
 
             onButtonClicked: {
                 _root.setCheckedButton(consoleButton)
@@ -116,8 +117,9 @@ Rectangle {
 
         PageButton {
             id: bluetoothButton
-            textContent: "Bluetooth"
+            textContent: "BLUETOOTH"
             iconSource: AppSettings.btIcon
+            customColor: checked ? "#121219" : ""
 
             onButtonClicked: {
                 _root.setCheckedButton(bluetoothButton)
@@ -149,8 +151,9 @@ Rectangle {
 
         PageButton {
             id: flashButton
-            textContent: "Flash"
+            textContent: "FLASH"
             iconSource: AppSettings.flashIcon
+            customColor: checked ? "#121219" : ""
 
             onButtonClicked: {
                 _root.setCheckedButton(flashButton)

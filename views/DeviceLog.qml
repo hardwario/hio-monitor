@@ -54,11 +54,7 @@ Rectangle {
             textView.filterFor(pattern)
         }
 
-        textView.togglePause()
         textInput.text = ""
-        textView.focus = true
-        textInput.focus = false
-        textInput.visible = false
     }
 
     Connections {
@@ -66,11 +62,16 @@ Rectangle {
 
         function onNoMatchesFound() {
             _root.reset()
+            notify.showError("No matches found")
         }
 
         function onMatchesFound() {
             textInput.visible = false
             toolPanel.setUndoVisible(true)
+            textView.togglePause()
+            textView.focus = true
+            textInput.focus = false
+            textInput.visible = false
         }
     }
 
@@ -103,7 +104,7 @@ Rectangle {
 
     TextLabel {
         id: placeholderText
-        textValue: "Device Log"
+        textValue: "DEVICE LOG"
         bindFocusTo: textInput.focus || textView.focused || textView.focus
         hborderWidth: _root.hborderWidth
     }
@@ -134,7 +135,36 @@ Rectangle {
             } else if (event.key === Qt.Key_F5) {
                 _root.reset()
                 event.accepted = true
+            } else if ((event.key === Qt.Key_C)
+                       && (event.modifiers & Qt.ControlModifier)) {
+                const txtIn = textInput.selectedText
+                if (txtIn !== "") {
+                    textInput.copy()
+                } else {
+                    textView.copy()
+                }
             }
+        }
+    }
+
+    Rectangle {
+        visible: !textInput.visible
+
+        height: textInput.height
+        width: textInput.width
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: 2
+            right: parent.right
+            left: parent.left
+        }
+
+        color: Material.background
+
+        TextLabel {
+            id: guideMessage
+            textValue: "Click UNDO to stop " + textView.mode + "ing"
+            bindFocusTo: true
         }
     }
 
@@ -203,7 +233,7 @@ Rectangle {
                 // That's why the custom mouse area is used to capture mouse, because TextField overlays default MouseArea of SideButton
                 customMouseArea: mouseAreaSend
                 iconSource: AppSettings.sendIcon
-                iconWidth: 20
+                iconWidth: 25
                 iconHeight: 20
             }
         }
@@ -258,12 +288,6 @@ Rectangle {
                 event.accepted = true
             } else if (event.key === Qt.Key_F5) {
                 _root.reset()
-                event.accepted = true
-            } else if (event.key === Qt.Key_Up) {
-                textView.scrollUp()
-                event.accepted = true
-            } else if (event.key === Qt.Key_Down) {
-                textView.scrollDown()
                 event.accepted = true
             }
         }

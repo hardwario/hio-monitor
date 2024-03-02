@@ -23,19 +23,19 @@ Item {
         target: chester
 
         function onAttachSucceeded() {
-            notify.showInfo("Attach Succeeded!")
+            notify.showInfo("Attach Succeeded.")
         }
 
         function onAttachFailed() {
-            notify.showError("Attach Failed!")
+            notify.showError("Attach Failed.")
         }
 
         function onDetachSucceeded() {
-            notify.showInfo("Detach Succeeded!")
+            notify.showInfo("Detach Succeeded.")
         }
 
         function onDetachFailed() {
-            notify.showError("Detach Failed!")
+            notify.showError("Detach Failed.")
         }
     }
 

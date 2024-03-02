@@ -5,11 +5,19 @@ Text {
     property string textValue: ""
     property bool bindFocusTo: false
     property int hborderWidth: 0
+    property string customColor: ""
 
     text: textValue
     font.bold: true
     font.family: labelFont.name
-    color: bindFocusTo ? AppSettings.focusColor : AppSettings.whiteColor
+    color: {
+        if (customColor !== "") {
+            return customColor
+        }
+
+        return bindFocusTo ? AppSettings.focusColor : AppSettings.whiteColor
+    }
+
     width: parent.width
     height: 25
     horizontalAlignment: Text.AlignHCenter
