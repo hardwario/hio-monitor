@@ -70,7 +70,7 @@ jobs:
       - name: Build AppImage
         run: |
           export QML_SOURCES_PATHS=.
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir -e build/hiomon -i ./resources/icon.png -d ./ci/linux/hiomon.desktop --plugin qt --output appimage
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir -e build/hiomon -i ./resources/icons/icon.png -d ./ci/linux/hiomon.desktop --plugin qt --output appimage
 
       - name: Rename AppImage
         run: |
