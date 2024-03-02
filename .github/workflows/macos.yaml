@@ -5,7 +5,7 @@ on:
     types: [created]
 
 env:
-  QT_VERSION: "6.5.1"
+  QT_VERSION: "6.6.1"
   QT_MODULES: "qtconnectivity"
   BUILD_TYPE: RelWithDebInfo
   APP: "hiomon.app"
