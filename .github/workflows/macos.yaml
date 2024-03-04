@@ -5,7 +5,7 @@ on:
     types: [created]
 
 env:
-  QT_VERSION: "6.5.1"
+  QT_VERSION: "6.6.1"
   QT_MODULES: "qtconnectivity"
   BUILD_TYPE: RelWithDebInfo
   APP: "hiomon.app"
@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir -p "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Resources"
           cp ${{ github.workspace }}/ci/macos/Info.plist "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/"
-          cp ${{ github.workspace }}/resources/icons.icns "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Resources/"
+          cp ${{ github.workspace }}/resources/icons/icons.icns "${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Resources/"
 
       - name: Copy shared libs
         run: |
@@ -63,9 +63,9 @@ jobs:
 
       - name: Point to bundle shared libs dir
         run: |
-          install_name_tool -change Output/Release/arm64/libjlinkarm.7.86.8.dylib @executable_path/../Frameworks/libjlinkarm.7.86.8.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
-          install_name_tool -change Output/Release/x86_64/libjlinkarm.7.86.8.dylib @executable_path/../Frameworks/libjlinkarm.7.86.8.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
-          install_name_tool -id @executable_path/../Frameworks/libjlinkarm.7.86.8.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
+          install_name_tool -change Output/Release/arm64/libjlinkarm.7.94.11.dylib @executable_path/../Frameworks/libjlinkarm.7.94.11.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
+          install_name_tool -change Output/Release/x86_64/libjlinkarm.7.94.11.dylib @executable_path/../Frameworks/libjlinkarm.7.94.11.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
+          install_name_tool -id @executable_path/../Frameworks/libjlinkarm.7.94.11.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
 
           install_name_tool -change Output/Release/x86_64/libnrfjprogdll.dylib @executable_path/../Frameworks/libnrfjprogdll.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor
           install_name_tool -id @executable_path/../Frameworks/libnrfjprogdll.dylib build/HARDWARIO\ Monitor.app/Contents/MacOS/HARDWARIO\ Monitor

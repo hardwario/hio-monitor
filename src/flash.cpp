@@ -12,20 +12,20 @@ void Flash::defaultFlash() {
     setReady(false);
     _isRunning = true;
     flash(_hexPath);
-    _hexPath.clear();
 }
 
 void Flash::sendCommand(const QString &command) {
-    qDebug() << "Flash sendCommand: " << command;
     if (command.contains("help")) {
         emit sendCommandSucceeded(command);
         emit deviceMessageReceived(_helpMessage);
         return;
     }
+
     if (_isRunning) {
         emit deviceMessageReceived(makeMessage("wrn", "please wait for the flashing process to complete!"));
         return;
     }
+
     tryDownload(command);
 }
 
@@ -42,6 +42,7 @@ bool Flash::tryDownload(const QString &str) {
     QUrl url(QString("https://firmware.hardwario.com/chester/%1/hex").arg(str));
     _downloader = new FileDownloader(url, this);
     emit deviceMessageReceived(makeMessage("inf", "downloading..."));
+
     connect(_downloader, &FileDownloader::downloaded,
             [this, str] {
                 qDebug() << "flash program file downloaded!";
@@ -50,6 +51,7 @@ bool Flash::tryDownload(const QString &str) {
                 setReady(true);
                 _isFileDownloaded = true;
             });
+
     connect(_downloader, &FileDownloader::errorOccured,
             [this, str](QString error) {
                 qDebug() << "flash program file error while downloading: " << error;
@@ -58,6 +60,7 @@ bool Flash::tryDownload(const QString &str) {
                 setReady(false);
                 return false;
             });
+
     return true;
 }
 
@@ -151,22 +154,26 @@ bool Flash::loadDll() {
 }
 
 void Flash::freeDll() {
-    qDebug() << "close dll";
-    if(_isFileDownloaded) {
-        _downloader->remove(_hexPath);
-        emit deviceMessageReceived(makeMessage("inf", "cleaning app successful"));
+    qDebug() << "close flash dll";
+
+    if (_isFileDownloaded && _downloader->remove(_hexPath)) {
+        emit deviceMessageReceived(makeMessage("inf", "remove file: " + _hexPath + " successful"));
         _hexPath.clear();
     }
+
     NRFJPROG_close_dll();
     _isRunning = false;
 }
 
 void Flash::flash(QString path) {
     flashThread = QThread::create([this, path]{
-        QByteArray byteArray = path.toUtf8();
-        const char* filepath = byteArray.constData();
-        qDebug() << "flash filepath " << filepath;
-        loadDll();
+
+        if (!loadDll()) {
+            return;
+        }
+
+        auto bytes = path.toUtf8(); // so it's not temporary
+        auto filepath = bytes.constData();
 
         nrfjprogdll_err_t err;
         err = NRFJPROG_connect_to_emu_without_snr(4000);
@@ -225,5 +232,6 @@ void Flash::flash(QString path) {
         emit finished();
         emit deviceMessageReceived(makeMessage("inf", "flashing completed successfully!"));
     });
+
     flashThread->start();
 }

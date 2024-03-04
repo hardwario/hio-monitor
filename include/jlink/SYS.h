@@ -170,6 +170,14 @@ Purpose : Interface definition for system specific routines
 #define SYS_SOCKET_SHUT_WR              1
 #define SYS_SOCKET_SHUT_RDWR            2
 
+#define SYS_SOCKET_CONNECT_MIN_INTERVAL_MS    (10)
+//
+// Error values for SYS_SOCKET_UTIL_ConnectTCPWithTimeout()
+//
+#define SYS_SOCKET_CONNECT_ERR_UNSPECIFIED   -1
+#define SYS_SOCKET_CONNECT_ERR_TIMEDOUT      -2
+#define SYS_SOCKET_CONNECT_ERR_CANCELLED     -3
+
 #define SYS_COM_DEFAULT_TIMEOUT         100
 #define SYS_COM_INVALID_HANDLE          NULL
 //
@@ -228,6 +236,7 @@ Purpose : Interface definition for system specific routines
 #define SYS_HOST_OS_VERSION_WINDOWS_8          (SYS_HOST_OS_TYPE_WINDOWS | (6 << 0))
 #define SYS_HOST_OS_VERSION_WINDOWS_8_1        (SYS_HOST_OS_TYPE_WINDOWS | (7 << 0))
 #define SYS_HOST_OS_VERSION_WINDOWS_10         (SYS_HOST_OS_TYPE_WINDOWS | (8 << 0))
+#define SYS_HOST_OS_VERSION_WINDOWS_11         (SYS_HOST_OS_TYPE_WINDOWS | (9 << 0))
 //
 // Linux OS
 //
@@ -350,6 +359,20 @@ typedef struct {
   SYS_SOCKET_BUF_INFO Wr;
 } SYS_SOCKET_INFO;
 
+typedef int  SYS_CB_ON_CONNECT_INTERVAL (void* pContext);
+
+typedef struct {
+  struct {
+    SYS_CB_ON_CONNECT_INTERVAL* pf;  // Callback function
+    void* pContext;                  // Callback context
+  } Callback;
+  SYS_SOCKET_HANDLE hSocket;  // Output
+  U32 IPAddr;                 // Input. IP address to connect to
+  U32 Port;                   // Input. Port to connect to
+  U32 TimeoutMs;              // Input. Max. time in [ms] to attempt connect
+  U32 IntervalMs;             // Input. Interval to attempt connection in [ms]. Min. is <SYS_SOCKET_CONNECT_MIN_INTERVAL_MS>.
+} SYS_SOCKET_CONNECT_INFO;
+
 typedef struct {
   SYS_TIME    TimeLastWrite;
   const char* sFile;
@@ -358,10 +381,37 @@ typedef struct {
   U32         Attr;
 } SYS_FILE_FOUND_INFO;
 
-typedef void SYS_CB_ON_FILE_FOUND       (SYS_FILE_FOUND_INFO* pInfo, void* pPara);
-typedef int  SYS_CB_ON_CONNECT_INTERVAL (void);
-typedef int  SYS_THREAD_PROC            (void);
+typedef struct {
+  //
+  // Note:
+  //  When extending this structure, keep in mind that callers zero the struct before initializing it.
+  //  As such, newly added members should have 0 as default in order to not change existing behavior.
+  //
+  const char* sName;          // May be NULL. Title to be shown in title of window and description is task manager
+  const char* sPath;          // Must not be NULL. Path to executable.
+  const char* sCmdLine;       // May be NULL. Command line for process. If set, the first parameter should be the process name to comply with default command line handling
+  const char* sWorkingDir;    // May be NULL. Working directory of forked process. If NULL, the working directory is inherited from the calling process
+  U8          ShowWindow;     // Determines if the created process should have a visible window (1) or not (0).
+  U8          DiscardStdOut;  // Determines if <stdout> of the created process should be discarded (1) or not (0).
+  U8          DiscardStdErr;  // Determines if <stderr> of the created process should be discarded (1) or not (0).
+} SYS_CREATE_PROCESS_INFO;
+
 typedef SYS_THREAD_PROC_EX_TYPE SYS_THREAD_PROC_EX(void* pPara);
+
+typedef struct {
+  struct {
+    SYS_THREAD_PROC_EX* pf;
+    void* pPara;
+  } EntryFunc;
+  SYS_HANDLE hThread;  // Output. Handle of created thread
+  const char* sName;
+  U64 ThreadId;        // Output. ID of created thread
+  U8 CreateSuspended;  // Windows: 1 == Creates a thread in "suspended" state. 
+  U8 CreateDetached;   // Linux/ macOS: 1 == Creates a thread in "detached" state, so it cannot be joined later on.
+} SYS_THREAD_INFO;
+
+typedef void SYS_CB_ON_FILE_FOUND       (SYS_FILE_FOUND_INFO* pInfo, void* pPara);
+typedef int  SYS_THREAD_PROC            (void);
 
 /*********************************************************************
 *
@@ -470,6 +520,7 @@ void              SYS_LeaveCriticalSection        (SYS_HANDLE hSection);
 **********************************************************************
 */
 
+int               SYS_OpenInBrowser               (const char* sURL);
 void              SYS_NormalizePath               (char* sPath);
 int               SYS_SetCurrentThreadName        (const char* sName);
 int               SYS_GetCurrentThreadName        (char* pBuf, U32 BufSize);
@@ -529,10 +580,12 @@ void              SYS_AllowSleep                  (void);
 void              SYS_GetRandStream               (void* pBuf, U32 NumBytes);
 U32               SYS_GetOSVersion                (void);
 int               SYS_CreateCLIProcess            (char* sName, char* sPath, char* sCmdLine, char* sWorkingDir, unsigned ShowWindow);
+int               SYS_CreateCLIProcessEx          (const SYS_CREATE_PROCESS_INFO* pInfo);
 U32               SYS_CheckProcessExist           (const char* sName);
 double            SYS_pow                         (double a, double b);
 double            SYS_log10                       (double a);
 double            SYS_fabs                        (double a);
+int               SYS_HideDockIcon                (void);
 
 void              SYS_Init                        (U32 CloseFDs);
 void              SYS_Exit                        (void);
@@ -542,39 +595,38 @@ int               SYS_GetUserName                 (char* pBuf, U32* pLen);
 //
 // Socket API (Requires SYS_Windows/Linux/MAC.c and UTIL.c)
 //
-SYS_SOCKET_HANDLE     SYS_SOCKET_OpenUDP              (void);
-SYS_SOCKET_HANDLE     SYS_SOCKET_OpenTCP              (void);
-void                  SYS_SOCKET_Close                (SYS_SOCKET_HANDLE hSocket);
-void                  SYS_SOCKET_Shutdown             (SYS_SOCKET_HANDLE hSocket, int How);
-void                  SYS_SOCKET_SetTimeouts          (SYS_SOCKET_HANDLE hSocket, int TimeoutSend, int TimeoutReceive);
-int                   SYS_SOCKET_DisableLinger        (SYS_SOCKET_HANDLE hSocket);
-int                   SYS_SOCKET_EnableLinger         (SYS_SOCKET_HANDLE hSocket, int TimeoutLinger);
-int                   SYS_SOCKET_IsReadable           (SYS_SOCKET_HANDLE hSocket, int TimeoutMs);
-int                   SYS_SOCKET_IsWriteable          (SYS_SOCKET_HANDLE hSocket, int TimeoutMs);
-unsigned              SYS_SOCKET_IsReady              (SYS_SOCKET_HANDLE hSocket);
-void                  SYS_SOCKET_EnableKeepalive      (SYS_SOCKET_HANDLE hSocket);
-void                  SYS_SOCKET_SetBlocking          (SYS_SOCKET_HANDLE hSocket);
-void                  SYS_SOCKET_SetNonBlocking       (SYS_SOCKET_HANDLE hSocket);
-int                   SYS_SOCKET_Connect              (SYS_SOCKET_HANDLE hSocket, U32 IPAddr, U32 Port);
-SYS_SOCKET_HANDLE     SYS_SOCKET_ConnectTCPWithTimeout(U32 IPAddr, U32 Port, int Timeout, SYS_CB_ON_CONNECT_INTERVAL* pfCheckForCancel);
-int                   SYS_SOCKET_ListenAtTCPAddr      (SYS_SOCKET_HANDLE hSocket, U32 IPAddr, U32 Port, unsigned NumConnectionsQueued);
-int                   SYS_SOCKET_Bind                 (SYS_SOCKET_HANDLE hSocket, U32 IPAddr, U32 LocalPort);
-SYS_SOCKET_HANDLE     SYS_SOCKET_Accept               (SYS_SOCKET_HANDLE hSocket);
-SYS_SOCKET_HANDLE     SYS_SOCKET_AcceptEx             (SYS_SOCKET_HANDLE hSocket, int TimeoutMs);
-int                   SYS_SOCKET_EnableBroadcast      (SYS_SOCKET_HANDLE hSocket);
-int                   SYS_SOCKET_SetReceiveBufSize    (SYS_SOCKET_HANDLE hSocket, U32 BufSize);
-int                   SYS_SOCKET_Send                 (SYS_SOCKET_HANDLE hSocket, const void* pData, U32 NumBytes);
-int                   SYS_SOCKET_SendTo               (SYS_SOCKET_HANDLE hSocket, const void* pData, U32 NumBytes, U32 IPAddr, U32 DestPort);
-int                   SYS_SOCKET_Receive              (SYS_SOCKET_HANDLE hSocket, void* pData, U32 MaxNumBytes);
-int                   SYS_SOCKET_ReceiveAll           (SYS_SOCKET_HANDLE hSocket, void* pData, U32 NumBytes);
-int                   SYS_SOCKET_UDPReceiveFrom       (SYS_SOCKET_HANDLE hSocket, void* pData, U32 MaxNumBytes, U32* pIPAddr, U32* pPort);
-int                   SYS_SOCKET_GetPeerName          (SYS_SOCKET_HANDLE hSocket, U32* pIPAddr, U32* pPort);
-int                   SYS_SOCKET_GetAddrInfo          (const char* sHostname, const char* sService, U32* pIPAddr);
-int                   SYS_SOCKET_GetNameInfo          (U32 IPAddr, char* sHostname, U32 HostnameLen, char* sService, U32 ServiceLen);
-int                   SYS_SOCKET_GetLocalPort         (SYS_SOCKET_HANDLE hSocket, U32* pPort);
-int                   SYS_SOCKET_SetReuseAddr         (SYS_SOCKET_HANDLE hSock);
-int                   SYS_SOCKET_GetErrorStatus       (SYS_SOCKET_HANDLE hSock);
-int                   SYS_SOCKET_GetSockName          (SYS_SOCKET_HANDLE hSocket, U32* pIPAddr);
+SYS_SOCKET_HANDLE     SYS_SOCKET_OpenUDP               (void);
+SYS_SOCKET_HANDLE     SYS_SOCKET_OpenTCP               (void);
+void                  SYS_SOCKET_Close                 (SYS_SOCKET_HANDLE hSocket);
+void                  SYS_SOCKET_Shutdown              (SYS_SOCKET_HANDLE hSocket, int How);
+void                  SYS_SOCKET_SetTimeouts           (SYS_SOCKET_HANDLE hSocket, int TimeoutSend, int TimeoutReceive);
+int                   SYS_SOCKET_DisableLinger         (SYS_SOCKET_HANDLE hSocket);
+int                   SYS_SOCKET_EnableLinger          (SYS_SOCKET_HANDLE hSocket, int TimeoutLinger);
+int                   SYS_SOCKET_IsReadable            (SYS_SOCKET_HANDLE hSocket, int TimeoutMs);
+int                   SYS_SOCKET_IsWriteable           (SYS_SOCKET_HANDLE hSocket, int TimeoutMs);
+unsigned              SYS_SOCKET_IsReady               (SYS_SOCKET_HANDLE hSocket);
+void                  SYS_SOCKET_EnableKeepalive       (SYS_SOCKET_HANDLE hSocket);
+void                  SYS_SOCKET_SetBlocking           (SYS_SOCKET_HANDLE hSocket);
+void                  SYS_SOCKET_SetNonBlocking        (SYS_SOCKET_HANDLE hSocket);
+int                   SYS_SOCKET_Connect               (SYS_SOCKET_HANDLE hSocket, U32 IPAddr, U32 Port);
+int                   SYS_SOCKET_ListenAtTCPAddr       (SYS_SOCKET_HANDLE hSocket, U32 IPAddr, U32 Port, unsigned NumConnectionsQueued);
+int                   SYS_SOCKET_Bind                  (SYS_SOCKET_HANDLE hSocket, U32 IPAddr, U32 LocalPort);
+SYS_SOCKET_HANDLE     SYS_SOCKET_Accept                (SYS_SOCKET_HANDLE hSocket);
+SYS_SOCKET_HANDLE     SYS_SOCKET_AcceptEx              (SYS_SOCKET_HANDLE hSocket, int TimeoutMs);
+int                   SYS_SOCKET_EnableBroadcast       (SYS_SOCKET_HANDLE hSocket);
+int                   SYS_SOCKET_SetReceiveBufSize     (SYS_SOCKET_HANDLE hSocket, U32 BufSize);
+int                   SYS_SOCKET_Send                  (SYS_SOCKET_HANDLE hSocket, const void* pData, U32 NumBytes);
+int                   SYS_SOCKET_SendTo                (SYS_SOCKET_HANDLE hSocket, const void* pData, U32 NumBytes, U32 IPAddr, U32 DestPort);
+int                   SYS_SOCKET_Receive               (SYS_SOCKET_HANDLE hSocket, void* pData, U32 MaxNumBytes);
+int                   SYS_SOCKET_ReceiveAll            (SYS_SOCKET_HANDLE hSocket, void* pData, U32 NumBytes);
+int                   SYS_SOCKET_UDPReceiveFrom        (SYS_SOCKET_HANDLE hSocket, void* pData, U32 MaxNumBytes, U32* pIPAddr, U32* pPort);
+int                   SYS_SOCKET_GetPeerName           (SYS_SOCKET_HANDLE hSocket, U32* pIPAddr, U32* pPort);
+int                   SYS_SOCKET_GetAddrInfo           (const char* sHostname, const char* sService, U32* pIPAddr);
+int                   SYS_SOCKET_GetNameInfo           (U32 IPAddr, char* sHostname, U32 HostnameLen, char* sService, U32 ServiceLen);
+int                   SYS_SOCKET_GetLocalPort          (SYS_SOCKET_HANDLE hSocket, U32* pPort);
+int                   SYS_SOCKET_SetReuseAddr          (SYS_SOCKET_HANDLE hSock);
+int                   SYS_SOCKET_GetErrorStatus        (SYS_SOCKET_HANDLE hSock);
+int                   SYS_SOCKET_GetSockName           (SYS_SOCKET_HANDLE hSocket, U32* pIPAddr);
 //
 // Socket IPv6 API (Requires SYS_Windows/Linux/MAC.c and UTIL.c)
 // 
@@ -591,10 +643,11 @@ int                   SYS_SOCKET_IPV6_ListenAtTCPAddr (SYS_SOCKET_HANDLE hSocket
 //
 // From SYS_SOCKET_UTIL.c (Requires SYS_Windows/Linux/MAC.c and UTIL.c)
 //
-int                   SYS_SOCKET_UTIL_FlushSendBuf    (SYS_SOCKET_INFO* pSocketInfo);
-int                   SYS_SOCKET_UTIL_StoreSendData   (SYS_SOCKET_INFO* pSocketInfo, const void* pSrc, U32 NumBytesToWrite);
-int                   SYS_SOCKET_UTIL_StoreSendData32 (SYS_SOCKET_INFO* pSocketInfo, U32 Data);
-int                   SYS_SOCKET_UTIL_Read            (SYS_SOCKET_INFO* pSocketInfo, void* pDest, U32 NumBytesRem);
+int                   SYS_SOCKET_UTIL_FlushSendBuf          (SYS_SOCKET_INFO* pSocketInfo);
+int                   SYS_SOCKET_UTIL_StoreSendData         (SYS_SOCKET_INFO* pSocketInfo, const void* pSrc, U32 NumBytesToWrite);
+int                   SYS_SOCKET_UTIL_StoreSendData32       (SYS_SOCKET_INFO* pSocketInfo, U32 Data);
+int                   SYS_SOCKET_UTIL_Read                  (SYS_SOCKET_INFO* pSocketInfo, void* pDest, U32 NumBytesRem);
+int                   SYS_SOCKET_UTIL_ConnectTCPWithTimeout (SYS_SOCKET_CONNECT_INFO* pInfo);
 //
 // SYS_IP API
 //
@@ -613,6 +666,13 @@ void                  SYS_COM_SetBaudrate             (SYS_COM_HANDLE hCOM, U32 
 int                   SYS_COM_Read                    (SYS_COM_HANDLE hCOM, void* pData, U32 NumBytes, U32 Timeout);
 int                   SYS_COM_Write                   (SYS_COM_HANDLE hCOM, const void* pData, U32 NumBytes, U32 Timeout);
 void                  SYS_COM_Close                   (SYS_COM_HANDLE hCOM);
+//
+// THREAD API
+//
+int                   SYS_THREAD_Create               (SYS_THREAD_INFO* pInfo);
+int                   SYS_THREAD_Join                 (SYS_HANDLE hThread);
+int                   SYS_THREAD_Detach               (SYS_HANDLE hThread);
+
 
 #if defined(__cplusplus)          // Allow usage of this module from C++ files (disable name mangling)
   }

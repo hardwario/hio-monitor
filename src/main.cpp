@@ -1,31 +1,26 @@
-#include <QGuiApplication>
-#include <QQmlApplicationEngine>
-#include <QQmlContext>
-#include <QSortFilterProxyModel>
+#include <QDir>
 #include <QIcon>
 #include <QLockFile>
-#include <QDir>
-#include <QObject>
+#include <QQmlContext>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QSortFilterProxyModel>
 
-#include "app_environment.h"
-#include "import_qml_components_plugins.h"
-#include "import_qml_plugins.h"
-#include "searchcomponent.h"
+#include "flash.h"
 #include "chester.h"
 #include "bluetooth.h"
-#include "messagemodel.h"
-#include "devicemodel.h"
 #include "historyfile.h"
-#include "flash.h"
+#include "messagemodel.h"
+#include "btdevicemodel.h"
+#include "updatechecker.h"
 
 static void initBackend() {
-    SearchComponent::registerQmlType();
-    MessageModel::registerQmlType();
+    qmlRegisterType<MessageModel>("hiomon", 1, 0, "MessageModel");
+    qmlRegisterType<UpdateChecker>("hiomon", 1, 0, "UpdateChecker");
 }
 
 int main(int argc, char *argv[]) 
 {
-    set_qt_environment();
     QGuiApplication app(argc, argv);
 
     QLockFile lockFile(QDir::temp().absoluteFilePath("HARDWARIOMonitor.lock"));
@@ -36,24 +31,23 @@ int main(int argc, char *argv[])
 
     app.setOrganizationName("HARDWARIO");
     app.setOrganizationDomain("IoT");
-    app.setWindowIcon(QIcon(":/resources/icons.ico"));
+    app.setWindowIcon(QIcon(":/icons/favicon"));
     initBackend();
 
     QQmlApplicationEngine engine;
 
-    DeviceModel deviceModel;
+    BtDeviceModel deviceModel;
     QSortFilterProxyModel proxyModel;
     proxyModel.setSourceModel(&deviceModel);
-    proxyModel.setSortRole(DeviceModel::SortRole);
+    proxyModel.setSortRole(BtDeviceModel::SortRole);
     proxyModel.sort(0, Qt::DescendingOrder);
+
     engine.rootContext()->setContextProperty("deviceModel", &deviceModel);
     engine.rootContext()->setContextProperty("sortDeviceModel", &proxyModel);
 
     auto commandHistoryFile = new HistoryFile(&engine, "hardwario-monitor-command-history.txt");
-    // TODO: connect sendCommandSucceeded signals intead of passing the file as an asrgument
     const auto chester = new Chester(&engine, commandHistoryFile);
     const auto bluetooth = new Bluetooth(&engine, &proxyModel, commandHistoryFile);
-    //flash->setRttStarted(true)
     const auto flash = new Flash(&engine);
 
     engine.rootContext()->setContextProperty("chester", chester);
@@ -67,19 +61,7 @@ int main(int argc, char *argv[])
 
     engine.rootContext()->setContextProperty("APP_VERSION", APP_VERSION);
 
-    const QUrl url(u"qrc:Main/main.qml"_qs);
-    QObject::connect(
-        &engine, &QQmlApplicationEngine::objectCreated, &app,
-        [url](QObject *obj, const QUrl &objUrl) {
-            if (!obj && url == objUrl)
-                QCoreApplication::exit(-1);
-        },
-        Qt::QueuedConnection);
-
-    engine.addImportPath(QCoreApplication::applicationDirPath() + "/qml");
-    engine.addImportPath(":/");
-
-    engine.load(url);
+    engine.load(QUrl("qrc:/views/main.qml"));
 
     if (engine.rootObjects().isEmpty())
         return -1;

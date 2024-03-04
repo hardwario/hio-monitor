@@ -2,7 +2,7 @@
 
 Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, HistoryFile *commandHistoryFile)
     : DeviceInterface(parent), _model(model) {
-    qRegisterMetaType<DeviceInfo*>("DeviceInfo*");
+    qRegisterMetaType<BtDeviceInfo*>("BtDeviceInfo*");
 
     _name = "bluetooth";
     _workerThread = new QThread(this);
@@ -16,6 +16,7 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, HistoryFile 
     connect(this, &Bluetooth::disconnectRequested, _worker, &BluetoothWorker::disconnect);
     connect(this, &Bluetooth::connectRequested, _worker, &BluetoothWorker::connectTo);
     connect(this, &Bluetooth::sendCommandRequested, _worker, &BluetoothWorker::sendCommand);
+
     connect(_worker, &BluetoothWorker::deviceDiscovered, this, &Bluetooth::deviceDiscovered);
     connect(_worker, &BluetoothWorker::deviceMessageReceived, this, &Bluetooth::checkMessageForCommandFailure);
     connect(_worker, &BluetoothWorker::errorOccured, this, &Bluetooth::errorOnConnect);
@@ -23,7 +24,6 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, HistoryFile 
     connect(_worker, &BluetoothWorker::deviceDisconnected, this, &Bluetooth::deviceDisconnected);
     connect(_worker, &BluetoothWorker::deviceScanCanceled, this, &Bluetooth::deviceScanCanceled);
     connect(_worker, &BluetoothWorker::deviceScanFinished, this, &Bluetooth::deviceScanFinished);
-    // TODO: find a way to check pairing status on windows
     connect(_worker, &BluetoothWorker::probablyUnpaired, this, &Bluetooth::deviceIsUnpaired);
 
     _workerThread->start();
@@ -47,6 +47,7 @@ void Bluetooth::startScan() {
         qDebug() << "Bluetooth is disabled";
         return;
     }
+
     emit startScanRequested();
 }
 
@@ -59,11 +60,10 @@ void Bluetooth::disconnect() {
 }
 
 void Bluetooth::connectToByIndex(int index) {
-    DeviceInfo* device = qvariant_cast<DeviceInfo*>(_model->data(_model->index(index, 0), Qt::DisplayRole));
-    if(device) {
+    auto device = qvariant_cast<BtDeviceInfo*>(_model->data(_model->index(index, 0), Qt::DisplayRole));
+
+    if (device) {
         emit connectRequested(device);
-    } else {
-        qDebug() << "cannot retrieve device from model";
     }
 }
 
@@ -77,6 +77,7 @@ void Bluetooth::checkMessageForCommandFailure(const QString &message) {
             emit sendCommandSucceeded(_currentCommand);
         }
     }
+
     _lastCommand = _currentCommand;
     emit deviceMessageReceived(message);
 }
@@ -84,13 +85,16 @@ void Bluetooth::checkMessageForCommandFailure(const QString &message) {
 void Bluetooth::sendCommand(const QString &command) {
     _currentCommand = command;
     _lastCommand = _currentCommand;
+
     _commandHistoryFile->writeMoveOnMatch(_currentCommand);
+
     emit sendCommandSucceeded(_currentCommand);
     emit sendCommandRequested(command);
 }
 
 bool Bluetooth::isBluetoothEnabled() {
     QBluetoothLocalDevice localDevice;
+
     return localDevice.isValid() && 
         localDevice.hostMode() != QBluetoothLocalDevice::HostPoweredOff;
 }

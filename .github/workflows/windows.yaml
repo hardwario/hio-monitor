@@ -5,7 +5,7 @@ on:
     types: [created]
 
 env:
-  QT_VERSION: "6.5.1"
+  QT_VERSION: "6.6.1"
   QT_MODULES: "qtconnectivity"
   COMPILER_NAME: "msvc2019_64"
   BUILD_TYPE: RelWithDebInfo
@@ -80,7 +80,7 @@ jobs:
           sed -i "s/1.0.0/${{ github.ref_name }}/g" .\ci\windows\installer\config\config.xml
 
       - name: Make Installer
-        run: .\Qt\Tools\QtInstallerFramework\4.6\bin\binarycreator.exe -c .\ci\windows\installer\config\config.xml -p .\ci\windows\installer\packages\ hio-monitor-${{ github.ref_name }}-windows.exe
+        run: .\Qt\Tools\QtInstallerFramework\4.7\bin\binarycreator.exe -c .\ci\windows\installer\config\config.xml -p .\ci\windows\installer\packages\ hio-monitor-${{ github.ref_name }}-windows.exe
 
       # Sign installer with a third-party action
 

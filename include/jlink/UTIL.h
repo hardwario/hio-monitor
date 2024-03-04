@@ -126,6 +126,7 @@ int             UTIL_ParseChar                (const char** ps, char c);
 int             UTIL_ParseIPAddr              (const char** ps, U32* pIPAddr, U32* pPort);
 int             UTIL_ParseVersionNo           (const char** psVersion, U32* pMajor, U32* pMinor, U32* pRev);
 unsigned        UTIL_IsWhiteChar              (char c);
+unsigned        UTIL_IsNumber                 (const char* s);
 void            UTIL_EatWhite                 (const char** ps);
 void            UTIL_TrimString               (char* s, int TrimLeading, int TrimTrailing);
 const char*     UTIL_ParseString              (const char** ps, char* pBuffer, unsigned BufferSize);
@@ -195,7 +196,9 @@ int             UTIL_GetDateDiff              (U32 DateA, U32 DateB);
 unsigned        UTIL_IsPrintableASCII         (char c);
 char            UTIL_Nibble2HexChar           (char c);
 int             UTIL_HexDecode                (char* pDest, const char* pSrc, unsigned NumBytes);
+int             UTIL_HexDecodeEx              (void* pOut, const void* pIn, unsigned NumBytes, unsigned OutIsStr);
 int             UTIL_HexEncode                (char* pDest, const char* pSrc, unsigned NumBytes);
+int             UTIL_HexEncodeEx              (void* pOut, const void* pIn, U32 NumBytes, unsigned OutIsStr);
 U32             UTIL_PrintFlashBankSizes      (const struct FLASH_BLOCK_INFO** ppaBlockInfo, U32 NumBanks, char* pBuf, U32 BufSize);
 void            UTIL_GetVersionInfo           (UTIL_VERSION_INFO* pInfo, U32 Version);
 char            UTIL_toupper                  (char c);
@@ -206,7 +209,9 @@ int             UTIL_GetTimeDiff              (const SYS_TIME* pLeft, const SYS_
 int             UTIL_DateStringToTime         (const char* sDate, SYS_TIME* pTime);
 void            UTIL_TimeToString             (char* pBuf, int BufLen, SYS_TIME* pTime, U16 Offset);
 int             UTIL_StringToTime             (const char* sBuf, SYS_TIME* pTime);
-const U32*      UTIL_GetSupportedCoresByTIF   (U32 TIFVal, U32* pNumCores);
+const U32       UTIL_GetSupportedTIFsByCore   (U32 CoreVal, U32* paTIFs, U32 MaxNumTIFs);
+const U32       UTIL_IsTIFSupportedByCore     (U32 TIFVal, U32 CoreVal);
+int             UTIL_EatComment               (const char** ps);
 //
 // J-Link specific from UTIL_JLINK.c
 //

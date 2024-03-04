@@ -486,6 +486,9 @@ JLINK_API       int               STDCALL   JLINK_CP15_WriteEx                (U
 JLINKARMDLL_API int                         JLINKARM_CP15_WriteReg            (U32 RegIndex, U32 Data);
 JLINK_API       int               STDCALL   JLINK_CP15_WriteReg               (U32 RegIndex, U32 Data);
 
+JLINK_API       int               STDCALL   JLINK_ReadSystemReg               (U64 RegIdent, U64* pData);
+JLINK_API       int               STDCALL   JLINK_WriteSystemReg              (U64 RegIdent, U64 Data);
+
 JLINKARMDLL_API int                         JLINKARM_DEVICE_GetIndex          (const char* sDeviceName);
 JLINK_API       int               STDCALL   JLINK_DEVICE_GetIndex             (const char* sDeviceName);
 JLINKARMDLL_API int                         JLINKARM_DEVICE_GetInfo           (int DeviceIndex, JLINKARM_DEVICE_INFO* pDeviceInfo);
@@ -500,6 +503,7 @@ JLINKARMDLL_API void                        JLINKARM_EMU_GetDeviceInfo        (U
 JLINK_API       void              STDCALL   JLINK_EMU_GetDeviceInfo           (U32 iEmu, JLINKARM_EMU_INFO* pInfo);
 JLINKARMDLL_API int                         JLINKARM_EMU_GetList              (int HostIFs, JLINKARM_EMU_CONNECT_INFO * paConnectInfo, int MaxInfos);
 JLINK_API       int               STDCALL   JLINK_EMU_GetList                 (int HostIFs, JLINKARM_EMU_CONNECT_INFO * paConnectInfo, int MaxInfos);
+JLINK_API       int               STDCALL   JLINK_EMU_GetVCOMPorts            (const JLINKARM_EMU_CONNECT_INFO* pConnectInfo, JLINK_VCOM_INFO* paVCOMInfo, U32 NumItems);
 JLINKARMDLL_API U32                         JLINKARM_EMU_GetMaxMemBlock       (void);
 JLINK_API       U32               STDCALL   JLINK_EMU_GetMaxMemBlock          (void);
 JLINKARMDLL_API int                         JLINKARM_EMU_GetNumConnections    (void);
@@ -520,6 +524,7 @@ JLINKARMDLL_API U32                         JLINKARM_EMU_SelectByIndex        (U
 JLINK_API       U32               STDCALL   JLINK_EMU_SelectByIndex           (U32 iEmu);
 JLINKARMDLL_API int                         JLINKARM_EMU_SelectByUSBSN        (U32 SerialNo);
 JLINK_API       int               STDCALL   JLINK_EMU_SelectByUSBSN           (U32 SerialNo);
+JLINK_API       int               STDCALL   JLINK_EMU_SelectByUSBNickname     (const char* sNickname);
 JLINKARMDLL_API int                         JLINKARM_EMU_SelectIP             (char* pIPAddr, int BufferSize, U16* pPort);
 JLINK_API       int               STDCALL   JLINK_EMU_SelectIP                (char* pIPAddr, int BufferSize, U16* pPort);
 JLINKARMDLL_API void                        JLINKARM_EMU_SelectIPBySN         (U32 SerialNo);

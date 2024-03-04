@@ -32,8 +32,11 @@ Purpose : Global types etc.
     #define GLOBAL_DISABLE_WARNINGS() _Pragma("clang diagnostic push") \
                                       _Pragma("clang diagnostic ignored \"-Wpragmas\"") \
                                       _Pragma("clang diagnostic ignored \"-Wclass-memaccess\"") \
-                                      _Pragma("clang diagnostic ignored \"-Wdeprecated-copy\"")
-  #else
+                                      _Pragma("clang diagnostic ignored \"-Wdeprecated-copy\"") \
+                                      _Pragma("clang diagnostic ignored \"-Wsign-compare\"") \
+                                      _Pragma("clang diagnostic ignored \"-Wunused-parameter\"") \
+                                      _Pragma("clang diagnostic ignored \"-Wunknown-warning-option\"") 
+  #else                                                                    
     #define GLOBAL_DISABLE_WARNINGS() _Pragma("clang diagnostic push") \
                                       _Pragma("clang diagnostic ignored \"-Wpragmas\"")
   #endif
@@ -51,7 +54,10 @@ Purpose : Global types etc.
     #define GLOBAL_DISABLE_WARNINGS() _Pragma("GCC diagnostic push") \
                                       _Pragma("GCC diagnostic ignored \"-Wpragmas\"") \
                                       _Pragma("GCC diagnostic ignored \"-Wclass-memaccess\"") \
-                                      _Pragma("GCC diagnostic ignored \"-Wdeprecated-copy\"")
+                                      _Pragma("GCC diagnostic ignored \"-Wdeprecated-copy\"") \
+                                      _Pragma("GCC diagnostic ignored \"-Wsign-compare\"") \
+                                      _Pragma("GCC diagnostic ignored \"-Wunused-parameter\"") \
+                                      _Pragma("GCC diagnostic ignored \"-Wunknown-warning-option\"") 
   #else
     #define GLOBAL_DISABLE_WARNINGS() _Pragma("GCC diagnostic push") \
                                       _Pragma("GCC diagnostic ignored \"-Wpragmas\"")
@@ -64,6 +70,11 @@ Purpose : Global types etc.
 
 GLOBAL_DISABLE_WARNINGS()
 #include <string.h>         // For memset
+#ifdef _MSC_VER
+  #if defined(_M_ARM64)
+    #include <arm64intr.h>  // For _ARM64_BARRIER_SY, required for SEGGER_MEMORY_BARRIER() for arm64
+  #endif
+#endif
 GLOBAL_ENABLE_WARNINGS()
 #include "TYPES.h"          // Defines standard data types
 
@@ -144,6 +155,27 @@ GLOBAL_ENABLE_WARNINGS()
 #ifndef   ABS
   #define ABS(a)        (((a) < 0) ? -(a) : (a))
 #endif
+
+#ifdef _MSC_VER                                                 // Visual studio compiler
+  #ifdef _M_X64 
+    #define SEGGER_MEMORY_BARRIER() __faststorefence()          // Only compatible with x64
+  #elif defined(_M_IX86)        
+    #define SEGGER_MEMORY_BARRIER() _mm_mfence()                // Compatible with x86
+  #elif defined(_M_ARM64)
+    #define SEGGER_MEMORY_BARRIER() __dmb(_ARM64_BARRIER_SY)    // Compatible with arm64
+  #endif
+#endif
+#if defined(__GNUC__) || defined(__clang__)                     // GCC and Clang compiler
+  #define SEGGER_MEMORY_BARRIER() __sync_synchronize()   
+#endif
+#if defined(__cplusplus)                                        // Since C++11 there is an atomic memory barrier function.
+  #if __cplusplus >= 201112L
+    #define SEGGER_MEMORY_BARRIER() std::atomic_thread_fence(std::memory_order_seq_cst)
+  #endif
+#endif
+#ifndef SEGGER_MEMORY_BARRIER
+  #error "SEGGER_MEMORY_BARRIER() not defined/implemented for this architecture"
+ #endif 
 
 /*********************************************************************
 *

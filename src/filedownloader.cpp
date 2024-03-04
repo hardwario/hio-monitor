@@ -1,5 +1,7 @@
 #include "filedownloader.h"
 
+#include <QFileDevice>
+
 FileDownloader::FileDownloader(QUrl imageUrl, QObject *parent) :
     QObject(parent)
 {
@@ -12,6 +14,7 @@ FileDownloader::FileDownloader(QUrl imageUrl, QObject *parent) :
 void FileDownloader::fileDownloaded(QNetworkReply* pReply) {
     _downloadedData = pReply->readAll();
     pReply->deleteLater();
+
     if (!isErrorOccured(pReply)) {
         emit downloaded();
     }
@@ -38,12 +41,17 @@ QString FileDownloader::save(const QString& fileName) {
     file.write(downloadedData());
     // Calling commit() is mandatory, otherwise nothing will be written.
     file.commit();
-    qDebug() << "Downloaded hex file saved to the " << path;
     return path;
 }
 
-void FileDownloader::remove(const QString& fileName) {
+bool FileDownloader::remove(const QString& fileName) {
     QFile file(fileName);
-    file.remove();
-    qDebug() << "File " << fileName << "sucesfully deleted";
+
+    file.setPermissions(file.permissions() |
+                    QFileDevice::WriteOwner |
+                    QFileDevice::WriteUser |
+                    QFileDevice::WriteGroup |
+                    QFileDevice::WriteOther);
+
+    return file.remove();
 }
