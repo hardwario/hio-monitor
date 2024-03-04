@@ -28,6 +28,8 @@ void UpdateChecker::onFinished(QNetworkReply *reply) {
     QJsonObject obj = doc.object();
     QString latestVersion = obj["tag_name"].toString();
 
+    if (latestVersion.isEmpty()) return;
+
     bool isAvailable = latestVersion != currentVersion;
     setUpdateAvailable(isAvailable);
 
