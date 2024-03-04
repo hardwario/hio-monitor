@@ -148,8 +148,8 @@ Rectangle {
 
         ToolButton {
             id: pause
-            iconHeight: textContent === "PAUSE" ? 15 : 20
-            iconWidth: textContent === "PAUSE" ? 15 : 20
+            iconHeight: 20
+            iconWidth: 20
             textContent: "PAUSE"
             iconSource: AppSettings.pauseIcon
             onButtonClicked: {

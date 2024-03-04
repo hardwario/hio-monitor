@@ -78,7 +78,7 @@ Rectangle {
         width: _root.width - 1
         height: _root.width
         checked: false
-        property bool showWelcomePage: true
+        property bool showWelcomePage: false
     }
 
     Column {
