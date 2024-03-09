@@ -167,7 +167,8 @@ Rectangle {
         ToolButton {
             id: undo
             iconSource: AppSettings.undoIcon
-            textContent: "UNDO"
+            textContent: "STOP"
+            borderHighlight: true
             visibleOnInit: false
             onButtonClicked: {
                 undoClicked()

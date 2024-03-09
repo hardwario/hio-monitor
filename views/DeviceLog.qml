@@ -163,7 +163,7 @@ Rectangle {
 
         TextLabel {
             id: guideMessage
-            textValue: "Click UNDO to stop " + textView.mode + "ing"
+            textValue: "Click STOP to stop " + textView.mode + "ing"
             bindFocusTo: true
         }
     }
