@@ -51,7 +51,7 @@ Item {
             }
             if (isRttRunning) {
                 notify.showWrn(
-                            "Please detach from a device via Console page then RUN flash process again.")
+                            "Please detach from a device via Console page then FLASH again.")
                 return
             }
             if (!flash.ready) {
@@ -142,7 +142,7 @@ Item {
 
             Text {
                 id: steps
-                text: qsTr("Enter the hex value of the CHESTER catalog application in the input field.\nOr click BROWSE and select the .hex file on your computer.\nThen click the RUN button.")
+                text: qsTr("Enter the unique identifier of the CHESTER catalog application in the input field.\nOr click BROWSE and select the .hex file on your computer.\nThen click the FLASH button.")
                 anchors {
                     top: welcomeMessage.bottom
                     topMargin: 24
@@ -177,7 +177,7 @@ Item {
             device: flash
             enableHistory: false
             labelText: "FLASH SHELL"
-            inputHint: "Enter hex value from CATALOG applications"
+            inputHint: "Enter unique identifier from CATALOG applications"
         }
     }
 

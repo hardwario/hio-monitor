@@ -49,7 +49,7 @@ Item {
     }
 
     Text {
-        text: qsTr("Ensure that the device is connected via USB.")
+        text: qsTr("Ensure that the device is connected to the J-Link via USB.")
         anchors {
             top: guideMessage.bottom
             topMargin: 48

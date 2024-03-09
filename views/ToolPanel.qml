@@ -188,7 +188,7 @@ Rectangle {
             iconHeight: 20
             iconWidth: 20
             iconSource: AppSettings.resumeIcon
-            textContent: "RUN"
+            textContent: "FLASH"
             borderHighlight: flash.ready
             onButtonClicked: {
                 runClicked()

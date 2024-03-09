@@ -6,6 +6,7 @@ import QtQuick
 // It meant to be instatiated in the main window to be accessible globally.
 QtObject {
 
+    property string docUrl: "https://docs.hardwario.com/chester/platform-connectivity/hardwario-monitor/"
     property string latestReleaseUrl: "https://github.com/hardwario/hio-monitor/releases/latest"
     property string hardwarioCatalogAppWebUrl: "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/#application-firmware"
     property string hardwarioWebUrl: "https://www.hardwario.com/"
@@ -19,6 +20,7 @@ QtObject {
     property string flashName: "Flash"
 
     // Icons
+    property string helpIcon: "qrc:/icons/help"
     property string attachIcon: "qrc:/icons/attach"
     property string btIcon: "qrc:/icons/bt-icon"
     property string btDisconnectIcon: "qrc:/icons/bt-disconnect"
