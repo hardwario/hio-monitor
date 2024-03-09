@@ -53,11 +53,14 @@ Rectangle {
 
     TextView {
         id: textView
+
         anchors {
             left: parent.left
             right: parent.right
             top: placeholderText.bottom
+            topMargin: 5
             bottom: textInput.top
+            bottomMargin: 10
         }
 
         Connections {
@@ -71,6 +74,18 @@ Rectangle {
                 }
 
                 textView.scrollToBottom()
+            }
+        }
+
+        Keys.onPressed: function (event) {
+            if ((event.key === Qt.Key_C)
+                    && (event.modifiers & Qt.ControlModifier)) {
+                const txtIn = textInput.selectedText
+                if (txtIn !== "") {
+                    textInput.copy()
+                } else {
+                    textView.copy()
+                }
             }
         }
     }
@@ -98,9 +113,9 @@ Rectangle {
 
         height: 45
         anchors {
-            topMargin: 10
-            bottomMargin: 2
+            // topMargin: 10
             bottom: parent.bottom
+            bottomMargin: 2
             right: parent.right
             left: parent.left
         }

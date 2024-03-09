@@ -121,7 +121,7 @@ Rectangle {
             top: placeholderText.bottom
             topMargin: 5
             bottom: textInput.top
-            bottomMargin: 15
+            bottomMargin: 10
         }
 
         Keys.onPressed: function (event) {
