@@ -105,7 +105,8 @@ Rectangle {
             const enterCmd = "Enter command"
 
             if (enableHistory) {
-                return cmdHistory.visible ? "Type to search for a command" : enterCmd
+                return cmdHistory.visible ? "Type to search or scroll the command list" : enterCmd
+                                            + " or press Ctrl+R to search in history"
             }
 
             return inputHint === "" ? enterCmd : inputHint

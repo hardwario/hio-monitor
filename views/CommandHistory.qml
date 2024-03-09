@@ -10,7 +10,8 @@ Item {
     // this is an interface that's defined in deviceinterface.h
     required property var device
     property var history: device.history
-    property int index: 0
+    property int index: -1
+    property string lastCommand: ""
 
     onVisibleChanged: {
         resetList()
@@ -27,21 +28,38 @@ Item {
     function up() {
         dec()
         textInput.text = getSelected()
+        lastCommand = textInput.text
     }
 
     function down() {
-        inc()
-        textInput.text = getSelected()
+        if (inc()) {
+            textInput.text = getSelected()
+            lastCommand = textInput.text
+            return
+        }
+
+        // if user presses down arrow on the last command, clear the text input
+        if (textInput.text === lastCommand) {
+            textInput.text = ""
+        }
     }
 
     function inc() {
-        if (index < listView.model.length)
+        const inc = index < listView.model.length - 1
+
+        if (inc)
             index++
+
+        return inc
     }
 
     function dec() {
-        if (index > 0)
+        const dec = index > 0
+
+        if (dec)
             index--
+
+        return dec
     }
 
     function setLast() {
@@ -60,7 +78,7 @@ Item {
 
         let ind = index
 
-        if (ind > 0) {
+        if (ind === listView.model.length) {
             ind = ind - 1
         }
 
