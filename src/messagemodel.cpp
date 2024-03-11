@@ -3,7 +3,6 @@
 MessageModel::MessageModel(QObject *parent) : QAbstractListModel(parent)
 {
     _defaultColor = "#ebf2fc";
-    // _highlightColor = "#79B8FF";
     _highlightColor = "#ffff00";
 }
 

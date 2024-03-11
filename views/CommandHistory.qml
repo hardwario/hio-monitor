@@ -5,7 +5,7 @@ import hiomon 1.0
 
 // CommandHistory is a command history list with navigation, item filtering and selection.
 Item {
-    visible: false
+    visible: popup.visible
     required property TextField textInput
     // this is an interface that's defined in deviceinterface.h
     required property var device
@@ -19,6 +19,10 @@ Item {
 
     onHistoryChanged: {
         resetList()
+    }
+
+    function toggle() {
+        popup.visible = !popup.visible
     }
 
     function getHistory() {

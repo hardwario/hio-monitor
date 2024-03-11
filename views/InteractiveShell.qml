@@ -122,6 +122,10 @@ Rectangle {
         }
         leftPadding: 24
 
+        onFocusChanged: {
+            console.log("Focus changed", cmdHistory.visible)
+        }
+
         background: Rectangle {
             implicitHeight: Material.textFieldHeight
             color: Material.background
@@ -221,7 +225,7 @@ Rectangle {
             if (event.key === Qt.Key_R
                     && (event.modifiers & Qt.ControlModifier)) {
                 if (enableHistory) {
-                    cmdHistory.visible = !cmdHistory.visible
+                    cmdHistory.toggle()
                     cmdHistory.resetList()
                     cmdHistory.filter()
                 }
@@ -248,7 +252,7 @@ Rectangle {
     function processEnter(event) {
         if (cmdHistory.visible) {
             textInput.text = cmdHistory.getSelected()
-            cmdHistory.visible = false
+            cmdHistory.toggle()
             cmdHistory.resetList()
             event.accepted = true
             return
