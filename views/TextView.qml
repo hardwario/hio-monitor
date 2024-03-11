@@ -10,6 +10,7 @@ Item {
     property alias focused: view.focus
     property alias listView: view
     property bool deselectOnPress: true
+    property bool searching: false
 
     signal newItemArrived
     signal scrollDetected
@@ -108,6 +109,8 @@ Item {
                 noMatchesFound()
                 view.searchTermLength = 0
             }
+
+            searching = found
         }
     }
 
@@ -235,7 +238,8 @@ Item {
                 readOnly: true
                 textFormat: TextEdit.RichText
                 selectByMouse: false
-                selectionColor: Material.accent
+                selectionColor: _root.searching ? "#ffff00" : Material.accent
+                selectedTextColor: _root.searching ? "black" : "white"
                 leftPadding: 10
                 topPadding: 1
                 font.family: textFont.name
