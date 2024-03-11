@@ -77,6 +77,18 @@ Rectangle {
         height: _root.width
     }
 
+    // tmp fix
+    function togglePause(value) {
+        if (value) {
+            pause.textContent = "PAUSE"
+            pause.iconSource = AppSettings.pauseIcon
+            return
+        }
+
+        pause.textContent = "RESUME"
+        pause.iconSource = AppSettings.resumeIcon
+    }
+
     Column {
         id: buttons
         anchors.fill: parent
@@ -152,15 +164,9 @@ Rectangle {
             iconWidth: 20
             textContent: "PAUSE"
             iconSource: AppSettings.pauseIcon
+
             onButtonClicked: {
                 pauseClicked()
-                if (pause.iconSource === AppSettings.pauseIcon) {
-                    pause.iconSource = AppSettings.resumeIcon
-                    pause.textContent = "RESUME"
-                } else {
-                    pause.iconSource = AppSettings.pauseIcon
-                    pause.textContent = "PAUSE"
-                }
             }
         }
 

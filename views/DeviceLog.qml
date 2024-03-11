@@ -35,8 +35,6 @@ Rectangle {
         textView.deselectOnPress = true
         textView.reset()
         toolPanel.setUndoVisible(false)
-
-        textView.togglePause()
         textInput.visible = true
         textInput.focus = true
     }
@@ -68,7 +66,7 @@ Rectangle {
         function onMatchesFound() {
             textInput.visible = false
             toolPanel.setUndoVisible(true)
-            textView.togglePause()
+            textView.pause()
             textView.focus = true
             textInput.focus = false
             textInput.visible = false

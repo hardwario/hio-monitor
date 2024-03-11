@@ -23,6 +23,18 @@ Item {
 
     function togglePause() {
         view.autoScroll = !view.autoScroll
+        toolPanel.togglePause(view.autoScroll)
+    }
+
+    function pause() {
+        view.autoScroll = false
+        toolPanel.togglePause(false)
+    }
+
+    function resume() {
+        view.autoScroll = true
+        toolPanel.togglePause(true)
+        scrollToBottom()
     }
 
     function clear() {
@@ -37,6 +49,7 @@ Item {
     function reset() {
         messagesModel.reset()
         scrollToBottom()
+        resume()
     }
 
     function nextMatch() {
