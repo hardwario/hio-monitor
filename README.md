@@ -2,7 +2,7 @@
 
 ## Documentation
 
-[link](https://docs.hardwario.com/chester/developer-tools/hardwario-monitor)
+[link](https://docs.hardwario.com/chester/platform-connectivity/hardwario-monitor/)
 
 ## Acknowledgements
 
