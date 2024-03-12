@@ -1,6 +1,5 @@
 #include <QDir>
 #include <QIcon>
-#include <QLockFile>
 #include <QQmlContext>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -22,12 +21,6 @@ static void initBackend() {
 int main(int argc, char *argv[]) 
 {
     QGuiApplication app(argc, argv);
-
-    QLockFile lockFile(QDir::temp().absoluteFilePath("HARDWARIOMonitor.lock"));
-    if (!lockFile.tryLock(100)) {
-        // An instance of the application is already running
-        return 1;
-    }
 
     app.setOrganizationName("HARDWARIO");
     app.setOrganizationDomain("IoT");
