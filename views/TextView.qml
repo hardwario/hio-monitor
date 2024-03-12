@@ -44,9 +44,11 @@ Item {
     function searchFor(term) {
         view.searchTermLength = term.length
         messagesModel.searchAndHighlight(term)
+        searching = true
     }
 
     function reset() {
+        searching = false
         messagesModel.reset()
         scrollToBottom()
         resume()
@@ -120,10 +122,9 @@ Item {
                 matchesFound()
             } else {
                 noMatchesFound()
+                searching = false
                 view.searchTermLength = 0
             }
-
-            searching = found
         }
     }
 
