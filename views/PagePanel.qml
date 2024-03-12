@@ -160,6 +160,19 @@ Rectangle {
                 _root.setCurrentPage(flashPage)
             }
         }
+
+        PageButton {
+            id: docButton
+            textContent: "DOC"
+            iconSource: AppSettings.helpIcon
+            iconHeight: 20
+            iconWidth: 20
+            customColor: checked ? "#121219" : ""
+
+            onButtonClicked: {
+                Qt.openUrlExternally(AppSettings.docUrl)
+            }
+        }
     }
 
     SideButton {

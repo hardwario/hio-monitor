@@ -34,7 +34,7 @@ Item {
             padding: 20
 
             Text {
-                text: "A new version of the application is available for download!"
+                text: "A new version of the application is available for download."
                 font.family: textFont.name
                 font.pixelSize: 26
                 color: AppSettings.focusColor

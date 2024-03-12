@@ -53,11 +53,14 @@ Rectangle {
 
     TextView {
         id: textView
+
         anchors {
             left: parent.left
             right: parent.right
             top: placeholderText.bottom
+            topMargin: 5
             bottom: textInput.top
+            bottomMargin: 10
         }
 
         Connections {
@@ -71,6 +74,18 @@ Rectangle {
                 }
 
                 textView.scrollToBottom()
+            }
+        }
+
+        Keys.onPressed: function (event) {
+            if ((event.key === Qt.Key_C)
+                    && (event.modifiers & Qt.ControlModifier)) {
+                const txtIn = textInput.selectedText
+                if (txtIn !== "") {
+                    textInput.copy()
+                } else {
+                    textView.copy()
+                }
             }
         }
     }
@@ -90,7 +105,8 @@ Rectangle {
             const enterCmd = "Enter command"
 
             if (enableHistory) {
-                return cmdHistory.visible ? "Type to search for a command" : enterCmd
+                return cmdHistory.visible ? "Type to search or scroll the command list" : enterCmd
+                                            + " or press Ctrl+R to search in history"
             }
 
             return inputHint === "" ? enterCmd : inputHint
@@ -98,9 +114,9 @@ Rectangle {
 
         height: 45
         anchors {
-            topMargin: 10
-            bottomMargin: 2
+            // topMargin: 10
             bottom: parent.bottom
+            bottomMargin: 2
             right: parent.right
             left: parent.left
         }
@@ -187,6 +203,7 @@ Rectangle {
                 if (!res) {
                     textView.appendWithColor(cmd, AppSettings.redColor)
                 }
+
                 textView.scrollToBottom()
             }
         }
@@ -205,7 +222,7 @@ Rectangle {
             if (event.key === Qt.Key_R
                     && (event.modifiers & Qt.ControlModifier)) {
                 if (enableHistory) {
-                    cmdHistory.visible = !cmdHistory.visible
+                    cmdHistory.toggle()
                     cmdHistory.resetList()
                     cmdHistory.filter()
                 }
@@ -232,7 +249,7 @@ Rectangle {
     function processEnter(event) {
         if (cmdHistory.visible) {
             textInput.text = cmdHistory.getSelected()
-            cmdHistory.visible = false
+            cmdHistory.toggle()
             cmdHistory.resetList()
             event.accepted = true
             return

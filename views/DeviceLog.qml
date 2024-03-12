@@ -35,8 +35,7 @@ Rectangle {
         textView.deselectOnPress = true
         textView.reset()
         toolPanel.setUndoVisible(false)
-
-        textView.togglePause()
+        toolPanel.setNavigationVisible(false)
         textInput.visible = true
         textInput.focus = true
     }
@@ -68,7 +67,8 @@ Rectangle {
         function onMatchesFound() {
             textInput.visible = false
             toolPanel.setUndoVisible(true)
-            textView.togglePause()
+            toolPanel.setNavigationVisible(true)
+            textView.pause()
             textView.focus = true
             textInput.focus = false
             textInput.visible = false
@@ -100,6 +100,14 @@ Rectangle {
         function onOpenLogFileClicked() {
             fileDialog.open()
         }
+
+        function onUpClicked() {
+            textView.prevMatch()
+        }
+
+        function onDownClicked() {
+            textView.nextMatch()
+        }
     }
 
     TextLabel {
@@ -121,7 +129,7 @@ Rectangle {
             top: placeholderText.bottom
             topMargin: 5
             bottom: textInput.top
-            bottomMargin: 15
+            bottomMargin: 10
         }
 
         Keys.onPressed: function (event) {
@@ -148,14 +156,16 @@ Rectangle {
     }
 
     Rectangle {
+        id: stopMessage
+
         visible: !textInput.visible
 
         height: textInput.height
         width: textInput.width
+
         anchors {
             bottom: parent.bottom
             bottomMargin: 2
-            right: parent.right
             left: parent.left
         }
 
@@ -163,7 +173,7 @@ Rectangle {
 
         TextLabel {
             id: guideMessage
-            textValue: "Click UNDO to stop " + textView.mode + "ing"
+            textValue: "Click STOP to stop " + textView.mode + "ing"
             bindFocusTo: true
         }
     }

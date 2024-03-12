@@ -10,6 +10,7 @@ Item {
     property alias focused: view.focus
     property alias listView: view
     property bool deselectOnPress: true
+    property bool searching: false
 
     signal newItemArrived
     signal scrollDetected
@@ -22,6 +23,18 @@ Item {
 
     function togglePause() {
         view.autoScroll = !view.autoScroll
+        toolPanel.togglePause(view.autoScroll)
+    }
+
+    function pause() {
+        view.autoScroll = false
+        toolPanel.togglePause(false)
+    }
+
+    function resume() {
+        view.autoScroll = true
+        toolPanel.togglePause(true)
+        scrollToBottom()
     }
 
     function clear() {
@@ -31,11 +44,14 @@ Item {
     function searchFor(term) {
         view.searchTermLength = term.length
         messagesModel.searchAndHighlight(term)
+        searching = true
     }
 
     function reset() {
+        searching = false
         messagesModel.reset()
         scrollToBottom()
+        resume()
     }
 
     function nextMatch() {
@@ -106,6 +122,7 @@ Item {
                 matchesFound()
             } else {
                 noMatchesFound()
+                searching = false
                 view.searchTermLength = 0
             }
         }
@@ -235,7 +252,8 @@ Item {
                 readOnly: true
                 textFormat: TextEdit.RichText
                 selectByMouse: false
-                selectionColor: Material.accent
+                selectionColor: _root.searching ? "#ffff00" : Material.accent
+                selectedTextColor: _root.searching ? "black" : "white"
                 leftPadding: 10
                 topPadding: 1
                 font.family: textFont.name
