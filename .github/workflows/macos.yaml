@@ -9,7 +9,7 @@ env:
   QT_MODULES: "qtconnectivity"
   BUILD_TYPE: RelWithDebInfo
   APP: "hiomon.app"
-  QT_PATH: "Qt/6.5.1/macos/"
+  QT_PATH: "Qt/6.6.1/macos/"
 
 jobs:
   macos-build:
@@ -82,19 +82,19 @@ jobs:
 
       - name: Make dmg and sign
         run: |
-          ${{ env.QT_PATH }}/bin/macdeployqt "build/HARDWARIO Monitor.app" -qmldir="build/qml" -fs=APFS -libpath="build/HARDWARIO Monitor.app/Contents/Frameworks/" -dmg -sign-for-notarization="${{ secrets.MACOS_INTENT }}" -codesign="${{ secrets.MACOS_INTENT }}" -timestamp -hardened-runtime
+          ${{ env.QT_PATH }}/bin/macdeployqt "${{ github.workspace }}/build/HARDWARIO Monitor.app" -qmldir=${{ github.workspace }}/build/views -fs=APFS -libpath="${{ github.workspace }}/build/HARDWARIO Monitor.app/Contents/Frameworks/" -dmg -sign-for-notarization=${{ secrets.MACOS_INTENT }} -codesign=${{ secrets.MACOS_INTENT }} -timestamp -hardened-runtime
 
       - name: Notarize
         run: |
-          xcrun notarytool submit "build/HARDWARIO Monitor.dmg" --apple-id "${{ secrets.MACOS_APPLE_ID }}" --password "${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}" --team-id "${{ secrets.MACOS_INTENT }}" --wait
+          xcrun notarytool submit "${{ github.workspace }}/build/HARDWARIO Monitor.dmg" --apple-id ${{ secrets.MACOS_APPLE_ID }} --password ${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }} --team-id ${{ secrets.MACOS_INTENT }} --wait
 
       - name: Staple
         run: |
-          xcrun stapler staple "build/HARDWARIO Monitor.dmg"
+          xcrun stapler staple "${{ github.workspace }}/build/HARDWARIO Monitor.dmg"
 
       - name: Rename
         run: |
-          mv "build/HARDWARIO Monitor.dmg" hio-monitor-${{ github.ref_name }}-macos.dmg
+          mv "${{ github.workspace }}/build/HARDWARIO Monitor.dmg" hio-monitor-${{ github.ref_name }}-macos.dmg
 
       - name: Archive
         run: zip -r -y -X hio-monitor-${{ github.ref_name }}-macos.zip hio-monitor-${{ github.ref_name }}-macos.dmg
