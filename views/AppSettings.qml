@@ -20,6 +20,8 @@ QtObject {
     property string flashName: "Flash"
 
     // Icons
+    property string upIcon: "qrc:/icons/up"
+    property string downIcon: "qrc:/icons/down"
     property string helpIcon: "qrc:/icons/help"
     property string attachIcon: "qrc:/icons/attach"
     property string btIcon: "qrc:/icons/bt-icon"

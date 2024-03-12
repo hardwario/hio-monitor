@@ -30,6 +30,8 @@
         <file alias="signal-weak">resources/icons/weaksignal.png</file>
         <file alias="open">resources/icons/open.png</file>
         <file alias="help">resources/icons/help.png</file>
+        <file alias="up">resources/icons/up.png</file>
+        <file alias="down">resources/icons/down.png</file>
     </qresource>
     <qresource prefix="/fonts">
         <file alias="inter">resources/fonts/Inter-Regular.ttf</file>

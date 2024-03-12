@@ -35,6 +35,7 @@ Rectangle {
         textView.deselectOnPress = true
         textView.reset()
         toolPanel.setUndoVisible(false)
+        toolPanel.setNavigationVisible(false)
         textInput.visible = true
         textInput.focus = true
     }
@@ -66,6 +67,7 @@ Rectangle {
         function onMatchesFound() {
             textInput.visible = false
             toolPanel.setUndoVisible(true)
+            toolPanel.setNavigationVisible(true)
             textView.pause()
             textView.focus = true
             textInput.focus = false
@@ -97,6 +99,14 @@ Rectangle {
 
         function onOpenLogFileClicked() {
             fileDialog.open()
+        }
+
+        function onUpClicked() {
+            textView.prevMatch()
+        }
+
+        function onDownClicked() {
+            textView.nextMatch()
         }
     }
 
@@ -146,14 +156,16 @@ Rectangle {
     }
 
     Rectangle {
+        id: stopMessage
+
         visible: !textInput.visible
 
         height: textInput.height
         width: textInput.width
+
         anchors {
             bottom: parent.bottom
             bottomMargin: 2
-            right: parent.right
             left: parent.left
         }
 

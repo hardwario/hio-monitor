@@ -122,10 +122,6 @@ Rectangle {
         }
         leftPadding: 24
 
-        onFocusChanged: {
-            console.log("Focus changed", cmdHistory.visible)
-        }
-
         background: Rectangle {
             implicitHeight: Material.textFieldHeight
             color: Material.background
@@ -207,6 +203,7 @@ Rectangle {
                 if (!res) {
                     textView.appendWithColor(cmd, AppSettings.redColor)
                 }
+
                 textView.scrollToBottom()
             }
         }

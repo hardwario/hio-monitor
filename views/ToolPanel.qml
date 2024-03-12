@@ -6,7 +6,7 @@ import QtQuick.Controls.Material
 Rectangle {
     id: _root
     color: Material.background
-    property var consoleButtons: [detach, clearCli, pause, undo, batchCli, logFile]
+    property var consoleButtons: [detach, clearCli, pause, undo, batchCli, logFile, up, down]
     property var bluetoothButtons: [disconnect, clearBt, batchBt]
     property var consoleWelcomeButtons: [attach]
     property var bluetoothWelcomeButtons: [scan, connect]
@@ -29,7 +29,6 @@ Rectangle {
     signal connectClicked
     signal scanClicked
     signal disconnectClicked
-    signal downClicked
     signal undoClicked
     signal autoscrollClicked
     signal browseClicked
@@ -38,6 +37,8 @@ Rectangle {
     signal batchCliClicked
     signal batchBtClicked
     signal openLogFileClicked
+    signal upClicked
+    signal downClicked
 
     Rectangle {
         anchors.left: parent.left
@@ -48,6 +49,11 @@ Rectangle {
 
     function setUndoVisible(value) {
         undo.visible = value
+    }
+
+    function setNavigationVisible(value) {
+        up.visible = value
+        down.visible = value
     }
 
     function hideAll(arr) {
@@ -71,7 +77,6 @@ Rectangle {
     component ToolButton: SideButton {
         visible: true
         borderHighlight: false
-        anchors.right: parent.right
         property bool visibleOnInit: true
         width: _root.width - 1
         height: _root.width
@@ -91,7 +96,12 @@ Rectangle {
 
     Column {
         id: buttons
-        anchors.fill: parent
+        anchors {
+            top: parent.top
+            bottom: navButtons.top
+            left: parent.left
+            leftMargin: 1
+        }
 
         ToolButton {
             id: scan
@@ -254,7 +264,7 @@ Rectangle {
             textContent: "BATCH"
             iconSource: AppSettings.batchIcon
             onButtonClicked: {
-                batchCliClicked()
+                buttonClicked()
             }
         }
 
@@ -283,15 +293,52 @@ Rectangle {
 
         Connections {
             target: stackView
+
             function onCurrentItemChanged() {
                 const currentPageName = stackView.currentItem.name
 
                 for (const pageName in _root.pageNameButtonMap) {
                     const buttons = pageNameButtonMap[pageName]
+
                     currentPageName === pageName ? _root.showAll(
                                                        buttons) : _root.hideAll(
                                                        buttons)
                 }
+            }
+        }
+    }
+
+    Column {
+        id: navButtons
+
+        anchors {
+            bottom: parent.bottom
+            right: parent.right
+            left: parent.left
+            leftMargin: 1
+        }
+
+        ToolButton {
+            id: up
+            visibleOnInit: false
+            height: logFile.height / 2
+            iconWidth: 20
+            iconHeight: 20
+            iconSource: AppSettings.upIcon
+            onButtonClicked: {
+                upClicked()
+            }
+        }
+
+        ToolButton {
+            id: down
+            visibleOnInit: false
+            height: logFile.height / 2
+            iconWidth: 20
+            iconHeight: 20
+            iconSource: AppSettings.downIcon
+            onButtonClicked: {
+                downClicked()
             }
         }
     }
