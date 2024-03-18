@@ -43,6 +43,7 @@ Rectangle {
     }
 
     Column {
+        visible: _root.iconSource !== ""
         anchors.centerIn: parent
         spacing: 5
 
@@ -77,14 +78,36 @@ Rectangle {
         }
     }
 
+    // if no icon then center text
+    Text {
+        id: textItemCenter
+        anchors.centerIn: parent
+        visible: _root.textContent !== "" && _root.iconSource === ""
+        text: _root.textContent
+        font.family: labelFont.name
+        font.pixelSize: 12
+        property color textColor: AppSettings.whiteColor
+        color: textColor
+        width: parent.width
+        horizontalAlignment: Text.AlignHCenter
+
+        // text color transition animation on click detected in MouseArea
+        Behavior on textColor {
+            ColorAnimation {
+                duration: 200
+                easing.type: Easing.InOutQuad
+            }
+        }
+    }
+
     Rectangle {
         id: leftBorder
         visible: _root.checked
         width: 3
         height: 0
         anchors.bottom: _root.bottom
-
         color: Material.accent
+
         Behavior on height {
             PropertyAnimation {
                 duration: 350

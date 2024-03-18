@@ -40,18 +40,16 @@ Item {
     }
 
     function chooseIcon(rssi) {
-        let res = AppSettings.signalIcon
-
         if (rssi <= -90)
-            res = AppSettings.weakSignalIcon
+            return AppSettings.weakSignalIcon
         else if (rssi <= -67)
-            res = AppSettings.okaySignalIcon
+            return AppSettings.okaySignalIcon
         else if (rssi <= -55)
-            res = AppSettings.goodSignalIcon
+            return AppSettings.goodSignalIcon
         else if (rssi <= -30)
-            res = AppSettings.bestSignalIcon
+            return AppSettings.bestSignalIcon
 
-        return res
+        return AppSettings.signalIcon
     }
 
     MouseArea {

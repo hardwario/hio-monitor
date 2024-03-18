@@ -53,14 +53,13 @@ Rectangle {
 
     TextView {
         id: textView
-
         anchors {
             left: parent.left
             right: parent.right
             top: placeholderText.bottom
-            topMargin: 5
+            topMargin: 3
             bottom: textInput.top
-            bottomMargin: 10
+            bottomMargin: 5
         }
 
         Connections {
@@ -114,7 +113,6 @@ Rectangle {
 
         height: 45
         anchors {
-            // topMargin: 10
             bottom: parent.bottom
             bottomMargin: 2
             right: parent.right
@@ -178,6 +176,7 @@ Rectangle {
         MouseArea {
             id: mouseArea
             anchors.right: parent.right
+            cursorShape: Qt.PointingHandCursor
             height: parent.height
             width: 40
             hoverEnabled: true

@@ -29,6 +29,7 @@ Item {
 
     Connections {
         target: toolPanel
+
         function onDisconnectClicked() {
             loadingIndicator.open()
             bluetooth.disconnect()

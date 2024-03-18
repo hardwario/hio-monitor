@@ -33,8 +33,6 @@ Item {
         }
 
         function onConnectClicked() {
-
-            console.log("Connect clicked")
             if (!_root.isBtOn())
                 return
 

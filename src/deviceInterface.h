@@ -31,7 +31,7 @@ public slots:
 
                 while (!in.atEnd()) {
                     this->sendCommand(in.readLine());
-                    QThread::msleep(150);
+                    QThread::msleep(200);
                 }
                 _file.close();
             }

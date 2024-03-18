@@ -181,17 +181,6 @@ Rectangle {
         }
 
         ToolButton {
-            id: undo
-            iconSource: AppSettings.undoIcon
-            textContent: "STOP"
-            borderHighlight: true
-            visibleOnInit: false
-            onButtonClicked: {
-                undoClicked()
-            }
-        }
-
-        ToolButton {
             id: browse
             iconSource: AppSettings.folderIcon
             textContent: "BROWSE"
@@ -264,7 +253,7 @@ Rectangle {
             textContent: "BATCH"
             iconSource: AppSettings.batchIcon
             onButtonClicked: {
-                buttonClicked()
+                batchCliClicked()
             }
         }
 
@@ -327,6 +316,17 @@ Rectangle {
             iconSource: AppSettings.upIcon
             onButtonClicked: {
                 upClicked()
+            }
+        }
+
+        ToolButton {
+            id: undo
+            height: logFile.height / 2
+            textContent: "STOP"
+            borderHighlight: true
+            visibleOnInit: false
+            onButtonClicked: {
+                undoClicked()
             }
         }
 

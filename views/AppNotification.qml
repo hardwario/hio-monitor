@@ -65,8 +65,7 @@ Item {
         }
 
         onVisibleChanged: {
-            if (visible)
-                timer.running = true
+            timer.running = visible
         }
     }
 }

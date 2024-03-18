@@ -45,7 +45,7 @@ Rectangle {
         if (pattern === "")
             return
 
-        if (textView.mode === "search") {
+        if (textView.mode === "Search") {
             textView.searchFor(pattern)
             textView.deselectOnPress = false
             textView.nextMatch()
@@ -119,17 +119,15 @@ Rectangle {
 
     TextView {
         id: textView
-        property string mode: "search"
-
-        height: parent.height - placeholderText.height - textInput.height - 20
+        property string mode: "Search"
 
         anchors {
             left: parent.left
             right: parent.right
             top: placeholderText.bottom
-            topMargin: 5
+            topMargin: 3
             bottom: textInput.top
-            bottomMargin: 10
+            bottomMargin: 5
         }
 
         Keys.onPressed: function (event) {
@@ -156,7 +154,7 @@ Rectangle {
     }
 
     Rectangle {
-        id: stopMessage
+        id: guideMessage
 
         visible: !textInput.visible
 
@@ -172,8 +170,7 @@ Rectangle {
         color: Material.background
 
         TextLabel {
-            id: guideMessage
-            textValue: "Click STOP to stop " + textView.mode + "ing"
+            textValue: textView.mode + "ing for: " + textView.searchTerm
             bindFocusTo: true
         }
     }
@@ -194,7 +191,7 @@ Rectangle {
         }
         leftPadding: 40 // so the text not overlaps with the search icon
 
-        placeholderText: textView.mode === "search" ? "Type to search..." : "Type to filter..."
+        placeholderText: textView.mode === "Search" ? "Type to search..." : "Type to filter..."
 
         background: Rectangle {
             implicitHeight: Material.textFieldHeight
@@ -254,6 +251,7 @@ Rectangle {
             height: parent.height
             width: 40
             hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
             onClicked: {
                 _root.filterOrSearch()
             }
@@ -265,13 +263,14 @@ Rectangle {
             height: parent.height
             width: parent.leftPadding
             hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
 
             onClicked: {
-                if (textView.mode === "search") {
-                    textView.mode = "filter"
+                if (textView.mode === "Search") {
+                    textView.mode = "Filter"
                     modeImage.source = AppSettings.filterIcon
                 } else {
-                    textView.mode = "search"
+                    textView.mode = "Search"
                     modeImage.source = AppSettings.searchIcon
                 }
             }

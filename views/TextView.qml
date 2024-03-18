@@ -11,6 +11,7 @@ Item {
     property alias listView: view
     property bool deselectOnPress: true
     property bool searching: false
+    property string searchTerm: ""
 
     signal newItemArrived
     signal scrollDetected
@@ -18,7 +19,7 @@ Item {
     signal matchesFound
 
     function scrollToBottom() {
-        view.positionViewAtEnd()
+        Qt.callLater(view.positionViewAtEnd)
     }
 
     function togglePause() {
@@ -42,6 +43,7 @@ Item {
     }
 
     function searchFor(term) {
+        searchTerm = term
         view.searchTermLength = term.length
         messagesModel.searchAndHighlight(term)
         searching = true
@@ -83,6 +85,7 @@ Item {
 
     function filterFor(term) {
         messagesModel.filterFor(term)
+        searchTerm = term
     }
 
     // Shortcuts for manual scrolling
@@ -124,6 +127,7 @@ Item {
                 noMatchesFound()
                 searching = false
                 view.searchTermLength = 0
+                searchTerm = ""
             }
         }
     }
@@ -173,7 +177,7 @@ Item {
             }
 
             if (view.autoScroll) {
-                view.positionViewAtEnd()
+                _root.scrollToBottom()
             }
 
             newItemArrived()
