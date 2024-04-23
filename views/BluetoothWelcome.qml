@@ -181,6 +181,21 @@ Item {
             text: "DEVICES"
         }
 
+        TextField {
+            id: edit
+
+            anchors {
+                top: placeholderText.bottom
+                right: parent.right
+                left: parent.left
+                leftMargin: leftBorder.width
+            }
+
+            placeholderText: "Filter by name.."
+
+            onTextChanged: sortFilterDeviceModel.setFilterFixedString(text)
+        }
+
         FocusScope {
             id: devicesFocusScope
             width: parent.width
@@ -190,7 +205,8 @@ Item {
                 right: parent.right
                 left: parent.left
                 leftMargin: leftBorder.width
-                top: placeholderText.bottom
+                top: edit.bottom
+                topMargin: 10
             }
 
             Keys.onPressed: function (event) {
@@ -211,7 +227,7 @@ Item {
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
                 height: parent.height
-                model: sortDeviceModel
+                model: sortFilterDeviceModel
                 visible: true
                 width: parent.width
 

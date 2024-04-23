@@ -137,16 +137,5 @@ Item {
                 verticalCenter: parent.verticalCenter
             }
         }
-
-        Rectangle {
-            id: lineBottom
-            color: AppSettings.grayColor
-            height: 1
-            width: box.width
-            anchors {
-                bottom: parent.bottom
-                bottomMargin: 5
-            }
-        }
     }
 }
