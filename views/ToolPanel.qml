@@ -13,6 +13,7 @@ Rectangle {
     property var flashButtons: [browse, run, catalog, clearFlash]
 
     property var pageNameButtonMap: ({})
+    property int smallIconSize: _root.width / 2.5 - 5
 
     Component.onCompleted: {
         pageNameButtonMap[AppSettings.consoleWelcomeName] = consoleWelcomeButtons
@@ -80,6 +81,8 @@ Rectangle {
         property bool visibleOnInit: true
         width: _root.width - 1
         height: _root.width
+        iconWidth: smallIconSize
+        iconHeight: iconWidth
     }
 
     // tmp fix
@@ -142,6 +145,8 @@ Rectangle {
             id: disconnect
             textContent: "DISCONNECT"
             iconSource: AppSettings.btDisconnectIcon
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             visible: false
             onButtonClicked: {
                 disconnectClicked()
@@ -170,8 +175,8 @@ Rectangle {
 
         ToolButton {
             id: pause
-            iconHeight: 20
-            iconWidth: 20
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             textContent: "PAUSE"
             iconSource: AppSettings.pauseIcon
 
@@ -191,8 +196,8 @@ Rectangle {
 
         ToolButton {
             id: run
-            iconHeight: 20
-            iconWidth: 20
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             iconSource: AppSettings.resumeIcon
             textContent: "FLASH"
             borderHighlight: flash.ready
@@ -260,6 +265,8 @@ Rectangle {
         ToolButton {
             id: logFile
             textContent: "LOG FILE"
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             iconSource: AppSettings.openIcon
             onButtonClicked: {
                 openLogFileClicked()
@@ -311,8 +318,8 @@ Rectangle {
             id: up
             visibleOnInit: false
             height: logFile.height / 2
-            iconWidth: 20
-            iconHeight: 20
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             iconSource: AppSettings.upIcon
             onButtonClicked: {
                 upClicked()
@@ -334,8 +341,8 @@ Rectangle {
             id: down
             visibleOnInit: false
             height: logFile.height / 2
-            iconWidth: 20
-            iconHeight: 20
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             iconSource: AppSettings.downIcon
             onButtonClicked: {
                 downClicked()

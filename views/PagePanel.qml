@@ -77,6 +77,8 @@ Rectangle {
     component PageButton: SideButton {
         width: _root.width - 1
         height: _root.width
+        iconWidth: width / 2.5
+        iconHeight: iconWidth
         checked: false
         property bool showWelcomePage: true
     }
