@@ -161,7 +161,7 @@ Item {
         anchors.right: parent.right
         color: Material.background
         height: parent.height
-        width: appWindow.width / 4
+        width: appWindow.width / 3
 
         Component.onCompleted: {
             deviceView.forceActiveFocus()
