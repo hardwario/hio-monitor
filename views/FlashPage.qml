@@ -43,6 +43,10 @@ Item {
             fileDialog.open()
         }
 
+        function onOpenLogFileFlashClicked() {
+            fileDialogLog.open()
+        }
+
         function onRunClicked() {
             if (flash.running) {
                 notify.showWarn(
@@ -88,6 +92,17 @@ Item {
                            StandardPaths.HomeLocation)[0]
         onAccepted: {
             flash.setHexPath(selectedFile)
+        }
+    }
+
+    // file dialog to open a log file
+    FileDialog {
+        id: fileDialogLog
+        nameFilters: ["All files (*)"]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.AppDataLocation)[0]
+        onAccepted: {
+            Qt.openUrlExternally(selectedFile)
         }
     }
 
@@ -175,7 +190,7 @@ Item {
             SplitView.preferredWidth: welcome.visible ? _root.width / 2 : _root.width
             SplitView.minimumWidth: _root.minItemWidth
             device: flash
-            enableHistory: false
+            enableHistory: true
             labelText: "FLASH SHELL"
             inputHint: "Enter unique identifier from CATALOG applications"
         }

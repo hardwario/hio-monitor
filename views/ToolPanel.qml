@@ -10,7 +10,7 @@ Rectangle {
     property var bluetoothButtons: [disconnect, clearBt, batchBt]
     property var consoleWelcomeButtons: [attach]
     property var bluetoothWelcomeButtons: [scan, connect]
-    property var flashButtons: [browse, run, catalog, clearFlash]
+    property var flashButtons: [browse, run, catalog, clearFlash, logFileFlash]
 
     property var pageNameButtonMap: ({})
     property int smallIconSize: _root.width / 2.5 - 5
@@ -38,6 +38,7 @@ Rectangle {
     signal batchCliClicked
     signal batchBtClicked
     signal openLogFileClicked
+    signal openLogFileFlashClicked
     signal upClicked
     signal downClicked
 
@@ -270,6 +271,17 @@ Rectangle {
             iconSource: AppSettings.openIcon
             onButtonClicked: {
                 openLogFileClicked()
+            }
+        }
+
+        ToolButton {
+            id: logFileFlash
+            textContent: "LOG FILE"
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
+            iconSource: AppSettings.openIcon
+            onButtonClicked: {
+                openLogFileFlashClicked()
             }
         }
 

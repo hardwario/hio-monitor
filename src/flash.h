@@ -6,6 +6,7 @@
 #include <nrfjprogdll.h>
 #include <QRegularExpression>
 
+#include "historyfile.h"
 #include "filedownloader.h"
 #include "deviceInterface.h"
 
@@ -40,6 +41,13 @@ private slots:
     bool checkErr(nrfjprogdll_err_t err, const QString& context);
     void flash(QString filepath);
     QString makeMessage(QString tag, QString msg);
+    void cb(const char *msg_str);
+
+    static void staticCallback(const char* msg_str) {
+        if (currentInstance) {
+            currentInstance->cb(msg_str);
+        }
+    }
 
     void setReady(bool value) {
         _isReady = value;
@@ -47,9 +55,12 @@ private slots:
     }
 
 private:
+    static Flash* currentInstance;
     bool _isReady = false;
     bool _isRunning = false;
     bool _isFileDownloaded = false;
+    HistoryFile *_flashHistory = nullptr;
+    HistoryFile *_flashCmdHistory = nullptr;
     QString _hexPath;
     FileDownloader *_downloader = nullptr;
     QString _helpMessage =
