@@ -331,6 +331,10 @@ void MessageModel::filterFor(const QString &term) {
     emit foundMatch(isFiltered);
 }
 
+void MessageModel::addSelectedText(int index, QString message) {
+    _selectedBuffer[index] = message;
+}
+
 QHash<int, QByteArray> MessageModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[Qt::DisplayRole] = "display";
@@ -377,4 +381,28 @@ void MessageModel::clear() {
     reset();
     _model.clear();
     endResetModel();
+    clearCopyBuff();
+}
+
+void MessageModel::clearCopyBuff() {
+    _selectedBuffer.clear();
+}
+
+bool MessageModel::copyToClipboard() {
+    static QRegularExpression re(".+"); // remove empty lines
+    QClipboard *clipboard = QGuiApplication::clipboard();
+
+    auto buff = _selectedBuffer.values();
+    buff = buff.filter(re);
+
+    bool result = !buff.isEmpty();
+    if (result) {
+        clipboard->setText(buff.join("\n"));
+    }
+
+    return result;
+}
+
+void MessageModel::deselect(int index) {
+    _selectedBuffer.remove(index);
 }

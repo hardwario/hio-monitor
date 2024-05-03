@@ -35,7 +35,7 @@ Item {
 
         function onBrowseClicked() {
             if (flash.running) {
-                notify.showWrn(
+                notify.showWarn(
                             "Please wait for the flashing process to complete.")
                 return
             }
@@ -45,17 +45,17 @@ Item {
 
         function onRunClicked() {
             if (flash.running) {
-                notify.showWrn(
+                notify.showWarn(
                             "Please wait for the flashing process to complete.")
                 return
             }
             if (isRttRunning) {
-                notify.showWrn(
+                notify.showWarn(
                             "Please detach from a device via Console page then FLASH again.")
                 return
             }
             if (!flash.ready) {
-                notify.showWrn(
+                notify.showWarn(
                             "Try to enter a hex from CATALOG or BROWSE for a file first.")
                 return
             }

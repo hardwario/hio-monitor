@@ -126,17 +126,17 @@ Item {
 
         function onDeviceConnected() {
             loadingIndicator.close()
-            notify.showWrn("Connected to: " + deviceView.currentItem.model.name)
+            notify.showWarn("Connected to: " + deviceView.currentItem.model.name)
         }
 
         function onDeviceDisconnected() {
             loadingIndicator.close()
-            notify.showWrn(
+            notify.showWarn(
                         "Disconnected from: " + deviceView.currentItem.model.name)
         }
 
         function onDeviceIsUnpaired() {
-            notify.showWrn("Device " + deviceView.currentItem.model.name
+            notify.showWarn("Device " + deviceView.currentItem.model.name
                            + " is unpaired, please pair the device")
             loadingIndicator.close()
         }
@@ -152,7 +152,7 @@ Item {
 
         function onDeviceScanCanceled() {
             progress.visible = false
-            notify.showWrn("Device scanning canceled")
+            notify.showWarn("Device scanning canceled")
         }
     }
 

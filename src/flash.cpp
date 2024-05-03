@@ -1,5 +1,18 @@
 #include "flash.h"
 
+class DllManager {
+public:
+    Flash* flashInstance;
+
+    DllManager(Flash* instance) : flashInstance(instance) {}
+
+    ~DllManager() {
+        if (flashInstance) {
+            flashInstance->freeDll();
+        }
+    }
+};
+
 Flash::Flash(QObject *parent) : DeviceInterface(parent) {
     _name = "flash";
 };
@@ -167,10 +180,11 @@ void Flash::freeDll() {
 
 void Flash::flash(QString path) {
     flashThread = QThread::create([this, path]{
-
         if (!loadDll()) {
             return;
         }
+
+        DllManager defer(this);
 
         auto bytes = path.toUtf8(); // so it's not temporary
         auto filepath = bytes.constData();
@@ -228,7 +242,6 @@ void Flash::flash(QString path) {
             return;
         }
 
-        freeDll();
         emit finished();
         emit deviceMessageReceived(makeMessage("inf", "flashing completed successfully!"));
     });

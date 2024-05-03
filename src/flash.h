@@ -29,6 +29,7 @@ public slots:
     void sendCommand(const QString &command) override;
     void setHexPath(const QString &path);
     void defaultFlash();
+    void freeDll();
     bool isReady() {
         return _isReady;
     }
@@ -36,7 +37,6 @@ public slots:
 private slots:
     bool tryDownload(const QString &str);
     bool loadDll();
-    void freeDll();
     bool checkErr(nrfjprogdll_err_t err, const QString& context);
     void flash(QString filepath);
     QString makeMessage(QString tag, QString msg);

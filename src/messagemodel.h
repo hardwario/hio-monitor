@@ -2,8 +2,10 @@
 #define MESSAGEMODEL_H
 
 #include <QVariant>
+#include <QClipboard>
 #include <QQmlEngine>
 #include <QTextDocument>
+#include <QGuiApplication>
 #include <QStringListModel>
 #include <QRegularExpression>
 
@@ -24,9 +26,13 @@ public:
 
     Q_INVOKABLE void reset();
     Q_INVOKABLE void clear();
+    Q_INVOKABLE void clearCopyBuff();
+    Q_INVOKABLE bool copyToClipboard();
+    Q_INVOKABLE void deselect(int index);
     Q_INVOKABLE int indexOf(const QString &term);
     Q_INVOKABLE void addMessage(QString message);
     Q_INVOKABLE void filterFor(const QString &term);
+    Q_INVOKABLE void addSelectedText(int index, QString message);
     Q_INVOKABLE void addWithColor(const QString& message, const QString& color);
     Q_INVOKABLE bool replaceWithColor(const QString& message, const QString& oldColor, const QString& newColor);
 
@@ -43,8 +49,12 @@ private:
     QString _highlightColor;
     QStringList _backupModel; // to restore after search or filter
 
+    // filter/search
     int _currentIndex = -1;
     QList<QPair<int, int>> _matchedIndices;
+
+    // selection buffer
+    QMap<int, QString> _selectedBuffer;
 
     // methods
     QString stripHTML(QString text);
