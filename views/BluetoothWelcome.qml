@@ -126,17 +126,17 @@ Item {
 
         function onDeviceConnected() {
             loadingIndicator.close()
-            notify.showWrn("Connected to: " + deviceView.currentItem.model.name)
+            notify.showWarn("Connected to: " + deviceView.currentItem.model.name)
         }
 
         function onDeviceDisconnected() {
             loadingIndicator.close()
-            notify.showWrn(
+            notify.showWarn(
                         "Disconnected from: " + deviceView.currentItem.model.name)
         }
 
         function onDeviceIsUnpaired() {
-            notify.showWrn("Device " + deviceView.currentItem.model.name
+            notify.showWarn("Device " + deviceView.currentItem.model.name
                            + " is unpaired, please pair the device")
             loadingIndicator.close()
         }
@@ -152,7 +152,7 @@ Item {
 
         function onDeviceScanCanceled() {
             progress.visible = false
-            notify.showWrn("Device scanning canceled")
+            notify.showWarn("Device scanning canceled")
         }
     }
 
@@ -161,7 +161,7 @@ Item {
         anchors.right: parent.right
         color: Material.background
         height: parent.height
-        width: appWindow.width / 4
+        width: appWindow.width / 3
 
         Component.onCompleted: {
             deviceView.forceActiveFocus()
@@ -181,6 +181,21 @@ Item {
             text: "DEVICES"
         }
 
+        TextField {
+            id: edit
+
+            anchors {
+                top: placeholderText.bottom
+                right: parent.right
+                left: parent.left
+                leftMargin: leftBorder.width
+            }
+
+            placeholderText: "Filter by name.."
+
+            onTextChanged: sortFilterDeviceModel.setFilterFixedString(text)
+        }
+
         FocusScope {
             id: devicesFocusScope
             width: parent.width
@@ -190,7 +205,8 @@ Item {
                 right: parent.right
                 left: parent.left
                 leftMargin: leftBorder.width
-                top: placeholderText.bottom
+                top: edit.bottom
+                topMargin: 10
             }
 
             Keys.onPressed: function (event) {
@@ -211,7 +227,7 @@ Item {
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
                 height: parent.height
-                model: sortDeviceModel
+                model: sortFilterDeviceModel
                 visible: true
                 width: parent.width
 

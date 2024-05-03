@@ -10,9 +10,10 @@ Rectangle {
     property var bluetoothButtons: [disconnect, clearBt, batchBt]
     property var consoleWelcomeButtons: [attach]
     property var bluetoothWelcomeButtons: [scan, connect]
-    property var flashButtons: [browse, run, catalog, clearFlash]
+    property var flashButtons: [browse, run, catalog, clearFlash, logFileFlash]
 
     property var pageNameButtonMap: ({})
+    property int smallIconSize: _root.width / 2.5 - 5
 
     Component.onCompleted: {
         pageNameButtonMap[AppSettings.consoleWelcomeName] = consoleWelcomeButtons
@@ -37,6 +38,7 @@ Rectangle {
     signal batchCliClicked
     signal batchBtClicked
     signal openLogFileClicked
+    signal openLogFileFlashClicked
     signal upClicked
     signal downClicked
 
@@ -80,6 +82,8 @@ Rectangle {
         property bool visibleOnInit: true
         width: _root.width - 1
         height: _root.width
+        iconWidth: smallIconSize
+        iconHeight: iconWidth
     }
 
     // tmp fix
@@ -142,6 +146,8 @@ Rectangle {
             id: disconnect
             textContent: "DISCONNECT"
             iconSource: AppSettings.btDisconnectIcon
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             visible: false
             onButtonClicked: {
                 disconnectClicked()
@@ -170,8 +176,8 @@ Rectangle {
 
         ToolButton {
             id: pause
-            iconHeight: 20
-            iconWidth: 20
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             textContent: "PAUSE"
             iconSource: AppSettings.pauseIcon
 
@@ -191,8 +197,8 @@ Rectangle {
 
         ToolButton {
             id: run
-            iconHeight: 20
-            iconWidth: 20
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             iconSource: AppSettings.resumeIcon
             textContent: "FLASH"
             borderHighlight: flash.ready
@@ -260,9 +266,22 @@ Rectangle {
         ToolButton {
             id: logFile
             textContent: "LOG FILE"
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             iconSource: AppSettings.openIcon
             onButtonClicked: {
                 openLogFileClicked()
+            }
+        }
+
+        ToolButton {
+            id: logFileFlash
+            textContent: "LOG FILE"
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
+            iconSource: AppSettings.openIcon
+            onButtonClicked: {
+                openLogFileFlashClicked()
             }
         }
 
@@ -311,8 +330,8 @@ Rectangle {
             id: up
             visibleOnInit: false
             height: logFile.height / 2
-            iconWidth: 20
-            iconHeight: 20
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             iconSource: AppSettings.upIcon
             onButtonClicked: {
                 upClicked()
@@ -334,8 +353,8 @@ Rectangle {
             id: down
             visibleOnInit: false
             height: logFile.height / 2
-            iconWidth: 20
-            iconHeight: 20
+            iconHeight: smallIconSize
+            iconWidth: iconHeight
             iconSource: AppSettings.downIcon
             onButtonClicked: {
                 downClicked()

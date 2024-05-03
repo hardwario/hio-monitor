@@ -46,6 +46,7 @@ private slots:
 
 private:
     HistoryFile *_logFile = nullptr;
+    HistoryFile *_shellFile = nullptr;
     HistoryFile *_commandHistoryFile = nullptr;
     QString _currentCommand;
     QString _lastCommand;

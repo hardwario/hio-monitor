@@ -35,7 +35,7 @@ Item {
 
         function onBrowseClicked() {
             if (flash.running) {
-                notify.showWrn(
+                notify.showWarn(
                             "Please wait for the flashing process to complete.")
                 return
             }
@@ -43,19 +43,23 @@ Item {
             fileDialog.open()
         }
 
+        function onOpenLogFileFlashClicked() {
+            fileDialogLog.open()
+        }
+
         function onRunClicked() {
             if (flash.running) {
-                notify.showWrn(
+                notify.showWarn(
                             "Please wait for the flashing process to complete.")
                 return
             }
             if (isRttRunning) {
-                notify.showWrn(
+                notify.showWarn(
                             "Please detach from a device via Console page then FLASH again.")
                 return
             }
             if (!flash.ready) {
-                notify.showWrn(
+                notify.showWarn(
                             "Try to enter a hex from CATALOG or BROWSE for a file first.")
                 return
             }
@@ -88,6 +92,17 @@ Item {
                            StandardPaths.HomeLocation)[0]
         onAccepted: {
             flash.setHexPath(selectedFile)
+        }
+    }
+
+    // file dialog to open a log file
+    FileDialog {
+        id: fileDialogLog
+        nameFilters: ["All files (*)"]
+        currentFolder: StandardPaths.standardLocations(
+                           StandardPaths.AppDataLocation)[0]
+        onAccepted: {
+            Qt.openUrlExternally(selectedFile)
         }
     }
 
@@ -175,7 +190,7 @@ Item {
             SplitView.preferredWidth: welcome.visible ? _root.width / 2 : _root.width
             SplitView.minimumWidth: _root.minItemWidth
             device: flash
-            enableHistory: false
+            enableHistory: true
             labelText: "FLASH SHELL"
             inputHint: "Enter unique identifier from CATALOG applications"
         }

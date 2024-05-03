@@ -5,11 +5,7 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, HistoryFile 
     qRegisterMetaType<BtDeviceInfo*>("BtDeviceInfo*");
 
     _name = "bluetooth";
-    _workerThread = new QThread(this);
     _worker = new BluetoothWorker();
-    _worker->moveToThread(_workerThread);
-
-    connect(_workerThread, &QThread::finished, _worker, &QObject::deleteLater);
 
     connect(this, &Bluetooth::startScanRequested, _worker, &BluetoothWorker::startScan);
     connect(this, &Bluetooth::stopScanRequested, _worker, &BluetoothWorker::stopScan);
@@ -26,15 +22,9 @@ Bluetooth::Bluetooth(QObject *parent, QSortFilterProxyModel *model, HistoryFile 
     connect(_worker, &BluetoothWorker::deviceScanFinished, this, &Bluetooth::deviceScanFinished);
     connect(_worker, &BluetoothWorker::probablyUnpaired, this, &Bluetooth::deviceIsUnpaired);
 
-    _workerThread->start();
     _commandHistoryFile = commandHistoryFile;
     connect(_commandHistoryFile, &HistoryFile::historyChanged,
             this, &Bluetooth::historyChanged);
-}
-
-Bluetooth::~Bluetooth() {
-    _workerThread->quit();
-    _workerThread->wait();
 }
 
 QVariant Bluetooth::getCommandHistory() {

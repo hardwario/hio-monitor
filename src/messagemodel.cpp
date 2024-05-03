@@ -243,6 +243,7 @@ void MessageModel::addMessage(QString message) {
         finalMessage = message;
     }
 
+    // filter/search term check
     bool append = true;
     if (!_filterTerm.isEmpty()) {
         append = stripHTML(finalMessage).contains(_filterTerm, Qt::CaseInsensitive);
@@ -258,16 +259,20 @@ void MessageModel::addMessage(QString message) {
 }
 
 void MessageModel::addWithColor(const QString& message, const QString& color) {
-    QString finalMessage = message;
-    highlightIfMatch(finalMessage, color);
+    // split final message by newline char and add each line separately
+    QStringList lines = message.split("\n", Qt::SkipEmptyParts);
 
-    if (!_searchTerm.isEmpty()) {
-        _backupModel.append(colorMsg(message, _defaultColor));
+    for (auto& line : lines) {
+        highlightIfMatch(line, color);
+
+        if (!_searchTerm.isEmpty()) {
+            _backupModel.append(colorMsg(line, _defaultColor));
+        }
+
+        beginInsertRows(QModelIndex(), rowCount(), rowCount());
+        _model.append(line);
+        endInsertRows();
     }
-
-    beginInsertRows(QModelIndex(), rowCount(), rowCount());
-    _model.append(finalMessage);
-    endInsertRows();
 }
 
 void MessageModel::highlightIfMatch(QString &message, const QString& originalColor) {
@@ -331,6 +336,10 @@ void MessageModel::filterFor(const QString &term) {
     emit foundMatch(isFiltered);
 }
 
+void MessageModel::addSelectedText(int index, QString message) {
+    _selectedBuffer[index] = message;
+}
+
 QHash<int, QByteArray> MessageModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[Qt::DisplayRole] = "display";
@@ -377,4 +386,28 @@ void MessageModel::clear() {
     reset();
     _model.clear();
     endResetModel();
+    clearCopyBuff();
+}
+
+void MessageModel::clearCopyBuff() {
+    _selectedBuffer.clear();
+}
+
+bool MessageModel::copyToClipboard() {
+    static QRegularExpression re(".+"); // remove empty lines
+    QClipboard *clipboard = QGuiApplication::clipboard();
+
+    auto buff = _selectedBuffer.values();
+    buff = buff.filter(re);
+
+    bool result = !buff.isEmpty();
+    if (result) {
+        clipboard->setText(buff.join("\n"));
+    }
+
+    return result;
+}
+
+void MessageModel::deselect(int index) {
+    _selectedBuffer.remove(index);
 }

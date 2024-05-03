@@ -18,7 +18,6 @@ class Bluetooth : public DeviceInterface {
     Q_PROPERTY(bool isOn READ isBluetoothEnabled NOTIFY bluetoothChanged)
 public:
     explicit Bluetooth(QObject *parent = nullptr, QSortFilterProxyModel *model = nullptr, HistoryFile *commandHistoryFile = nullptr);
-    ~Bluetooth();
     Q_INVOKABLE QVariant getCommandHistory() override;
     Q_INVOKABLE void startScan();
     Q_INVOKABLE void stopScan();
@@ -54,9 +53,7 @@ private:
     QString _currentCommand;
     QString _lastCommand;
     HistoryFile *_commandHistoryFile;
-  
-    // Ensure Bluetooth won't block UI
-    QThread *_workerThread;
+
     BluetoothWorker *_worker;
 };
 

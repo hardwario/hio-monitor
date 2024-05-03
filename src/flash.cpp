@@ -1,11 +1,30 @@
 #include "flash.h"
 
+class DllManager {
+public:
+    Flash* flashInstance;
+
+    DllManager(Flash* instance) : flashInstance(instance) {}
+
+    ~DllManager() {
+        if (flashInstance) {
+            flashInstance->freeDll();
+        }
+    }
+};
+
+Flash* Flash::currentInstance = nullptr;
 Flash::Flash(QObject *parent) : DeviceInterface(parent) {
     _name = "flash";
+    _flashHistory = new HistoryFile(this, "hardwario-monitor-flash.log");
+    _flashCmdHistory = new HistoryFile(this, "hardwario-monitor-flash-cmd.log");
+
+    qDebug() << _flashHistory->getFilePath();
+    currentInstance = this;
 };
 
 QVariant Flash::getCommandHistory() {
-    return QVariant();
+    return QVariant::fromValue(_flashCmdHistory->readAll());
 }
 
 void Flash::defaultFlash() {
@@ -15,6 +34,8 @@ void Flash::defaultFlash() {
 }
 
 void Flash::sendCommand(const QString &command) {
+    _flashCmdHistory->writeMoveOnMatch(command);
+
     if (command.contains("help")) {
         emit sendCommandSucceeded(command);
         emit deviceMessageReceived(_helpMessage);
@@ -67,7 +88,9 @@ bool Flash::tryDownload(const QString &str) {
 QString Flash::makeMessage(QString tag, QString msg) {
     auto currentDateTime = QDateTime::currentDateTime().toString("hh:mm:ss.zzz,zzz");
     qDebug() << "flash msg " << "[" + currentDateTime + "] " + "<" + tag + "> " + msg;
-    return "[" + currentDateTime + "] " + "<" + tag + "> " + msg;
+    auto res = "[" + currentDateTime + "] " + "<" + tag + "> " + msg;
+    _flashHistory->write(res);
+    return res;
 }
 
 bool Flash::checkErr(nrfjprogdll_err_t err, const QString& context) {
@@ -145,12 +168,13 @@ bool Flash::checkErr(nrfjprogdll_err_t err, const QString& context) {
     return isSuccess;
 }
 
-static void cb(const char *msg_str) {
+void Flash::cb(const char *msg_str) {
     qDebug() << msg_str;
+    _flashHistory->write(msg_str);
 }
 
 bool Flash::loadDll() {
-    return checkErr(NRFJPROG_open_dll(NULL, (msg_callback*)cb, NRF52_FAMILY), "open dll");
+    return checkErr(NRFJPROG_open_dll(NULL, &Flash::staticCallback, NRF52_FAMILY), "open dll");
 }
 
 void Flash::freeDll() {
@@ -167,10 +191,11 @@ void Flash::freeDll() {
 
 void Flash::flash(QString path) {
     flashThread = QThread::create([this, path]{
-
         if (!loadDll()) {
             return;
         }
+
+        DllManager defer(this);
 
         auto bytes = path.toUtf8(); // so it's not temporary
         auto filepath = bytes.constData();
@@ -228,7 +253,6 @@ void Flash::flash(QString path) {
             return;
         }
 
-        freeDll();
         emit finished();
         emit deviceMessageReceived(makeMessage("inf", "flashing completed successfully!"));
     });

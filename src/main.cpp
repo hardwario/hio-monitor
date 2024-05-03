@@ -34,9 +34,11 @@ int main(int argc, char *argv[])
     proxyModel.setSourceModel(&deviceModel);
     proxyModel.setSortRole(BtDeviceModel::SortRole);
     proxyModel.sort(0, Qt::DescendingOrder);
+    proxyModel.setFilterRole(BtDeviceModel::NameRole);
+    proxyModel.setFilterCaseSensitivity(Qt::CaseInsensitive);
 
     engine.rootContext()->setContextProperty("deviceModel", &deviceModel);
-    engine.rootContext()->setContextProperty("sortDeviceModel", &proxyModel);
+    engine.rootContext()->setContextProperty("sortFilterDeviceModel", &proxyModel);
 
     auto commandHistoryFile = new HistoryFile(&engine, "hardwario-monitor-command-history.txt");
     const auto chester = new Chester(&engine, commandHistoryFile);

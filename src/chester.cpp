@@ -9,7 +9,9 @@ Chester::Chester(QObject *parent, HistoryFile *commandHistoryFile)
     connect(this, &Chester::detachRequested,
             this, &Chester::detach);
 
-    _logFile = new HistoryFile(this, "hardwario-monitor-console.log");
+    _logFile = new HistoryFile(this, "hardwario-monitor-device.log");
+    _shellFile = new HistoryFile(this, "hardwario-monitor-shell.log");
+
     _commandHistoryFile = commandHistoryFile;
     connect(_commandHistoryFile, &HistoryFile::historyChanged,
             this, &Chester::historyChanged);
@@ -230,6 +232,7 @@ void Chester::attach() {
 
                     if (line.length() > 0) {
                         qDebug() << "Read device message:" << QString(line);
+                        _shellFile->write(QString(line));
                         if (isFirstMessage) {
                             checkMessageForCommandFailure(QString(line));
                             isFirstMessage = false;

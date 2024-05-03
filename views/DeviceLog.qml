@@ -67,7 +67,7 @@ Rectangle {
         function onMatchesFound() {
             textInput.visible = false
             toolPanel.setUndoVisible(true)
-            toolPanel.setNavigationVisible(true)
+            toolPanel.setNavigationVisible(textView.mode === "Search")
             textView.pause()
             textView.focus = true
             textInput.focus = false

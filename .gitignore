@@ -6,3 +6,5 @@
 *.qmlproject.user.*
 
 CMakeLists.txt.user
+
+build/

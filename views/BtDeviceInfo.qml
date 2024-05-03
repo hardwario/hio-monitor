@@ -71,18 +71,21 @@ Item {
             id: hwIcon
             source: AppSettings.hwNoTitleIcon
             smooth: true
-            height: 2 * device.height
+            height: deviceItem.height / 4
             width: height - 6
             anchors {
                 right: infoColumn.left
-                rightMargin: 30
+                rightMargin: 60
                 verticalCenter: parent.verticalCenter
             }
         }
 
         Column {
             id: infoColumn
-            anchors.centerIn: parent
+            anchors {
+                centerIn: parent
+                margins: 10
+            }
             width: parent.width / 3
 
             Text {
@@ -90,6 +93,7 @@ Item {
                 text: deviceItem.model.name
                 color: AppSettings.whiteColor
                 font.family: textFont.name
+                font.pixelSize: 16
                 anchors.horizontalCenter: parent.horizontalCenter
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -100,6 +104,7 @@ Item {
                 visible: text !== ""
                 color: Qt.darker(AppSettings.whiteColor, 1.3)
                 font.family: textFont.name
+                font.pixelSize: 14
                 anchors.horizontalCenter: parent.horizontalCenter
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -111,9 +116,10 @@ Item {
             visible: deviceItem.model.rssi !== 0
             color: chooseColor(deviceItem.model.rssi)
             font.family: textFont.name
+            font.pixelSize: 14
             anchors {
                 left: infoColumn.right
-                leftMargin: 30
+                leftMargin: 60
                 bottom: signalImage.bottom
             }
             verticalAlignment: Text.AlignBottom
@@ -123,23 +129,12 @@ Item {
             id: signalImage
             visible: deviceItem.model.rssi !== 0
             source: chooseIcon(deviceItem.model.rssi)
-            width: 24
-            height: 24
+            width: hwIcon.width
+            height: width
             anchors {
                 left: deviceRssi.right
                 leftMargin: 10
                 verticalCenter: parent.verticalCenter
-            }
-        }
-
-        Rectangle {
-            id: lineBottom
-            color: "#1E000000"
-            height: 1
-            width: box.width
-            anchors {
-                bottom: parent.bottom
-                bottomMargin: 5
             }
         }
     }

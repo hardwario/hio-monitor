@@ -14,7 +14,6 @@ Item {
     property string searchTerm: ""
 
     signal newItemArrived
-    signal scrollDetected
     signal noMatchesFound
     signal matchesFound
 
@@ -65,10 +64,12 @@ Item {
     }
 
     function copy() {
-        copyPlaceholder.text = view.getSelectedText()
-        copyPlaceholder.selectAll()
-        copyPlaceholder.cut()
-        copyPlaceholder.clear()
+        if (messagesModel.copyToClipboard()) {
+            notify.showInfo("Copied to clipboard")
+            return
+        }
+
+        notify.showWarn("Nothing to copy")
     }
 
     function append(msg) {
@@ -101,11 +102,6 @@ Item {
             event.accepted = true
             break
         }
-    }
-
-    TextEdit {
-        id: copyPlaceholder
-        visible: false
     }
 
     MessageModel {
@@ -143,8 +139,11 @@ Item {
         property var previousItem: null
         property int searchTermLength: 0
 
-        boundsBehavior: Flickable.StopAtBounds
+        boundsMovement: Flickable.StopAtBounds
+        boundsBehavior: Flickable.DragOverBounds
         flickableDirection: Flickable.VerticalFlick
+        interactive: true
+
         ScrollBar.vertical: ScrollBar {
             id: scrollBar
             policy: ScrollBar.AsNeeded
@@ -183,10 +182,6 @@ Item {
             newItemArrived()
         }
 
-        onContentYChanged: {
-            scrollDetected()
-        }
-
         function selectCurrentDeselectPrevious(row, index, length) {
             if (row < 0 || row >= count)
                 return
@@ -210,23 +205,9 @@ Item {
             view.forceLayout()
         }
 
-        function getSelectedText() {
-            let selectedText = ""
-
-            for (var i = 0; i < view.count; ++i) {
-                const item = view.itemAtIndex(i)
-
-                if (item && (item.textEditObj.selectionStart !== item.textEditObj.selectionEnd))
-                    selectedText += item.textEditObj.selectedText + "\n"
-            }
-
-            if (selectedText.length > 0)
-                selectedText = selectedText.slice(0, -1)
-
-            return selectedText
-        }
-
         delegate: Row {
+            required property int index
+            required property var model
             property alias textEditObj: textEdit
 
             function positionAt(x, y) {
@@ -262,7 +243,7 @@ Item {
                 topPadding: 1
                 font.family: textFont.name
                 font.pixelSize: 16
-                text: modelData
+                text: model.display
 
                 Connections {
                     target: selectionArea
@@ -292,6 +273,8 @@ Item {
                                         textEdit.length)
                     else if (index === selectionArea.realEndIndex)
                         textEdit.select(0, selectionArea.realEndPos)
+
+                    messagesModel.addSelectedText(index, textEdit.selectedText)
                 }
             }
         }
@@ -299,7 +282,7 @@ Item {
 
     MouseArea {
         id: selectionArea
-        propagateComposedEvents: true
+
         property int selStartIndex
         property int selEndIndex
         property int selStartPos
@@ -310,14 +293,18 @@ Item {
                                             selectionArea.selEndIndex)
         property int realStartPos: (selectionArea.selStartIndex < selectionArea.selEndIndex) ? selectionArea.selStartPos : selectionArea.selEndPos
         property int realEndPos: (selectionArea.selStartIndex < selectionArea.selEndIndex) ? selectionArea.selEndPos : selectionArea.selStartPos
-        property bool mouseDrag: false
+        property bool held: false
+        property int initialMouseY
 
         signal selectionChanged
 
         anchors {
             fill: view
             leftMargin: 30
+            rightMargin: scrollBar.width
         }
+
+        drag.target: view
 
         enabled: !scrollBar.hovered
         cursorShape: enabled ? Qt.IBeamCursor : Qt.ArrowCursor
@@ -338,19 +325,38 @@ Item {
             for (var i = realStartIndex; i <= realEndIndex; ++i) {
                 const item = view.itemAtIndex(i)
 
-                if (item)
+                if (item) {
+                    messagesModel.deselect(i)
                     item.reset()
+                }
             }
         }
 
-        onPositionChanged: {
-            if (!mouseDrag) {
+        onMouseYChanged: {
+            if (!held) {
                 return
             }
 
-            let res = []
-            res = indexAndPos(mouseX, mouseY)
+            const factor = 5
+            const deltaY = mouseY - initialMouseY
 
+            if (mouseY < view.y) {
+                // Cursor is above the visible area
+                view.contentY += (mouseY - view.y) / factor
+            } else if (mouseY > (view.y + view.height)) {
+                // Cursor is below the visible area
+                view.contentY += (mouseY - (view.y + view.height)) / factor
+            }
+
+            initialMouseY = mouseY
+        }
+
+        onPositionChanged: {
+            if (!held) {
+                return
+            }
+
+            const res = indexAndPos(mouseX, mouseY)
             const index = res[0]
             const pos = res[1]
 
@@ -363,15 +369,21 @@ Item {
         onPressed: {
             if (deselectOnPress) {
                 deselectCurrentArea()
+                messagesModel.clearCopyBuff()
             }
 
             [selStartIndex, selStartPos] = indexAndPos(mouseX, mouseY)
-            mouseDrag = true
+            initialMouseY = mouseY
             view.focus = true
         }
 
-        onReleased: {
-            mouseDrag = false
+        pressAndHoldInterval: 50
+
+        onPressAndHold: {
+            held = true
+            view.focus = true
         }
+
+        onReleased: held = false
     }
 }

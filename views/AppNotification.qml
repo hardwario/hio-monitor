@@ -16,7 +16,7 @@ Item {
         popup.open()
     }
 
-    function showWrn(msg) {
+    function showWarn(msg) {
         popup.message = msg
         popup.msgColor = AppSettings.wrnColor
         popup.open()
