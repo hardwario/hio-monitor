@@ -13,12 +13,13 @@
 #include "btdevicemodel.h"
 #include "updatechecker.h"
 
-static void initBackend() {
+static void initBackend()
+{
     qmlRegisterType<MessageModel>("hiomon", 1, 0, "MessageModel");
     qmlRegisterType<UpdateChecker>("hiomon", 1, 0, "UpdateChecker");
 }
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 

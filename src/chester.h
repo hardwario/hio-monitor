@@ -18,8 +18,7 @@ class Chester : public DeviceInterface
     static void jlinkErrHandler(const char *msg);
 
     QThread *attachThread = nullptr;
-    QThread *messageReaderThread = nullptr;
-    QThread *logReaderThread = nullptr;
+    QThread *readerThread = nullptr;
 
 public:
     explicit Chester(QObject *parent = nullptr, HistoryFile *commandHistoryFile = nullptr);

@@ -17,14 +17,17 @@ Chester::Chester(QObject *parent, HistoryFile *commandHistoryFile)
             this, &Chester::historyChanged);
 }
 
-QVariant Chester::getCommandHistory() {
+QVariant Chester::getCommandHistory()
+{
     return QVariant::fromValue(_commandHistoryFile->readAll());
 }
 
-void Chester::checkMessageForCommandFailure(const QString &message) {
+void Chester::checkMessageForCommandFailure(const QString &message)
+{
     if (message.contains("command not found") ||
         message.contains("wrong") ||
-        message.contains("invalid")) {
+        message.contains("invalid"))
+    {
         qDebug() << "Command failed";
         emit sendCommandFailed(_currentCommand);
         return;
@@ -32,15 +35,18 @@ void Chester::checkMessageForCommandFailure(const QString &message) {
 
     // sometimes message received in chunks,
     // so I don't want to print the same command multiple times
-    if (_currentCommand != _lastCommand) {
+    if (_currentCommand != _lastCommand)
+    {
         emit sendCommandSucceeded(_currentCommand);
     }
 
     _lastCommand = _currentCommand;
 }
 
-void Chester::sendCommand(const QString &command) {
-    if (!JLINKARM_IsConnected()) {
+void Chester::sendCommand(const QString &command)
+{
+    if (!JLINKARM_IsConnected())
+    {
         qWarning() << "Device is not connected";
         emit sendCommandFailed(command);
         return;
@@ -50,7 +56,8 @@ void Chester::sendCommand(const QString &command) {
     _lastCommand = _currentCommand;
     _commandHistoryFile->writeMoveOnMatch(_currentCommand);
 
-    QThread *thread = QThread::create([this, command]{
+    QThread *thread = QThread::create([this, command]
+                                      {
         qDebug() << "Sending command:" << command;
 
         QByteArray ba = command.toUtf8();
@@ -78,24 +85,28 @@ void Chester::sendCommand(const QString &command) {
 
             ba = ba.mid(bytesWritten);
             QThread::msleep(50);
-        }
-    });
+        } });
 
     thread->start();
 }
 
-void Chester::jlinkLogHandler(const char *msg) {
+void Chester::jlinkLogHandler(const char *msg)
+{
     qInfo() << "J-Link Log:" << msg;
 }
 
-void Chester::jlinkErrHandler(const char *msg) {
+void Chester::jlinkErrHandler(const char *msg)
+{
     qWarning() << "J-Link Err:" << msg;
 }
 
-void Chester::attach() {
-    attachThread = QThread::create([this] {
+void Chester::attach()
+{
+    attachThread = QThread::create([this]
+                                   {
         QTimer timer;
         timer.setSingleShot(true);
+
         const char *err = JLINKARM_OpenEx(Chester::jlinkLogHandler, Chester::jlinkLogHandler);
 
         if (err != NULL) {
@@ -191,8 +202,9 @@ void Chester::attach() {
 
         emit attachSucceeded();
 
-        messageReaderThread = QThread::create([this]{
-            QByteArray ba;
+        readerThread = QThread::create([this]{
+            QByteArray shellBA;
+            QByteArray logBA;
             char buffer[2048];
             bool isFirstMessage = true;
             while (!QThread::currentThread()->isInterruptionRequested()) {
@@ -209,123 +221,100 @@ void Chester::attach() {
                     qWarning() << "Call `JLINK_RTTERMINAL_Read` failed";
                     emit messageReadingFailed();
                     return;
-                } else if (bytesRead == 0) {
-                    QThread::msleep(50);
-                    continue;
-                }
+                } else if (bytesRead > 0) {
+                    shellBA.append(buffer, bytesRead);
 
-                ba.append(buffer, bytesRead);
-
-                forever {
-                    int newLineIndex = ba.indexOf('\n');
-                    if (newLineIndex == -1) {
-                        isFirstMessage = true;
-                        break;
-                    }
-
-                    QByteArray line = ba.left(newLineIndex);
-
-                    ba.remove(0, newLineIndex + 1);
-
-                    line.replace('\r', "");
-                    line.replace('\n', "");
-
-                    if (line.length() > 0) {
-                        qDebug() << "Read device message:" << QString(line);
-                        _shellFile->write(QString(line));
-                        if (isFirstMessage) {
-                            checkMessageForCommandFailure(QString(line));
-                            isFirstMessage = false;
+                    forever {
+                        int newLineIndex = shellBA.indexOf('\n');
+                        if (newLineIndex == -1) {
+                            isFirstMessage = true;
+                            break;
                         }
-                        emit deviceMessageReceived(QString(line));
+
+                        QByteArray line = shellBA.left(newLineIndex);
+
+                        shellBA.remove(0, newLineIndex + 1);
+
+                        line.replace('\r', "");
+                        line.replace('\n', "");
+
+                        if (line.length() > 0) {
+                            qDebug() << "Read device message:" << QString(line);
+                            _shellFile->write(QString(line));
+                            if (isFirstMessage) {
+                                checkMessageForCommandFailure(QString(line));
+                                isFirstMessage = false;
+                            }
+                            emit deviceMessageReceived(QString(line));
+                        }
                     }
                 }
-            }
-        });
 
-        messageReaderThread->start();
-
-        logReaderThread = QThread::create([this]{
-            QByteArray ba;
-            char buffer[2048];
-
-            while (!QThread::currentThread()->isInterruptionRequested()) {
-
-                if (!JLINKARM_IsConnected()) {
-                    emit logReadingFailed();
-                    return;
-                }
-
-                // TODO Split read operation to chunks based on buffer size
-                int bytesRead = JLINK_RTTERMINAL_Read(1, buffer, sizeof(buffer));
-
+                bytesRead = JLINK_RTTERMINAL_Read(1, buffer, sizeof(buffer));
                 if (bytesRead < 0) {
                     qWarning() << "Call `JLINK_RTTERMINAL_Read` failed";
                     emit logReadingFailed();
                     return;
 
-                } else if (bytesRead == 0) {
-                    QThread::msleep(50);
-                    continue;
-                }
+                } else if (bytesRead > 0) {
+                    logBA.append(buffer, bytesRead);
 
-                ba.append(buffer, bytesRead);
+                    forever {
+                        int newLineIndex = logBA.indexOf('\n');
 
-                forever {
-                    int newLineIndex = ba.indexOf('\n');
+                        if (newLineIndex == -1) {
+                            break;
+                        }
 
-                    if (newLineIndex == -1) {
-                        break;
-                    }
+                        QByteArray line = logBA.left(newLineIndex);
 
-                    QByteArray line = ba.left(newLineIndex);
+                        logBA.remove(0, newLineIndex + 1);
 
-                    ba.remove(0, newLineIndex + 1);
+                        line.replace('\r', "");
+                        line.replace('\n', "");
 
-                    line.replace('\r', "");
-                    line.replace('\n', "");
-
-                    if (line.length() > 0) {
-                        qDebug() << "Read device log:" << QString(line);
-                        _logFile->write(QString(line));
-                        emit deviceLogReceived(QString(line));
+                        if (line.length() > 0) {
+                            qDebug() << "Read device log:" << QString(line);
+                            _logFile->write(QString(line));
+                            emit deviceLogReceived(QString(line));
+                        }
                     }
                 }
+
+                QThread::msleep(50);
             }
+
+
         });
 
-        logReaderThread->start();
-    });
+        readerThread->start(); });
 
     attachThread->start();
 }
 
-void Chester::detach() {
-    auto thread = QThread::create([this]{
-        if (messageReaderThread) {
-            qDebug() << "Requesting thread interruption for `messageReaderThread`";
-            messageReaderThread->requestInterruption();
+void Chester::detach()
+{
+    auto thread = QThread::create([this]
+                                  {
+
+        if (readerThread) {
+            qDebug() << "Requesting thread interruption for `readerThread`";
+            readerThread->requestInterruption();
         }
 
-        if (logReaderThread) {
-            qDebug() << "Requesting thread interruption for `logReaderThread`";
-            logReaderThread->requestInterruption();
+        if (readerThread) {
+            readerThread->wait();
+            qDebug() << "Thread `readerThread` finished";
         }
 
-        if (messageReaderThread) {
-            messageReaderThread->wait();
-            qDebug() << "Thread `messageReaderThread` finished";
-        }
-
-        if (logReaderThread) {
-            logReaderThread->wait();
-            qDebug() << "Thread `logReaderThread` finished";
+        if (JLINK_RTTERMINAL_Control(JLINKARM_RTTERMINAL_CMD_STOP, NULL) < 0) {
+            qWarning() << "Call `JLINK_RTTERMINAL_Control` failed (JLINKARM_RTTERMINAL_CMD_STOP)";
+            return;
         }
 
         JLINKARM_Close();
 
-        emit detachSucceeded();
-    });
+        emit detachSucceeded(); });
 
     thread->start();
 }
