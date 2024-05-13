@@ -100,6 +100,13 @@ void Chester::jlinkErrHandler(const char *msg)
     qWarning() << "J-Link Err:" << msg;
 }
 
+void Chester::errAttachFailed(const char *msg)
+{
+    qWarning() << "Attach failed:" << msg;
+    emit attachFailed();
+    JLINKARM_Close();
+}
+
 void Chester::attach()
 {
     attachThread = QThread::create([this]
@@ -110,38 +117,29 @@ void Chester::attach()
         const char *err = JLINKARM_OpenEx(Chester::jlinkLogHandler, Chester::jlinkLogHandler);
 
         if (err != NULL) {
-            qWarning() << "Call `JLINKARM_OpenEx` failed";
-            emit attachFailed();
-            return;
+            return errAttachFailed("Call `JLINKARM_OpenEx` failed");
         }
 
         if (JLINKARM_ExecCommand("Device = nRF52840_xxAA", NULL, 0) < 0) {
-            qWarning() << "Call `JLINKARM_ExecCommand` failed";
-            emit attachFailed();
-            return;
+            return errAttachFailed("Call `JLINKARM_ExecCommand` failed");
         }
 
         JLINKARM_TIF_Select(JLINKARM_TIF_SWD);
         JLINKARM_SetSpeed(4000);
 
         if (JLINKARM_Connect() < 0) {
-            qWarning() << "Call `JLINKARM_Connect` failed";
-            emit attachFailed();
-            return;
+            return errAttachFailed("Call `JLINKARM_Connect` failed");
         }
 
         if (JLINK_RTTERMINAL_Control(JLINKARM_RTTERMINAL_CMD_START, NULL) < 0) {
-            qWarning() << "Call `JLINK_RTTERMINAL_Control` failed (JLINKARM_RTTERMINAL_CMD_START)";
-            emit attachFailed();
-            return;
+            return errAttachFailed("Call `JLINK_RTTERMINAL_Control` failed (JLINKARM_RTTERMINAL_CMD_START)");
         }
 
         timer.start(2000);
 
         forever {
             if (timer.remainingTime() == 0) {
-                emit attachFailed();
-                return;
+                return errAttachFailed("No RTT UP buffers get ready in time");
             }
 
             U32 dir = JLINKARM_RTTERMINAL_BUFFER_DIR_UP;
@@ -153,15 +151,11 @@ void Chester::attach()
             }
 
             if (buffersFound < 0) {
-                qWarning() << "Call `JLINK_RTTERMINAL_Control` failed (JLINKARM_RTTERMINAL_CMD_GETNUMBUF)";
-                emit attachFailed();
-                return;
+                return errAttachFailed("Call `JLINK_RTTERMINAL_Control` failed (JLINKARM_RTTERMINAL_CMD_GETNUMBUF)");
             }
 
             if (buffersFound == 0) {
-                qWarning() << "No RTT UP buffers found";
-                emit attachFailed();
-                return;
+                return errAttachFailed("No RTT UP buffers found");
             }
 
             qInfo() << "RTT UP buffers found:" << buffersFound;
@@ -172,8 +166,7 @@ void Chester::attach()
 
         forever {
             if (timer.remainingTime() == 0) {
-                emit attachFailed();
-                return;
+                return errAttachFailed("No RTT DOWN buffers get ready in time");
             }
 
             U32 dir = JLINKARM_RTTERMINAL_BUFFER_DIR_DOWN;
@@ -185,15 +178,11 @@ void Chester::attach()
             }
 
             if (buffersFound < 0) {
-                qWarning() << "Call `JLINK_RTTERMINAL_Control` failed (JLINKARM_RTTERMINAL_CMD_GETNUMBUF)";
-                emit attachFailed();
-                return;
+                return errAttachFailed("Call `JLINK_RTTERMINAL_Control` failed (JLINKARM_RTTERMINAL_CMD_GETNUMBUF)");
             }
 
             if (buffersFound == 0) {
-                qWarning() << "No RTT DOWN buffers found";
-                emit attachFailed();
-                return;
+                return errAttachFailed("No RTT DOWN buffers found");
             }
 
             qInfo() << "RTT DOWN buffers found:" << buffersFound;
@@ -283,8 +272,6 @@ void Chester::attach()
 
                 QThread::msleep(50);
             }
-
-
         });
 
         readerThread->start(); });
@@ -309,7 +296,6 @@ void Chester::detach()
 
         if (JLINK_RTTERMINAL_Control(JLINKARM_RTTERMINAL_CMD_STOP, NULL) < 0) {
             qWarning() << "Call `JLINK_RTTERMINAL_Control` failed (JLINKARM_RTTERMINAL_CMD_STOP)";
-            return;
         }
 
         JLINKARM_Close();

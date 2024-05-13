@@ -42,6 +42,7 @@ private slots:
     void attach();
     void detach();
     void checkMessageForCommandFailure(const QString &message);
+    void errAttachFailed(const char *msg);
 
 private:
     HistoryFile *_logFile = nullptr;
