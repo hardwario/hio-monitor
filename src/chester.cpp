@@ -114,6 +114,8 @@ void Chester::attach()
         QTimer timer;
         timer.setSingleShot(true);
 
+        JLINKARM_SetResetType(JLINKARM_RESET_TYPE_NO_RESET);
+
         const char *err = JLINKARM_OpenEx(Chester::jlinkLogHandler, Chester::jlinkLogHandler);
 
         if (err != NULL) {
@@ -126,6 +128,8 @@ void Chester::attach()
 
         JLINKARM_TIF_Select(JLINKARM_TIF_SWD);
         JLINKARM_SetSpeed(4000);
+
+        JLINKARM_SetResetType(JLINKARM_RESET_TYPE_NO_RESET);
 
         if (JLINKARM_Connect() < 0) {
             return errAttachFailed("Call `JLINKARM_Connect` failed");
