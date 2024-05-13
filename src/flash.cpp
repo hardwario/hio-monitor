@@ -1,20 +1,24 @@
 #include "flash.h"
 
-class DllManager {
+class DllManager
+{
 public:
-    Flash* flashInstance;
+    Flash *flashInstance;
 
-    DllManager(Flash* instance) : flashInstance(instance) {}
+    DllManager(Flash *instance) : flashInstance(instance) {}
 
-    ~DllManager() {
-        if (flashInstance) {
+    ~DllManager()
+    {
+        if (flashInstance)
+        {
             flashInstance->freeDll();
         }
     }
 };
 
-Flash* Flash::currentInstance = nullptr;
-Flash::Flash(QObject *parent) : DeviceInterface(parent) {
+Flash *Flash::currentInstance = nullptr;
+Flash::Flash(QObject *parent) : DeviceInterface(parent)
+{
     _name = "flash";
     _flashHistory = new HistoryFile(this, "hardwario-monitor-flash.log");
     _flashCmdHistory = new HistoryFile(this, "hardwario-monitor-flash-cmd.log");
@@ -23,26 +27,30 @@ Flash::Flash(QObject *parent) : DeviceInterface(parent) {
     currentInstance = this;
 };
 
-QVariant Flash::getCommandHistory() {
+QVariant Flash::getCommandHistory()
+{
     return QVariant::fromValue(_flashCmdHistory->readAll());
 }
 
-void Flash::defaultFlash() {
-    setReady(false);
+void Flash::defaultFlash()
+{
     _isRunning = true;
     flash(_hexPath);
 }
 
-void Flash::sendCommand(const QString &command) {
+void Flash::sendCommand(const QString &command)
+{
     _flashCmdHistory->writeMoveOnMatch(command);
 
-    if (command.contains("help")) {
+    if (command.contains("help"))
+    {
         emit sendCommandSucceeded(command);
         emit deviceMessageReceived(_helpMessage);
         return;
     }
 
-    if (_isRunning) {
+    if (_isRunning)
+    {
         emit deviceMessageReceived(makeMessage("wrn", "please wait for the flashing process to complete!"));
         return;
     }
@@ -50,22 +58,31 @@ void Flash::sendCommand(const QString &command) {
     tryDownload(command);
 }
 
-void Flash::setHexPath(const QString &path) {
+void Flash::setHexPath(const QString &path)
+{
     _hexPath = path;
     static QRegularExpression re(".*?(?=[A-Z]:)");
     _hexPath.remove(re);
+
+    if (_hexPath.startsWith("file://"))
+    {
+        _hexPath.remove(0, 7);
+    }
+
     _isFileDownloaded = false;
-    emit deviceMessageReceived(makeMessage("inf", "file path: " + path));
+    emit deviceMessageReceived(makeMessage("inf", "selected file: " + _hexPath));
     setReady(true);
 }
 
-bool Flash::tryDownload(const QString &str) {
+bool Flash::tryDownload(const QString &str)
+{
     QUrl url(QString("https://firmware.hardwario.com/chester/%1/hex").arg(str));
     _downloader = new FileDownloader(url, this);
     emit deviceMessageReceived(makeMessage("inf", "downloading..."));
 
     connect(_downloader, &FileDownloader::downloaded,
-            [this, str] {
+            [this, str]
+            {
                 qDebug() << "flash program file downloaded!";
                 _hexPath = _downloader->save(str + ".hex");
                 emit deviceMessageReceived(makeMessage("inf", "flash program file saved to: " + _hexPath));
@@ -74,7 +91,8 @@ bool Flash::tryDownload(const QString &str) {
             });
 
     connect(_downloader, &FileDownloader::errorOccured,
-            [this, str](QString error) {
+            [this, str](QString error)
+            {
                 qDebug() << "flash program file error while downloading: " << error;
                 emit sendCommandFailed(str);
                 emit deviceMessageReceived(makeMessage("err", error));
@@ -85,7 +103,8 @@ bool Flash::tryDownload(const QString &str) {
     return true;
 }
 
-QString Flash::makeMessage(QString tag, QString msg) {
+QString Flash::makeMessage(QString tag, QString msg)
+{
     auto currentDateTime = QDateTime::currentDateTime().toString("hh:mm:ss.zzz,zzz");
     qDebug() << "flash msg " << "[" + currentDateTime + "] " + "<" + tag + "> " + msg;
     auto res = "[" + currentDateTime + "] " + "<" + tag + "> " + msg;
@@ -93,10 +112,13 @@ QString Flash::makeMessage(QString tag, QString msg) {
     return res;
 }
 
-bool Flash::checkErr(nrfjprogdll_err_t err, const QString& context) {
+bool Flash::checkErr(nrfjprogdll_err_t err, const QString &context)
+{
     bool isSuccess = err == nrfjprogdll_err_t::SUCCESS;
-    if (!isSuccess) {
-        switch(err) {
+    if (!isSuccess)
+    {
+        switch (err)
+        {
         case INVALID_SESSION:
             emit deviceMessageReceived(makeMessage("err", context + " invalid session"));
             break;
@@ -168,34 +190,36 @@ bool Flash::checkErr(nrfjprogdll_err_t err, const QString& context) {
     return isSuccess;
 }
 
-void Flash::cb(const char *msg_str) {
+void Flash::cb(const char *msg_str)
+{
     qDebug() << msg_str;
     _flashHistory->write(msg_str);
 }
 
-bool Flash::loadDll() {
+bool Flash::loadDll()
+{
     return checkErr(NRFJPROG_open_dll(NULL, &Flash::staticCallback, NRF52_FAMILY), "open dll");
 }
 
-void Flash::freeDll() {
+void Flash::freeDll()
+{
     qDebug() << "close flash dll";
-
-    if (_isFileDownloaded && _downloader->remove(_hexPath)) {
-        emit deviceMessageReceived(makeMessage("inf", "remove file: " + _hexPath + " successful"));
-        _hexPath.clear();
-    }
 
     NRFJPROG_close_dll();
     _isRunning = false;
 }
 
-void Flash::flash(QString path) {
-    flashThread = QThread::create([this, path]{
+void Flash::flash(QString path)
+{
+    flashThread = QThread::create([this, path]
+                                  {
         if (!loadDll()) {
             return;
         }
 
         DllManager defer(this);
+
+        emit deviceMessageReceived(makeMessage("inf", "flash file: " + path));
 
         auto bytes = path.toUtf8(); // so it's not temporary
         auto filepath = bytes.constData();
@@ -254,8 +278,7 @@ void Flash::flash(QString path) {
         }
 
         emit finished();
-        emit deviceMessageReceived(makeMessage("inf", "flashing completed successfully!"));
-    });
+        emit deviceMessageReceived(makeMessage("inf", "flashing completed successfully!")); });
 
     flashThread->start();
 }
