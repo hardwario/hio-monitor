@@ -134,14 +134,20 @@ bool Flash::checkErr(nrfjprogdll_err_t err, const QString &context)
         case NOT_AVAILABLE_BECAUSE_PROTECTION:
             emit deviceMessageReceived(makeMessage("err", context + " operation is not available due to readback protection"));
             break;
+        case EMULATOR_NOT_CONNECTED:
+            emit deviceMessageReceived(makeMessage("err", context + " emulator not connected"));
+            break;
         case CANNOT_CONNECT:
             emit deviceMessageReceived(makeMessage("err", context + " could not connect to any nRF device"));
             break;
-        case WRONG_FAMILY_FOR_DEVICE:
-            emit deviceMessageReceived(makeMessage("err", context + "  connected device does not match the configured family"));
+        case LOW_VOLTAGE:
+            emit deviceMessageReceived(makeMessage("err", context + " target voltage is too low"));
             break;
         case NO_EMULATOR_CONNECTED:
             emit deviceMessageReceived(makeMessage("err", context + " there is no emulator connected to the PC"));
+            break;
+        case WRONG_FAMILY_FOR_DEVICE:
+            emit deviceMessageReceived(makeMessage("err", context + "  connected device does not match the configured family"));
             break;
         case INVALID_PARAMETER:
             emit deviceMessageReceived(makeMessage("err", context + " the clock_speed_in_khz parameter is not within limits"));
