@@ -1,0 +1,20 @@
+# Build output
+/build/
+/out/
+/install/
+CMakeUserPresets.json
+compile_commands.json
+
+# CPM / FetchContent cache
+/.cpm-cache/
+
+# Tooling
+/.cache/
+/.vscode/
+/.idea/
+*.user
+*.autosave
+.DS_Store
+
+# Local environment
+.env
