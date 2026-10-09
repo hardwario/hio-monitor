@@ -46,7 +46,8 @@ All design documentation lives in [`plan/`](plan/README.md). Read `plan/README.m
 | Framework | **Qt 6.8 LTS**, Community edition (LGPLv3): dynamic linking only, no commercial-only modules — ADR-0002 |
 | UI | **Qt Quick / QML**, thin; no business logic in QML — ADR-0003 |
 | Backend | May use QtCore, QtNetwork, QtBluetooth; **never QtGui / QtQuick / QtWidgets** — ADR-0004 |
-| Hardware | **SEGGER JLinkARM library only** for RTT and programming (flash/erase/reset/recover/UICR), runtime-loaded, behind interfaces; py-hardwario is the behavioural reference. Optional **nRF Util** subprocess only for nRF91 modem firmware. No nrfjprog — ADR-0015, ADR-0016, ADR-0006 |
+| Hardware | **SEGGER JLinkARM library only** (≥ 8.00) for RTT and programming (flash/erase/reset/recover/UICR), runtime-loaded from own declarations, one library copy per session, behind interfaces; py-hardwario / rttt 1.9.2 are the behavioural reference. Optional **nRF Util** subprocess only for nRF91 modem firmware. No nrfjprog — ADR-0015, ADR-0016, ADR-0006, ADR-0028–0030, ADR-0034 |
+| Localization | **English + Czech** via Qt Linguist (English source text), extensible; every user-visible string translatable; backend translates at creation; CLI English only — ADR-0027 |
 | Errors | `std::expected<T, hio::Error>`; no exceptions crossing module, thread or C-callback boundaries — ADR-0007 |
 | Build | CMake + `CMakePresets.json`; third-party deps via **CPM / FetchContent pinned to exact tags + hashes** (no Conan, no vcpkg) — ADR-0010 |
 | Tests | **GoogleTest + GMock** for C++, Qt Quick Test for QML — ADR-0010 |

@@ -46,10 +46,14 @@ Progress phases: Erasing / Flashing / Verifying / Resetting / Done.
 
 **LTE flash:** a `.zip` containing `modem.zip` + `application.hex` → program modem (nRF Util), then app (J-Link).
 
-**RTT (J-Link):** open (SN) → speed → SWD → connect device name → RTT start → poll buffer
-count (100 × 100 ms) → find buffers by name → read/write loop with ~50 ms latency;
-reset detection (e.g. read of RESETREAS fails) → full reconnect; tolerate up to 10 consecutive
-read errors; decode with replacement of invalid UTF-8. Never call DLL RTT stop.
+**RTT (J-Link)** — as implemented in rttt 1.9.2 `PyLinkRTTConnector` (read for M1; v2 follows it, ADR-0034):
+open (SN) → speed → SWD → connect device name → RTT start → poll buffer counts every 100 ms
+(15 s deadline) → resolve buffers by name → wait for non-zero terminal (and logger, ≤ 3 s) sizes,
+else RTT stop + restart search (stale control block) → read loop with ~50 ms latency, reading up to
+the full buffer size; read failure → disconnected (reading continues), data → connected; write in
+down-buffer chunks with 2 s timeout, echo only after the write; VTref checked every 1 s (no power →
+disconnected); optional auto-reconnect every 3 s (reopen probe + connect + attach) only when powered;
+RTT stop on session stop. rttt decodes with `backslashreplace`; v2 uses U+FFFD.
 Lines starting with `#` on the terminal channel are log lines (old firmware without `Logger`).
 J-Link firmware outdated → offer firmware update.
 

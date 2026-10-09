@@ -15,6 +15,9 @@
    what will be lost.
 6. **Keyboard friendly** for power users; shortcuts documented in the UI.
 7. Light and dark theme; scalable layout; accessibility (focus order, contrast, screen-reader names).
+8. **English and Czech** (ADR-0027): every text translatable, language selectable in settings (System /
+   English / Čeština) and switched live; layouts tolerate longer Czech texts; numbers and dates follow
+   the selected language.
 
 ## Wizards (each gets its own feature plan)
 
@@ -26,7 +29,8 @@
 | Troubleshooting | from an `hio::Error` with `wizardId` | targeted checks per error (USB cable, flat cable, power, other app holding the probe, outdated J-Link firmware) |
 | BLE pairing | BLE connect failure / "probably unpaired" | explain pairing/passkey, OS-specific steps |
 
-Illustrations and photos are stored under `app/gui/assets/` via **Git LFS**.
+Illustrations and photos are stored under `app/gui/assets/` via **Git LFS**. They contain no embedded
+text (text goes into translatable captions), so they work in every language.
 
 ## Error presentation
 

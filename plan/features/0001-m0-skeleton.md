@@ -3,7 +3,7 @@
 - **Status:** Draft
 - **Milestone:** M0
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0001, 0002, 0003, 0004, 0007, 0010, 0011, 0012, 0013, 0017, 0018–0026
+- **Related ADRs:** 0001, 0002, 0003, 0004, 0007, 0010, 0011, 0012, 0013, 0017, 0018–0026, 0027
 - **Depends on:** —
 
 ## Context
@@ -11,8 +11,8 @@
 v2 has no code yet. Before any hardware feature (M1+) can be built we need a project skeleton that
 already enforces the long-term rules from `CLAUDE.md`: a clang-only C++23 build on three OSes, strict
 warnings, sanitizers, clang-tidy/format, pinned dependencies, the `hio::Error` / `Result` error model,
-logging, settings, bounded buffers, a CLI that renders errors and exit codes, an empty QML GUI, and CI
-that keeps all of it green on every PR.
+logging, settings, bounded buffers, translation infrastructure (English + Czech, ADR-0027), a CLI that renders
+errors and exit codes, an empty QML GUI, and CI that keeps all of it green on every PR.
 
 The old app had no tests, CI only on release, unbounded logs, a version string patched by `sed` and
 silent failures (plan/0002). M0 makes those impossible to reintroduce unnoticed.
@@ -28,7 +28,9 @@ silent failures (plan/0002). M0 makes those impossible to reintroduce unnoticed.
 3. `hio` CLI skeleton: global options, `--version`, `--json` envelope, error rendering, exit codes, Ctrl+C.
 4. `hio-monitor` GUI skeleton: one QML window showing the version, through a ViewModel.
 5. GitHub Actions CI: build + tests on 3 OSes, ASan/UBSan, TSan, clang-tidy, clang-format, qmllint,
-   coverage report, LFS check.
+   coverage report, LFS check, translation-catalog freshness.
+6. Translation infrastructure (ADR-0027): English and Czech catalogs, translatable backend texts, live
+   language switching in the GUI, English-only CLI; adding a language = one `.ts` file + one table entry.
 
 **Non-goals**
 
@@ -39,8 +41,9 @@ silent failures (plan/0002). M0 makes those impossible to reintroduce unnoticed.
 ## User experience
 
 GUI: a single window titled **HARDWARIO Monitor** (default size 1024×700, resizable) with the centered text
-"HARDWARIO Monitor 2.0.0-dev — nothing to see yet" and the build info in a smaller font. Default Qt Quick
-Controls style; styling is decided in M3.
+"HARDWARIO Monitor 2.0.0-dev — nothing to see yet" (translatable) and the build info in a smaller font, plus a
+language selector (System / English / Čeština, from `supportedLanguages`) that switches the window texts live
+and is stored in the settings. Default Qt Quick Controls style; styling is decided in M3.
 
 CLI: see below. Human error output on stderr:
 
@@ -77,10 +80,12 @@ Exit codes per ADR-0024: 0 ok, 1 internal, 2 usage, 3 io, 4 dependency, 5 probe,
 ```
 CMakeLists.txt  CMakePresets.json  .clang-format  .clang-tidy  .editorconfig
 cmake/  CPM.cmake HioDeps.cmake HioCompilerFlags.cmake HioHardening.cmake HioSanitizers.cmake
-        HioCxxFeatureChecks.cmake HioVersion.cmake HioBackendRules.cmake version.h.in
+        HioCxxFeatureChecks.cmake HioVersion.cmake HioBackendRules.cmake HioTranslations.cmake version.h.in
+i18n/       hio_en.ts  hio_cs.ts
 libs/core/  CMakeLists.txt  include/hio/core/*.h  src/*.cpp  tests/*.cpp
 app/cli/    CMakeLists.txt  src/*.{h,cpp}  tests/*.cpp
-app/gui/    CMakeLists.txt  src/main.cpp  src/viewmodels/app_view_model.{h,cpp}  qml/Main.qml  tests/tst_main.qml
+app/gui/    CMakeLists.txt  src/main.cpp  src/language_manager.{h,cpp}  src/viewmodels/app_view_model.{h,cpp}
+            qml/Main.qml  tests/tst_main.qml
 tools/check-lfs.sh  tools/sanitizers/tsan.supp
 tests/cmake/            negative configure test for the backend Qt rule
 .github/workflows/ci.yml
@@ -141,8 +146,14 @@ File names `snake_case.h` / `.cpp`; 4-space indent; namespaces `hio`, `hio::log`
   | CLI11 | _tbd_ | _tbd_ |
 
 - Qt: 6.8 LTS, latest 6.8.x patch available from the official binaries; `find_package(Qt6 6.8 REQUIRED
-  COMPONENTS Core)` for libs/cli, `+ Gui Qml Quick QuickControls2 QuickTest` for the GUI.
-  `qt_standard_project_setup(REQUIRES 6.8)`.
+  COMPONENTS Core LinguistTools)` for libs/cli, `+ Gui Qml Quick QuickControls2 QuickTest` for the GUI.
+  `qt_standard_project_setup(REQUIRES 6.8 I18N_SOURCE_LANGUAGE en I18N_TRANSLATED_LANGUAGES cs)`.
+- **HioTranslations.cmake** (ADR-0027): one project catalog per language in `i18n/hio_<lang>.ts`
+  (`hio_en.ts` = plural forms only, `hio_cs.ts` = full). `qt_add_lupdate(SOURCE_TARGETS <every backend lib>
+  hio-monitor TS_FILES … LUPDATE_OPTIONS -no-obsolete)` gives an `update_translations` target;
+  `qt_add_lrelease` + `qt_add_resources(hio-monitor … PREFIX /i18n)` embed the `.qm` files into the GUI only.
+  The CLI embeds no catalog. A `check_translations` script target runs lupdate into a temp copy and fails if
+  the committed `.ts` files differ (stale), and prints the number of unfinished `cs` entries.
 - **Repo config**:
   - `.clang-format`: `BasedOnStyle: LLVM`, `IndentWidth: 4`, `ColumnLimit: 100`, `PointerAlignment: Left`,
     `AccessModifierOffset: -4`, `IncludeBlocks: Regroup` (own → Qt → std), `InsertBraces: true`.
@@ -207,6 +218,19 @@ uses whatever is in the table.
   `wizard` null or kebab-case id); `QJsonObject okEnvelope(QJsonValue data)`,
   `QJsonObject errorEnvelope(const Error&)`; `std::string toCompactUtf8(const QJsonObject&)`;
   `QString toQString(std::string_view)` / `std::string toStdString(const QString&)` UTF-8 helpers.
+- `i18n.h` (ADR-0027):
+  ```cpp
+  namespace hio::i18n {
+  struct LanguageInfo { std::string_view code; std::string_view nativeName; };
+  inline constexpr std::array supportedLanguages{ LanguageInfo{"en", "English"}, LanguageInfo{"cs", "Čeština"} };
+  [[nodiscard]] std::string tr(const char* context, const char* sourceText, const char* disambiguation = nullptr, int n = -1);
+  }
+  ```
+  `tr` is a UTF-8 wrapper over `QCoreApplication::translate` (thread-safe). Classes use
+  `Q_DECLARE_TR_FUNCTIONS(<Name>)`; free functions call `QCoreApplication::translate("hio::<module>", "…")` or
+  use `QT_TRANSLATE_NOOP` for tables, so lupdate finds every string. Values are inserted with `%1` +
+  `QString::arg`, never `std::format`. Context names: `hio::core`, `hio::gui`, later `hio::jlink`, `hio::device`, …
+  All texts of the M0 error table below are translatable; `fail(...)` call sites pass translated text.
 - `app_identity.h`: `void initApplicationIdentity()` sets org `HARDWARIO`, domain `hardwario.com`,
   app `Monitor`, version (ADR-0018); called by both executables before anything else.
 - `version.h`: `struct BuildInfo { std::string_view version, gitHash, compiler, qtRuntime, qtCompiled; };
@@ -268,6 +292,7 @@ shared mutable state (owned by the `Logging` instance, guarded by its mutex).
 
 ### Phase C — CLI (`app/cli`, executable `hio`)
 
+- The CLI never installs a translator (English only, ADR-0027) and formats numbers with the C locale.
 - `src/main.cpp`: `QCoreApplication app(argc, argv)` → `initApplicationIdentity()` → parse args →
   `Logging::init(Cli, {level})` → run → render → `return exitCode`. The whole body is wrapped in
   `try { … } catch (...)` at the top boundary only → `internal.unexpected`, exit 1 (ADR-0007).
@@ -289,12 +314,22 @@ shared mutable state (owned by the `Logging` instance, guarded by its mutex).
 ### Phase D — GUI (`app/gui`, executable `hio-monitor`)
 
 - `src/main.cpp`: `QGuiApplication` → `initApplicationIdentity()` → `Logging::init(Gui, {})` →
-  `Settings::openDefault()` (an error is logged, not fatal) → `QQmlApplicationEngine` loads module
+  `Settings::openDefault()` (an error is logged, not fatal) → `LanguageManager` applies `ui/language` →
+  `QQmlApplicationEngine` loads module
   `HardwarioMonitor`, `Main`. `QObject::connect(objectCreationFailed → exit(1))`.
 - `qt_add_qml_module(hio-monitor URI HardwarioMonitor VERSION 1.0 QML_FILES qml/Main.qml SOURCES
   src/viewmodels/app_view_model.{h,cpp})`.
 - `AppViewModel` (`QML_ELEMENT QML_SINGLETON`): `Q_PROPERTY(QString version CONSTANT)`,
-  `Q_PROPERTY(QString buildInfo CONSTANT)` — reads `hio::buildInfo()` only. No logic in QML (ADR-0003).
+  `Q_PROPERTY(QString buildInfo CONSTANT)` — reads `hio::buildInfo()`; `Q_PROPERTY(QString language …
+  NOTIFY languageChanged)`, `Q_PROPERTY(QVariantList availableLanguages CONSTANT)` (`system` + the table),
+  `Q_INVOKABLE void setLanguage(QString code)` → `LanguageManager`. No logic in QML (ADR-0003).
+- `LanguageManager` (app/gui; `QObject` child of the application, ownership documented at the creation site):
+  owns the `QTranslator`s for `hio_<lang>.qm` and Qt's `qtbase_<lang>` / `qtdeclarative_<lang>` (loaded from
+  `QLibraryInfo::TranslationsPath` when present; missing Qt catalogs are logged, not fatal); `system` resolves
+  `QLocale::system().uiLanguages()` against `supportedLanguages`, falling back to `en`. `apply(code)` removes the
+  old translators, installs the new ones, sets `QLocale::setDefault`, calls `QQmlEngine::retranslate()` and
+  stores `ui/language` (`system` | `en` | `cs`, default `system`).
+- All QML strings use `qsTr()`; `Main.qml` contains the language selector.
 - Windows: `WIN32_EXECUTABLE`, macOS: `MACOSX_BUNDLE` with bundle id `com.hardwario.monitor` (icons
   later, M7).
 
@@ -306,7 +341,7 @@ shared mutable state (owned by the `Logging` instance, guarded by its mutex).
 
   | Job | Runner | What |
   |---|---|---|
-  | `lint` | ubuntu-24.04 | clang-format-21 `--dry-run --Werror` on all `*.h/*.cpp`; `tools/check-lfs.sh` (every tracked file that is binary or > 100 KB must be an LFS pointer; fails listing offenders) |
+  | `lint` | ubuntu-24.04 | clang-format-21 `--dry-run --Werror` on all `*.h/*.cpp`; `check_translations` (stale `.ts` fails, unfinished `cs` count reported); `tools/check-lfs.sh` (every tracked file that is binary or > 100 KB must be an LFS pointer; fails listing offenders) |
   | `linux` | ubuntu-24.04 | matrix `debug, release, asan, tsan, coverage, tidy`; LLVM 21 from apt.llvm.org; Qt via `install-qt-action` (pinned aqtinstall), cached; build; `ctest --preset … --output-on-failure`; `all_qmllint` in debug; coverage uploads `llvm-cov` HTML + lcov as artifact |
   | `macos` | macos-15 | matrix `debug, asan, release` (universal); Xcode 16+ |
   | `windows` | windows-2022 | matrix `debug, release`; pinned LLVM 21 (official installer, checksum verified) + MSVC dev environment |
@@ -325,6 +360,9 @@ shared mutable state (owned by the `Logging` instance, guarded by its mutex).
 | `settings.newer_schema` | Io | "Settings were written by a newer version and are opened read-only." / downgrade / "Changes will not be saved; update HARDWARIO Monitor." |
 | `timeout` | Timeout | generic, specialized by later milestones |
 | `cancelled` | Cancelled | "Cancelled by user." |
+
+All messages, causes and suggestions above are translatable (`hio::i18n`, ADR-0027); `hio_cs.ts` contains
+their Czech translations.
 
 ## Decisions requiring user confirmation
 
@@ -345,8 +383,10 @@ shared mutable state (owned by the `Logging` instance, guarded by its mutex).
 | `--json` shape | versioned envelope / bare data | versioned envelope | ADR-0026 |
 | Crash reporting in M0 | none / local dumps / never | none in M0, decide in M7 | open-questions #3 |
 | Plan split | one plan / three plans | one phased plan | — |
+| Localization | EN only / EN + CS | EN + CS, Qt Linguist, English source text, translated at creation, CLI English only, live GUI switch, infra in M0 | ADR-0027 |
 | New deps CPM.cmake, GoogleTest, CLI11 | approve / reject | _pending (approval of this plan)_ | ADR-0010 |
 | Hardened std lib also in **Release** (`_GLIBCXX_ASSERTIONS`, libc++ FAST mode) | yes / Debug only | _pending_ | — |
+| CI translation check: stale `.ts` fails, unfinished `cs` entries only reported (release gate in M7) | accept / change | _pending_ | — |
 | Minor defaults: 4-space indent, snake_case `.h/.cpp` files, CMake ≥ 3.28, log limits (10 MiB/file, 20 files, 100 MiB), `--log-level` default `critical`, hidden `_selftest` | accept / change | _pending_ | — |
 
 ## Implementation steps
@@ -360,6 +400,7 @@ Phase A — build system
 - [ ] A6 `HioSanitizers.cmake`, `tools/sanitizers/tsan.supp`
 - [ ] A7 `HioBackendRules.cmake` + negative configure test `tests/cmake/backend_links_gui`
 - [ ] A8 `CMakePresets.json` (configure/build/test presets for all three OSes)
+- [ ] A9 `HioTranslations.cmake`, `i18n/hio_en.ts`, `i18n/hio_cs.ts`, `update_translations` / `check_translations`
 
 Phase B — libs/core
 - [ ] B1 `error.h/.cpp`, `result.h` + tests
@@ -369,6 +410,7 @@ Phase B — libs/core
 - [ ] B5 `bounded_queue.h` + tests (incl. TSan stress, stop_token, close)
 - [ ] B6 `log.h/.cpp` + tests (rotation, retention, truncation, concurrency, unwritable dir)
 - [ ] B7 `settings.h/.cpp` + tests (defaults, types, migrations, newer schema read-only)
+- [ ] B8 `i18n.h/.cpp` + tests (`tr` with a test `.qm`, table sanity); M0 error texts translatable + Czech translations
 
 Phase C — CLI
 - [ ] C1 `main.cpp`, `cli_app`, `output`, `exit_codes`
@@ -376,8 +418,8 @@ Phase C — CLI
 - [ ] C3 unit tests + end-to-end QProcess tests
 
 Phase D — GUI
-- [ ] D1 `main.cpp`, `AppViewModel`, `Main.qml`, qml module
-- [ ] D2 Qt Quick Test `tst_main.qml`, `all_qmllint` clean
+- [ ] D1 `main.cpp`, `AppViewModel`, `LanguageManager`, `Main.qml` (language selector), qml module
+- [ ] D2 Qt Quick Test `tst_main.qml` (incl. switching to `cs` changes the window text), `all_qmllint` clean
 
 Phase E — CI and docs
 - [ ] E1 `tools/check-lfs.sh`
@@ -398,7 +440,10 @@ Phase E — CI and docs
   - `hio --json _selftest error cancelled; echo $?` → envelope, exit 130.
   - `hio _selftest wait`, press Ctrl+C → "Cancelled by user.", exit 130, no hang.
   - `hio --bogus; echo $?` → usage error, exit 2.
+  - `LANG=cs_CZ.UTF-8 hio _selftest error io.file_not_found` → still English.
   - `hio-monitor` opens the window with the version; a log file appears under the app data `logs/` dir.
+  - Switching the language to Čeština changes the window text immediately and survives a restart; `system`
+    follows `LANG`.
 - **Manual (macOS, Windows):** the same CLI checks and the GUI window, done once by the user before Done.
 
 ## Risks and open points
