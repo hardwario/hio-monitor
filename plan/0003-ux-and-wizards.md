@@ -19,6 +19,11 @@
    English / Čeština) and switched live; layouts tolerate longer Czech texts; numbers and dates follow
    the selected language.
 
+## Visual design
+
+Tokens, components and accessibility rules: [gui/design-system.md](gui/design-system.md); screen mockups:
+[gui/mockups/index.html](gui/mockups/index.html); M3 screens are specified in [features/0004](features/0004-m3-gui-core.md).
+
 ## Wizards (each gets its own feature plan)
 
 | Wizard | Trigger | Steps (sketch) |

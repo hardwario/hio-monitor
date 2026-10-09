@@ -6,6 +6,11 @@
 - **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042
 - **Depends on:** 0001 (M0 skeleton), 0002 (M1 J-Link & RTT: library loading, `JLinkProbe`, `DeviceSession`, fake library)
 
+> **Amended by features/0004 (M3 planning):** concrete `OperationKind` / `OperationProgress` / `OperationResult`
+> fields, the error code `internal.cancelled`, and `flash()` on sessions opened with `attachRtt = false`
+> (see 0004 § Design → "Backend amendments"), and **ADR-0057**: operations carry their target MCU (switch probe target,
+> run, switch back, re-attach RTT). Update this plan before implementing.
+
 ## Context
 
 Flashing is the second core feature of HARDWARIO Monitor. The CHESTER has two MCUs: the application MCU

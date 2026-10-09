@@ -6,6 +6,10 @@
 - **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034
 - **Depends on:** 0001 (M0 skeleton, incl. the translation infrastructure)
 
+> **Amended by ADR-0053 (M3 planning):** `DeviceSession::open()` becomes non-blocking; probe open and target
+> connect run on the worker and are reported via `connectionChanged`. The CLI uses `waitUntilConnected()`.
+> Update the Design section and steps D* accordingly before implementing.
+
 ## Context
 
 The J-Link RTT console (interactive shell + device log) is the core feature of HARDWARIO Monitor. The old
