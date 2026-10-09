@@ -45,3 +45,5 @@ nRF91 modem firmware is the only exception — see ADR-0016.
   works, and measure flashing speed vs. nrfjprog.
 - New Nordic chips depend on SEGGER's J-Link device support (minimum J-Link version will be
   defined and checked at runtime).
+
+_Note (2026-10-09): the spike is Phase 0 of [features/0003](../features/0003-m2-flashing.md) with go/no-go criteria; programming method in ADR-0035._

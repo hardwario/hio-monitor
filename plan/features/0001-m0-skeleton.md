@@ -1,6 +1,6 @@
 # 0001 — M0 Skeleton: build system, libs/core, CLI and GUI skeletons, CI
 
-- **Status:** Draft
+- **Status:** Approved (Matej Strnad, 2026-10-09)
 - **Milestone:** M0
 - **Author:** Claude (with Matej Strnad), 2026-10-09
 - **Related ADRs:** 0001, 0002, 0003, 0004, 0007, 0010, 0011, 0012, 0013, 0017, 0018–0026, 0027
@@ -113,7 +113,7 @@ File names `snake_case.h` / `.cpp`; 4-space indent; namespaces `hio`, `hio::log`
 - **HioHardening.cmake** → interface target `hio::hardening`:
   Debug: `_GLIBCXX_ASSERTIONS`, `_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE`, MSVC STL debug
   iterators (default `_ITERATOR_DEBUG_LEVEL=2`).
-  Release (**pending confirmation**, see decisions): `_GLIBCXX_ASSERTIONS`, `_LIBCPP_HARDENING_MODE_FAST`.
+  Release (confirmed 2026-10-09): `_GLIBCXX_ASSERTIONS`, `_LIBCPP_HARDENING_MODE_FAST`.
 - **HioCxxFeatureChecks.cmake**: `check_cxx_source_compiles` for `__cpp_lib_expected >= 202211L`,
   `__cpp_lib_format`, `__cpp_lib_jthread`, `__cpp_lib_span`, `__cpp_lib_ranges`,
   `std::condition_variable_any` with `stop_token`. Failure → `FATAL_ERROR` naming the missing feature
@@ -384,10 +384,10 @@ their Czech translations.
 | Crash reporting in M0 | none / local dumps / never | none in M0, decide in M7 | open-questions #3 |
 | Plan split | one plan / three plans | one phased plan | — |
 | Localization | EN only / EN + CS | EN + CS, Qt Linguist, English source text, translated at creation, CLI English only, live GUI switch, infra in M0 | ADR-0027 |
-| New deps CPM.cmake, GoogleTest, CLI11 | approve / reject | _pending (approval of this plan)_ | ADR-0010 |
-| Hardened std lib also in **Release** (`_GLIBCXX_ASSERTIONS`, libc++ FAST mode) | yes / Debug only | _pending_ | — |
-| CI translation check: stale `.ts` fails, unfinished `cs` entries only reported (release gate in M7) | accept / change | _pending_ | — |
-| Minor defaults: 4-space indent, snake_case `.h/.cpp` files, CMake ≥ 3.28, log limits (10 MiB/file, 20 files, 100 MiB), `--log-level` default `critical`, hidden `_selftest` | accept / change | _pending_ | — |
+| New deps CPM.cmake, GoogleTest, CLI11 | approve / reject | approve | ADR-0010 |
+| Hardened std lib also in **Release** (`_GLIBCXX_ASSERTIONS`, libc++ FAST mode) | yes / Debug only | yes | — |
+| CI translation check: stale `.ts` fails, unfinished `cs` entries only reported (release gate in M7) | accept / change | accept | — |
+| Minor defaults: 4-space indent, snake_case `.h/.cpp` files, CMake ≥ 3.28, log limits (10 MiB/file, 20 files, 100 MiB), `--log-level` default `critical`, hidden `_selftest` | accept / change | accept | — |
 
 ## Implementation steps
 
@@ -434,7 +434,8 @@ Phase E — CI and docs
   suppressions only; each suppression has a comment).
 - **Static analysis:** `linux-tidy` builds with zero findings; clang-format dry-run clean; qmllint clean.
 - **CI:** all jobs in phase E green on a PR to `v2-dev`.
-- **Manual (Linux, local clang 21.1.8 / CMake 4.2, Qt 6.8.x):**
+- **Manual (Linux, local clang 21.1.8 / CMake 4.2, system Qt 6.10.2 on Ubuntu 26.04 — decided 2026-10-09;
+  CMake requires Qt ≥ 6.8 and CI pins 6.8 LTS, so code must use only Qt 6.8 API and CI catches newer use):**
   - `hio --version` prints version; `hio --json --version | jq .data.version`.
   - `hio _selftest error io.file_not_found; echo $?` → human error block, exit 3.
   - `hio --json _selftest error cancelled; echo $?` → envelope, exit 130.

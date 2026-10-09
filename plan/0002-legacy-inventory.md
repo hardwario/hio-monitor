@@ -42,9 +42,11 @@ supply and cable") → `read_device_family` and check against expected (app = NR
 Progress phases: Erasing / Flashing / Verifying / Resetting / Done.
 
 **Erase:** page-wise over CODE memory (keeps UICR) or `erase_all`. **Reset:** `sys_reset` + `go`/`halt`.
-**Recover (nRF91):** `recover` (~30 s) → program `nrf91_disable_ap_protect.hex`.
+**Recover (nRF91):** `recover` (~30 s) → program `nrf91_disable_ap_protect.hex` (bare `program_file`, no erase/verify).
+In py-hardwario this is used only by `device nrf91 pib write`; `chester` has no recover (v2 adds it, ADR-0039).
 
-**LTE flash:** a `.zip` containing `modem.zip` + `application.hex` → program modem (nRF Util), then app (J-Link).
+**LTE flash:** a `.zip` containing `modem.zip` + `application.hex` → program modem, then app (py-hardwario uses
+nrfjprog's built-in modem DFU; v2: modem via nRF Util, app via J-Link; plain modem zips and `.hex` also accepted, ADR-0040).
 
 **RTT (J-Link)** — as implemented in rttt 1.9.2 `PyLinkRTTConnector` (read for M1; v2 follows it, ADR-0034):
 open (SN) → speed → SWD → connect device name → RTT start → poll buffer counts every 100 ms
@@ -88,3 +90,12 @@ need a token — out of v2.0 scope).
 - User search input used as raw regex.
 - Version compared with `!=`; hard-coded `v0.0.0` patched by sed.
 - ~380 MB of vendor binaries committed to git; no tests; CI only on release.
+- Old app flashing: family hard-coded to NRF52 and never checked, first probe only, indeterminate progress,
+  user had to detach RTT manually, catalog firmware re-downloaded every time without timeout or HTTP status check.
+
+## py-hardwario defects that must not recur (found in M2 planning)
+
+- `chester lte flash` with a zip other than the 2-entry bundle programs nothing and reports success.
+- Group-level `chester app -n SN` overwritten with `None` by `flash`, `erase`, `reset`, `pib`, `uicr`.
+- `chester app flash` without an argument crashes when no build output is found.
+- Firmware cache: unchecked hits, partial downloads become cache hits, no HTTP timeouts.

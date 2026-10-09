@@ -18,4 +18,5 @@ before the plan that depends on it is approved.
 | 11 | In scope later: PIB/UICR write, firmware upload to catalog, LTE modem trace, serial console, other devices | after v2.0 |
 | 12 | ~~Obtain `rttt` sources~~ — **resolved**: rttt 1.9.2 sdist from PyPI read for M1; RTT behaviour in ADR-0034 (re-read `mcp_server.py` for M6) | — |
 | 13 | Linux arm64 and Windows arm64 builds? | M7 |
-| 14 | Minimum nRF Util version (J-Link part **resolved**: 8.00, ADR-0029) | M2 |
+| 14 | ~~Minimum nRF Util version~~ — **decided**: the versions tested in the M2 Phase 0 spike (ADR-0042, Proposed until then); J-Link: 8.00 (ADR-0029) | M2 spike |
+| 15 | Firmware catalog browsing (list/info API needs a HARDWARIO Cloud token): token source and storage (env only / OS keychain), GUI catalog browser (ADR-0037 defers it) | M3/M4 |

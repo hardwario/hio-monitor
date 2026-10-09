@@ -1,7 +1,7 @@
 # 0001 — Architecture
 
 - **Status:** Approved (high level, bootstrap 2026-10-09). Each module gets a detailed feature plan.
-- **Related ADRs:** 0001–0034
+- **Related ADRs:** 0001–0042
 
 ## Layering
 
@@ -14,7 +14,7 @@
   ┌───────────────────────────┴───────────────────────────────┴──────────────┐
   │ libs/mcp      MCP protocol, tool registry, HTTP + stdio transports         │
   │ libs/device   DeviceProfile (CHESTER), Session, flash workflow, PIB/UICR   │
-  │ libs/firmware firmware catalog client, download cache                      │
+  │ libs/firmware Intel HEX, zip (miniz), LTE inputs, catalog download + cache │
   ├────────────────────────────────────────────────────────────────────────────┤
   │ libs/hw/jlink     runtime-loaded JLinkARM: RTT transport + Programmer        │
   │ libs/hw/nrfutil   optional nRF Util subprocess (nRF91 modem firmware only)  │
@@ -54,9 +54,11 @@ plan/
 - `IJLinkApi` / `JLinkLibrary` — runtime-loaded DLL with typed function table from our own declarations
   (ADR-0028), minimum version 8.00 (ADR-0029); **each session loads its own copy** of the library so several
   probes work in one process (ADR-0030); load errors are `hio::Error` with "install J-Link" wizard.
-- `IProgrammer` — `connect`, `erase`, `program(path, progress, stopToken)`, `verify`, `reset`,
-  `recover`, `readUicr`… Implementation: J-Link library (ADR-0015). Modem firmware:
-  `IModemUpdater` implemented by the nRF Util wrapper (ADR-0016).
+- `IProgrammer` — `identify` (FICR part, protection), `program(FirmwareImage, progress, stop_token)`,
+  `verify` (read-back), `eraseCode`, `eraseAll`, `recover`, `readMemory`, `reset(Go|Halt)`. Implementation:
+  J-Link flash download with our own Intel HEX parser (ADR-0015, ADR-0035). Modem firmware:
+  `IModemUpdater` implemented by the nRF Util wrapper (ADR-0016, ADR-0042). Workflows (UICR rules ADR-0036,
+  recover ADR-0039) live in `libs/device` and run as `DeviceSession` operations (features/0003).
 - `IConsoleTransport` — byte/line channels (shell, log) with open/close/reconnect;
   implementations: J-Link RTT, BLE NUS (and serial in the future).
 - `DeviceProfile` — compiled-in C++ data (ADR-0032) describing a device: MCU(s) and J-Link device names, expected family,
