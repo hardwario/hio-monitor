@@ -13,6 +13,7 @@ Code follows plans, never the other way round.
 | [0003-ux-and-wizards.md](0003-ux-and-wizards.md) | UX principles, wizards, error presentation |
 | [0004-mcp.md](0004-mcp.md) | Integrated MCP server design |
 | [0005-build-ci-release.md](0005-build-ci-release.md) | Toolchains, CMake, CI, packaging |
+| [0006-cli.md](0006-cli.md) | Command-line interface (py-hardwario compatible) |
 | [roadmap.md](roadmap.md) | Milestones; each becomes one or more feature plans |
 | [open-questions.md](open-questions.md) | Decisions not yet taken |
 | [decisions/](decisions/) | Architecture Decision Records (ADRs) |

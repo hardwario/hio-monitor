@@ -77,7 +77,9 @@ All design documentation lives in [`plan/`](plan/README.md). Read `plan/README.m
 
 - `libs/*` = backend, UI-independent, buildable and testable headless.
 - `app/gui` = the only place using QtQuick; talks to the backend only through ViewModels.
-- `app/cli` = headless binary (CLI + MCP over stdio) built on the same backend.
+- `app/cli` = headless binary built on the same backend: py-hardwario-compatible commands,
+  `--json` output, MCP over stdio (`plan/0006-cli.md`, ADR-0017). Every backend feature also
+  gets its CLI command; the CLI contains no logic of its own.
 - MCP server is part of the backend (`libs/mcp`) and is exposed both over localhost HTTP in the
   GUI and over stdio in the CLI.
 - New device support = new device profile, not changes scattered across the code.

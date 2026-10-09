@@ -9,7 +9,7 @@ before the plan that depends on it is approved.
 | 2 | Application update mechanism: notify only (GitHub releases) vs. in-app updater per platform? | M7 |
 | 3 | Crash reporting / telemetry: none, opt-in crash dumps, which service? | M0/M7 |
 | 4 | Localization: English only, or also Czech (Qt Linguist)? | M3 |
-| 5 | Final product name, executable names, bundle/app ids (old: "HARDWARIO Monitor", `hmonitor`) | M0 |
+| 5 | Final product name, executable names (incl. CLI: `hardwario` drop-in vs. `hio-monitor-cli`), bundle/app ids (old: "HARDWARIO Monitor", `hmonitor`) | M0 |
 | 6 | Code-signing certificates (macOS Developer ID, Windows) — owner and CI secret handling | M7 |
 | 7 | Flatpak: how to grant USB (J-Link) and BLE access; is Flatpak viable with runtime-loaded vendor libs? | M7 |
 | 8 | Windows installer format: Qt Installer Framework (as before) vs. MSI (WiX) vs. MSIX | M7 |

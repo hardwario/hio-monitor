@@ -16,6 +16,11 @@ Why is this needed? What problem does it solve for the user? What did the old ap
 
 Screens, wizard steps, texts of error messages, keyboard shortcuts. Mockups (images via Git LFS).
 
+## CLI
+
+Commands / options added or changed (py-hardwario compatible names), human and `--json`
+output, exit codes. Write "none" if the feature has no CLI surface.
+
 ## Design
 
 Modules touched, public interfaces (C++ signatures), data flow, threading, error cases

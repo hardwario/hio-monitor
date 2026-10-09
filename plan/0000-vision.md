@@ -35,6 +35,7 @@ developers. v2 brings that reliability to a desktop app that is easy to use for 
 - Device: **CHESTER** (nRF52840 application MCU, nRF91 LTE MCU), through an extensible
   device-profile abstraction.
 - Setup / connect / flash / troubleshooting wizards.
+- CLI compatible with py-hardwario's `hardwario` command (human + `--json` output).
 - MCP server (localhost HTTP in the GUI, stdio in the CLI).
 - Installers for Linux (AppImage, Flatpak, .deb), macOS (DMG), Windows.
 

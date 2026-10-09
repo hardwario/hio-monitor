@@ -1,7 +1,7 @@
 # 0001 — Architecture
 
 - **Status:** Approved (high level, bootstrap 2026-10-09). Each module gets a detailed feature plan.
-- **Related ADRs:** 0001–0016
+- **Related ADRs:** 0001–0017
 
 ## Layering
 
@@ -39,7 +39,7 @@ libs/device/
 libs/firmware/
 libs/mcp/
 app/gui/              main.cpp, viewmodels/, qml/, assets/ (LFS)
-app/cli/
+app/cli/              CLI11 command tree (plan/0006-cli.md)
 tests/integration/    hardware-in-the-loop, opt-in
 packaging/            linux/ (AppImage, flatpak, deb, udev), macos/, windows/
 plan/
