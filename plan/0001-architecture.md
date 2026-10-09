@@ -1,7 +1,7 @@
 # 0001 — Architecture
 
 - **Status:** Approved (high level, bootstrap 2026-10-09). Each module gets a detailed feature plan.
-- **Related ADRs:** 0001–0017
+- **Related ADRs:** 0001–0026
 
 ## Layering
 
@@ -47,8 +47,10 @@ plan/
 
 ## Key abstractions (to be refined in feature plans)
 
-- `hio::Error` — `{ ErrorCode code; std::string userMessage; std::string detail;
-  std::string suggestion; std::optional<WizardId> wizard; }`; `hio::Result<T> = std::expected<T, Error>`.
+- `hio::Error` — `{ ErrorCode code; std::string message; std::string cause; std::string suggestion;
+  std::string detail; std::optional<WizardId> wizard; }`; `hio::Result<T> = std::expected<T, Error>`.
+  One `ErrorCode` enum with stable string ids, each mapped to an `ErrorCategory` that is also the
+  CLI exit code (ADR-0024).
 - `IProbeLibrary` / `JLinkLibrary` — runtime-loaded DLL with typed function table; load errors
   are `hio::Error` with "install J-Link" wizard.
 - `IProgrammer` — `connect`, `erase`, `program(path, progress, stopToken)`, `verify`, `reset`,
@@ -83,9 +85,9 @@ plan/
 
 ## Data and persistence
 
-- Settings: `QSettings` (versioned schema, migrations).
+- Settings: `QSettings` INI format on all OSes (versioned schema, migrations; ADR-0025).
 - Logs, history, downloaded firmware: under `QStandardPaths::AppDataLocation`, size-bounded
-  with rotation; an application diagnostic log (for support) separate from device logs.
+  with rotation; an application diagnostic log (for support, QLoggingCategory + own bounded sink, ADR-0020) separate from device logs.
 - Line storage for the console views: bounded ring buffer in the backend, model exposed to QML.
 
 ## Error and UX contract
