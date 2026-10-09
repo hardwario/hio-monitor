@@ -1,0 +1,164 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "$env{QT_ROOT_DIR}",
+        "CPM_SOURCE_CACHE": "${sourceDir}/.cpm-cache",
+        "HIO_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "linux-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-21",
+        "CMAKE_CXX_COMPILER": "clang++-21"
+      }
+    },
+    {
+      "name": "linux-debug",
+      "displayName": "Linux Debug",
+      "inherits": "linux-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release",
+      "inherits": "linux-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "linux-asan",
+      "displayName": "Linux Debug + ASan/UBSan",
+      "inherits": "linux-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_SANITIZERS": "address;undefined" }
+    },
+    {
+      "name": "linux-tsan",
+      "displayName": "Linux Debug + TSan",
+      "inherits": "linux-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_SANITIZERS": "thread" }
+    },
+    {
+      "name": "linux-coverage",
+      "displayName": "Linux Debug + source-based coverage",
+      "inherits": "linux-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_COVERAGE": "ON" }
+    },
+    {
+      "name": "linux-tidy",
+      "displayName": "Linux Debug + clang-tidy",
+      "inherits": "linux-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "CMAKE_CXX_CLANG_TIDY": "clang-tidy-21" }
+    },
+    {
+      "name": "macos-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0"
+      }
+    },
+    {
+      "name": "macos-debug",
+      "displayName": "macOS Debug",
+      "inherits": "macos-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "macos-asan",
+      "displayName": "macOS Debug + ASan/UBSan",
+      "inherits": "macos-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_SANITIZERS": "address;undefined" }
+    },
+    {
+      "name": "macos-release",
+      "displayName": "macOS Release (universal)",
+      "inherits": "macos-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_OSX_ARCHITECTURES": "arm64;x86_64"
+      }
+    },
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl"
+      }
+    },
+    {
+      "name": "windows-debug",
+      "displayName": "Windows Debug (clang-cl)",
+      "inherits": "windows-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "windows-release",
+      "displayName": "Windows Release (clang-cl)",
+      "inherits": "windows-base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "linux-debug", "configurePreset": "linux-debug" },
+    { "name": "linux-release", "configurePreset": "linux-release" },
+    { "name": "linux-asan", "configurePreset": "linux-asan" },
+    { "name": "linux-tsan", "configurePreset": "linux-tsan" },
+    { "name": "linux-coverage", "configurePreset": "linux-coverage" },
+    { "name": "linux-tidy", "configurePreset": "linux-tidy" },
+    { "name": "macos-debug", "configurePreset": "macos-debug" },
+    { "name": "macos-asan", "configurePreset": "macos-asan" },
+    { "name": "macos-release", "configurePreset": "macos-release" },
+    { "name": "windows-debug", "configurePreset": "windows-debug" },
+    { "name": "windows-release", "configurePreset": "windows-release" }
+  ],
+  "testPresets": [
+    {
+      "name": "test-base",
+      "hidden": true,
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error", "timeout": 300 },
+      "environment": {
+        "QT_QPA_PLATFORM": "offscreen",
+        "QT_IM_MODULE": "none",
+        "QT_IM_MODULES": "none",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1",
+        "ASAN_OPTIONS": "detect_leaks=1:strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1",
+        "TSAN_OPTIONS": "suppressions=${sourceDir}/tools/sanitizers/tsan.supp:halt_on_error=1:second_deadlock_stack=1"
+      }
+    },
+    { "name": "linux-debug", "inherits": "test-base", "configurePreset": "linux-debug" },
+    { "name": "linux-release", "inherits": "test-base", "configurePreset": "linux-release" },
+    { "name": "linux-asan", "inherits": "test-base", "configurePreset": "linux-asan" },
+    { "name": "linux-tsan", "inherits": "test-base", "configurePreset": "linux-tsan" },
+    {
+      "name": "linux-coverage",
+      "inherits": "test-base",
+      "configurePreset": "linux-coverage",
+      "environment": {
+        "LLVM_PROFILE_FILE": "${sourceDir}/build/linux-coverage/profiles/%p-%m.profraw"
+      }
+    },
+    { "name": "linux-tidy", "inherits": "test-base", "configurePreset": "linux-tidy" },
+    { "name": "macos-debug", "inherits": "test-base", "configurePreset": "macos-debug" },
+    { "name": "macos-asan", "inherits": "test-base", "configurePreset": "macos-asan" },
+    { "name": "macos-release", "inherits": "test-base", "configurePreset": "macos-release" },
+    { "name": "windows-debug", "inherits": "test-base", "configurePreset": "windows-debug" },
+    { "name": "windows-release", "inherits": "test-base", "configurePreset": "windows-release" }
+  ]
+}

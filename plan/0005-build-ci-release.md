@@ -22,6 +22,7 @@ Only C++23 features available in all three std libs may be used (tracked in `cma
 | `std::expected` | `__cpp_lib_expected >= 202211L` | allowed |
 | `std::format` | `__cpp_lib_format` | allowed |
 | `std::jthread`, `std::stop_token` | `__cpp_lib_jthread` | allowed (verify Apple libc++) |
+| `std::condition_variable_any::wait` with `std::stop_token` | (compile check) | allowed |
 | `std::span` | `__cpp_lib_span` | allowed |
 | ranges (C++20 core) | `__cpp_lib_ranges` | allowed |
 | `std::print` | `__cpp_lib_print` | not yet — use `std::format` + streams |

@@ -1,0 +1,18 @@
+# ThreadSanitizer suppressions (plan/features/0001-m0-skeleton.md).
+#
+# Only for uninstrumented third-party binaries (system / official Qt builds are not built with
+# -fsanitize=thread, so TSan cannot see their internal synchronization). Every entry needs a
+# comment with the reason. Never suppress our own code (libs/, app/).
+
+
+# QThread lifetime is managed inside uninstrumented libQt6Core: QThread::wait() synchronizes with
+# its own wait condition and the pthread is never joined in a way TSan can see, so every QThread
+# (e.g. Qt Quick's 'QQmlThread' type loader in tst_gui) is reported as a "thread leak". Ownership
+# of our own threads is enforced by RAII (std::jthread / owned QThread with stop + wait).
+thread:QThread::start
+
+# Objects handed to another QThread: QObject::moveToThread() and the posted-event queue are guarded
+# by QMutex/futex inside uninstrumented libQt6Core, so TSan misses the happens-before edge and
+# reports the allocation (main thread) vs. the deletion (worker thread) as a race. Seen with
+# Qt Quick's type loader thread in tst_gui.
+race:QObject::moveToThread

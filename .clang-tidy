@@ -1,0 +1,65 @@
+# HARDWARIO Monitor v2 static analysis (CLAUDE.md, ADR-0023, plan/features/0001-m0-skeleton.md).
+# Reference version: clang-tidy 21 (ADR-0021).
+#
+# Documented exclusions (the only ones allowed without a new decision):
+#   modernize-use-trailing-return-type        style choice, we use leading return types
+#   *-magic-numbers                            too noisy for protocol constants and limits
+#   readability-identifier-length              short names (i, n, it) are fine in small scopes
+#   cppcoreguidelines-avoid-do-while           do/while is used deliberately in loops
+#   bugprone-easily-swappable-parameters       too noisy for Qt-style APIs
+#
+# Qt parent ownership (cppcoreguidelines-owning-memory) is suppressed only at the documented
+# creation site with NOLINT(cppcoreguidelines-owning-memory) and a reason.
+---
+Checks: >
+  -*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  misc-include-cleaner,
+  -modernize-use-trailing-return-type,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-identifier-length,
+  -cppcoreguidelines-avoid-do-while,
+  -bugprone-easily-swappable-parameters
+WarningsAsErrors: '*'
+# Only our own sources: libs/<name>/{include,src,tests} and app/<name>/{src,tests,...}.
+# Generated code in the build tree and third-party code in _deps never match.
+HeaderFilterRegex: '.*/(libs|app)/[^/]+/(include|src|tests)/.*'
+SystemHeaders: false
+FormatStyle: file
+CheckOptions:
+  # ADR-0023: Qt-style naming.
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.UnionCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.TypeAliasCase: CamelCase
+  readability-identifier-naming.TypedefCase: CamelCase
+  readability-identifier-naming.TemplateParameterCase: CamelCase
+  readability-identifier-naming.ConceptCase: CamelCase
+  readability-identifier-naming.FunctionCase: camelBack
+  readability-identifier-naming.MethodCase: camelBack
+  readability-identifier-naming.VariableCase: camelBack
+  readability-identifier-naming.ParameterCase: camelBack
+  readability-identifier-naming.LocalVariableCase: camelBack
+  readability-identifier-naming.PublicMemberCase: camelBack
+  readability-identifier-naming.ProtectedMemberCase: camelBack
+  readability-identifier-naming.PrivateMemberCase: camelBack
+  readability-identifier-naming.PrivateMemberPrefix: m_
+  readability-identifier-naming.ProtectedMemberPrefix: m_
+  readability-identifier-naming.ConstexprVariableCase: camelBack
+  readability-identifier-naming.GlobalConstantCase: camelBack
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+  readability-identifier-naming.MacroDefinitionPrefix: HIO_
+  # GoogleTest assertion macros expand to branches; count only the code written in the function.
+  readability-function-cognitive-complexity.IgnoreMacros: true
+  # POSIX declares sigaction() & co. in <signal.h>; we include <csignal>
+  # (modernize-deprecated-headers), which pulls it in.
+  misc-include-cleaner.IgnoreHeaders: 'signal\.h'
+...

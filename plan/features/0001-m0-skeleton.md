@@ -1,6 +1,6 @@
 # 0001 — M0 Skeleton: build system, libs/core, CLI and GUI skeletons, CI
 
-- **Status:** Approved (Matej Strnad, 2026-10-09)
+- **Status:** In progress (approved by Matej Strnad, 2026-10-09; implementation started 2026-10-09)
 - **Milestone:** M0
 - **Author:** Claude (with Matej Strnad), 2026-10-09
 - **Related ADRs:** 0001, 0002, 0003, 0004, 0007, 0010, 0011, 0012, 0013, 0017, 0018–0026, 0027
@@ -82,10 +82,11 @@ CMakeLists.txt  CMakePresets.json  .clang-format  .clang-tidy  .editorconfig
 cmake/  CPM.cmake HioDeps.cmake HioCompilerFlags.cmake HioHardening.cmake HioSanitizers.cmake
         HioCxxFeatureChecks.cmake HioVersion.cmake HioBackendRules.cmake HioTranslations.cmake version.h.in
 i18n/       hio_en.ts  hio_cs.ts
-libs/core/  CMakeLists.txt  include/hio/core/*.h  src/*.cpp  tests/*.cpp
+libs/core/  CMakeLists.txt  include/hio/core/*.h  src/*.cpp  src/settings_internal.h  tests/*.cpp
+            tests/data/tst_i18n_cs.ts (test-only catalog)
 app/cli/    CMakeLists.txt  src/*.{h,cpp}  tests/*.cpp
-app/gui/    CMakeLists.txt  src/main.cpp  src/language_manager.{h,cpp}  src/viewmodels/app_view_model.{h,cpp}
-            qml/Main.qml  tests/tst_main.qml
+app/gui/    CMakeLists.txt  src/main.cpp  src/gui_log.{h,cpp}  src/language_manager.{h,cpp}
+            src/viewmodels/app_view_model.{h,cpp}  qml/Main.qml  tests/tst_gui.cpp  tests/tst_main.qml
 tools/check-lfs.sh  tools/sanitizers/tsan.supp
 tests/cmake/            negative configure test for the backend Qt rule
 .github/workflows/ci.yml
@@ -103,8 +104,10 @@ File names `snake_case.h` / `.cpp`; 4-space indent; namespaces `hio`, `hio::log`
   (`-fprofile-instr-generate -fcoverage-mapping`), `linux-tidy` (`CMAKE_CXX_CLANG_TIDY`),
   `macos-debug`, `macos-asan`, `macos-release` (`CMAKE_OSX_ARCHITECTURES=arm64;x86_64`),
   `windows-debug`, `windows-release` (clang-cl). All `macos-*` presets set `CMAKE_OSX_DEPLOYMENT_TARGET=13.0`.
-  Matching build and test presets; test presets set `QT_QPA_PLATFORM=offscreen` and sanitizer options
-  (`TSAN_OPTIONS=suppressions=…`). Qt is found via `CMAKE_PREFIX_PATH` from `$env{QT_ROOT_DIR}`;
+  Matching build and test presets; test presets set `QT_QPA_PLATFORM=offscreen`, `QT_IM_MODULE(S)=none` (no
+  desktop input-method plugin such as IBus/D-Bus in tests) and sanitizer options
+  (`TSAN_OPTIONS=suppressions=…`). `tools/sanitizers/tsan.supp` holds two commented Qt entries
+  (`thread:QThread::start`, `race:QObject::moveToThread`) for Qt Quick's uninstrumented loader thread. Qt is found via `CMAKE_PREFIX_PATH` from `$env{QT_ROOT_DIR}`;
   developers may override it in their git-ignored `CMakeUserPresets.json`.
 - **HioCompilerFlags.cmake** → interface target `hio::warnings`: clang `-Wall -Wextra -Wpedantic -Werror
   -Wshadow -Wold-style-cast -Wnon-virtual-dtor -Wimplicit-fallthrough -Wcast-qual -Wformat=2`;
@@ -141,19 +144,22 @@ File names `snake_case.h` / `.cpp`; 4-space indent; namespaces `hio`, `hio::log`
 
   | Dependency | Version | SHA-256 |
   |---|---|---|
-  | CPM.cmake | _tbd_ | _tbd_ |
-  | GoogleTest | _tbd_ | _tbd_ |
-  | CLI11 | _tbd_ | _tbd_ |
+  | CPM.cmake | 0.43.2 | `49a3bef91ceb65bb66d57255e12d1ffd22abc2f6408fa9fe4534c544a2f232aa` (upstream `CPM.cmake` release asset; vendored unmodified below a 5-line header) |
+  | GoogleTest | 1.18.0 | `6e3191c1455468b3fc35a417fb565c1c5071aee1b7e7f85e30cf48a98d37d8b5` (`googletest-1.18.0.tar.gz`) |
+  | CLI11 | 2.7.2 | `0cb0ef44c4c7129ea972505ee81e6d09c71b2e7fe59ca3a13c47d8a994d682b2` (`CLI11-2.7.2-Source.tar.gz`, header-only mode) |
 
 - Qt: 6.8 LTS, latest 6.8.x patch available from the official binaries; `find_package(Qt6 6.8 REQUIRED
   COMPONENTS Core LinguistTools)` for libs/cli, `+ Gui Qml Quick QuickControls2 QuickTest` for the GUI.
   `qt_standard_project_setup(REQUIRES 6.8 I18N_SOURCE_LANGUAGE en I18N_TRANSLATED_LANGUAGES cs)`.
 - **HioTranslations.cmake** (ADR-0027): one project catalog per language in `i18n/hio_<lang>.ts`
   (`hio_en.ts` = plural forms only, `hio_cs.ts` = full). `qt_add_lupdate(SOURCE_TARGETS <every backend lib>
-  hio-monitor TS_FILES … LUPDATE_OPTIONS -no-obsolete)` gives an `update_translations` target;
-  `qt_add_lrelease` + `qt_add_resources(hio-monitor … PREFIX /i18n)` embed the `.qm` files into the GUI only.
-  The CLI embeds no catalog. A `check_translations` script target runs lupdate into a temp copy and fails if
-  the committed `.ts` files differ (stale), and prints the number of unfinished `cs` entries.
+  hio_gui TS_FILES … OPTIONS -no-obsolete)` gives an `update_translations` target (Q2: the QML module and
+  view models live in the `hio_gui` library; `-no-obsolete` via `OPTIONS`, accepted 2026-10-09);
+  `qt_add_lrelease` + `qt_add_resources(hio_gui … PREFIX /i18n)` embed the `.qm` files into the GUI only
+  (and into `hio_core_tests`, which checks the Czech error texts). The CLI embeds no catalog. A
+  `check_translations` script target runs lupdate into a temp copy and fails if the committed `.ts` files
+  differ (stale; `<location>` lines are ignored, accepted 2026-10-09), and prints the number of unfinished
+  `cs` entries.
 - **Repo config**:
   - `.clang-format`: `BasedOnStyle: LLVM`, `IndentWidth: 4`, `ColumnLimit: 100`, `PointerAlignment: Left`,
     `AccessModifierOffset: -4`, `IncludeBlocks: Regroup` (own → Qt → std), `InsertBraces: true`.
@@ -163,7 +169,11 @@ File names `snake_case.h` / `.cpp`; 4-space indent; namespaces `hio`, `hio::log`
     `bugprone-easily-swappable-parameters`); `WarningsAsErrors: '*'`; `HeaderFilterRegex` limited to
     `libs/` and `app/`; `readability-identifier-naming` configured per ADR-0023. Qt-parent ownership
     (`cppcoreguidelines-owning-memory`) is suppressed only at documented creation sites with `NOLINT(…)`
-    plus a reason. Autogen/moc/qmltc sources get `SKIP_LINTING ON`.
+    plus a reason. Autogen/moc/qmltc sources get `SKIP_LINTING ON` (rcc object libraries via
+    `hio_skip_linting(<OUTPUT_TARGETS>)`). Check options (no check disabled):
+    `readability-function-cognitive-complexity.IgnoreMacros: true` (GoogleTest macros) and
+    `misc-include-cleaner.IgnoreHeaders: 'signal\.h'` (POSIX `sigaction` via `<csignal>`).
+    `CMAKE_CXX_SCAN_FOR_MODULES OFF` (no C++ modules are used).
   - `.editorconfig` mirroring indentation and line endings.
 
 ### Phase B — `libs/core` (target `hio_core`, alias `hio::core`; links only `Qt6::Core`)
@@ -203,21 +213,37 @@ struct Error {
     std::optional<WizardId> wizard;
 };
 }
+// Error with the default texts of the code (decided 2026-10-09, Q1), translated at creation.
+[[nodiscard]] Error makeError(ErrorCode, std::string detail = {});
 // result.h
 template <class T> using Result = std::expected<T, Error>;
 using Status = Result<void>;
 [[nodiscard]] std::unexpected<Error> fail(ErrorCode, std::string message, std::string cause = {},
                                           std::string suggestion = {}, std::string detail = {});
+[[nodiscard]] std::unexpected<Error> fail(ErrorCode, std::string detail = {});   // default texts
 ```
+
+**Default error texts (Q1, decided 2026-10-09):** every code has a default message / cause / suggestion in a
+`QT_TRANSLATE_NOOP3("hio::core", …)` table in `error.cpp` next to `errorTable` (no placeholders; values such as
+paths go into `detail`); `static_assert`s check that every code has a row with non-empty texts.
+`makeError(code, detail)` and `fail(code, detail)` use them; the full `fail(code, message, cause, suggestion,
+detail)` stays for call sites with own texts. `internal.unexpected` suggests "Please report it with the log
+file (see Details)." and the CLI puts the log path into `detail`. `usage.invalid_argument` has a generic
+default; the CLI overrides it with CLI11's message and "Run `hio --help`.".
+Note: a two-argument call `fail(code, x)` matches both `fail` overloads and does not compile; use `fail(code)`,
+`std::unexpected(makeError(code, detail))` or the full form.
+All enums of libs/core and the CLI have an explicit `std::uint8_t` base type (clang-tidy `performance-enum-size`).
 
 `static_assert`s over `errorTable`: ids unique and non-empty, the table index equals the enum value, and every
 enumerator is present. The M1+ plans add codes (`probe.not_found`, …) to this table; `_selftest error`
 uses whatever is in the table.
 
 - `json.h`: `[[nodiscard]] QJsonObject toJson(const Error&)` (fields per ADR-0026, empty strings kept,
-  `wizard` null or kebab-case id); `QJsonObject okEnvelope(QJsonValue data)`,
+  `wizard` null or kebab-case id); `QJsonObject okEnvelope(const QJsonValue& data)`,
   `QJsonObject errorEnvelope(const Error&)`; `std::string toCompactUtf8(const QJsonObject&)`;
   `QString toQString(std::string_view)` / `std::string toStdString(const QString&)` UTF-8 helpers.
+  `QJsonObject` serializes keys in alphabetical order, so `--json` keys come out sorted (documented in
+  `json.h`; consumers must not rely on key order) — accepted 2026-10-09.
 - `i18n.h` (ADR-0027):
   ```cpp
   namespace hio::i18n {
@@ -244,15 +270,18 @@ uses whatever is in the table.
   struct Options { Level stderrLevel = Level::Critical; std::optional<std::filesystem::path> logDir; };
   class Logging {                                  // RAII: installs handler, restores previous in dtor
   public:
-      [[nodiscard]] static Result<std::unique_ptr<Logging>> init(AppKind, Options);
+      [[nodiscard]] static Result<std::unique_ptr<Logging>> init(AppKind, const Options&);
       ~Logging();                                  // flushes, uninstalls
       [[nodiscard]] std::filesystem::path currentFile() const;
   };
   }
   ```
   Default log dir: `QStandardPaths::AppLocalDataLocation/logs`. **Bounds:** one file per process run
-  `<gui|cli>-YYYYMMDD-HHMMSS-<pid>.log`; at 10 MiB continue in `….part2.log`, …; at startup prune to the
-  newest 20 files and ≤ 100 MiB total (deletion failures ignored, e.g. a file open by a running instance);
+  `<gui|cli>-YYYYMMDD-HHMMSS-<pid>.log`; at 10 MiB continue in `….part2.log`, …; at startup and on every
+  10 MiB rotation (accepted 2026-10-09) prune **the files of the own kind only** (`gui-*` or `cli-*`, so CLI
+  runs never delete a running GUI's log — on POSIX an open file can be deleted): GUI newest 10 files / ≤ 50 MiB,
+  CLI newest 20 files / ≤ 50 MiB (`RetentionLimits`, `retentionFor(kind)`; review fix R1, 2026-10-09); pruning is
+  by age — once a file is deleted, all older ones are too; deletion failures ignored;
   a single message is truncated at 64 KiB. Format: `2026-10-09T12:34:56.789Z [inf] hio.core (0x7f..) text`.
   Thread-safe (one mutex in the sink), file flushed on warning and above. Fatal paths (`qFatal`,
   `std::set_terminate` handler) write a final line and flush. If the log dir is not writable, init still
@@ -263,7 +292,7 @@ uses whatever is in the table.
   class Settings {
   public:
       [[nodiscard]] static Result<Settings> openDefault();              // INI, user scope, HARDWARIO/Monitor
-      [[nodiscard]] static Result<Settings> openFile(std::filesystem::path);  // tests
+      [[nodiscard]] static Result<Settings> openFile(const std::filesystem::path&);  // tests
       template <class T> [[nodiscard]] T get(const SettingKey<T>&) const;      // default on missing/invalid type
       template <class T> [[nodiscard]] Status set(const SettingKey<T>&, const T&);  // error if read-only
       [[nodiscard]] Status sync();
@@ -274,11 +303,14 @@ uses whatever is in the table.
   ```
   Supported `T` in M0: `bool`, `int`, `std::string`, `std::filesystem::path`. On open: missing
   `meta/schemaVersion` → write 1; lower → run the ordered migrations (M0: none, but the mechanism is tested
-  with a test-only migration list); higher → read-only plus a `settings.newer_schema` warning in the log.
+  with a test-only migration list injected through the internal header `libs/core/src/settings_internal.h`,
+  accepted 2026-10-09; the public `settings.h` has no test hooks); higher → read-only plus a
+  `settings.newer_schema` warning in the log.
   Owned by one thread (documented); the GUI and CLI processes may open the same file (QSettings file locking).
 - `ring_buffer.h`: `template <class T> class RingBuffer` — `explicit RingBuffer(std::size_t capacity)`
-  (capacity ≥ 1, contract-checked), `push(T)` returns `bool overwrote`, `size()`, `capacity()`,
-  `operator[]` (0 = oldest, bounds-checked in hardened builds), `clear()`, `droppedCount()`. Backed by
+  (capacity ≥ 1, contract-checked), `push(T)` returns `bool overwrote`, `size()`, `empty()`, `capacity()`,
+  `operator[]` (0 = oldest; an out-of-range index aborts in every build type, accepted 2026-10-09), `clear()`,
+  `droppedCount()`. Backed by
   `std::vector<T>` allocated once. Not thread-safe; the owner is documented by the user of the type.
 - `bounded_queue.h`: `template <class T> class BoundedQueue` — `BoundedQueue(std::size_t capacity,
   OverflowPolicy)`, `enum class OverflowPolicy { Block, DropOldest, Reject }`;
@@ -317,13 +349,20 @@ shared mutable state (owned by the `Logging` instance, guarded by its mutex).
   `Settings::openDefault()` (an error is logged, not fatal) → `LanguageManager` applies `ui/language` →
   `QQmlApplicationEngine` loads module
   `HardwarioMonitor`, `Main`. `QObject::connect(objectCreationFailed → exit(1))`.
-- `qt_add_qml_module(hio-monitor URI HardwarioMonitor VERSION 1.0 QML_FILES qml/Main.qml SOURCES
-  src/viewmodels/app_view_model.{h,cpp})`.
+- **Layout (Q2, decided 2026-10-09):** `qt_add_library(hio_gui STATIC)` + `qt_add_qml_module(hio_gui URI
+  HardwarioMonitor VERSION 1.0 QML_FILES qml/Main.qml SOURCES <AppViewModel, LanguageManager, gui_log>)`.
+  `hio-monitor` = `src/main.cpp` linking `hio_gui` + `hio_guiplugin` with `Q_IMPORT_QML_PLUGIN`. `tst_gui` uses
+  `QUICK_TEST_MAIN_WITH_SETUP` and links the same library. `hio_gui` is not a backend library (no ADR-0004
+  check). Qt is shared (ADR-0002), so both executables set `QT_QML_MODULE_NO_IMPORT_SCAN` (Qt's own QML
+  plugins load at runtime); the module's build output directory ends in `qml/HardwarioMonitor` for qmllint.
 - `AppViewModel` (`QML_ELEMENT QML_SINGLETON`): `Q_PROPERTY(QString version CONSTANT)`,
   `Q_PROPERTY(QString buildInfo CONSTANT)` — reads `hio::buildInfo()`; `Q_PROPERTY(QString language …
   NOTIFY languageChanged)`, `Q_PROPERTY(QVariantList availableLanguages CONSTANT)` (`system` + the table),
   `Q_INVOKABLE void setLanguage(QString code)` → `LanguageManager`. No logic in QML (ADR-0003).
-- `LanguageManager` (app/gui; `QObject` child of the application, ownership documented at the creation site):
+- `LanguageManager` (app/gui; accepted 2026-10-09: a stack object in `main()` with the application as
+  `QObject` parent, ownership documented at the creation site; `AppViewModel` is created by the QML engine as a
+  `QML_SINGLETON` and finds the `LanguageManager` as a direct child of the application;
+  `LanguageManager::setEngine()` gives it the engine for `retranslate()`):
   owns the `QTranslator`s for `hio_<lang>.qm` and Qt's `qtbase_<lang>` / `qtdeclarative_<lang>` (loaded from
   `QLibraryInfo::TranslationsPath` when present; missing Qt catalogs are logged, not fatal); `system` resolves
   `QLocale::system().uiLanguages()` against `supportedLanguages`, falling back to `en`. `apply(code)` removes the
@@ -388,43 +427,69 @@ their Czech translations.
 | Hardened std lib also in **Release** (`_GLIBCXX_ASSERTIONS`, libc++ FAST mode) | yes / Debug only | yes | — |
 | CI translation check: stale `.ts` fails, unfinished `cs` entries only reported (release gate in M7) | accept / change | accept | — |
 | Minor defaults: 4-space indent, snake_case `.h/.cpp` files, CMake ≥ 3.28, log limits (10 MiB/file, 20 files, 100 MiB), `--log-level` default `critical`, hidden `_selftest` | accept / change | accept | — |
+| Local Linux toolchain (2026-10-09) | system Qt / Qt installer | Ubuntu 26.04, clang 21.1.8, CMake 4.2.3, Ninja, **system Qt 6.10.2** (`/usr`), `clang-tidy-21`, `llvm-cov-21`; CMake requires Qt ≥ 6.8, CI pins 6.8 LTS, only Qt 6.8 API is used; local builds work without `QT_ROOT_DIR` | — |
+| Q1 error default texts (2026-10-09) | per call site / default table | `makeError(code, detail = {})` + `fail(code, detail = {})` overload; `QT_TRANSLATE_NOOP3("hio::core", …)` table in `error.cpp` without placeholders, checked by `static_assert`s; `internal.unexpected` → "Please report it with the log file (see Details)." + log path in `detail`; generic `usage.invalid_argument` default overridden by the CLI; full `fail(…)` stays | — |
+| Q2 GUI layout (2026-10-09) | QML module on the executable / static `hio_gui` library | `hio_gui` static library + QML module `HardwarioMonitor` (Main.qml, AppViewModel, LanguageManager); `hio-monitor` = `main.cpp` + `hio_guiplugin`; `tst_gui` links the same library; lupdate `SOURCE_TARGETS` = backend libs + `hio_gui` | — |
+| Log retention (code review, 2026-10-09) | shared quota / per-kind quotas / skip recent files | per-kind quotas: GUI 10 files / 50 MiB, CLI 20 files / 50 MiB (numbers chosen by the reviewer, may be changed) | — |
+| `hio --json --help` (code review, 2026-10-09) | plain help / envelope | envelope `{"schema":1,"ok":true,"data":{"help":"…"}}` | — |
+| Implementation choices (2026-10-09) | accept / change | accept: test-only settings migration hook in internal `settings_internal.h`; `LanguageManager` stack object in `main()` with the app as parent, `AppViewModel` QML singleton finds it, `setEngine()` for `retranslate()`; `check_translations` ignores `<location>` lines; log pruning also on each rotation; `--json` keys in alphabetical order; `RingBuffer::empty()` and abort on out-of-range index in every build; `okEnvelope(const QJsonValue&)`; `-no-obsolete` via `OPTIONS` | — |
 
 ## Implementation steps
 
 Phase A — build system
-- [ ] A1 `.clang-format`, `.clang-tidy`, `.editorconfig`; `.gitignore` check (build/, `.cpm-cache/`)
-- [ ] A2 Top-level `CMakeLists.txt`, compiler guard, `cmake/HioCompilerFlags.cmake`, `HioHardening.cmake`
-- [ ] A3 `HioCxxFeatureChecks.cmake`; feature table in `plan/0005-build-ci-release.md`
-- [ ] A4 `HioVersion.cmake` + `version.h.in`
-- [ ] A5 `CPM.cmake` + `HioDeps.cmake` (record versions + hashes in this plan)
-- [ ] A6 `HioSanitizers.cmake`, `tools/sanitizers/tsan.supp`
-- [ ] A7 `HioBackendRules.cmake` + negative configure test `tests/cmake/backend_links_gui`
-- [ ] A8 `CMakePresets.json` (configure/build/test presets for all three OSes)
-- [ ] A9 `HioTranslations.cmake`, `i18n/hio_en.ts`, `i18n/hio_cs.ts`, `update_translations` / `check_translations`
+- [x] A1 `.clang-format`, `.clang-tidy`, `.editorconfig`; `.gitignore` check (build/, `.cpm-cache/`)
+- [x] A2 Top-level `CMakeLists.txt`, compiler guard, `cmake/HioCompilerFlags.cmake`, `HioHardening.cmake`
+- [x] A3 `HioCxxFeatureChecks.cmake`; feature table in `plan/0005-build-ci-release.md`
+- [x] A4 `HioVersion.cmake` + `version.h.in`
+- [x] A5 `CPM.cmake` + `HioDeps.cmake` (record versions + hashes in this plan)
+- [x] A6 `HioSanitizers.cmake`, `tools/sanitizers/tsan.supp`
+- [x] A7 `HioBackendRules.cmake` + negative configure test `tests/cmake/backend_links_gui`
+- [x] A8 `CMakePresets.json` (configure/build/test presets for all three OSes)
+- [x] A9 `HioTranslations.cmake`, `i18n/hio_en.ts`, `i18n/hio_cs.ts`, `update_translations` / `check_translations`
 
 Phase B — libs/core
-- [ ] B1 `error.h/.cpp`, `result.h` + tests
-- [ ] B2 `json.h/.cpp` + golden tests
-- [ ] B3 `app_identity`, `version` + tests
-- [ ] B4 `ring_buffer.h` + tests
-- [ ] B5 `bounded_queue.h` + tests (incl. TSan stress, stop_token, close)
-- [ ] B6 `log.h/.cpp` + tests (rotation, retention, truncation, concurrency, unwritable dir)
-- [ ] B7 `settings.h/.cpp` + tests (defaults, types, migrations, newer schema read-only)
-- [ ] B8 `i18n.h/.cpp` + tests (`tr` with a test `.qm`, table sanity); M0 error texts translatable + Czech translations
+- [x] B1 `error.h/.cpp`, `result.h` + tests
+- [x] B2 `json.h/.cpp` + golden tests
+- [x] B3 `app_identity`, `version` + tests
+- [x] B4 `ring_buffer.h` + tests
+- [x] B5 `bounded_queue.h` + tests (incl. TSan stress, stop_token, close)
+- [x] B6 `log.h/.cpp` + tests (rotation, retention, truncation, concurrency, unwritable dir)
+- [x] B7 `settings.h/.cpp` + tests (defaults, types, migrations, newer schema read-only)
+- [x] B8 `i18n.h/.cpp` + tests (`tr` with a test `.qm`, table sanity); M0 error texts translatable + Czech translations
 
 Phase C — CLI
-- [ ] C1 `main.cpp`, `cli_app`, `output`, `exit_codes`
-- [ ] C2 `signals` (SignalGuard) + `_selftest`
-- [ ] C3 unit tests + end-to-end QProcess tests
+- [x] C1 `main.cpp`, `cli_app`, `output`, `exit_codes`
+- [x] C2 `signals` (SignalGuard) + `_selftest`
+- [x] C3 unit tests + end-to-end QProcess tests
 
 Phase D — GUI
-- [ ] D1 `main.cpp`, `AppViewModel`, `LanguageManager`, `Main.qml` (language selector), qml module
-- [ ] D2 Qt Quick Test `tst_main.qml` (incl. switching to `cs` changes the window text), `all_qmllint` clean
+- [x] D1 `main.cpp`, `AppViewModel`, `LanguageManager`, `Main.qml` (language selector), qml module
+- [x] D2 Qt Quick Test `tst_main.qml` (incl. switching to `cs` changes the window text), `all_qmllint` clean
 
 Phase E — CI and docs
-- [ ] E1 `tools/check-lfs.sh`
-- [ ] E2 `.github/workflows/ci.yml` (all jobs green)
-- [ ] E3 Fill in the CLAUDE.md "Commands" section; update `plan/roadmap.md` M0 → Done
+- [x] E1 `tools/check-lfs.sh`
+- [ ] E2 `.github/workflows/ci.yml` (all jobs green) — workflow written, actions pinned by SHA; not yet run on GitHub
+- [ ] E3 Fill in the CLAUDE.md "Commands" section; update `plan/roadmap.md` M0 → Done — Commands filled in and
+  roadmap set to *In progress* (2026-10-09); M0 → Done after CI is green and the macOS/Windows manual checks pass
+
+### Review fixes (code review 2026-10-09)
+
+- [x] R1 Log retention per app kind (`gui-*` / `cli-*` pruned separately, limits above); tests: CLI pruning
+  never touches GUI logs and vice versa, GUI limits.
+- [x] R2 Qt message handler and `std::terminate` handler are `noexcept` with a catch-all (C-callback rule).
+- [x] R3 `hio::toUtf8(const std::filesystem::path&)` (`json.h`), no `path::string()` in production code
+  (throws on Windows for characters outside the ANSI code page); test with a non-ASCII log directory.
+- [x] R4 Settings migrations: exactly one migration per schema step (else `internal.unexpected`); a failing
+  migration restores the snapshot taken before migrating, so the file keeps its content and schema version;
+  tests for both.
+- [x] R5 errorTable completeness: exhaustive `consteval switch` over `ErrorCode` (`-Wswitch` + `-Werror`)
+  plus a check over all values of the underlying type (replaces the check that hard-coded the last enumerator).
+- [x] R6 Pruning by age (everything older than the first deleted file is deleted); test.
+- [x] R7 CLI: usage errors have no generic cause; one `--json` pre-scan (`jsonRequested`); `--json --help`
+  prints an envelope (test); `StderrColor` (RAII) restores the Windows console mode it changed.
+- [x] R8 CI jobs have `timeout-minutes`.
+- [x] R9 `tst_gui` sets `QT_IM_MODULE=none` and `QT_IM_MODULES=none` itself (TSan reports IBus/D-Bus threads
+  of uninstrumented Qt when the test runs without the preset environment).
 
 ## Tests and verification
 
@@ -457,4 +522,9 @@ Phase E — CI and docs
 - **clang-tidy on Qt-generated code** → `SKIP_LINTING` / header filter; if noisy, document exclusions.
 - **clang-cl + Qt debug binaries** (`win64_msvc2022_64` debug libs and iterator debug level must match) →
   verify in the first CI run.
+- Found in the code review (2026-10-09), deferred: the version is recomputed only when `HEAD` moves (a new tag
+  or local edits after configure leave a stale version / `.dirty` flag — reconfigure); GUI startup errors go to
+  `std::cerr`, invisible for the Windows GUI executable (M3/M7); `Logging` is destroyed before
+  `QGuiApplication`, so Qt's shutdown messages miss the log file; `tst_main.qml` does not drive the language
+  ComboBox's `onActivated` path (M3); the apt.llvm.org signing key in CI is not fingerprint-pinned.
 - The packaging baseline for older glibc (Ubuntu 22.04) is deliberately deferred to M7 (ADR-0021).

@@ -93,4 +93,22 @@ All design documentation lives in [`plan/`](plan/README.md). Read `plan/README.m
 
 ## Commands
 
-_To be filled once the M0 skeleton exists (configure / build / test via CMake presets)._
+Presets live in `CMakePresets.json` (`linux-*`, `macos-*`, `windows-*`); build trees go to `build/<preset>`,
+CPM sources to `.cpm-cache/` (both git-ignored). Qt is found via `$QT_ROOT_DIR` (CI, Qt installer) or the
+system Qt; a personal `CMakeUserPresets.json` may override it. Linux needs clang 21 (`clang++-21`).
+
+```sh
+cmake --preset linux-debug                      # configure (also: linux-release, -asan, -tsan, -coverage, -tidy)
+cmake --build --preset linux-debug              # build everything
+ctest --preset linux-debug --output-on-failure  # unit, CLI end-to-end, Qt Quick and CMake tests
+cmake --build --preset linux-tidy               # clang-tidy build: must have zero findings
+cmake --build --preset linux-debug --target all_qmllint           # QML lint
+cmake --build --preset linux-debug --target update_translations   # after changing user-visible strings
+cmake --build --preset linux-debug --target check_translations    # .ts freshness (CI), unfinished cs count
+git ls-files -z -- '*.h' '*.cpp' | xargs -0 clang-format-21 --dry-run --Werror   # formatting
+tools/check-lfs.sh [--untracked]                # Git LFS rule (binary or > 100 KB files)
+build/linux-debug/app/cli/hio --help            # CLI; GUI: build/linux-debug/app/gui/hio-monitor
+```
+
+Translations: run `update_translations`, translate the new entries of `i18n/hio_cs.ts` (Qt Linguist), commit
+both `.ts` files. CI (`.github/workflows/ci.yml`) runs all of the above on Linux plus macOS and Windows builds.
