@@ -3,13 +3,12 @@
 - **Status:** Draft
 - **Milestone:** M2
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042
+- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062
 - **Depends on:** 0001 (M0 skeleton), 0002 (M1 J-Link & RTT: library loading, `JLinkProbe`, `DeviceSession`, fake library)
 
-> **Amended by features/0004 (M3 planning):** concrete `OperationKind` / `OperationProgress` / `OperationResult`
-> fields, the error code `internal.cancelled`, and `flash()` on sessions opened with `attachRtt = false`
-> (see 0004 § Design → "Backend amendments"), and **ADR-0057**: operations carry their target MCU (switch probe target,
-> run, switch back, re-attach RTT). Update this plan before implementing.
+> **Amended by ADR-0057 and ADR-0062 (M3 planning, applied in this text):** every operation carries its
+> target MCU. The `Operation*` types are concrete, an LTE bundle is one operation, and reset is an operation.
+> Cancel reports the M0 code `cancelled`. Operations also work on sessions opened with `attachRtt = false`.
 
 ## Context
 
@@ -138,7 +137,9 @@ Confirmation (ADR-0038): on a TTY stdin an interactive `[y/N]` prompt naming wha
 {"schema":1,"ok":true,"data":{"type":"result","target":"app","part":"nRF52840","image":{"source":"catalog","id":"0123…","bytes":421888,"sha256":"…"},"halted":false,"durationMs":5120}}
 ```
 
-`phase` = `connecting`|`downloading`|`erasing`|`programming`|`verifying`|`modem`|`recovering`|`resetting`.
+`phase` = `connecting`|`downloading`|`switchingTarget`|`erasing`|`programming`|`verifying`|`modem`|`recovering`|`resetting`|`restoring`
+(`switchingTarget` / `restoring` occur only in the GUI's cross-target case, ADR-0057; the CLI opens its session on
+the operation's target).
 `step`/`steps` count the images in a bundle. A failure ends with the error envelope and its exit code.
 `reset` / `pib read` / `uicr read` print one result envelope. Exit codes per ADR-0024 (no new categories).
 
@@ -269,7 +270,16 @@ New libraries are created with `hio_add_backend_library` (static, ADR-0022; no Q
   4. Log every phase to the `hio.flash` category and to the session's console file (`@` lines).
 - **`EraseWorkflow`**, **`RecoverWorkflow`** (recover → on nRF91 program + verify the embedded
   `nrf91_disable_ap_protect.hex` → reset Go), **`ModemWorkflow`** (session `suspend()` → `updateModem` →
-  `resume()`; `resume()` also runs on failure and cancel).
+  `resume()`; `resume()` also runs on failure and cancel), **`LteBundleWorkflow`** (ADR-0062: step 1/2
+  `ModemWorkflow`, step 2/2 `FlashWorkflow` with the bundle's `application.hex`; a failed or cancelled step 1
+  skips step 2).
+- **`TargetSwitch`** (ADR-0057, worker-internal RAII guard): when the operation's target differs from the
+  session's current probe target, it pauses RTT (ADR-0034 "stop without reporting a disconnect"), connects the
+  probe to the operation target's J-Link device (phase `SwitchingTarget`; for `Modem` / `LteBundle` the probe is
+  released via `suspend()` instead), and in its destructor reconnects to the console target and re-attaches RTT
+  (phase `Restoring`). This also happens on failure and on cancel. A failed restore → the session reports
+  `Disconnected` with the error, and normal auto-reconnect rules apply. Sessions opened with `attachRtt = false`
+  skip the RTT pause and re-attach.
 - **`Pib`** — `[[nodiscard]] Result<Pib> decodePib(std::span<const std::byte, 128>)`: big-endian, signature
   `0xBABECAFE`, version 1|2, size, CRC-32 (reflected `0xEDB88320`, init/xorout `0xFFFFFFFF`) over `[0, size-4)`
   stored big-endian at `size-4`; fields per `plan/0002-legacy-inventory.md`; ASCII, trailing NULs stripped.
@@ -277,24 +287,53 @@ New libraries are created with `hio_add_backend_library` (static, ADR-0022; no Q
 - **Embedded image**: `libs/device/resources/nrf91_disable_ap_protect.hex` copied verbatim from py-hardwario
   (MIT, © HARDWARIO a.s.; origin commit `9ada1c6`), compiled in via `qt_add_resources`; a unit test checks its
   SHA-256 and that it parses to one segment in `0x0–0xBA4` (ADR-0039).
-- **`DeviceSession` additions** (façade API, ADR-0031; each is one command on the worker, results via a one-shot
-  completion event; RTT is paused with ADR-0034 "stop without reporting a disconnect" and re-attached after,
-  unless the result leaves the CPU halted):
+- **`DeviceSession` additions** (façade API, ADR-0031, ADR-0057, ADR-0062; each is one command on the worker,
+  results via a one-shot completion event; RTT is paused with ADR-0034 "stop without reporting a disconnect" and
+  re-attached after, unless the result leaves the CPU halted). Every operation names its **target**, which must be
+  a target of the session's profile (else `usage.invalid_argument`):
   ```cpp
+  enum class OperationKind { Flash, EraseCode, EraseAll, Recover, Modem, LteBundle, Reset, ReadMemory };
+  enum class ProgramPhase { Connecting, SwitchingTarget, Erasing, Programming, Verifying, Modem, Recovering,
+                            Resetting, Restoring };
+  struct OperationProgress {
+      OperationKind kind;
+      std::span<const ProgramPhase> plannedPhases;   // static per kind + target (+ cross-target), for steppers
+      ProgramPhase phase;
+      int step = 1, steps = 1;                       // LteBundle: 1/2 modem, 2/2 application
+      std::uint64_t done = 0, total = 0;             // total 0 = indeterminate
+      std::chrono::milliseconds elapsed{};
+  };
+  struct OperationResult {
+      OperationKind kind;
+      Status status;                                 // error incl. code/wizard; cancel → M0 code `cancelled`
+      std::chrono::milliseconds duration{};
+      std::optional<ChipInfo> chip;                  // identified part (shown by GUI/CLI)
+      std::vector<std::byte> data;                   // ReadMemory only (≤ 64 KiB)
+  };
   struct FlashOptions { bool halt = false; bool allowUicr = false; };
-  [[nodiscard]] Result<OperationId> flash(std::shared_ptr<const firmware::FirmwareImage>, FlashOptions);
-  [[nodiscard]] Result<OperationId> erase(EraseScope);
-  [[nodiscard]] Result<OperationId> recover();
-  [[nodiscard]] Result<OperationId> updateModem(std::filesystem::path modemZip);   // suspend → nRF Util → resume
-  [[nodiscard]] Result<OperationId> readMemory(std::uint32_t address, std::size_t size);  // ≤ 64 KiB
+
+  [[nodiscard]] Result<OperationId> flash(std::string_view targetId, std::shared_ptr<const firmware::FirmwareImage>, FlashOptions);
+  [[nodiscard]] Result<OperationId> flashLteBundle(std::string_view targetId, std::shared_ptr<const firmware::LteBundle>, FlashOptions);
+  [[nodiscard]] Result<OperationId> erase(std::string_view targetId, EraseScope);
+  [[nodiscard]] Result<OperationId> recover(std::string_view targetId);
+  [[nodiscard]] Result<OperationId> updateModem(std::string_view targetId, std::filesystem::path modemZip);  // suspend → nRF Util → resume
+  [[nodiscard]] Result<OperationId> reset(std::string_view targetId, ResetMode);   // replaces M1 `Status reset(bool)`
+  [[nodiscard]] Result<OperationId> readMemory(std::string_view targetId, std::uint32_t address, std::size_t size);  // ≤ 64 KiB
   [[nodiscard]] Status cancel(OperationId);
   signals:
       void operationProgress(hio::device::OperationId, const hio::device::OperationProgress&);
       void operationFinished(hio::device::OperationId, const hio::device::OperationResult&);
   ```
-  One operation at a time per session; a second → `internal.busy` "Another operation is running".
-  `SessionOptions` gains `bool attachRtt` (false for CLI flash/erase/reset/recover/pib/uicr, so the CLI never
-  starts RTT for them). Progress events are coalesced to at most one per 100 ms per operation (plus the final one).
+  - One operation at a time per session; a second → `internal.busy` "Another operation is running".
+  - `SessionOptions` gains `bool attachRtt` (false for CLI flash/erase/reset/recover/pib/uicr, so the CLI never
+    starts RTT for them). All operations work on such sessions. The GUI opens one for a tab that only flashes.
+  - The M1 `Status reset(bool halt)` is removed. The CLI console's F4 / `--reset` and the GUI Reset button call
+    `reset(consoleTarget, …)`; `resetOnOpen` stays worker-internal.
+  - `LteBundle` (`libs/firmware`): `{ std::filesystem::path modemZip; FirmwareImage application;
+    std::shared_ptr<QTemporaryDir> extractDir; }` (from `classifyLteInput`). The temporary directory lives until
+    the operation ends.
+  - Progress events are coalesced to at most one per 100 ms per operation (plus the final one).
+  - Cancel ends with `status` = error `cancelled` (category Cancelled, CLI exit 130; already defined in M0).
 
 ### Error codes added (texts translatable, ADR-0027)
 
@@ -352,6 +391,8 @@ modem update 10 min, terminate→kill 5 s · progress events ≤ 10/s per operat
 | Minimum nRF Util | from spike / latest | from spike | ADR-0042 (Proposed) |
 | `app flash` without argument | keep (fixed) / drop | keep, fixed | — |
 | New dependency miniz (MIT) | approve / reject | _pending (approval of this plan)_ | ADR-0041 |
+| Operations on another MCU than the console's (M3 review) | operation carries target / retarget tab / second session | operation carries target | ADR-0057 |
+| Operation types, LTE bundle, reset (M3 review) | one bundle operation / caller sequences; reset as operation / keep both | concrete types; bundle = one operation; reset = operation; cancel = `cancelled` | ADR-0062 |
 | Minor defaults: flashing as a session operation with RTT paused and re-attached; nRF Util only while suspended; progress phases; FICR family check and LTE device-name selection; full read-back verify; group/subcommand `-n` handling; existing path wins over ID; `pib`/`uicr read` app-only; flash log in the console file + `hio.flash`; all bounds and timeouts above; `internal.busy` | accept / change | _pending_ | — |
 
 ## Implementation steps
@@ -362,6 +403,10 @@ Phase 0 — hardware spike (go/no-go; results recorded in this plan before Phase
 - [ ] 0.3 `JLINK_EraseChip` erases flash + UICR on both; code-only erase method chosen.
 - [ ] 0.4 CTRL-AP ERASEALL recovers a protected nRF52840 and nRF9151; nRF91 stays debuggable after the disable-AP-protect image + reset.
 - [ ] 0.5 FICR part read works on both; LTE connect name strategy chosen.
+- [ ] 0.5b Cross-target switching (ADR-0057): with the J-Link on one CHESTER connector, can the probe connect to
+  the other MCU (app ↔ lte) without re-plugging? Record the wiring per CHESTER variant. If not, operations for the
+  other target fail early with `target.wrong_family` (connector hint), and the GUI Flash page says so before
+  starting → update ADR-0057 with the result.
 - [ ] 0.6 Programming speed within 20 % of nrfjprog on the same image.
 - [ ] 0.7 `nrfutil device program` of a modem zip with our session suspended (library copy kept loaded, probe closed); JSON progress format captured; modem zip markers recorded; tested versions → ADR-0042.
 - [ ] 0.8 Go/no-go recorded; any failed criterion → stop, new ADR, update this plan, ask the user.
@@ -378,9 +423,9 @@ Phase B — J-Link programmer
 
 Phase C — device
 - [ ] C1 Profile extensions (`chester.cpp` app + lte), LTE connect strategy + tests
-- [ ] C2 `FlashWorkflow` (range check, UICR rules, sequence), `EraseWorkflow`, `RecoverWorkflow` + embedded image + tests
+- [ ] C2 `FlashWorkflow` (range check, UICR rules, sequence), `EraseWorkflow`, `RecoverWorkflow` + embedded image, `LteBundleWorkflow`, `TargetSwitch` (ADR-0057) + tests
 - [ ] C3 `decodePib` + test vectors (valid, erased, bad CRC/signature/size/version)
-- [ ] C4 `DeviceSession` operations, `attachRtt`, `internal.busy`, RTT pause/re-attach + TSan tests
+- [ ] C4 `DeviceSession` operations with `targetId` and the ADR-0062 types (incl. `reset` replacing M1's, `flashLteBundle`), `attachRtt`, `internal.busy`, RTT pause/re-attach + TSan tests
 - [ ] C5 Error codes added to the `libs/core` table (+ `cs` translations)
 
 Phase D — nRF Util
@@ -417,7 +462,11 @@ Phase G — hardware and docs
   rule and PIB preservation, cancel between chunks, recover + nRF91 image; nRF Util locator precedence and version
   parsing.
 - **Session (TSan):** flash while RTT attached (pause, re-attach, no auto-reconnect during the operation),
-  `internal.busy`, cancel, close during an operation joins within the operation's chunk time.
+  `internal.busy`, cancel (result `cancelled`), close during an operation joins within the operation's chunk time;
+  cross-target operations (ADR-0057): console on `app`, flash `lte` → phases `SwitchingTarget` … `Restoring`, RTT
+  re-attached on `app` after success, failure and cancel; failed restore → `Disconnected`; every operation on an
+  `attachRtt = false` session; `LteBundle` 1/2 → 2/2, modem failure skips step 2, cancel in each step;
+  `plannedPhases` match the emitted phases for every kind.
 - **Fake library integration:** real loader + fake flash model; verify-mismatch injection → `firmware.verify_failed`;
   protected state → `target.protected`; recover clears it.
 - **CLI end-to-end:** `flash FILE --json` progress + result; flash by ID via the HTTP fixture (`HIO_CATALOG_URL`

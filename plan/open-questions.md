@@ -21,4 +21,5 @@ before the plan that depends on it is approved.
 | 14 | ~~Minimum nRF Util version~~ — **decided**: the versions tested in the M2 Phase 0 spike (ADR-0042, Proposed until then); J-Link: 8.00 (ADR-0029) | M2 spike |
 | 15 | Firmware catalog browsing (list/info API needs a HARDWARIO Cloud token): token source and storage (env only / OS keychain), GUI catalog browser (ADR-0037 defers it; M3 GUI uses the ID field only, ADR-0054) | M4 |
 | 16 | HARDWARIO brand colours for the GUI (palette in gui/design-system.md is a proposal, ADR-0047) | M3 review |
-| 17 | Detach a device tab into its own window; per-probe (instead of per profile/target) command history | after v2.0 |
+| 17 | Detach a device tab into its own window; several GUI instances (ADR-0058 makes the GUI single-instance); per-probe (instead of per profile/target) command history | after v2.0 |
+| 18 | Can one J-Link reach both CHESTER MCUs from one connector (needed for cross-target operations, ADR-0057)? Answered by the M2 spike 0.5b | M2 spike |

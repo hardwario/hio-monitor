@@ -3,12 +3,13 @@
 - **Status:** Draft
 - **Milestone:** M1
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034
+- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063
 - **Depends on:** 0001 (M0 skeleton, incl. the translation infrastructure)
 
-> **Amended by ADR-0053 (M3 planning):** `DeviceSession::open()` becomes non-blocking; probe open and target
-> connect run on the worker and are reported via `connectionChanged`. The CLI uses `waitUntilConnected()`.
-> Update the Design section and steps D* accordingly before implementing.
+> **Amended by ADR-0053, ADR-0058 and ADR-0063 (M3 planning, applied in this text):** `DeviceSession::open()` is
+> non-blocking and the CLI waits with `waitUntilConnected()`. Probes are locked across processes (`ProbeLock`,
+> `probe.in_use_by_other_process`). Command-history saves are merged under a file lock. The `ConsoleLog` can be
+> provided by the session's owner, and marker lines exist.
 
 ## Context
 
@@ -78,14 +79,15 @@ The CLI is English only (ADR-0027).
 |---|---|
 | `hio chester app console [--reset] [--latency MS=50] [--history-file P] [--console-file P] [-n/--jlink-sn SN] [--jlink-speed KHZ=2000] [--auto-reconnect] [--coredump-file P]` | Interactive console (ADR-0033). `--reset` resets the target (no halt) before attaching. Without `--auto-reconnect` a dropped link stays down until F4. `--coredump-file` is accepted for py-hardwario compatibility, has no effect and logs a warning. `--console-file ''` disables the console log file. Exit 0 on user quit; an attach error is an `hio::Error` with its exit code. |
 | `hio chester app command CMD [--reset] [-t/--timeout S=1.0] [--console-file P] [-n SN] [--jlink-speed KHZ]` | py-hardwario semantics: attach, send each line of `CMD`, collect terminal output until the **absolute** timeout (counted from sending), detach. Human: output lines on stdout. `--json`: `data = {"command": "…", "output": ["…"], "log": ["…"]}`. |
-| `hio jlink list` | Enumerate probes (separate short-lived library instance). Human: table SN / product / connection / firmware. `--json`: `data = {"library": {"path","version"}, "probes": [{"serialNumber","product","connection":"usb"\|"ip","firmware"}]}`. No probe → empty list, exit 0. |
+| `hio jlink list` | Enumerate probes (separate short-lived library instance). Human: table SN / product / connection / firmware / in use (e.g. "hio-monitor, PID 1234", ADR-0058). `--json`: `data = {"library": {"path","version"}, "probes": [{"serialNumber","product","connection":"usb"\|"ip","firmware","inUseBy":{"app","pid"}\|null}]}`. No probe → empty list, exit 0. |
 | `hio jlink info [-n SN]` | Library path + version, probe SN, product, firmware string, `firmwareStatus` (`current`/`outdated`/`newer`), target voltage (mV). |
 | `hio jlink update-firmware [-n SN] [--yes]` | Update the probe firmware to the one bundled in the library (or synchronize a newer one). Asks for confirmation on a TTY; non-TTY requires `--yes` (else `usage.confirmation_required`). |
 | global `--jlink-library PATH` | Library override; precedence: this option > env `HIO_JLINK_LIBRARY` > setting `jlink/libraryPath` > auto-discovery. |
 
 Probe choice when `-n` is not given: the **first** probe from the library's list is used; its SN is printed
 (stderr in human mode) and logged. SEGGER dialogs are always suppressed. With `-n`, an unknown SN →
-`probe.not_found`.
+`probe.not_found`. A probe locked by another HARDWARIO process (ADR-0058) → `probe.in_use_by_other_process`
+(exit 5); without `-n` the first probe that is not locked is used.
 
 **`--json` console stream** (NDJSON, ADR-0026; one envelope per line, `data` holds the event):
 
@@ -148,6 +150,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   GMock'd in unit tests. All higher code depends only on `IJLinkApi`.
 - **`ProbeEnumerator`** — `[[nodiscard]] Result<std::vector<ProbeInfo>> listProbes(const LibraryLocation&)`
   (`ProbeInfo { std::uint32_t serialNumber; std::string product; Connection connection; std::string firmware; }`).
+  It knows nothing about locks; `libs/device` adds the lock owner (see `ProbeLock`).
 - **`JLinkProbe`** (owned by the session thread) — `open(std::optional<std::uint32_t> sn)` (first probe if
   none), suppress dialogs, `setSpeed(kHz)`, SWD, `connect(deviceName)` with 3 attempts 500 ms apart,
   `hwStatus()` (target voltage mV), `firmwareStatus()` (`Current|Outdated|Newer`), `updateFirmware()`,
@@ -166,7 +169,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   std::string_view displayName; std::span<const TargetProfile> targets; };` `ProfileRegistry::find(id)`.
   `profiles/chester.cpp`: `chester` / "CHESTER"; target `app` = `NRF52840_xxAA`, `Terminal`, `Logger`,
   `hashPrefixIsLog = true`, 2000 kHz, 50 ms, 1000 mV; target `lte` = `NRF9151_XXCA` naming rule (declared, unused).
-- **`ConsoleLine`** — `{ std::uint64_t seq; Channel channel /*Shell, Log*/; Direction dir /*Out, In*/;
+- **`ConsoleLine`** — `{ std::uint64_t seq; Channel channel /*Shell, Log*/; Direction dir /*Out, In, Marker*/;
   std::chrono::system_clock::time_point time; LogLevel level /*None, Debug, Info, Warning, Error*/; std::string text; }`.
 - **`LineAssembler`** (per channel): splits at the byte level on `\n`, strips a trailing `\r`, keeps an
   incomplete line (max **4 KiB**, then force-emitted), decodes UTF-8 per complete line replacing invalid
@@ -174,17 +177,22 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   parses the Zephyr level tag `<dbg|inf|wrn|err>`, and (profile rule) routes shell lines starting with `#` to
   the Log channel.
 - **`ConsoleLog`** — bounded store with monotonically increasing cursors: **100 000 lines per channel**
-  (`RingBuffer`), `linesSince(cursor)`, `last(n)`; used by `command` now and MCP later.
+  (`RingBuffer`), `linesSince(cursor)`, `last(n)`, `clear(channelMask)` (cursors stay monotonic),
+  `appendMarker(Channel, std::string)` (ADR-0063: `Direction::Marker` lines added by the GUI on connection or busy
+  changes; the CLI and `--json` never produce them); used by `command` now and MCP later. Owner thread only.
 - **`SessionEvent`** = `std::variant<ConsoleLine, ConnectionEvent, LinesDropped, Warning>`;
   `ConnectionEvent { ConnectionState state /*Connecting, Connected, Disconnected, Stopped*/; std::optional<Error> error; }`.
 - **`DeviceSession`** (façade `QObject`, ADR-0031):
   ```cpp
   struct SessionOptions { const DeviceProfile* profile; std::string_view targetId;
       std::optional<std::uint32_t> probeSn; int speedKhz; int latencyMs; bool autoReconnect; bool resetOnOpen;
-      std::optional<std::filesystem::path> consoleFile; /* nullopt = default, empty = disabled */ };
+      std::optional<std::filesystem::path> consoleFile; /* nullopt = default, empty = disabled */
+      std::shared_ptr<ConsoleLog> consoleLog; /* ADR-0063: nullptr = the session creates its own; a GUI tab passes
+                                                 one log for all its sessions. Accessed on the owner thread only. */ };
   class DeviceSession : public QObject {
       Q_OBJECT
   public:
+      // Non-blocking (ADR-0053): validates options, takes the registry slot, starts the worker, returns at once.
       [[nodiscard]] static Result<std::unique_ptr<DeviceSession>> open(SessionRegistry&, LibraryLocation, SessionOptions);
       [[nodiscard]] Status sendLine(std::string line);      // queued; Error only if the queue is full/closed
       [[nodiscard]] Status reset(bool halt);
@@ -192,7 +200,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
       [[nodiscard]] Status suspend();                       // detach + release probe (M2 / nRF Util)
       [[nodiscard]] Status resume();
       void close();                                          // stop + join, idempotent
-      [[nodiscard]] const ConsoleLog& log() const;           // owner thread only
+      [[nodiscard]] const ConsoleLog& log() const;           // owner thread only; the provided or own log
       [[nodiscard]] ProbeInfo probe() const;
   signals:
       void linesReceived(const QList<hio::device::ConsoleLine>&);
@@ -200,19 +208,45 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
       void linesDropped(quint64 count);
       void warning(const hio::Error&);
   };
+  // CLI helper: runs a local QEventLoop until the first Connected, or Disconnected/Stopped with an error, or timeout.
+  [[nodiscard]] Status waitUntilConnected(DeviceSession&, std::chrono::milliseconds timeout);
   ```
-  `open()` returns once the probe is open and the target connected (attach then continues on the worker and
-  is reported as `Connecting` → `Connected`, or a `Disconnected` with error; without auto-reconnect an attach
-  failure also ends the CLI command with that error). Worker behaviour = ADR-0034 (write echo only after a
+  **Open sequence (ADR-0053).** `open()` does only the cheap, synchronous steps:
+  1. validate the options (profile, target, speed and latency ranges) → `usage.invalid_argument`;
+  2. take the in-process registry slot (`internal.session_limit`; same SN already open in this process →
+     `probe.open_failed` "already used by this application");
+  3. when `probeSn` is given, take the cross-process `ProbeLock` (ADR-0058) → `probe.in_use_by_other_process`;
+  4. start the worker and return. No library loading or probe access happens on the caller's thread.
+
+  The worker then loads the library copy, opens the probe (when no SN was given: the first probe that is not
+  locked, then takes its `ProbeLock`), connects the target (3 attempts, 500 ms apart) and attaches RTT. Progress is
+  reported as `Connecting` → `Connected`, or as `Disconnected` (auto-reconnect on) / `Stopped` (fatal: library,
+  lock or probe errors, or any error with auto-reconnect off), with the `hio::Error`. Every step checks the stop
+  token, so `close()` during connect returns within one step (≤ 1 s, apart from a single blocking vendor call).
+  `probe()` returns the SN once known (`connectionChanged` is emitted after it is set). The CLI calls
+  `waitUntilConnected()` (timeout = connect + attach deadline, 20 s) and ends with that error if it fails.
+  Worker behaviour = ADR-0034 (write echo only after a
   successful write; disconnect on read failure; only data or a successful write clears it; power check every
   1 s; auto-reconnect every 3 s only when powered; explicit reconnect always; suspended sessions never
   re-attach automatically; state events only on change). Probe firmware `Outdated|Newer` → one `Warning`
   (`probe.firmware_outdated`), never an automatic update.
 - **`SessionRegistry`** — owned by the application; max **8** sessions, one per probe SN
   (`internal.session_limit`, `probe.open_failed` "already used by this application").
+  `[[nodiscard]] Result<std::vector<ProbeStatus>> listProbes(const LibraryLocation&)` wraps `listProbes` and adds,
+  per probe, `inUseBy` = this process's session (tab) or another process's lock owner.
+- **`ProbeLock`** (ADR-0058, RAII, move-only) — `[[nodiscard]] static Result<ProbeLock> acquire(std::uint32_t sn)`:
+  `QLockFile <AppLocalData>/locks/probe-<sn>.lock`, try-lock with 0 wait, stale detection by PID; held → error
+  `probe.in_use_by_other_process` with the owner's app name and PID from `getLockInfo`.
+  `static std::optional<ProbeLockOwner> owner(std::uint32_t sn)` (`{std::string app; qint64 pid;}`) reads without
+  taking. The lock lives as long as the session (released in `close()` / the destructor). Creating the `locks/`
+  directory fails → `io.write_failed` (the session is not opened, because locking cannot be guaranteed).
 - **`CommandHistory`** — max **1000** entries of max **4 KiB**, consecutive duplicates collapsed; default file
   `AppLocalDataLocation/console/history-<profile>-<target>.txt`; written atomically (`QSaveFile`) every 50 new
-  entries and on close — never rewritten per command. `--history-file` overrides the path.
+  entries and on close — never rewritten per command. `--history-file` overrides the path. Several processes may
+  use the same file (ADR-0058): `save()` takes `QLockFile <file>.lock` (wait ≤ 2 s), re-reads the file, appends
+  this instance's new entries after the ones on disk, collapses consecutive duplicates, keeps the newest 1000 and
+  writes atomically. Lock timeout → that save is skipped with a log warning and retried at the next save point.
+  The in-memory list is not reloaded while running (other processes' commands appear after the next start).
 - **`ConsoleFileSink`** — rttt line format: `2026-10-09 12:34:56.789 > text` (shell out), ` # ` (log),
   ` < ` (in), ` @ ` (connection), header block with probe SN on open. Default: one file per session
   `AppLocalDataLocation/console/<profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log`, **10 MiB** per file then `.part2`…,
@@ -228,6 +262,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
 | `dependency.jlink_load_failed` | Dependency | "The J-Link library could not be loaded." / damaged install, wrong architecture, missing symbol / "Reinstall J-Link Software." | FirstRunSetup |
 | `dependency.jlink_too_old` | Dependency | "J-Link Software %1 is too old." / minimum is 8.00 / "Install the current J-Link Software." | FirstRunSetup |
 | `probe.not_found` | Probe | "No J-Link probe found." (or "…with serial number %1") / USB cable, probe not powered / "Check the USB cable between the J-Link and the computer." | ConnectDevice |
+| `probe.in_use_by_other_process` | Probe | "The J-Link %1 is used by another program (%2, PID %3)." / another HARDWARIO Monitor window or `hio` command / "Close the other program, or choose another J-Link." | — |
 | `probe.open_failed` | Probe | "The J-Link probe could not be opened." / used by another program or session, USB permissions (Linux udev) / "Close other programs using the J-Link and try again." | Troubleshooting |
 | `probe.firmware_outdated` | Probe (warning) | "The J-Link firmware is outdated." (or "newer than the library") / — / "Run `hio jlink update-firmware`." | Troubleshooting |
 | `target.no_power` | Target | "The device has no power (%1 mV)." / not powered or flat cable disconnected / "Power the device and check the flat cable." | ConnectDevice |
@@ -250,7 +285,7 @@ caller-owned thread (CLI main thread; GUI will use a worker in M3). No shared mu
 
 Command queue 256 · event queue 10 000 (DropOldest + marker) · J-Link log callback queue 256, 1 KiB/message ·
 partial line 4 KiB · ConsoleLog 100 000 lines/channel · history 1000 × 4 KiB · console files 10 MiB/file,
-50 files / 200 MiB, explicit file 100 MiB + one backup · 8 sessions/process · RTT read per cycle ≤ up-buffer
+50 files / 200 MiB, explicit file 100 MiB + one backup · 8 sessions/process · lock waits: probe 0 ms, history 2 s · `waitUntilConnected` 20 s · RTT read per cycle ≤ up-buffer
 size (capped at 64 KiB) · timeouts: attach 15 s, logger wait 3 s, write 2 s, connect 3 × 500 ms,
 power check 1 s, auto-reconnect 3 s, `command` default 1 s.
 
@@ -271,6 +306,9 @@ power check 1 s, auto-reconnect 3 s, `command` default 1 s.
 | Several probes, no `-n` | first probe / error | first probe, SN printed + logged | — |
 | Plan split | one / two / three plans | one phased plan | — |
 | New dependency replxx (BSD-3) | approve / reject | _pending (approval of this plan)_ | ADR-0033 |
+| `open()` blocking (M3 review) | non-blocking + `waitUntilConnected` / GUI opener thread | non-blocking | ADR-0053 |
+| Console log ownership (M3 review) | provided by owner / GUI copy / clear on new session | provided by the owner (`SessionOptions::consoleLog`), marker lines | ADR-0063 |
+| Several processes (M3 review) | probe locks + history merge / no coordination | cross-process probe locks in the backend; history merged under a file lock | ADR-0058 |
 | Minor defaults: all bounds and timeouts above, ANSI stripping, U+FFFD decoding, `--coredump-file` accepted and ignored, new `hio jlink` command group | accept / change | _pending_ | — |
 
 ## Implementation steps
@@ -287,11 +325,11 @@ Phase B — probe and RTT
 
 Phase C — device model
 - [ ] C1 `DeviceProfile`, `ProfileRegistry`, `profiles/chester.cpp` + tests
-- [ ] C2 `LineAssembler`, `ConsoleLine`, `ConsoleLog` + tests
-- [ ] C3 `CommandHistory`, `ConsoleFileSink` (rotation/retention) + tests
+- [ ] C2 `LineAssembler`, `ConsoleLine` (incl. `Marker`), `ConsoleLog` (incl. `clear`, `appendMarker`, ADR-0063) + tests
+- [ ] C3 `CommandHistory` (incl. locked merge-on-save, ADR-0058), `ConsoleFileSink` (rotation/retention) + tests
 
 Phase D — session
-- [ ] D1 `DeviceSession` worker + façade, `SessionRegistry` + tests (TSan)
+- [ ] D1 `DeviceSession` worker + façade with non-blocking `open()` and `waitUntilConnected()` (ADR-0053), `SessionRegistry` (+ `listProbes` with `inUseBy`), `ProbeLock` (ADR-0058) + tests (TSan)
 
 Phase E — fake library
 - [ ] E1 `tests/fake_jlink/` shared library + scenario file format (env `HIO_FAKE_JLINK_SCENARIO`): probes, VTref timeline, RTT buffers/names/data, stale block, write stall, read errors, reset
@@ -321,12 +359,20 @@ Phase G — hardware and docs
   15 s deadline → `target.rtt_not_found`; write chunking, 0-byte retry, 2 s timeout, echo only on success;
   read failure → Disconnected, data → Connected; power loss after a healthy reading, probe reporting 0 V
   always; auto-reconnect only when powered; suspend blocks auto-reconnect; state events de-duplicated.
+- **Console log (ADR-0063):** a provided log receives the lines of two consecutive sessions; markers; `clear`
+  keeps cursors monotonic; `nullptr` → own log.
 - **Line handling:** UTF-8 split across reads, invalid UTF-8 → U+FFFD, `\r\n`, 4 KiB partial line, ANSI
   stripping, level parsing, `#` rule, bounded ConsoleLog cursors after wrap.
 - **Session (TSan):** concurrent `sendLine` / `close`, queue full → `internal.queue_full`, event overflow →
-  `LinesDropped`, close joins within 1 s.
+  `LinesDropped`, close joins within 1 s; `open()` returns without touching the library (fake library with a
+  5 s connect delay: `open()` < 50 ms); `close()` during each connect step; `waitUntilConnected` success, failure
+  and timeout; events `Connecting` → `Connected` / `Stopped` with each fatal error.
+- **Locks (ADR-0058):** `ProbeLock` held → second acquire fails with owner info; stale lock (dead PID) taken over;
+  first-probe selection skips locked probes; history merge of two writers (no lost entries, bound kept, lock
+  timeout → skipped save).
 - **Fake library integration:** real copy + load of the fake library; two sessions at once; stale instance cleanup.
-- **CLI end-to-end:** `hio jlink list --json` with 0/2 fake probes; `hio chester app command version --json`
+- **CLI end-to-end:** `hio jlink list --json` with 0/2 fake probes (one locked by a second process → `inUseBy`);
+  a second `hio chester app console -n SN` while the first runs → exit 5 `probe.in_use_by_other_process`; `hio chester app command version --json`
   returns the scripted output; `console --json` with piped stdin; `--jlink-library /nonexistent` → exit 4;
   missing probe → exit 5; no power → exit 6; Ctrl+C → exit 130 without hang.
 - **Sanitizers / static analysis / translations:** as in M0 (ASan+UBSan, TSan, clang-tidy, clang-format,

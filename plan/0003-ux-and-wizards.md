@@ -22,7 +22,8 @@
 ## Visual design
 
 Tokens, components and accessibility rules: [gui/design-system.md](gui/design-system.md); screen mockups:
-[gui/mockups/index.html](gui/mockups/index.html); M3 screens are specified in [features/0004](features/0004-m3-gui-core.md).
+[gui/mockups/index.html](gui/mockups/index.html); M3 screens are specified in [features/0004](features/0004-m3-gui-shell.md) (shell),
+[0005](features/0005-m3-console.md) (console) and [0006](features/0006-m3-flash-settings.md) (flash, settings).
 
 ## Wizards (each gets its own feature plan)
 

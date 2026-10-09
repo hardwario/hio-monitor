@@ -1,6 +1,6 @@
 # GUI design system
 
-- **Status:** Draft (with [features/0004](../features/0004-m3-gui-core.md))
+- **Status:** Draft (with features [0004](../features/0004-m3-gui-shell.md), [0005](../features/0005-m3-console.md), [0006](../features/0006-m3-flash-settings.md))
 - **Related ADRs:** ADR-0043 (layout), ADR-0044 (Material + Theme), ADR-0045 (console views), ADR-0046 / ADR-0056 (search & filter), ADR-0055 (flash kinds),
   ADR-0047 (themes), ADR-0048 (fonts), ADR-0051 (shortcuts)
 - **Mockups:** [`mockups/index.html`](mockups/index.html) (open in a browser; light/dark and EN/CS toggles)
@@ -85,7 +85,7 @@ and `Accessible.name`.
 | Component | Spec |
 |---|---|
 | **DeviceTabBar** | Tabs `CHESTER app · 683012345` + state dot (grey idle, amber connecting, green connected, red error) + close ×; `+` at the end (disabled at 8 tabs with tooltip). Middle-click closes. Tab reorder by drag. |
-| **NavRail** | Console, Flash (BLE later); bottom: Settings (gear), Help (?). Selected item: accent pill behind icon. Badges: busy spinner on Console during flash, red dot on error. |
+| **NavRail** | Console, Flash (BLE later); bottom: Settings (gear), Help (?). Selected item: accent pill behind icon. Badges: busy spinner on the page that runs an operation (Flash while flashing; the console shows a "paused" marker row), red dot on error. |
 | **DeviceBar** | Probe label (product + SN, or "Choose device"), target, state text ("Connected · 3.3 V", "Connecting…", "Disconnected — target not powered"), primary button Connect / Disconnect / Cancel, ⋯ Advanced popover (ADR-0052). |
 | **Toolbar** | Left: page actions as tool buttons with text labels (icons + text at ≥ 1100 px, icons only below); right: Follow toggle, Pause, overflow menu. Same position and order on every page. |
 | **ConsoleView** | Header (title "Shell" / "Log", line count, dropped-lines warning), list area (columns: optional time `HH:MM:SS.mmm`, level tag, text), "▼ N new lines" pill bottom-right when not following. |
