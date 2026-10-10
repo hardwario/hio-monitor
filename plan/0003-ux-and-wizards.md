@@ -27,13 +27,19 @@ Tokens, components and accessibility rules: [gui/design-system.md](gui/design-sy
 
 ## Wizards (each gets its own feature plan)
 
+M4 plans: [0007 framework + diagnostics](features/0007-m4-wizard-framework-diagnostics.md),
+[0008 first-run setup](features/0008-m4-first-run-setup.md),
+[0009 connect + troubleshooting](features/0009-m4-connect-and-troubleshooting.md),
+[0010 flash](features/0010-m4-flash-wizard.md). Wizards open in a modal dialog (ADR-0066) driven by C++ step
+machines (ADR-0067). The macOS Bluetooth permission step and the BLE pairing wizard move to M5.
+
 | Wizard | Trigger | Steps (sketch) |
 |---|---|---|
-| First-run setup | first start, or missing dependency | detect J-Link Software (and optional nRF Util, needed only for modem firmware) → guide download/install → Linux udev rules / group membership → macOS Bluetooth permission → test probe |
+| First-run setup | first start, or J-Link missing at start (ADR-0071) | detect J-Link Software (and optional nRF Util, needed only for modem firmware) → guide download/install → Linux udev rule (ADR-0072) → test probe (macOS Bluetooth permission: M5) |
 | Connect device | "Connect" or connection error | choose device (CHESTER) → choose connection (J-Link / BLE) → illustrated cabling ("connect the J-Link flat cable to connector …", "power the device") → live checks (probe found? target voltage? MCU detected?) → done |
-| Flash firmware | Flash page | pick source (file / catalog ID / browse catalog) → pick target MCU (app / LTE) → confirm → progress → verify → offer to open console |
+| Flash firmware | Flash page "Guide me", FlashFirmware errors (ADR-0074) | device and probe → kind → cable + live check → file / catalog ID (no catalog browsing, open question 15) → confirm → progress → offer to open console |
 | Troubleshooting | from an `hio::Error` with `wizardId` | targeted checks per error (USB cable, flat cable, power, other app holding the probe, outdated J-Link firmware) |
-| BLE pairing | BLE connect failure / "probably unpaired" | explain pairing/passkey, OS-specific steps |
+| BLE pairing (M5) | BLE connect failure / "probably unpaired" | explain pairing/passkey, OS-specific steps, macOS Bluetooth permission |
 
 Illustrations and photos are stored under `app/gui/assets/` via **Git LFS**. They contain no embedded
 text (text goes into translatable captions), so they work in every language.
@@ -42,5 +48,6 @@ text (text goes into translatable captions), so they work in every language.
 
 - Inline error panel in the affected page (not only a short toast).
 - Toasts only for transient success/info.
-- "Copy diagnostic report" collects app version, OS, Qt, J-Link / nRF Util versions, probe SN,
-  recent app log — for support tickets.
+- "Create diagnostic report" (Help menu, `hio diag report`; ADR-0075) saves a zip with a summary (app version,
+  OS, Qt, J-Link / nRF Util versions, probes, `hio doctor` results), the recent app logs and the settings file,
+  with the home folder, user and host names redacted — for support tickets. Nothing is sent automatically.

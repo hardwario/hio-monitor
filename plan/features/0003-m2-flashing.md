@@ -10,6 +10,10 @@
 > target MCU. The `Operation*` types are concrete, an LTE bundle is one operation, and reset is an operation.
 > Cancel reports the M0 code `cancelled`. Operations also work on sessions opened with `attachRtt = false`.
 
+> **Pending amendment from M4 (ADR-0069, specified in [0007](0007-m4-wizard-framework-diagnostics.md) § Amendment;
+> applied when 0007 is approved — then this plan needs re-approval):** `OperationKind::Diagnose`, `DiagnoseStep`,
+> `OperationResult::checks`, the `diagnoseStep` signal.
+
 ## Context
 
 Flashing is the second core feature of HARDWARIO Monitor. The CHESTER has two MCUs: the application MCU

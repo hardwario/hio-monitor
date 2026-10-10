@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Monitor GUI Mockups</title>
-<!-- Static design mockups for plan/features/0004-m3-gui-shell.md, 0005-m3-console.md, 0006-m3-flash-settings.md. Not product code.
+<!-- Static design mockups for plan/features/0004-m3-gui-shell.md, 0005-m3-console.md, 0006-m3-flash-settings.md
+     and the M4 wizards 0007-0010 (screens prefixed "M4"). Not product code.
      Colour tokens = plan/gui/design-system.md. Fonts fall back to system fonts here. -->
 <style>
 :root, :root[data-theme="light"] {
@@ -197,6 +198,37 @@ mark.cur { background:var(--findCurrent); outline:1px solid var(--text); }
 .toast { position:absolute; left:50%; bottom:18px; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:8px 16px; border-radius:6px; box-shadow:var(--shadow); z-index:6; }
 .kbdlist { display:grid; grid-template-columns:auto 1fr; gap:6px 18px; }
 .kbdlist .k { font-family:ui-monospace, monospace; font-size:12px; padding:1px 6px; border:1px solid var(--border); border-radius:4px; background:var(--surface); justify-self:start; }
+/* M4 wizards (0007-0010) */
+.wiz { width:720px; max-width:calc(100% - 48px); height:560px; max-height:calc(100% - 48px); background:var(--surfaceRaised); border-radius:10px; box-shadow:var(--shadow); border:1px solid var(--border); display:flex; flex-direction:column; }
+.wiz .wh { padding:14px 18px 10px; border-bottom:1px solid var(--border); }
+.wiz .wh .tt { display:flex; align-items:center; font-size:16px; font-weight:600; }
+.wiz .wb { flex:1; overflow:auto; padding:16px 22px; }
+.wiz .wf { display:flex; gap:8px; padding:12px 18px; border-top:1px solid var(--border); align-items:center; }
+.wsteps { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; font-size:12px; }
+.wsteps .s { color:var(--textMuted); display:flex; align-items:center; gap:4px; }
+.wsteps .s + .s::before { content:"—"; color:var(--border); margin-right:2px; }
+.wsteps .s.done { color:var(--text); } .wsteps .s.done i { color:var(--success); font-style:normal; }
+.wsteps .s.cur { color:var(--accent); font-weight:600; }
+.wsteps.compact { display:none; } .narrow .wsteps.full { display:none; } .narrow .wsteps.compact { display:flex; }
+.illu { width:100%; max-width:480px; aspect-ratio:16/9; border:1.5px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--textMuted); font-size:40px; background:var(--surface); margin:0 0 12px; }
+.narrow .illu { max-width:300px; }
+.clist { display:flex; flex-direction:column; border:1px solid var(--border); border-radius:6px; overflow:hidden; margin:10px 0; }
+.crow { display:flex; gap:10px; padding:8px 12px; border-top:1px solid var(--border); align-items:flex-start; }
+.crow:first-child { border-top:0; }
+.narrow .crow { padding:6px 12px; }
+.crow .st { width:18px; flex:none; font-weight:700; text-align:center; }
+.crow .st.ok { color:var(--success); } .crow .st.w { color:var(--warning); } .crow .st.f { color:var(--error); } .crow .st.s, .crow .st.p { color:var(--textMuted); }
+.crow .ti { width:220px; flex:none; font-weight:600; }
+.crow .ex { margin-top:4px; font-size:12px; }
+.cmd { background:var(--consoleBg); border:1px solid var(--border); border-radius:6px; padding:6px 8px; margin:8px 0; }
+.cmd .cl { display:flex; gap:8px; align-items:center; padding:3px 0; }
+.cmd .cl code { flex:1; white-space:pre-wrap; word-break:break-all; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12px; }
+.menu { position:absolute; left:76px; bottom:12px; width:280px; background:var(--surfaceRaised); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow); padding:6px 0; z-index:4; }
+.narrow .menu { left:56px; }
+.menu .mi { display:flex; justify-content:space-between; padding:7px 14px; }
+.menu .mi:hover { background:var(--surface); }
+.menu hr { border:0; border-top:1px solid var(--border); margin:4px 0; }
+.report { height:220px; overflow:auto; background:var(--consoleBg); border:1px solid var(--border); border-radius:6px; padding:8px 10px; white-space:pre; margin:10px 0; }
 @media (max-width: 700px) { .review { padding:10px 16px; } }
 </style>
 </head>
@@ -316,6 +348,67 @@ const T = {
   more:'Další', pages:'Stránky', levels:'Úrovně logu', eg:'např.', exToast:'ukázková notifikace', light:'Světlý', dark:'Tmavý',
  }
 };
+/* ---------- M4 wizard strings (0007-0010) ---------- */
+Object.assign(T.en, {
+ back:'Back', next:'Next', checkAgain:'Check again', skipSetup:'Skip setup', finish:'Finish', closeBtn:'Close',
+ setupTitle:'Setup', sWelcome:'Welcome', sJlink:'J-Link', sUsb:'USB access', sNrf:'nRF Util', sTest:'Test', sDone:'Done',
+ stepOf:'Step 2 of 6 · J-Link',
+ jlHead:'Install J-Link Software', jlBody:'HARDWARIO Monitor uses the J-Link Software from SEGGER. Install version 8.00 or newer, then press Check again.',
+ jlDl:'Download J-Link Software ↗', jlHint:'Linux: choose the 64-bit DEB or RPM installer.', jlElse:'It is installed elsewhere…',
+ cJlink:'J-Link Software', cJlinkF:'Not found. Searched /opt/SEGGER/JLink, /opt/SEGGER/JLink_V*',
+ jlCause:'Probably: J-Link Software is not installed, or it is in a non-standard folder.',
+ jlAnyway:'You can continue without J-Link, but you cannot connect to a device.', contAnyway:'Continue anyway',
+ usbHead:'Allow access to the J-Link', usbBody:'Linux needs a rule that allows your user to use SEGGER USB devices. Run these commands in a terminal, then unplug and reconnect the J-Link.',
+ cUsb:'USB access to J-Link', cUsbF:'J-Link 683012345 on bus 003 device 007 is not accessible',
+ connTitle:'Connect your CHESTER', sDevice:'Device', sProbe:'Probe', sCable:'Cable', sPower:'Power', sCheck:'Check',
+ chkHead:'Checking the connection', chkBody:'The checks run on the application MCU through J-Link 683012345.',
+ dProbe:'J-Link probe', dProbeOk:'J-Link EDU Mini · 683012345', dPower:'Device power', dPowerOk:'3.30 V',
+ dConn:'Connection to the application MCU', dConnF:'Could not connect to the device’s application MCU.',
+ dConnCause:'Probably: the flat cable is not connected, or it is on the other MCU’s connector.',
+ dConnTodo:'What to do: check the flat cable between the J-Link and the device.', showMe:'Show me how',
+ dId:'MCU type', dRtt:'Device console (RTT)', dBuf:'Console channels', skipped:'skipped',
+ trTitle:'Troubleshooting', trErr:'The J-Link probe could not be opened.', trLead:'Let’s find the cause.',
+ trHolders:'Other programs using J-Link', trHoldersW:'J-Link Commander (PID 4242) is running',
+ trTodo:'Close these programs, then press Check again:', trStill:'Still not working? Create a diagnostic report and send it to HARDWARIO support.',
+ createReport:'Create diagnostic report…', sProblem:'Problem',
+ fwTitle:'Flash firmware', sKind:'Firmware kind', sFw:'Firmware', sConfirm:'Confirm', sFlash:'Flash',
+ readyHead:'Ready to flash', readyBody:'chester-clime-v3.2.1.hex (Intel HEX, 412 kB) → application MCU (nRF52840) of CHESTER via J-Link 683012345.',
+ readyKeep:'The current application firmware is replaced. Configuration and the Product Information Block are kept.',
+ repTitle:'Create diagnostic report', repInfo:'The report contains this summary, the recent application logs and the settings file. Your user name and home folder are replaced. The report stays on your computer — attach it to your support request.',
+ saveReport:'Save report…', copySummary:'Copy summary',
+ mShortcuts:'Keyboard shortcuts', mSetup:'Setup wizard…', mConnect:'Connect a device…', mTrouble:'Troubleshoot connection…',
+ mFlash:'Flash firmware (guided)…', mReport:'Create diagnostic report…', mDocs:'Documentation ↗', guideMe:'Guide me',
+});
+Object.assign(T.cs, {
+ back:'Zpět', next:'Další', checkAgain:'Zkontrolovat znovu', skipSetup:'Přeskočit nastavení', finish:'Dokončit', closeBtn:'Zavřít',
+ setupTitle:'Nastavení', sWelcome:'Vítejte', sJlink:'J-Link', sUsb:'Přístup k USB', sNrf:'nRF Util', sTest:'Test', sDone:'Hotovo',
+ stepOf:'Krok 2 ze 6 · J-Link',
+ jlHead:'Nainstalujte J-Link Software', jlBody:'HARDWARIO Monitor používá J-Link Software od firmy SEGGER. Nainstalujte verzi 8.00 nebo novější a stiskněte Zkontrolovat znovu.',
+ jlDl:'Stáhnout J-Link Software ↗', jlHint:'Linux: zvolte 64bitový instalátor DEB nebo RPM.', jlElse:'Je nainstalován jinde…',
+ cJlink:'J-Link Software', cJlinkF:'Nenalezeno. Prohledáno /opt/SEGGER/JLink, /opt/SEGGER/JLink_V*',
+ jlCause:'Pravděpodobně: J-Link Software není nainstalován nebo je v nestandardní složce.',
+ jlAnyway:'Můžete pokračovat bez J-Linku, ale nepřipojíte se k zařízení.', contAnyway:'Přesto pokračovat',
+ usbHead:'Povolte přístup k J-Linku', usbBody:'Linux potřebuje pravidlo, které vašemu uživateli povolí zařízení SEGGER na USB. Spusťte tyto příkazy v terminálu a pak J-Link odpojte a znovu připojte.',
+ cUsb:'Přístup k J-Linku přes USB', cUsbF:'J-Link 683012345 na sběrnici 003, zařízení 007 není přístupný',
+ connTitle:'Připojte svůj CHESTER', sDevice:'Zařízení', sProbe:'Programátor', sCable:'Kabel', sPower:'Napájení', sCheck:'Kontrola',
+ chkHead:'Kontrola připojení', chkBody:'Kontroly běží na aplikačním MCU přes J-Link 683012345.',
+ dProbe:'Programátor J-Link', dProbeOk:'J-Link EDU Mini · 683012345', dPower:'Napájení zařízení', dPowerOk:'3,30 V',
+ dConn:'Spojení s aplikačním MCU', dConnF:'Nelze se připojit k aplikačnímu MCU zařízení.',
+ dConnCause:'Pravděpodobně: plochý kabel není připojen nebo je na konektoru druhého MCU.',
+ dConnTodo:'Co udělat: zkontrolujte plochý kabel mezi J-Linkem a zařízením.', showMe:'Ukázat jak',
+ dId:'Typ MCU', dRtt:'Konzole zařízení (RTT)', dBuf:'Kanály konzole', skipped:'přeskočeno',
+ trTitle:'Řešení problémů', trErr:'Programátor J-Link nelze otevřít.', trLead:'Pojďme najít příčinu.',
+ trHolders:'Jiné programy používající J-Link', trHoldersW:'Běží J-Link Commander (PID 4242)',
+ trTodo:'Zavřete tyto programy a stiskněte Zkontrolovat znovu:', trStill:'Stále to nefunguje? Vytvořte diagnostický report a pošlete ho podpoře HARDWARIO.',
+ createReport:'Vytvořit diagnostický report…', sProblem:'Problém',
+ fwTitle:'Nahrát firmware', sKind:'Druh firmwaru', sFw:'Firmware', sConfirm:'Potvrzení', sFlash:'Nahrávání',
+ readyHead:'Připraveno k nahrání', readyBody:'chester-clime-v3.2.1.hex (Intel HEX, 412 kB) → aplikační MCU (nRF52840) zařízení CHESTER přes J-Link 683012345.',
+ readyKeep:'Současný aplikační firmware bude nahrazen. Konfigurace a Product Information Block zůstanou zachovány.',
+ repTitle:'Vytvořit diagnostický report', repInfo:'Report obsahuje toto shrnutí, nedávné logy aplikace a soubor nastavení. Vaše uživatelské jméno a domovská složka jsou nahrazeny. Report zůstane ve vašem počítači — přiložte ho k žádosti o podporu.',
+ saveReport:'Uložit report…', copySummary:'Kopírovat shrnutí',
+ mShortcuts:'Klávesové zkratky', mSetup:'Průvodce nastavením…', mConnect:'Připojit zařízení…', mTrouble:'Řešení problémů s připojením…',
+ mFlash:'Nahrát firmware (s průvodcem)…', mReport:'Vytvořit diagnostický report…', mDocs:'Dokumentace ↗', guideMe:'Provést mě',
+});
 const t = k => (T[S.lang][k] ?? T.en[k] ?? k);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -525,6 +618,95 @@ const SCREENS = {
      ['Ctrl+Enter','flashBtn'],['Ctrl+= / Ctrl+-','scFont'],['F1','shortcuts']].map(([k,v])=>`<span class="k">${k}</span><span>${t(v)}</span>`).join('')}
    </div><div class="acts"><button class="btn primary">${t('close')}</button></div></div></div>`}) },
 };
+
+/* ---------- M4 wizard screens (0007-0010) ---------- */
+function wsteps(list, cur) {
+  return `<div class="wsteps full">${list.map((k,i)=>`<span class="s ${i<cur?'done':i===cur?'cur':''}">${i<cur?'<i>✓</i>':i===cur?'●':'○'} ${t(k)}</span>`).join('')}</div>`;
+}
+function wizard({title, steps, cur, compact, body, foot}) {
+  return `<div class="scrim"><div class="wiz" role="dialog" aria-modal="true" aria-label="${t(title)}">
+   <div class="wh"><div class="tt">${t(title)}<span class="grow"></span><button class="btn ghost" aria-label="${t('cancel')}">×</button></div>
+   ${wsteps(steps, cur)}<div class="wsteps compact"><span class="s cur">${compact}</span></div></div>
+   <div class="wb">${body}</div><div class="wf">${foot}</div></div></div>`;
+}
+const crow = (st, ti, res, ex='') => `<div class="crow"><span class="st ${st}">${{ok:'✓',w:'!',f:'✗',s:'–',p:'◌'}[st]}</span><span class="ti">${ti}</span><span class="grow"><span class="${st==='f'?'':'muted'}">${res}</span>${ex}</span></div>`;
+const copyLine = c => `<div class="cl"><code>${esc(c)}</code><button class="tb small">${t('copy')}</button></div>`;
+const setupSteps = ['sWelcome','sJlink','sUsb','sNrf','sTest','sDone'];
+const connSteps = ['sDevice','sProbe','sCable','sPower','sCheck','sDone'];
+const fwSteps = ['sDevice','sKind','sCable','sFw','sConfirm','sFlash','sDone'];
+Object.assign(SCREENS, {
+ wSetupJlink: { label:'M4 Setup: J-Link missing', note:'0008 step 2: check row Failed with cause; download link per OS; custom path; Check again is the default until Ok. Skip/Continue anyway allowed (ADR-0071).',
+  render:() => frame({page:'choose', dev:'choose', tabState:'', content:`<div class="scroll"></div>`,
+   overlay: wizard({title:'setupTitle', steps:setupSteps, cur:1, compact:t('stepOf'),
+    body:`<p class="big">${t('jlHead')}</p><p>${t('jlBody')}</p>
+     <div class="clist">${crow('f', t('cJlink'), t('cJlinkF'), `<div class="ex muted">${t('jlCause')}</div>`)}</div>
+     <div class="row"><a href="#" style="color:var(--accent)">${t('jlDl')}</a><span class="small muted">${t('jlHint')}</span></div>
+     <div class="row" style="margin-top:8px"><button class="btn">${t('jlElse')}</button></div>
+     <p class="small muted" style="margin-top:14px">${t('jlAnyway')} <a href="#" style="color:var(--accent)">${t('contAnyway')}</a></p>`,
+    foot:`<button class="btn ghost">${t('back')}</button><span class="grow"></span><button class="btn primary">↻ ${t('checkAgain')}</button><button class="btn">${t('cancel')}</button>`})}) },
+ wSetupUsb: { label:'M4 Setup: Linux USB access', note:'0008 step 3 (Linux only, ADR-0072): detection via sysfs; rule + commands with Copy; the app never runs sudo.',
+  render:() => frame({page:'choose', dev:'choose', tabState:'', content:`<div class="scroll"></div>`,
+   overlay: wizard({title:'setupTitle', steps:setupSteps, cur:2, compact:t('stepOf').replace('2','3').replace('J-Link',t('sUsb')),
+    body:`<p class="big">${t('usbHead')}</p><p>${t('usbBody')}</p>
+     <div class="clist">${crow('f', t('cUsb'), t('cUsbF'))}</div>
+     <div class="cmd">${copyLine(`echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="1366", MODE="0666", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/99-jlink.rules`)}${copyLine('sudo udevadm control --reload-rules && sudo udevadm trigger')}</div>`,
+    foot:`<button class="btn ghost">${t('back')}</button><span class="grow"></span><button class="btn primary">↻ ${t('checkAgain')}</button><button class="btn">${t('next')}</button><button class="btn">${t('cancel')}</button>`})}) },
+ wConnectCheck: { label:'M4 Connect: live check', note:'0009 step 5: Diagnose operation (ADR-0069) ticks step by step on a probe-only session; a failed step expands with cause/what to do; later steps skipped; [Show me how] jumps back to the Cable step.',
+  render:() => frame({page:'choose', dev:'choose', tabState:'', content:`<div class="scroll"></div>`,
+   overlay: wizard({title:'connTitle', steps:connSteps, cur:4, compact:'5 / 6 · '+t('sCheck'),
+    body:`<p class="big">${t('chkHead')}</p><p class="muted">${t('chkBody')}</p>
+     <div class="clist">${crow('ok', t('dProbe'), t('dProbeOk'))}${crow('ok', t('dPower'), t('dPowerOk'))}
+      ${crow('f', t('dConn'), t('dConnF'), `<div class="ex muted">${t('dConnCause')}</div><div class="ex">${t('dConnTodo')}</div><div class="ex"><button class="btn">${t('showMe')}</button></div>`)}
+      ${crow('s', t('dId'), t('skipped'))}${crow('s', t('dRtt'), t('skipped'))}${crow('s', t('dBuf'), t('skipped'))}</div>`,
+    foot:`<button class="btn ghost">${t('back')}</button><span class="grow"></span><button class="btn primary">↻ ${t('checkAgain')}</button><button class="btn">${t('cancel')}</button>`})}) },
+ wConnectCable: { label:'M4 Connect: cable', note:'0009 step 3: text and illustration slot from the device profile’s connection guide (ADR-0077). Placeholder art and neutral wording until HARDWARIO supplies the content (open question 22).',
+  render:() => frame({page:'choose', dev:'choose', tabState:'', content:`<div class="scroll"></div>`,
+   overlay: wizard({title:'connTitle', steps:connSteps, cur:2, compact:'3 / 6 · '+t('sCable'),
+    body:`<div class="illu" role="img" aria-label="chester-app-cable">🔌</div>
+     <p class="big">${S.lang==='cs'?'Připojte plochý kabel':'Connect the flat cable'}</p>
+     <p>${S.lang==='cs'?'Připojte plochý kabel J-Linku k programovacímu konektoru aplikačního MCU.':'Connect the J-Link flat cable to the programming connector of the application MCU.'}</p>`,
+    foot:`<button class="btn ghost">${t('back')}</button><span class="grow"></span><button class="btn primary">${t('next')}</button><button class="btn">${t('cancel')}</button>`})}) },
+ wTrouble: { label:'M4 Troubleshooting: probe busy', note:'0009 topic probe-busy (probe.open_failed): environment checks incl. the process scan (ADR-0073); every topic ends with the diagnostic-report hand-off.',
+  render:() => frame({page:'console', dev:'off', tabState:'err', content:`${consoleToolbar()}<div class="content"></div>`,
+   overlay: wizard({title:'trTitle', steps:['sProblem','sCheck','sDone'], cur:1, compact:'2 / 3',
+    body:`<div class="errp" style="margin:0 0 12px"><span class="ico">⛔</span><div class="grow"><h3>${t('trErr')}</h3></div></div>
+     <div class="clist">${crow('ok', t('cUsb'), S.lang==='cs'?'Přístup povolen':'Access granted')}${crow('w', t('trHolders'), t('trHoldersW'))}</div>
+     <p>${t('trTodo')} <b>J-Link Commander (PID 4242)</b></p>
+     <p class="muted">${t('trLead')}</p><p class="small muted" style="margin-top:16px">${t('trStill')} <a href="#" style="color:var(--accent)">${t('createReport')}</a></p>`,
+    foot:`<button class="btn ghost">${t('back')}</button><span class="grow"></span><button class="btn primary">↻ ${t('checkAgain')}</button><button class="btn">${t('next')}</button><button class="btn">${t('cancel')}</button>`})}) },
+ wFlashConfirm: { label:'M4 Flash wizard: confirm', note:'0010 step 5: summary of what will happen and what is kept; Flash is the default button; progress follows in the same dialog (PhaseStepper).',
+  render:() => frame({page:'flash', dev:'on', tabState:'ok', content:`<div class="scroll"></div>`,
+   overlay: wizard({title:'fwTitle', steps:fwSteps, cur:4, compact:'5 / 7 · '+t('sConfirm'),
+    body:`<p class="big">${t('readyHead')}</p><div class="summary" style="margin:8px 0 12px"><span class="ok">✓</span><span>${t('readyBody')}</span></div><p>${t('readyKeep')}</p>`,
+    foot:`<button class="btn ghost">${t('back')}</button><span class="grow"></span><span class="kbd">Enter</span><button class="btn primary">${t('flashBtn')}</button><button class="btn">${t('cancel')}</button>`})}) },
+ wReport: { label:'M4 Diagnostic report', note:'0007 report dialog (ADR-0075): redacted summary preview; Save writes a zip (summary, last 2 MiB of app logs, settings); nothing is sent.',
+  render:() => frame({page:'console', dev:'on', tabState:'ok', content:`${consoleToolbar()}<div class="content"></div>`,
+   overlay:`<div class="scrim"><div class="dialog" style="width:620px" role="dialog" aria-modal="true"><h3>${t('repTitle')}</h3>
+    <div class="report mono small">HARDWARIO Monitor 2.0.0 (a1b2c3d) · Qt 6.8.3
+OS: Ubuntu 24.04 (x86_64) · language: ${S.lang}
+J-Link Software: 8.10 · /opt/SEGGER/JLink
+nRF Util: not found
+Probes: J-Link EDU Mini 683012345 (FW 2024-03-07, tab 1)
+Tabs: CHESTER app 683012345 Connected
+Settings: ~/.config/HARDWARIO/Monitor.ini
+Logs: ~/.local/share/HARDWARIO/Monitor/logs/gui-20261009-101500-4711.log
+
+✓ J-Link Software        8.10
+! nRF Util               not found
+✓ USB access to J-Link   access granted
+✓ Other programs         none found
+✓ J-Link probes          1 found
+✓ J-Link firmware        current
+✓ Settings and log folders writable</div>
+    <p class="small muted">${t('repInfo')}</p>
+    <div class="acts"><button class="btn">${t('copySummary')}</button><button class="btn">${t('closeBtn')}</button><button class="btn primary">${t('saveReport')}</button></div></div></div>`}) },
+ wHelpMenu: { label:'M4 Help menu', note:'0007: the rail’s Help item opens this menu (F1 still opens the shortcut overlay); items of unregistered wizards are hidden. ErrorPanels’ “Help me fix this” is now active.',
+  render:() => frame({page:'console', dev:'err', tabState:'err', content:`${consoleToolbar()}<div class="errp" role="alert"><span class="ico">⛔</span><div class="grow">
+   <h3>${t('errHead')}</h3><p class="muted">${t('errCause')}</p><p>${t('errTodo')}</p>
+   <div class="acts"><button class="btn primary">${t('reconnect')}</button><button class="btn">${t('helpFix')}</button><button class="btn ghost">${t('details')} ▾</button></div></div></div>
+   <div class="content"><div class="split">${shellPane({disabled:t('noPower')})}${logPane()}</div></div>`,
+   overlay:`<div class="menu" role="menu">${[['mShortcuts','F1'],['-'],['mSetup'],['mConnect'],['mTrouble'],['mFlash'],['-'],['mReport'],['mDocs']].map(([k,kb])=>k==='-'?'<hr>':`<div class="mi" role="menuitem"><span>${t(k)}</span><span class="kbd">${kb||''}</span></div>`).join('')}</div>`}) },
+});
 
 /* ---------- wiring ---------- */
 function seg(id, key) {
