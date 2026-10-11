@@ -5,12 +5,16 @@
 #include "hio/core/error.h"
 #include "hio/device/console_line.h"
 #include "hio/device/device_session.h"
+#include "hio/device/operation.h"
 #include "hio/device/probe_lock.h"
 #include "hio/device/probe_tools.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
 #include "hio/device/session_registry.h"
+#include "hio/firmware/firmware_image.h"
+#include "hio/firmware/program_progress.h"
 #include "hio/hw/jlink/library_locator.h"
+#include "hio/hw/jlink/programmer.h"
 #include "hio/hw/jlink/types.h"
 #include "session_test_support.h"
 
@@ -33,6 +37,7 @@
 #include <optional>
 #include <string>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -206,7 +211,7 @@ TEST_F(FakeLibrarySession, ResetRestartsTheTargetAndReattaches) {
     Recorder events(**session);
     ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     ASSERT_TRUE(waitFor([&] { return events.lines.size() == 1; }));
-    ASSERT_TRUE((*session)->reset(false));
+    ASSERT_TRUE((*session)->reset("app", hio::device::ResetMode::Go));
     ASSERT_TRUE(waitFor([&] { return events.lines.size() == 2; })); // replayed after the reset
     EXPECT_EQ(events.lines[1].text, "boot");
     EXPECT_EQ(events.count(ConnectionState::Disconnected), 0);
@@ -254,6 +259,129 @@ TEST_F(FakeLibrarySession, NetworkProbesAreNotUsedForSessions) {
     const auto list = registry().enumerateProbes(location()); // `jlink list` shows both
     ASSERT_TRUE(list);
     EXPECT_EQ(list->probes.size(), 2U);
+}
+
+// ---- M2 flashing through the real loader and the fake flash model (plan/features/0003, E2) ----
+
+std::shared_ptr<const hio::firmware::FirmwareImage> testImage(std::size_t size = 8192) {
+    std::vector<hio::firmware::Segment> segments;
+    segments.push_back(hio::firmware::Segment{
+        .address = 0x2000, .data = std::vector<std::byte>(size, std::byte{0x3C})});
+    return std::make_shared<const hio::firmware::FirmwareImage>(
+        *hio::firmware::FirmwareImage::fromSegments(std::move(segments)));
+}
+
+hio::device::OperationResult runToEnd(hio::device::DeviceSession& session,
+                                      const hio::Result<hio::device::OperationId>& id) {
+    EXPECT_TRUE(id) << (id ? std::string() : id.error().message);
+    if (!id) {
+        return {};
+    }
+    return hio::device::waitForOperation(session, *id);
+}
+
+TEST_F(FakeLibrarySession, FlashWithRttAttachedPausesAndReattaches) {
+    auto session = DeviceSession::open(registry(), location(), options(801000001));
+    ASSERT_TRUE(session);
+    Recorder events(**session);
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(waitFor([&] { return !events.lines.empty(); }));
+    const std::size_t linesBefore = events.lines.size();
+    const auto result = runToEnd(**session, (*session)->flash("app", testImage(), {}));
+    ASSERT_TRUE(result.status) << result.status.error().message << " "
+                               << result.status.error().detail;
+    ASSERT_TRUE(result.chip.has_value());
+    EXPECT_EQ(result.chip.value_or(hio::jlink::ChipInfo{}).name, "nRF52840");
+    EXPECT_EQ(events.phases(1),
+              std::vector<hio::firmware::ProgramPhase>(
+                  hio::device::plannedPhases(hio::device::OperationKind::Flash, false).begin(),
+                  hio::device::plannedPhases(hio::device::OperationKind::Flash, false).end()));
+    // The reset after programming restarts the fake target: its boot output is read again.
+    ASSERT_TRUE(waitFor([&] { return events.lines.size() > linesBefore; }));
+    EXPECT_EQ(events.count(ConnectionState::Disconnected), 0);
+    // Read back through an operation.
+    const auto read = runToEnd(**session, (*session)->readMemory("app", 0x2000, 4));
+    ASSERT_TRUE(read.status);
+    EXPECT_EQ(read.data, std::vector<std::byte>(4, std::byte{0x3C}));
+}
+
+TEST_F(FakeLibrarySession, TwoSessionsFlashConcurrently) {
+    auto a = DeviceSession::open(registry(), location(), options(801000001));
+    auto b = DeviceSession::open(registry(), location(), options(801000002));
+    ASSERT_TRUE(a);
+    ASSERT_TRUE(b);
+    ASSERT_TRUE(hio::device::waitUntilConnected(**a, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hio::device::waitUntilConnected(**b, std::chrono::milliseconds(10000)));
+    const auto idA = (*a)->flash("app", testImage(64ULL * 1024), {});
+    const auto idB = (*b)->flash("app", testImage(64ULL * 1024), {});
+    ASSERT_TRUE(idA);
+    ASSERT_TRUE(idB);
+    const auto resultA = hio::device::waitForOperation(**a, *idA);
+    const auto resultB = hio::device::waitForOperation(**b, *idB);
+    EXPECT_TRUE(resultA.status);
+    EXPECT_TRUE(resultB.status);
+}
+
+TEST_F(FakeLibrarySession, VerifyMismatchIsReported) {
+    useScenario(R"({"probes": [{"serialNumber": 5, "chip": {"verifyMismatchAt": 8200}}]})");
+    SessionOptions opts = options(5U);
+    opts.attachRtt = false;
+    auto session = DeviceSession::open(registry(), location(), opts);
+    ASSERT_TRUE(session);
+    const auto result = runToEnd(**session, (*session)->flash("app", testImage(), {}));
+    ASSERT_FALSE(result.status);
+    EXPECT_EQ(result.status.error().code, ErrorCode::FirmwareVerifyFailed);
+    EXPECT_EQ(result.status.error().message, "Verification failed at address 0x00002008.");
+}
+
+TEST_F(FakeLibrarySession, ProtectedChipNeedsRecover) {
+    useScenario(R"({"probes": [{"serialNumber": 6, "chip": {"protected": true, "eraseAllPolls": 3,
+        "memory": [{"address": 268439680, "hex": "babecafe"}]}}]})");
+    SessionOptions opts = options(6U);
+    opts.attachRtt = false;
+    auto session = DeviceSession::open(registry(), location(), opts);
+    ASSERT_TRUE(session);
+    const auto flash = runToEnd(**session, (*session)->flash("app", testImage(), {}));
+    ASSERT_FALSE(flash.status);
+    EXPECT_EQ(flash.status.error().code, ErrorCode::TargetProtected);
+    const auto recover = runToEnd(**session, (*session)->recover("app"));
+    ASSERT_TRUE(recover.status) << recover.status.error().detail;
+    // ERASEALL also erased the UICR (the PIB is gone).
+    const auto pib = runToEnd(**session, (*session)->readMemory("app", 0x10001080, 4));
+    ASSERT_TRUE(pib.status);
+    EXPECT_EQ(pib.data, std::vector<std::byte>(4, std::byte{0xFF}));
+    EXPECT_TRUE(runToEnd(**session, (*session)->flash("app", testImage(), {})).status);
+}
+
+TEST_F(FakeLibrarySession, WriteFaultIsAProgramFailure) {
+    useScenario(R"({"probes": [{"serialNumber": 7, "chip": {"writeFault": true}}]})");
+    SessionOptions opts = options(7U);
+    opts.attachRtt = false;
+    auto session = DeviceSession::open(registry(), location(), opts);
+    ASSERT_TRUE(session);
+    const auto result = runToEnd(**session, (*session)->flash("app", testImage(), {}));
+    ASSERT_FALSE(result.status);
+    EXPECT_EQ(result.status.error().code, ErrorCode::TargetProgramFailed);
+    EXPECT_NE(result.status.error().detail.find("simulated write fault"), std::string::npos)
+        << result.status.error().detail;
+}
+
+TEST_F(FakeLibrarySession, LteEraseAllAndRecoverWithTheUnlockImage) {
+    useScenario(R"({"probes": [{"serialNumber": 8, "chip": {"family": "nrf91",
+        "memory": [{"address": 16744712, "hex": "babecafe"}]}}]})");
+    SessionOptions opts = options(8U);
+    opts.targetId = "lte";
+    opts.attachRtt = false;
+    auto session = DeviceSession::open(registry(), location(), opts);
+    ASSERT_TRUE(session) << session.error().message;
+    const auto erase = runToEnd(**session, (*session)->erase("lte", hio::device::EraseScope::All));
+    ASSERT_TRUE(erase.status) << erase.status.error().detail;
+    EXPECT_EQ(erase.chip.value_or(hio::jlink::ChipInfo{}).name, "nRF9151");
+    const auto recover = runToEnd(**session, (*session)->recover("lte"));
+    ASSERT_TRUE(recover.status) << recover.status.error().detail;
+    const auto code = runToEnd(**session, (*session)->readMemory("lte", 0x0, 4));
+    ASSERT_TRUE(code.status);
+    EXPECT_NE(code.data, std::vector<std::byte>(4, std::byte{0xFF})); // the image is there
 }
 
 } // namespace

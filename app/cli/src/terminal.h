@@ -18,6 +18,7 @@ namespace hio::cli {
 
 [[nodiscard]] bool stdinIsTerminal();
 [[nodiscard]] bool stdoutIsTerminal();
+[[nodiscard]] bool stderrIsTerminal();
 // Colors on stdout: a TTY and NO_COLOR not set.
 [[nodiscard]] bool stdoutColors();
 

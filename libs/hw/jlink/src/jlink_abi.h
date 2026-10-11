@@ -58,6 +58,10 @@ inline constexpr std::uint32_t rttCmdGetNumBuf = 3;
 inline constexpr std::uint32_t rttDirectionUp = 0;
 inline constexpr std::uint32_t rttDirectionDown = 1;
 
+// JLINKARM_CORESIGHT_ReadAPDPReg / WriteAPDPReg: APnDP argument [UM08002; pylink coresight_read].
+inline constexpr std::uint8_t coresightDp = 0;
+inline constexpr std::uint8_t coresightAp = 1;
+
 // Buffer sizes we pass for text outputs (pylink 2.0.2 uses 336 for MAX_BUF_SIZE, jlink.py).
 inline constexpr std::size_t textBufferSize = 512;
 
@@ -152,6 +156,29 @@ using RttControlFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, void*); // JLINK_RTT
 using RttReadFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, char*, std::uint32_t);        // ..._Read
 using RttWriteFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, const char*, std::uint32_t); // ..._Write
 
+// M2 flashing (plan/features/0003, ADR-0035, ADR-0039). Signatures from [UM08002], cross-checked
+// with [pylink] jlink.py flash(), flash_write(), memory_read(), memory_read32(), erase(),
+// coresight_configure(), coresight_read(), coresight_write(); calling conventions from [pylink]
+// library.py (_standard_calls_ lists JLINK_EraseChip). All names are exported by the installed
+// library 9.84 (checked with nm; the progress callback setter is
+// JLINK_SetFlashProgProgressCallback, not JLINKARM_...). The flash progress callback: void
+// (*)(const char* sAction, const char* sProg, int Percentage) [pylink
+// enums.JLinkFunctions.FLASH_PROGRESS_PROTOTYPE, CFUNCTYPE = __cdecl].
+using FlashProgressCallback = void (*)(const char*, const char*, int);
+using BeginDownloadFn = void (*)(std::uint32_t);                       // JLINKARM_BeginDownload
+using WriteMemFn = int (*)(std::uint32_t, std::uint32_t, const void*); // JLINKARM_WriteMem
+using EndDownloadFn = int (*)();                                       // JLINKARM_EndDownload
+using ReadMemExFn = int (*)(std::uint32_t, std::uint32_t, void*, std::uint32_t); // ..._ReadMemEx
+using ReadMemU32Fn = int (*)(std::uint32_t, std::uint32_t, std::uint32_t*,
+                             std::uint8_t*);                // JLINKARM_ReadMemU32
+using EraseChipFn = int(HIO_JLINK_STDCALL*)();              // JLINK_EraseChip
+using SetFlashProgressFn = void (*)(FlashProgressCallback); // JLINK_SetFlashProgProgressCallback
+using CoresightConfigureFn = int (*)(const char*);          // JLINKARM_CORESIGHT_Configure
+using CoresightReadFn = int (*)(std::uint8_t, std::uint8_t,
+                                std::uint32_t*); // JLINKARM_CORESIGHT_ReadAPDPReg
+using CoresightWriteFn = int (*)(std::uint8_t, std::uint8_t,
+                                 std::uint32_t); // JLINKARM_CORESIGHT_WriteAPDPReg
+
 // The resolved function table of one loaded library copy.
 struct Functions {
     GetDllVersionFn getDllVersion = nullptr;
@@ -181,6 +208,16 @@ struct Functions {
     RttControlFn rttControl = nullptr;
     RttReadFn rttRead = nullptr;
     RttWriteFn rttWrite = nullptr;
+    BeginDownloadFn beginDownload = nullptr;
+    WriteMemFn writeMem = nullptr;
+    EndDownloadFn endDownload = nullptr;
+    ReadMemExFn readMemEx = nullptr;
+    ReadMemU32Fn readMemU32 = nullptr;
+    EraseChipFn eraseChip = nullptr;
+    SetFlashProgressFn setFlashProgress = nullptr;
+    CoresightConfigureFn coresightConfigure = nullptr;
+    CoresightReadFn coresightRead = nullptr;
+    CoresightWriteFn coresightWrite = nullptr;
 };
 
 } // namespace hio::jlink::abi

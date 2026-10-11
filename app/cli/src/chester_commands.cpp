@@ -5,6 +5,7 @@
 #include "command_response.h"
 #include "console_events.h"
 #include "console_ui.h"
+#include "flash_commands.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
@@ -17,6 +18,7 @@
 #include "hio/hw/jlink/rtt_channel.h"
 #include "jlink_commands.h"
 #include "output.h"
+#include "probe_options.h"
 #include "terminal.h"
 
 #include <QEventLoop>
@@ -62,13 +64,6 @@ const char* const powerCycleTip =
     "TIP: After a J-Link connection, power-cycle the device; otherwise the CPU stays in debug "
     "mode with increased power consumption.";
 
-// Options shared by the `chester app` group and its subcommands (py-hardwario: both accept them;
-// a subcommand value wins).
-struct ProbeOptions {
-    std::optional<std::uint32_t> serialNumber;
-    std::optional<int> speedKhz;
-};
-
 struct ConsoleOptions {
     ProbeOptions probe;
     bool reset = false;
@@ -101,8 +96,8 @@ device::SessionOptions sessionOptions(const ProbeOptions& group, const ProbeOpti
     device::SessionOptions options;
     options.profile = device::ProfileRegistry::find(profileId);
     options.targetId = targetId;
-    options.probeSn = own.serialNumber ? own.serialNumber : group.serialNumber;
-    options.speedKhz = own.speedKhz.value_or(group.speedKhz.value_or(chesterApp().defaultSpeedKhz));
+    options.probeSn = serialNumberOf(group, own);
+    options.speedKhz = speedOf(group, own, chesterApp().defaultSpeedKhz);
     options.latencyMs = latencyMs;
     options.autoReconnect = autoReconnect;
     options.resetOnOpen = reset;
@@ -123,13 +118,6 @@ std::vector<std::string> splitLines(const std::string& text) {
         lines.push_back(std::move(line));
     }
     return lines;
-}
-
-void addProbeOptions(CLI::App& command, ProbeOptions& options) {
-    command.add_option("-n,--jlink-sn", options.serialNumber, "J-Link serial number")
-        ->option_text("SERIAL_NUMBER");
-    command.add_option("--jlink-speed", options.speedKhz, "J-Link clock speed in kHz [2000]")
-        ->option_text("SPEED");
 }
 
 // ---- console --------------------------------------------------------------------------------
@@ -449,7 +437,7 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
     CLI::App* appGroup = chester->add_subcommand("app", "Application SoC commands");
     appGroup->require_subcommand(1);
     auto group = std::make_shared<ProbeOptions>();
-    addProbeOptions(*appGroup, *group);
+    addProbeOptions(*appGroup, *group, chesterApp().defaultSpeedKhz);
 
     // console
     auto consoleOptions = std::make_shared<ConsoleOptions>();
@@ -485,7 +473,7 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
     consoleCommand->add_flag("--auto-reconnect", consoleOptions->autoReconnect,
                              "Keep re-attaching RTT after the link drops, instead of leaving "
                              "the console disconnected until F4");
-    addProbeOptions(*consoleCommand, consoleOptions->probe);
+    addProbeOptions(*consoleCommand, consoleOptions->probe, chesterApp().defaultSpeedKhz);
     consoleCommand->callback([&slot, &globals, group, consoleOptions, consoleFile] {
         consoleOptions->consoleFileGiven = consoleFile->count() > 0;
         slot.command = [&globals, group, consoleOptions](const Context& context) {
@@ -511,7 +499,7 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
                          "Console log file ('' = none; default: one file per run in the "
                          "application data)")
             ->option_text("PATH");
-    addProbeOptions(*commandCommand, commandOptions->probe);
+    addProbeOptions(*commandCommand, commandOptions->probe, chesterApp().defaultSpeedKhz);
     commandCommand->add_option("command", commandOptions->command, "Shell command(s), one per line")
         ->required();
     commandCommand->callback([&slot, &globals, group, commandOptions, commandConsoleFile] {
@@ -520,6 +508,10 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
             return command(context, globals, *group, *commandOptions);
         };
     });
+
+    // M2: flash, erase, reset, recover, pib read, uicr read; the `chester lte` group.
+    registerAppFlashCommands(*appGroup, group, slot, globals);
+    registerLteCommands(*chester, slot, globals);
 }
 
 } // namespace hio::cli

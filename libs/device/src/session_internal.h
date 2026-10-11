@@ -9,14 +9,18 @@
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
 #include "hio/device/device_session.h"
+#include "hio/device/operation.h"
 #include "hio/device/probe_lock.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
+#include "hio/firmware/firmware_image.h"
+#include "hio/firmware/lte_input.h"
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_probe.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/rtt_channel.h"
 #include "hio/hw/jlink/types.h"
+#include "hio/hw/nrfutil/nrfutil.h"
 
 #include <atomic>
 #include <chrono>
@@ -25,8 +29,10 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <thread>
+#include <utility>
 #include <variant>
 
 namespace hio::device {
@@ -40,15 +46,28 @@ namespace detail {
 struct SendLineCommand {
     std::string line;
 };
-struct ResetCommand {
-    bool halt = false;
-};
 struct ReconnectCommand {};
 struct SuspendCommand {};
 struct ResumeCommand {};
 
-using Command =
-    std::variant<SendLineCommand, ResetCommand, ReconnectCommand, SuspendCommand, ResumeCommand>;
+// One session operation (plan/features/0003, ADR-0057, ADR-0062). The images are immutable and
+// shared with the owner thread; `stop` is the operation's cancel token (DeviceSession::cancel).
+struct OperationCommand {
+    OperationId id = 0;
+    OperationKind kind = OperationKind::Reset;
+    const TargetProfile* target = nullptr;
+    std::shared_ptr<const firmware::FirmwareImage> image; // Flash
+    std::shared_ptr<const firmware::LteBundle> bundle;    // LteBundle
+    std::filesystem::path modemZip;                       // Modem
+    FlashOptions flash;
+    ResetMode reset = ResetMode::Go;
+    std::uint32_t address = 0; // ReadMemory
+    std::size_t size = 0;
+    std::stop_token stop;
+};
+
+using Command = std::variant<SendLineCommand, ReconnectCommand, SuspendCommand, ResumeCommand,
+                             OperationCommand>;
 
 // ---- events (worker -> owner thread) ----------------------------------------------------------
 
@@ -57,7 +76,17 @@ struct ProbeIdentified {
     jlink::ProbeInfo probe;
 };
 
-using WorkerEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified>;
+struct OperationProgressEvent {
+    OperationId id = 0;
+    OperationProgress progress;
+};
+struct OperationFinishedEvent {
+    OperationId id = 0;
+    OperationResult result;
+};
+
+using WorkerEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified,
+                                 OperationProgressEvent, OperationFinishedEvent>;
 
 // The events the event queue may drop when it is full.
 [[nodiscard]] inline bool isConsoleLine(const WorkerEvent& event) {
@@ -67,12 +96,18 @@ using WorkerEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIde
 // ---- configuration ----------------------------------------------------------------------------
 
 using ApiFactory = std::function<Result<std::unique_ptr<jlink::IJLinkApi>>()>;
+// Locates and checks nRF Util and returns the modem updater (runs on the worker; ADR-0042).
+using ModemUpdaterFactory = std::function<Result<std::unique_ptr<nrfutil::IModemUpdater>>()>;
 
 struct SessionTiming {
     std::chrono::milliseconds powerCheckInterval{1000}; // ADR-0034
     std::chrono::milliseconds reconnectInterval{3000};  // ADR-0034
     jlink::ProbeTiming probe;
     jlink::RttTiming rtt;
+    jlink::ProgrammerTiming programmer;
+    // Operation progress events: at most one per interval per operation (plus phase changes and
+    // the final one).
+    std::chrono::milliseconds progressInterval{100};
 };
 
 struct WorkerConfig {
@@ -83,6 +118,7 @@ struct WorkerConfig {
     int latencyMs = 0;
     bool autoReconnect = false;
     bool resetOnOpen = false;
+    bool attachRtt = true;
     std::optional<ConsoleFileConfig> consoleFile; // nullopt = no console file
     std::filesystem::path lockDirectory;
     SessionTiming timing;
@@ -94,6 +130,8 @@ struct WorkerConfig {
 // Test hooks of openSession(); DeviceSession::open() uses the defaults (the real library copy).
 struct OpenHooks {
     ApiFactory apiFactory; // empty = JLinkLibrary::loadCopy(location, registry instance root)
+    // empty = nrfutil::locate(SessionOptions::nrfUtil) + checkVersions + NrfUtilModemUpdater
+    ModemUpdaterFactory modemUpdaterFactory;
     SessionTiming timing;
     std::shared_ptr<std::atomic<std::uint64_t>> cycles; // WorkerConfig::cycles
 };
@@ -108,9 +146,18 @@ struct SessionInternals {
     // When full, only console lines are dropped (oldest first) so state changes, warnings and the
     // probe identity always arrive in order (review R10, decided 2026-10-10).
     BoundedQueue<WorkerEvent> events{DeviceSession::eventQueueCapacity, &isConsoleLine};
+    // Operations (owner thread): the running one and its cancel source (ADR-0062).
+    OperationId nextOperation = 1;
+    std::optional<OperationId> runningOperation;
+    std::stop_source operationStop;
+    // The last finished operation, so that waitForOperation() also works when the result was
+    // delivered before it started waiting (one entry).
+    std::optional<std::pair<OperationId, OperationResult>> lastFinished;
     std::jthread worker; // joined by DeviceSession::close(); declared last, destroyed first
 
     [[nodiscard]] static std::optional<std::uint32_t> requestedSerial(const DeviceSession& session);
+    [[nodiscard]] static std::optional<OperationResult> finished(const DeviceSession& session,
+                                                                 OperationId id);
     // The implementation of openSession() (a friend of DeviceSession and SessionRegistry).
     [[nodiscard]] static Result<std::unique_ptr<DeviceSession>>
     open(SessionRegistry& registry, jlink::LibraryLocation location, SessionOptions options,
@@ -125,8 +172,9 @@ struct SessionInternals {
 
 // The worker loop (session_worker.cpp). Runs on SessionInternals::worker until `stop`.
 void runWorker(const std::stop_token& stop, WorkerConfig config, ApiFactory apiFactory,
-               std::optional<ProbeLock> lock, BoundedQueue<Command>& commands,
-               BoundedQueue<WorkerEvent>& events, const std::function<void()>& wake);
+               ModemUpdaterFactory modemUpdaterFactory, std::optional<ProbeLock> lock,
+               BoundedQueue<Command>& commands, BoundedQueue<WorkerEvent>& events,
+               const std::function<void()>& wake);
 
 } // namespace detail
 

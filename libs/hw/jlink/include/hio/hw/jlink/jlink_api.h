@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -38,6 +39,11 @@ enum class TargetInterface : std::uint8_t {
     Jtag,
     Swd,
 };
+
+// Progress reported by the library's flash loader during endDownload(): the action ("Erase",
+// "Program", "Verify", "Compare", ...) and a percentage. Called on the calling thread; must not
+// throw.
+using FlashProgressFn = std::function<void(std::string_view action, int percent)>;
 
 class IJLinkApi {
 public:
@@ -113,6 +119,31 @@ public:
     [[nodiscard]] virtual int rttRead(int index, std::span<std::byte> buffer) = 0;
     // Write: bytes written (>= 0, may be less than requested) or a negative vendor code.
     [[nodiscard]] virtual int rttWrite(int index, std::span<const std::byte> data) = 0;
+
+    // ---- memory and flash (M2, plan/features/0003) ------------------------------------------
+    // JLINKARM_BeginDownload(0): following writeMemory() calls go to the flash loader's buffer.
+    virtual void beginDownload() = 0;
+    // JLINKARM_WriteMem. Bytes accepted (>= 0) or a negative vendor code.
+    [[nodiscard]] virtual int writeMemory(std::uint32_t address,
+                                          std::span<const std::byte> data) = 0;
+    // JLINKARM_EndDownload: the loader erases the touched sectors and programs them. `progress`
+    // receives the loader's progress callbacks during the call. Returns the vendor code (< 0:
+    // error).
+    [[nodiscard]] virtual int endDownload(const FlashProgressFn& progress) = 0;
+    // JLINKARM_ReadMemEx: bytes read (>= 0) or a negative vendor code.
+    [[nodiscard]] virtual int readMemory(std::uint32_t address, std::span<std::byte> buffer) = 0;
+    // JLINKARM_ReadMemU32 of one word. Error: the vendor code (or the item status).
+    [[nodiscard]] virtual std::expected<std::uint32_t, int> readU32(std::uint32_t address) = 0;
+    // JLINK_EraseChip: erases flash and UICR. Returns the vendor code (< 0: error).
+    [[nodiscard]] virtual int eraseChip() = 0;
+    // JLINKARM_CORESIGHT_Configure("") (SWD). Returns the vendor code (< 0: error).
+    [[nodiscard]] virtual int coresightConfigure() = 0;
+    // JLINKARM_CORESIGHT_ReadAPDPReg: register `index` (0..3, A[3:2]) of the selected AP (`ap`)
+    // or of the DP. Error: the negative vendor code.
+    [[nodiscard]] virtual std::expected<std::uint32_t, int> coresightRead(std::uint8_t index,
+                                                                          bool ap) = 0;
+    // JLINKARM_CORESIGHT_WriteAPDPReg. Returns the vendor code (< 0: error).
+    [[nodiscard]] virtual int coresightWrite(std::uint8_t index, bool ap, std::uint32_t value) = 0;
 
     // ---- library output (log / warning / error out handlers) --------------------------------
     // Logs the messages the library reported since the last call into the hio.jlink category.

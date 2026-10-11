@@ -6,6 +6,7 @@
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
 #include "hio/device/device_session.h"
+#include "hio/device/operation.h"
 #include "hio/device/probe_lock.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
@@ -399,7 +400,7 @@ TEST_F(Session, ResetReattaches) {
     auto session = openConnected(options(), events);
     ASSERT_TRUE(session);
     const int starts = target().get([](ScriptedTarget& t) { return t.rttStarts; });
-    ASSERT_TRUE(session->reset(false));
+    ASSERT_TRUE(session->reset("app", hio::device::ResetMode::Go));
     ASSERT_TRUE(waitFor([&] {
         return target().get([](ScriptedTarget& t) { return t.resets; }) == 1 &&
                target().get([](ScriptedTarget& t) { return t.rttStarts; }) > starts;
@@ -418,7 +419,7 @@ TEST_F(Session, HaltResetIsNotReattachedAutomatically) {
     auto session = openConnected(opts, events);
     ASSERT_TRUE(session);
     const int starts = target().get([](ScriptedTarget& t) { return t.rttStarts; });
-    ASSERT_TRUE(session->reset(true));
+    ASSERT_TRUE(session->reset("app", hio::device::ResetMode::Halt));
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
     EXPECT_FALSE(events->connections.back().error.has_value());
     // Review R40: wait for worker cycles instead of a fixed time. Each cycle lasts at least the
@@ -443,9 +444,11 @@ TEST_F(Session, ResetWithoutHaltAfterAHaltResetReattaches) {
     Recorder* events = nullptr;
     auto session = openConnected(opts, events);
     ASSERT_TRUE(session);
-    ASSERT_TRUE(session->reset(true));
-    ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
-    ASSERT_TRUE(session->reset(false));
+    const auto halt = session->reset("app", hio::device::ResetMode::Halt);
+    ASSERT_TRUE(halt);
+    ASSERT_TRUE(waitFor([&] { return events->result(*halt) != nullptr; })); // one at a time
+    EXPECT_TRUE(events->reached(ConnectionState::Disconnected));
+    ASSERT_TRUE(session->reset("app", hio::device::ResetMode::Go));
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Connected); }));
 }
 
@@ -486,9 +489,12 @@ TEST_F(Session, SendAfterSuspendIsNotConnected) {
     ASSERT_TRUE(waitFor([&] { return !events->warnings.empty(); }));
     EXPECT_EQ(events->warnings.back().code, ErrorCode::TargetNotConnected);
     EXPECT_EQ(events->warnings.back().suggestion, "Reconnect the console (F4).");
-    ASSERT_TRUE(session->reset(false)); // the probe is released: reset is not possible either
-    ASSERT_TRUE(waitFor([&] { return events->warnings.size() == 2; }));
-    EXPECT_EQ(events->warnings.back().code, ErrorCode::TargetNotConnected);
+    // The probe is released: a reset operation is not possible either (ADR-0062).
+    const auto reset = session->reset("app", hio::device::ResetMode::Go);
+    ASSERT_TRUE(reset);
+    ASSERT_TRUE(waitFor([&] { return events->result(*reset) != nullptr; }));
+    ASSERT_FALSE(events->result(*reset)->status);
+    EXPECT_EQ(events->result(*reset)->status.error().code, ErrorCode::TargetNotConnected);
 }
 
 // Review R35: "Wait for the console to reconnect." only while the session re-attaches by itself
@@ -499,7 +505,7 @@ TEST_F(Session, NotConnectedSuggestionWhileHaltedIsReconnect) {
     Recorder* events = nullptr;
     auto session = openConnected(opts, events);
     ASSERT_TRUE(session);
-    ASSERT_TRUE(session->reset(true));
+    ASSERT_TRUE(session->reset("app", hio::device::ResetMode::Halt));
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
     ASSERT_TRUE(session->sendLine("version"));
     ASSERT_TRUE(waitFor([&] { return !events->warnings.empty(); }));

@@ -11,14 +11,19 @@ add_executable(hio_device_tests
     line_assembler_test.cpp
     lock_holder.h
     main.cpp
+    operation_session_test.cpp
+    pib_test.cpp
     probe_lock_test.cpp
     profile_test.cpp
     scripted_api.h
-    session_test_support.h)
+    session_test_support.h
+    workflow_test.cpp)
 hio_apply_target_defaults(hio_device_tests)
 target_include_directories(hio_device_tests PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src")
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src"
+    "${PROJECT_SOURCE_DIR}/libs/hw/jlink/tests"
+    "${PROJECT_SOURCE_DIR}/libs/firmware/tests")
 target_link_libraries(hio_device_tests PRIVATE hio::device GTest::gmock)
 target_compile_definitions(hio_device_tests PRIVATE
     "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\"")

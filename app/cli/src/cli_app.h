@@ -4,7 +4,7 @@
 // print themselves (except streaming commands, through Context::output).
 //
 // Command groups live in separate files: selftest.cpp, jlink_commands.cpp (M1),
-// chester_commands.cpp (M1).
+// chester_commands.cpp (M1), flash_commands.cpp (M2).
 
 #include "hio/core/log.h"
 #include "hio/core/result.h"
@@ -51,6 +51,7 @@ struct GlobalOptions {
     bool version = false;
     log::Level logLevel = log::Level::Critical;
     std::string jlinkLibrary; // --jlink-library (empty = not given)
+    std::string nrfutil;      // --nrfutil (empty = not given; ADR-0016)
 };
 
 enum class ParseOutcome : std::uint8_t {

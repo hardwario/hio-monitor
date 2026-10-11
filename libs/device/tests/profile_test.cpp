@@ -50,3 +50,45 @@ TEST(Profiles, EveryProfileIsConsistent) {
 }
 
 } // namespace
+
+namespace {
+
+// M2 (plan/features/0003, C1).
+TEST(Profiles, ChesterFlashLayout) {
+    const auto& chester = *ProfileRegistry::find("chester");
+    EXPECT_EQ(chester.firmwareCatalogUrl, "https://firmware.hardwario.com/chester");
+    const auto* app = hio::device::findTarget(chester, "app");
+    const auto* lte = hio::device::findTarget(chester, "lte");
+    ASSERT_NE(app, nullptr);
+    ASSERT_NE(lte, nullptr);
+    ASSERT_NE(hio::device::findPart(*app, 0x52840), nullptr);
+    EXPECT_EQ(hio::device::findPart(*app, 0x52840)->displayName, "nRF52840");
+    EXPECT_EQ(hio::device::findPart(*app, 0x9160), nullptr);
+    EXPECT_EQ(hio::device::findPart(*lte, 0x9120)->displayName, "nRF9151");
+    EXPECT_EQ(hio::device::findPart(*lte, 0x9120)->jlinkDevice, "NRF9151_XXCA");
+    EXPECT_EQ(hio::device::findPart(*lte, 0x9160)->jlinkDevice, "NRF9160_xxAA");
+    EXPECT_EQ(hio::device::pibRange(*app).start, 0x10001080U);
+    EXPECT_EQ(hio::device::pibRange(*lte).start, 0x00FF8108U);
+    EXPECT_EQ(hio::device::pibRange(*lte).size(), 128U);
+    EXPECT_EQ(app->defaultErase, hio::device::EraseScope::Code);
+    EXPECT_EQ(lte->defaultErase, hio::device::EraseScope::All);
+    EXPECT_EQ(lte->recoverImage, hio::device::RecoverImage::Nrf91DisableApProtect);
+    EXPECT_EQ(app->chipFamily.ctrlApIndex, 1U);
+    EXPECT_EQ(lte->chipFamily.ctrlApIndex, 4U);
+    EXPECT_TRUE(app->pibErasableWithUicr);
+    EXPECT_FALSE(lte->pibErasableWithUicr);
+}
+
+TEST(Profiles, FlashLayoutIsConsistent) {
+    for (const hio::device::DeviceProfile* profile : ProfileRegistry::all()) {
+        for (const hio::device::TargetProfile& target : profile->targets) {
+            EXPECT_FALSE(target.parts.empty()) << target.id;
+            EXPECT_EQ(target.parts.front().jlinkDevice, target.jlinkDevice) << target.id;
+            EXPECT_FALSE(target.flash.empty()) << target.id;
+            EXPECT_FALSE(target.uicr.overlaps(target.flash)) << target.id;
+            EXPECT_TRUE(target.uicr.contains(hio::device::pibRange(target))) << target.id;
+        }
+    }
+}
+
+} // namespace

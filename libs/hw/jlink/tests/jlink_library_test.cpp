@@ -20,11 +20,13 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 namespace {
@@ -227,6 +229,55 @@ TEST_F(FakeLibrary, CleanupRemovesInstancesWithAStaleLock) {
 
 TEST_F(FakeLibrary, DefaultInstanceRootIsInAppData) {
     EXPECT_EQ(JLinkLibrary::defaultInstanceRoot().filename(), "jlink-instances");
+}
+
+} // namespace
+
+namespace {
+
+// M2 (plan/features/0003, B1): the flashing functions through a real library copy of the fake.
+TEST_F(FakeLibrary, FlashFunctionsReachTheLibrary) {
+    useScenario(R"({"probes": [{"serialNumber": 5,
+        "chip": {"memory": [{"address": 268439680, "hex": "babecafe"}]}}]})");
+    auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
+    ASSERT_TRUE(library) << library.error().detail;
+    JLinkLibrary& api = **library;
+    ASSERT_EQ(api.selectBySerialNumber(5), 0);
+    ASSERT_FALSE(api.open().has_value());
+    ASSERT_GE(api.connect(), 0);
+
+    const auto part = api.readU32(0x10000100);
+    ASSERT_TRUE(part);
+    EXPECT_EQ(*part, 0x52840U);
+    EXPECT_FALSE(api.readU32(0x00FF0140)); // the nRF91 FICR does not exist on an nRF52
+
+    std::array<std::byte, 4> pib{};
+    ASSERT_EQ(api.readMemory(0x10001080, pib), 4);
+    EXPECT_EQ(pib[0], std::byte{0xBA});
+
+    api.beginDownload();
+    const std::array<std::byte, 3> data{std::byte{1}, std::byte{2}, std::byte{3}};
+    EXPECT_EQ(api.writeMemory(0x2000, data), 3);
+    int callbacks = 0;
+    EXPECT_GE(api.endDownload([&callbacks](std::string_view action, int /*percent*/) {
+        EXPECT_FALSE(action.empty());
+        ++callbacks;
+    }),
+              0);
+    EXPECT_GT(callbacks, 0); // the loader's progress reached the FlashProgressFn
+    std::array<std::byte, 3> back{};
+    ASSERT_EQ(api.readMemory(0x2000, back), 3);
+    EXPECT_EQ(back, data);
+
+    EXPECT_GE(api.eraseChip(), 0);
+    ASSERT_EQ(api.readMemory(0x2000, back), 3);
+    EXPECT_EQ(back[0], std::byte{0xFF});
+
+    ASSERT_GE(api.coresightConfigure(), 0);
+    ASSERT_GE(api.coresightWrite(2, false, 1U << 24U), 0);
+    const auto status = api.coresightRead(3, true);
+    ASSERT_TRUE(status);
+    EXPECT_EQ(*status & 1U, 1U); // not protected
 }
 
 } // namespace

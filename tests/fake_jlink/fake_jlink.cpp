@@ -41,7 +41,26 @@
 //         "acceptEachWriteAfterMs": 0,              every write (each chunk) accepts 0 bytes
 //                                                   until this long after its own first attempt
 //         "readErrors": [[fromMs, toMs]]            RTT reads fail in these ranges
+//       },
+//       "chip": {                                   flash memory model (plan/features/0003, E1)
+//         "family": "nrf52" | "nrf91",              FICR / UICR / CTRL-AP layout (default nrf52)
+//         "part": 337984, "variant": 1094796336,    FICR INFO.PART / VARIANT (default by family:
+//                                                   0x52840 / 0x9120, variant "AAD0")
+//         "protected": false,                       APPROTECT: memory access and connect fail
+//         "memory": [{"address": 268439680, "hex": "babecafe..."}],  initial flash/UICR bytes
+//         "verifyMismatchAt": 4096,                 reads of this address return the byte ^ 0xFF
+//         "writeFault": false,                      JLINKARM_EndDownload fails
+//         "eraseChipFails": false,                  JLINK_EraseChip fails
+//         "eraseAllPolls": 2,                       CTRL-AP ERASEALLSTATUS reads "busy" N times
+//         "downloadDelayMs": 0, "readDelayMs": 0    JLINKARM_EndDownload / every ReadMemEx blocks
 //       } } ] }
+// Memory: flash 0x0-0x100000 and the UICR page (nRF52: 0x10001000, nRF91: 0x00FF8000; 4 KiB) start
+// erased (0xFF). A download (BeginDownload, WriteMem, EndDownload) behaves like the J-Link flash
+// loader: only the written bytes change, the rest of every touched 4 KiB sector is kept; bytes
+// outside flash and UICR make EndDownload fail. EndDownload reports "Erase" and "Program" progress
+// to the JLINK_SetFlashProgProgressCallback callback. JLINK_EraseChip and CTRL-AP ERASEALL erase
+// flash and UICR; ERASEALL also clears "protected". The CTRL-AP is AP 1 (nRF52) / AP 4 (nRF91)
+// with RESET (0x0), ERASEALL (0x4), ERASEALLSTATUS (0x8) and APPROTECTSTATUS (0xC).
 // "Boot" is JLINKARM_Open and every JLINKARM_Reset (a reset restarts the RTT timeline: the
 // control block must be found again and the output is replayed). VTref times count from the first
 // JLINKARM_Open of the library copy (the target's power does not restart when the probe is
@@ -58,6 +77,7 @@
 #include <QJsonValue>
 #include <QString>
 #include <QtEnvironmentVariables>
+#include <QtTypes>
 
 #include <algorithm>
 #include <chrono>
@@ -121,6 +141,41 @@ struct RttScenario {
     std::vector<Range> readErrors;
 };
 
+struct ChipScenario {
+    bool nrf91 = false;
+    std::uint32_t part = 0x52840;
+    std::uint32_t variant = 0x41414430; // "AAD0"
+    bool protectedChip = false;
+    std::optional<std::uint32_t> verifyMismatchAt;
+    bool writeFault = false;
+    bool eraseChipFails = false;
+    int eraseAllPolls = 2;
+    std::int64_t downloadDelayMs = 0;
+    std::int64_t readDelayMs = 0;
+    std::vector<std::uint8_t> flash = std::vector<std::uint8_t>(0x100000, 0xFF);
+    std::vector<std::uint8_t> uicr = std::vector<std::uint8_t>(0x1000, 0xFF);
+
+    [[nodiscard]] std::uint32_t uicrBase() const { return nrf91 ? 0x00FF8000U : 0x10001000U; }
+    [[nodiscard]] std::uint32_t ficrPart() const { return nrf91 ? 0x00FF0140U : 0x10000100U; }
+    [[nodiscard]] std::uint32_t ctrlAp() const { return nrf91 ? 4U : 1U; }
+
+    // The byte at `address`, or nullopt outside flash and UICR.
+    [[nodiscard]] std::uint8_t* at(std::uint64_t address) {
+        if (address < flash.size()) {
+            return &flash.at(static_cast<std::size_t>(address));
+        }
+        if (address >= uicrBase() && address < uicrBase() + uicr.size()) {
+            return &uicr.at(static_cast<std::size_t>(address - uicrBase()));
+        }
+        return nullptr;
+    }
+
+    void eraseAll() {
+        std::ranges::fill(flash, std::uint8_t{0xFF});
+        std::ranges::fill(uicr, std::uint8_t{0xFF});
+    }
+};
+
 struct ProbeScenario {
     std::uint32_t serialNumber = 0;
     std::string product;
@@ -134,6 +189,7 @@ struct ProbeScenario {
     int connectMinMillivolts = 1000;
     std::vector<std::pair<std::int64_t, int>> vtref{{0, 3300}};
     RttScenario rtt;
+    ChipScenario chip;
 };
 
 struct Scenario {
@@ -198,6 +254,41 @@ RttScenario readRtt(const QJsonObject& object) {
     return rtt;
 }
 
+ChipScenario readChip(const QJsonObject& object) {
+    ChipScenario chip;
+    chip.nrf91 = object.value(QStringLiteral("family")).toString() == QStringLiteral("nrf91");
+    if (chip.nrf91) {
+        chip.part = 0x9120;
+    }
+    chip.part =
+        static_cast<std::uint32_t>(object.value(QStringLiteral("part")).toInteger(chip.part));
+    chip.variant =
+        static_cast<std::uint32_t>(object.value(QStringLiteral("variant")).toInteger(chip.variant));
+    chip.protectedChip = object.value(QStringLiteral("protected")).toBool();
+    if (object.contains(QStringLiteral("verifyMismatchAt"))) {
+        chip.verifyMismatchAt = static_cast<std::uint32_t>(
+            object.value(QStringLiteral("verifyMismatchAt")).toInteger());
+    }
+    chip.writeFault = object.value(QStringLiteral("writeFault")).toBool();
+    chip.eraseChipFails = object.value(QStringLiteral("eraseChipFails")).toBool();
+    chip.eraseAllPolls = object.value(QStringLiteral("eraseAllPolls")).toInt(2);
+    chip.downloadDelayMs = object.value(QStringLiteral("downloadDelayMs")).toInteger();
+    chip.readDelayMs = object.value(QStringLiteral("readDelayMs")).toInteger();
+    for (const QJsonValue item : object.value(QStringLiteral("memory")).toArray()) {
+        const QJsonObject block = item.toObject();
+        const auto address =
+            static_cast<std::uint64_t>(block.value(QStringLiteral("address")).toInteger());
+        const QByteArray bytes =
+            QByteArray::fromHex(block.value(QStringLiteral("hex")).toString().toLatin1());
+        for (qsizetype i = 0; i < bytes.size(); ++i) {
+            if (std::uint8_t* byte = chip.at(address + static_cast<std::uint64_t>(i))) {
+                *byte = static_cast<std::uint8_t>(bytes.at(i));
+            }
+        }
+    }
+    return chip;
+}
+
 Scenario loadScenario() {
     Scenario scenario;
     const QString path = qEnvironmentVariable("HIO_FAKE_JLINK_SCENARIO");
@@ -248,6 +339,7 @@ Scenario loadScenario() {
             }
         }
         probe.rtt = readRtt(object.value(QStringLiteral("rtt")).toObject());
+        probe.chip = readChip(object.value(QStringLiteral("chip")).toObject());
         scenario.probes.push_back(std::move(probe));
     }
     return scenario;
@@ -289,6 +381,16 @@ struct State {
     abi::LogHandler logHandler = nullptr;
     abi::LogHandler warnHandler = nullptr;
     abi::LogHandler errorHandler = nullptr;
+    abi::FlashProgressCallback flashProgress = nullptr;
+    // Flash download (BeginDownload .. EndDownload): the buffered writes, bounded by the tests.
+    bool downloading = false;
+    std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>> downloadData;
+    // CoreSight: DP SELECT and the CTRL-AP erase-all state.
+    bool coresightConfigured = false;
+    std::uint32_t apSelect = 0;
+    int eraseAllPollsLeft = 0;
+    bool eraseAllRunning = false;
+    std::uint32_t ctrlApReset = 0;
     std::string lastOpenError; // keeps the text returned by JLINKARM_Open alive
 
     Scenario& data() {
@@ -389,6 +491,21 @@ struct State {
 State& state() {
     static State instance;
     return instance;
+}
+
+// A slow vendor call: sleeps outside the lock.
+void chipDelay(std::int64_t ChipScenario::* field) {
+    std::int64_t delay = 0;
+    {
+        State& s = state();
+        const std::scoped_lock lock(s.mutex);
+        if (const ProbeScenario* probe = s.probe()) {
+            delay = probe->chip.*field;
+        }
+    }
+    if (delay > 0) {
+        std::this_thread::sleep_for(Milliseconds(delay));
+    }
 }
 
 } // namespace
@@ -524,7 +641,8 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_Connect() {
         return -1;
     }
     ++s.connectCalls;
-    if (s.connectCalls <= probe->connectFailures || s.vtref() < probe->connectMinMillivolts) {
+    if (s.connectCalls <= probe->connectFailures || s.vtref() < probe->connectMinMillivolts ||
+        probe->chip.protectedChip) {
         s.connected = false;
         State::report(s.errorHandler, "Could not connect to target.");
         return -1;
@@ -750,6 +868,222 @@ HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_RTTERMINAL_Write(std::uint32_t
         s.writtenLine.clear();
     }
     return static_cast<int>(accepted);
+}
+
+// ---- M2: memory, flash download, erase, CoreSight (plan/features/0003, E1) ----------------------
+
+HIO_FAKE_JLINK_EXPORT void JLINK_SetFlashProgProgressCallback(abi::FlashProgressCallback callback) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    s.flashProgress = callback;
+}
+
+HIO_FAKE_JLINK_EXPORT void JLINKARM_BeginDownload(std::uint32_t /*flags*/) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    s.downloading = true;
+    s.downloadData.clear();
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_WriteMem(std::uint32_t address, std::uint32_t count,
+                                            const void* data) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    if (!s.connected || data == nullptr || !s.downloading) {
+        return -1;
+    }
+    const auto bytes = std::span(static_cast<const std::uint8_t*>(data), count);
+    s.downloadData.emplace_back(address, std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
+    return static_cast<int>(count);
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_EndDownload() {
+    chipDelay(&ChipScenario::downloadDelayMs);
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    ProbeScenario* probe = s.probe();
+    const bool wasDownloading = s.downloading;
+    s.downloading = false;
+    if (!s.connected || probe == nullptr || !wasDownloading) {
+        return -1;
+    }
+    ChipScenario& chip = probe->chip;
+    // Every byte must lie in flash or UICR (the loader has no other flash bank).
+    for (const auto& [address, bytes] : s.downloadData) {
+        for (std::size_t i = 0; i < bytes.size(); ++i) {
+            if (chip.at(std::uint64_t{address} + i) == nullptr) {
+                State::report(s.errorHandler, "No flash bank at the download address");
+                return -1;
+            }
+        }
+    }
+    if (chip.writeFault) {
+        State::report(s.errorHandler, "Programming failed (simulated write fault)");
+        return -1;
+    }
+    if (s.flashProgress != nullptr) {
+        s.flashProgress("Erase", "", 0);
+        s.flashProgress("Erase", "", 100);
+        s.flashProgress("Program", "", 50);
+        s.flashProgress("Program", "", 100);
+    }
+    // The loader keeps the unwritten bytes of every touched sector (read-modify-write).
+    std::size_t total = 0;
+    for (const auto& [address, bytes] : s.downloadData) {
+        for (std::size_t i = 0; i < bytes.size(); ++i) {
+            *chip.at(std::uint64_t{address} + i) = bytes[i];
+        }
+        total += bytes.size();
+    }
+    s.downloadData.clear();
+    return static_cast<int>(std::min<std::size_t>(total, 0x7FFFFFFF));
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemEx(std::uint32_t address, std::uint32_t count, void* data,
+                                             std::uint32_t /*flags*/) {
+    chipDelay(&ChipScenario::readDelayMs);
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    ProbeScenario* probe = s.probe();
+    if (!s.connected || probe == nullptr || data == nullptr || probe->chip.protectedChip) {
+        return -1;
+    }
+    const auto out = std::span(static_cast<std::uint8_t*>(data), count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        const std::uint8_t* byte = probe->chip.at(std::uint64_t{address} + i);
+        if (byte == nullptr) {
+            return -1;
+        }
+        const bool mismatch =
+            probe->chip.verifyMismatchAt && *probe->chip.verifyMismatchAt == address + i;
+        out[i] = mismatch ? static_cast<std::uint8_t>(*byte ^ 0xFFU) : *byte;
+    }
+    return static_cast<int>(count);
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemU32(std::uint32_t address, std::uint32_t count,
+                                              std::uint32_t* data, std::uint8_t* status) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    ProbeScenario* probe = s.probe();
+    if (!s.connected || probe == nullptr || data == nullptr || count != 1 ||
+        probe->chip.protectedChip) {
+        return -1;
+    }
+    const ChipScenario& chip = probe->chip;
+    std::optional<std::uint32_t> value;
+    if (address == chip.ficrPart()) {
+        value = chip.part;
+    } else if (address == chip.ficrPart() + 4) {
+        value = chip.variant;
+    }
+    if (!value) {
+        return -1; // unmapped (e.g. the FICR address of the other family)
+    }
+    *data = *value;
+    if (status != nullptr) {
+        *status = 0;
+    }
+    return 1;
+}
+
+HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_EraseChip() {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    ProbeScenario* probe = s.probe();
+    if (!s.connected || probe == nullptr || probe->chip.eraseChipFails ||
+        probe->chip.protectedChip) {
+        State::report(s.errorHandler, "Erase failed (simulated)");
+        return -1;
+    }
+    probe->chip.eraseAll();
+    return 0;
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_Configure(const char* /*config*/) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    if (!s.open) {
+        return -1;
+    }
+    s.coresightConfigured = true;
+    return 0;
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_ReadAPDPReg(std::uint8_t index, std::uint8_t ap,
+                                                         std::uint32_t* data) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    ProbeScenario* probe = s.probe();
+    if (!s.open || !s.coresightConfigured || probe == nullptr || data == nullptr) {
+        return -1;
+    }
+    if (ap == 0) {
+        *data = index == 2 ? s.apSelect : 0;
+        return 0;
+    }
+    ChipScenario& chip = probe->chip;
+    if ((s.apSelect >> 24U) != chip.ctrlAp()) {
+        return -1; // only the CTRL-AP is modelled
+    }
+    switch (index) {
+    case 0:
+        *data = s.ctrlApReset;
+        return 0;
+    case 2: // ERASEALLSTATUS
+        if (s.eraseAllRunning && s.eraseAllPollsLeft > 0) {
+            --s.eraseAllPollsLeft;
+            *data = 1;
+            return 0;
+        }
+        if (s.eraseAllRunning) {
+            s.eraseAllRunning = false;
+            chip.eraseAll();
+            chip.protectedChip = false;
+        }
+        *data = 0;
+        return 0;
+    case 3: // APPROTECTSTATUS: bit 0 (and bit 1 on nRF91) = 0 when protected
+        if (chip.protectedChip) {
+            *data = 0U;
+        } else {
+            *data = chip.nrf91 ? 3U : 1U;
+        }
+        return 0;
+    default:
+        *data = 0;
+        return 0;
+    }
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_WriteAPDPReg(std::uint8_t index, std::uint8_t ap,
+                                                          std::uint32_t value) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    ProbeScenario* probe = s.probe();
+    if (!s.open || !s.coresightConfigured || probe == nullptr) {
+        return -1;
+    }
+    if (ap == 0) {
+        if (index == 2) {
+            s.apSelect = value;
+        }
+        return 0;
+    }
+    if ((s.apSelect >> 24U) != probe->chip.ctrlAp()) {
+        return -1;
+    }
+    if (index == 1 && value == 1 && !s.eraseAllRunning) {
+        s.eraseAllRunning = true;
+        s.eraseAllPollsLeft = probe->chip.eraseAllPolls;
+    }
+    if (index == 0) {
+        if (s.ctrlApReset == 1 && value == 0) {
+            s.boot(); // the system reset ends: the firmware starts again
+        }
+        s.ctrlApReset = value;
+    }
+    return 0;
 }
 
 } // extern "C"

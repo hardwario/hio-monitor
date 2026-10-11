@@ -6,6 +6,7 @@
 #include "hio/core/error.h"
 #include "hio/device/console_line.h"
 #include "hio/device/device_session.h"
+#include "hio/device/operation.h"
 #include "hio/device/session_events.h"
 
 #include <QCoreApplication>
@@ -18,6 +19,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace hio::device::test {
@@ -55,6 +57,33 @@ public:
                          [this](const Error& error) { warnings.push_back(error); });
         QObject::connect(&session, &DeviceSession::linesDropped, &context,
                          [this](quint64 count) { dropped += count; });
+        QObject::connect(
+            &session, &DeviceSession::operationProgress, &context,
+            [this](OperationId id, const OperationProgress& p) { progress.emplace_back(id, p); });
+        QObject::connect(
+            &session, &DeviceSession::operationFinished, &context,
+            [this](OperationId id, const OperationResult& r) { finished.emplace_back(id, r); });
+    }
+
+    // The result of operation `id`, when it finished.
+    [[nodiscard]] const OperationResult* result(OperationId id) const {
+        for (const auto& [operation, result] : finished) {
+            if (operation == id) {
+                return &result;
+            }
+        }
+        return nullptr;
+    }
+
+    // The distinct phases operation `id` reported, in order.
+    [[nodiscard]] std::vector<ProgramPhase> phases(OperationId id) const {
+        std::vector<ProgramPhase> result;
+        for (const auto& [operation, p] : progress) {
+            if (operation == id && (result.empty() || result.back() != p.phase)) {
+                result.push_back(p.phase);
+            }
+        }
+        return result;
     }
 
     [[nodiscard]] std::optional<ConnectionState> state() const {
@@ -88,6 +117,8 @@ public:
     std::vector<ConsoleLine> lines;
     std::vector<Error> warnings;
     std::uint64_t dropped = 0;
+    std::vector<std::pair<OperationId, OperationProgress>> progress;
+    std::vector<std::pair<OperationId, OperationResult>> finished;
 
     QObject context; // disconnects the lambdas when the recorder goes away
 };

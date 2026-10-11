@@ -94,6 +94,16 @@ public:
                                                                   RttDirection direction) override;
     [[nodiscard]] int rttRead(int index, std::span<std::byte> buffer) override;
     [[nodiscard]] int rttWrite(int index, std::span<const std::byte> data) override;
+    void beginDownload() override;
+    [[nodiscard]] int writeMemory(std::uint32_t address, std::span<const std::byte> data) override;
+    [[nodiscard]] int endDownload(const FlashProgressFn& progress) override;
+    [[nodiscard]] int readMemory(std::uint32_t address, std::span<std::byte> buffer) override;
+    [[nodiscard]] std::expected<std::uint32_t, int> readU32(std::uint32_t address) override;
+    [[nodiscard]] int eraseChip() override;
+    [[nodiscard]] int coresightConfigure() override;
+    [[nodiscard]] std::expected<std::uint32_t, int> coresightRead(std::uint8_t index,
+                                                                  bool ap) override;
+    [[nodiscard]] int coresightWrite(std::uint8_t index, bool ap, std::uint32_t value) override;
     void flushMessages() override;
     [[nodiscard]] std::string takeErrorText() override;
 

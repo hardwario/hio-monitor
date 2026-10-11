@@ -10,6 +10,7 @@ add_executable(hio_hw_jlink_tests
     main.cpp
     mock_jlink_api.h
     out_handlers_test.cpp
+    programmer_test.cpp
     rtt_channel_test.cpp
     types_test.cpp)
 hio_apply_target_defaults(hio_hw_jlink_tests)

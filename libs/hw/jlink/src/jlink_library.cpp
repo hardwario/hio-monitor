@@ -112,6 +112,16 @@ std::vector<std::string> resolveAll(QLibrary& library, abi::Functions& fn) {
     resolveInto(library, "JLINK_RTTERMINAL_Control", fn.rttControl, missing);
     resolveInto(library, "JLINK_RTTERMINAL_Read", fn.rttRead, missing);
     resolveInto(library, "JLINK_RTTERMINAL_Write", fn.rttWrite, missing);
+    resolveInto(library, "JLINKARM_BeginDownload", fn.beginDownload, missing);
+    resolveInto(library, "JLINKARM_WriteMem", fn.writeMem, missing);
+    resolveInto(library, "JLINKARM_EndDownload", fn.endDownload, missing);
+    resolveInto(library, "JLINKARM_ReadMemEx", fn.readMemEx, missing);
+    resolveInto(library, "JLINKARM_ReadMemU32", fn.readMemU32, missing);
+    resolveInto(library, "JLINK_EraseChip", fn.eraseChip, missing);
+    resolveInto(library, "JLINK_SetFlashProgProgressCallback", fn.setFlashProgress, missing);
+    resolveInto(library, "JLINKARM_CORESIGHT_Configure", fn.coresightConfigure, missing);
+    resolveInto(library, "JLINKARM_CORESIGHT_ReadAPDPReg", fn.coresightRead, missing);
+    resolveInto(library, "JLINKARM_CORESIGHT_WriteAPDPReg", fn.coresightWrite, missing);
     return missing;
 }
 
@@ -131,6 +141,39 @@ void keepForProcessLifetime(std::unique_ptr<OutHandlerSlot> slot) {
     const std::scoped_lock lock(mutex);
     kept.push_back(std::move(slot));
 }
+
+// The flash loader's progress callback has no user data: it is routed to the FlashProgressFn of
+// the endDownload() call running on this thread (the library calls it synchronously from inside
+// EndDownload, to confirm in Phase 0; a call from another thread finds no sink and is ignored).
+// C callback: never throws, never touches Qt objects.
+// Non-const by design: per-thread routing of the C callback, set only by FlashProgressScope.
+thread_local const FlashProgressFn*
+    currentFlashProgress = // NOLINT(*-avoid-non-const-global-variables)
+    nullptr;
+
+void flashProgressCallback(const char* action, const char* /*progress*/, int percent) noexcept {
+    const FlashProgressFn* sink = currentFlashProgress;
+    if (sink == nullptr || !*sink) {
+        return;
+    }
+    try {
+        (*sink)(action == nullptr ? std::string_view() : std::string_view(action), percent);
+    } catch (...) { // NOLINT(bugprone-empty-catch): nothing may cross the C boundary
+    }
+}
+
+// Sets currentFlashProgress for the lifetime of one vendor call.
+class FlashProgressScope {
+public:
+    explicit FlashProgressScope(const FlashProgressFn& progress) {
+        currentFlashProgress = &progress;
+    }
+    ~FlashProgressScope() { currentFlashProgress = nullptr; }
+    FlashProgressScope(const FlashProgressScope&) = delete;
+    FlashProgressScope& operator=(const FlashProgressScope&) = delete;
+    FlashProgressScope(FlashProgressScope&&) = delete;
+    FlashProgressScope& operator=(FlashProgressScope&&) = delete;
+};
 
 Error loadFailed(std::string detail) {
     return makeError(ErrorCode::DependencyJLinkLoadFailed, std::move(detail));
@@ -168,6 +211,9 @@ struct JLinkLibrary::Impl {
                 if (set != nullptr) {
                     set(nullptr);
                 }
+            }
+            if (fn.setFlashProgress != nullptr) {
+                fn.setFlashProgress(nullptr);
             }
             if (!library->unload()) {
                 // The copy stays loaded and may still call its handlers: keep the slot (and its
@@ -248,6 +294,7 @@ Result<std::unique_ptr<JLinkLibrary>> JLinkLibrary::loadCopy(const LibraryLocati
     impl->fn.setLogOutHandler(impl->slot->logHandler());
     impl->fn.setWarnOutHandler(impl->slot->warningHandler());
     impl->fn.setErrorOutHandler(impl->slot->errorHandler());
+    impl->fn.setFlashProgress(&flashProgressCallback);
 
     qCInfo(log::lcJLink).noquote()
         << QStringLiteral("J-Link library %1 (%2) loaded from %3 as %4")
@@ -450,6 +497,59 @@ int JLinkLibrary::rttWrite(int index, std::span<const std::byte> data) {
     const char* bytes = reinterpret_cast<const char*>(data.data());
     return m_impl->fn.rttWrite(static_cast<std::uint32_t>(index), bytes,
                                static_cast<std::uint32_t>(data.size()));
+}
+
+void JLinkLibrary::beginDownload() { m_impl->fn.beginDownload(0); }
+
+int JLinkLibrary::writeMemory(std::uint32_t address, std::span<const std::byte> data) {
+    if (data.size() > std::numeric_limits<std::uint32_t>::max()) {
+        return -1;
+    }
+    return m_impl->fn.writeMem(address, static_cast<std::uint32_t>(data.size()), data.data());
+}
+
+int JLinkLibrary::endDownload(const FlashProgressFn& progress) {
+    const FlashProgressScope scope(progress);
+    return m_impl->fn.endDownload();
+}
+
+int JLinkLibrary::readMemory(std::uint32_t address, std::span<std::byte> buffer) {
+    if (buffer.size() > std::numeric_limits<std::uint32_t>::max()) {
+        return -1;
+    }
+    return m_impl->fn.readMemEx(address, static_cast<std::uint32_t>(buffer.size()), buffer.data(),
+                                0);
+}
+
+std::expected<std::uint32_t, int> JLinkLibrary::readU32(std::uint32_t address) {
+    std::uint32_t value = 0;
+    std::uint8_t status = 0;
+    const int result = m_impl->fn.readMemU32(address, 1, &value, &status);
+    if (result < 1) {
+        return std::unexpected(result < 0 ? result : -1);
+    }
+    if (status != 0) {
+        return std::unexpected(-static_cast<int>(status));
+    }
+    return value;
+}
+
+int JLinkLibrary::eraseChip() { return m_impl->fn.eraseChip(); }
+
+int JLinkLibrary::coresightConfigure() { return m_impl->fn.coresightConfigure(""); }
+
+std::expected<std::uint32_t, int> JLinkLibrary::coresightRead(std::uint8_t index, bool ap) {
+    std::uint32_t value = 0;
+    const int result =
+        m_impl->fn.coresightRead(index, ap ? abi::coresightAp : abi::coresightDp, &value);
+    if (result < 0) {
+        return std::unexpected(result);
+    }
+    return value;
+}
+
+int JLinkLibrary::coresightWrite(std::uint8_t index, bool ap, std::uint32_t value) {
+    return m_impl->fn.coresightWrite(index, ap ? abi::coresightAp : abi::coresightDp, value);
 }
 
 void JLinkLibrary::flushMessages() {

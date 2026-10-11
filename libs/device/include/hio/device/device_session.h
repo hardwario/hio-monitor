@@ -28,6 +28,19 @@
 // outdated or newer probe firmware is reported once as a warning (probe.firmware_outdated), never
 // updated automatically.
 //
+// Operations (M2, plan/features/0003, ADR-0057, ADR-0062): flash, flashLteBundle, erase, recover,
+// updateModem, reset and readMemory each queue one command for the worker and return its
+// OperationId at once; progress and the one result arrive as operationProgress /
+// operationFinished. One operation at a time (internal.busy). Every operation names its target,
+// a target of the session's profile (usage.invalid_argument otherwise). The worker pauses RTT
+// (ADR-0034 "stop without reporting a disconnect"); for another target than the console target it
+// moves the probe there (SwitchingTarget) and back (Restoring), also after a failure or cancel;
+// a failed restore reports Disconnected with the error. Afterwards RTT is re-attached unless the
+// CPU was left halted (flash --halt, reset halt, erase). Modem updates release the probe for
+// nRF Util and open it again afterwards, also after a failure or cancel. Operations also run on
+// sessions opened with attachRtt = false. cancel() ends the operation with `cancelled` at its next
+// stop check (never inside an erase-all, a recover or one flash-loader download).
+//
 // Thread safety: every member function must be called on the owner thread.
 
 #include "hio/core/bounded_queue.h"
@@ -35,12 +48,16 @@
 #include "hio/core/result.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
+#include "hio/device/operation.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
+#include "hio/firmware/firmware_image.h"
+#include "hio/firmware/lte_input.h"
 #include "hio/hw/jlink/jlink_probe.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/rtt_channel.h"
 #include "hio/hw/jlink/types.h"
+#include "hio/hw/nrfutil/nrfutil.h"
 
 #include <QList>
 #include <QObject>
@@ -51,6 +68,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <stop_token>
@@ -64,6 +82,7 @@ class SessionRegistry;
 
 namespace detail {
 struct SessionInternals;
+struct OperationCommand;
 } // namespace detail
 
 struct SessionOptions {
@@ -74,6 +93,12 @@ struct SessionOptions {
     int latencyMs = 0;                    // RTT poll interval (minLatencyMs..maxLatencyMs)
     bool autoReconnect = false;
     bool resetOnOpen = false; // reset the target (no halt) before attaching
+    // false: the session connects the target but never attaches RTT (flash-only sessions; the CLI
+    // flash commands). A target without an RTT console needs attachRtt = false.
+    bool attachRtt = true;
+    // nRF Util for updateModem / flashLteBundle (ADR-0016); the CLI's --nrfutil goes into
+    // `option`. Located on the worker when a modem update starts.
+    nrfutil::LocatorOptions nrfUtil;
     // nullopt = default console file, empty path = no console file, otherwise this file.
     std::optional<std::filesystem::path> consoleFile;
     // ADR-0063: nullptr = the session creates its own log; a GUI tab passes one log for all its
@@ -116,10 +141,32 @@ public:
     // Queued for the worker; an Error only when the queue is full (internal.queue_full) or the
     // session is closed (cancelled). Results arrive as events (echo line, warning, connection).
     [[nodiscard]] Status sendLine(std::string line);
-    [[nodiscard]] Status reset(bool halt);
     [[nodiscard]] Status reconnect();
     [[nodiscard]] Status suspend(); // detach and release the probe (M2 / nRF Util)
     [[nodiscard]] Status resume();  // allow attaching again and re-attach now
+
+    // ---- operations (M2, ADR-0062) ----
+    // Errors (immediate): usage.invalid_argument (unknown target, empty image, bad size),
+    // internal.busy, internal.queue_full, cancelled (session closed).
+    [[nodiscard]] Result<OperationId> flash(std::string_view targetId,
+                                            std::shared_ptr<const firmware::FirmwareImage> image,
+                                            FlashOptions options);
+    [[nodiscard]] Result<OperationId>
+    flashLteBundle(std::string_view targetId, std::shared_ptr<const firmware::LteBundle> bundle,
+                   FlashOptions options);
+    [[nodiscard]] Result<OperationId> erase(std::string_view targetId, EraseScope scope);
+    [[nodiscard]] Result<OperationId> recover(std::string_view targetId);
+    [[nodiscard]] Result<OperationId> updateModem(std::string_view targetId,
+                                                  std::filesystem::path modemZip);
+    // Replaces M1's reset(bool halt) (ADR-0062).
+    [[nodiscard]] Result<OperationId> reset(std::string_view targetId, ResetMode mode);
+    // 1..maxReadMemoryBytes bytes.
+    [[nodiscard]] Result<OperationId> readMemory(std::string_view targetId, std::uint32_t address,
+                                                 std::size_t size);
+    // Errors: usage.invalid_argument when `id` is not the running operation.
+    [[nodiscard]] Status cancel(OperationId id);
+    // The running operation (nullopt when none).
+    [[nodiscard]] std::optional<OperationId> runningOperation() const;
 
     // Stops and joins the worker, releases the probe lock and the registry slot. Idempotent.
     void close();
@@ -139,12 +186,18 @@ signals:
     void connectionChanged(const hio::device::ConnectionEvent& event);
     void linesDropped(quint64 count);
     void warning(const hio::Error& error);
+    void operationProgress(hio::device::OperationId id,
+                           const hio::device::OperationProgress& progress);
+    void operationFinished(hio::device::OperationId id, const hio::device::OperationResult& result);
 
 private:
     friend struct detail::SessionInternals;
 
     // Owner thread: invoked (queued, by name) by wakeUp().
     Q_INVOKABLE void drainEvents();
+
+    [[nodiscard]] Result<OperationId> startOperation(detail::OperationCommand command,
+                                                     std::string_view targetId);
 
     // Worker thread. Queues drainEvents() by name, so the queued call object is created and
     // consumed inside Qt (its own locking), not in a functor of ours that ThreadSanitizer would
@@ -173,6 +226,14 @@ private:
 // cancelled (stop request) as in waitUntilConnected().
 [[nodiscard]] Status waitForFirstAttempt(DeviceSession& session, std::chrono::milliseconds timeout,
                                          const std::stop_token& stop = {});
+
+// CLI helper: runs a local QEventLoop until operation `id` finished and returns its result.
+// `onProgress` gets every progress event. A stop request cancels the operation (DeviceSession::
+// cancel) and keeps waiting for its result (`cancelled`, or what it ended with).
+[[nodiscard]] OperationResult
+waitForOperation(DeviceSession& session, OperationId id,
+                 const std::function<void(const OperationProgress&)>& onProgress = {},
+                 const std::stop_token& stop = {});
 
 // The parts of the worst-case first connect that are not timings of the session (review R38;
 // plan/features/0002 Bounds).

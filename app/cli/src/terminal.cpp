@@ -153,6 +153,14 @@ bool stdoutIsTerminal() {
 #endif
 }
 
+bool stderrIsTerminal() {
+#ifdef _WIN32
+    return _isatty(_fileno(stderr)) != 0;
+#else
+    return isatty(STDERR_FILENO) != 0;
+#endif
+}
+
 bool stdoutColors() { return stdoutIsTerminal() && qEnvironmentVariableIsEmpty("NO_COLOR"); }
 
 bool askYesNo(const std::string& question) {

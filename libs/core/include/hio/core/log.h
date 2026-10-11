@@ -34,6 +34,9 @@ Q_DECLARE_LOGGING_CATEGORY(lcCore) // "hio.core"
 Q_DECLARE_LOGGING_CATEGORY(
     lcJLink) // "hio.jlink"  (libs/hw/jlink, incl. the J-Link library's own output)
 Q_DECLARE_LOGGING_CATEGORY(lcDevice) // "hio.device" (libs/device)
+Q_DECLARE_LOGGING_CATEGORY(
+    lcFirmware)                     // "hio.firmware" (libs/firmware: images, zips, catalog, cache)
+Q_DECLARE_LOGGING_CATEGORY(lcFlash) // "hio.flash" (programming workflows, nRF Util; plan 0003)
 
 enum class AppKind : std::uint8_t {
     Gui,

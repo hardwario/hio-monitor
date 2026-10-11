@@ -1,32 +1,69 @@
 #pragma once
 
 // Device profiles: compiled-in C++ data (ADR-0032). A profile describes a device and its targets
-// (MCUs): J-Link device names, RTT buffer names, console rules and defaults. Profiles contain data
-// only; behaviour differences are explicit typed fields (e.g. hashPrefixIsLog).
+// (MCUs): J-Link device names, RTT buffer names, console rules, defaults and (M2,
+// plan/features/0003) the memory layout and identification used for flashing. Profiles contain
+// data only; behaviour differences are explicit typed fields (e.g. hashPrefixIsLog).
 //
 // Adding a device = one new file in src/profiles/ + one registration line in profile.cpp + tests.
 
+#include "hio/firmware/firmware_image.h"
+#include "hio/hw/jlink/programmer.h"
+
+#include <cstdint>
 #include <span>
 #include <string_view>
 
 namespace hio::device {
 
+// A part number found in FICR INFO.PART and what it means for this target.
+struct ChipPart {
+    std::uint32_t part = 0;       // e.g. 0x52840
+    std::string_view displayName; // "nRF52840"
+    std::string_view jlinkDevice; // J-Link device name of exactly this part
+};
+
+// What `recover` does after the CTRL-AP erase-all (ADR-0039).
+enum class RecoverImage : std::uint8_t {
+    None,
+    Nrf91DisableApProtect, // program + verify the embedded nrf91_disable_ap_protect.hex
+};
+
+enum class EraseScope : std::uint8_t {
+    Code, // the code flash (UICR and the PIB kept)
+    All,  // flash and UICR (the PIB is lost)
+};
+
 struct TargetProfile {
     std::string_view id;          // "app", "lte"
-    std::string_view jlinkDevice; // J-Link device name, e.g. "NRF52840_xxAA"
+    std::string_view jlinkDevice; // J-Link device name used to connect, e.g. "NRF52840_xxAA"
     std::string_view rttTerminal; // RTT shell buffer name ("" = no RTT console)
     std::string_view rttLogger;   // RTT log buffer name ("" = none)
     bool hashPrefixIsLog;         // shell lines starting with '#' are log lines (older CHESTER fw)
     int defaultSpeedKhz;
     int defaultLatencyMs;
     int minTargetMillivolts; // below this VTref the target counts as unpowered
+
+    // ---- flashing (M2) ----
+    std::span<const ChipPart> parts; // accepted parts; the first one is the default
+    jlink::ChipFamily chipFamily;    // FICR and CTRL-AP of this MCU family
+    firmware::AddressRange flash;    // code flash
+    firmware::AddressRange uicr;     // UICR page
+    std::uint32_t pibOffset;         // Product Information Block: UICR + pibOffset, 128 B
+    bool pibErasableWithUicr;        // a UICR erase also erases the PIB (nRF52: yes)
+    RecoverImage recoverImage;
+    EraseScope defaultErase; // `erase` without --all (app: Code, lte: All)
 };
 
 struct DeviceProfile {
     std::string_view id;          // "chester"
     std::string_view displayName; // product name, not translated ("CHESTER")
     std::span<const TargetProfile> targets;
+    std::string_view firmwareCatalogUrl; // ADR-0037: <url>/<id>/hex ("" = no catalog)
 };
+
+// Size of the Product Information Block.
+inline constexpr std::uint32_t pibSize = 128;
 
 class ProfileRegistry {
 public:
@@ -38,5 +75,11 @@ public:
 // nullptr when the profile has no target with this id.
 [[nodiscard]] const TargetProfile* findTarget(const DeviceProfile& profile,
                                               std::string_view id) noexcept;
+
+// The part of `target` with this FICR part number, nullptr when it is not one of its parts.
+[[nodiscard]] const ChipPart* findPart(const TargetProfile& target, std::uint32_t part) noexcept;
+
+// The PIB address range of `target`.
+[[nodiscard]] firmware::AddressRange pibRange(const TargetProfile& target) noexcept;
 
 } // namespace hio::device

@@ -12,16 +12,24 @@ add_library(hio_cli_impl STATIC
     src/cli_log.h
     src/command_response.cpp
     src/command_response.h
+    src/confirm.cpp
+    src/confirm.h
     src/console_events.cpp
     src/console_events.h
     src/console_ui.cpp
     src/console_ui.h
     src/exit_codes.cpp
     src/exit_codes.h
+    src/flash_commands.cpp
+    src/flash_commands.h
     src/jlink_commands.cpp
     src/jlink_commands.h
     src/output.cpp
     src/output.h
+    src/probe_options.cpp
+    src/probe_options.h
+    src/progress_ui.cpp
+    src/progress_ui.h
     src/selftest.cpp
     src/selftest.h
     src/signals.cpp

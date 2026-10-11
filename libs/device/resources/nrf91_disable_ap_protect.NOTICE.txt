@@ -1,0 +1,32 @@
+Origin of nrf91_disable_ap_protect.hex (ADR-0039, plan/features/0003-m2-flashing.md)
+
+Copied verbatim from py-hardwario (https://github.com/hardwario/py-hardwario),
+hardwario/resources/nrf91_disable_ap_protect.hex, added in commit 9ada1c6
+("Add unprotect for nrf91 after pib write"); unchanged up to py-hardwario v1.7.2.
+SHA-256 51a5af5228427a81d49e3233d5f33271f5f39425f7073a384652075ab4b8e8e8, 8231 bytes,
+one segment at 0x0-0xBA4. A prebuilt image without source; replacing it needs a new ADR.
+The unit test DisableApProtectImage checks the hash and the layout.
+
+License of py-hardwario:
+
+MIT License
+
+Copyright (c) 2022 HARDWARIO a.s.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

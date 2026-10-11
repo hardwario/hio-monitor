@@ -72,6 +72,10 @@ CliApp::CliApp()
                    "SEGGER J-Link library to use (default: $HIO_JLINK_LIBRARY, the setting "
                    "jlink/libraryPath, or the installed J-Link Software)")
         ->option_text("PATH");
+    app.add_option("--nrfutil", m_options.nrfutil,
+                   "nRF Util for the modem firmware (default: $HIO_NRFUTIL, the setting "
+                   "nrfutil/path, the PATH, or ~/.nrfutil/bin)")
+        ->option_text("PATH");
     app.require_subcommand(0, 1);
     app.fallthrough(true);
 

@@ -5,6 +5,7 @@
 #include "hio/core/error.h"
 #include "hio/device/console_line.h"
 #include "hio/device/device_session.h"
+#include "hio/device/operation.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
 #include "hio/device/session_registry.h"
@@ -135,7 +136,7 @@ TEST_F(Hil, ResetReattaches) {
     Recorder recorder(**session);
     ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::seconds(20)));
     recorder.lines.clear();
-    ASSERT_TRUE((*session)->reset(false));
+    ASSERT_TRUE((*session)->reset("app", hio::device::ResetMode::Go));
     // The firmware boots again and prints its boot log.
     EXPECT_TRUE(waitFor([&] { return recorder.lines.size() >= 3; }, std::chrono::seconds(30)));
     EXPECT_EQ((*session)->connection().state, ConnectionState::Connected);

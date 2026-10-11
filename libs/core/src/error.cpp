@@ -83,6 +83,24 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::TargetRttWriteFailed:
     case ErrorCode::ProbeFirmwareUpdateFailed:
     case ErrorCode::TargetNotConnected:
+    case ErrorCode::FirmwareHexParseError:
+    case ErrorCode::FirmwareInvalidImage:
+    case ErrorCode::FirmwareOutOfRange:
+    case ErrorCode::FirmwareUicrInImage:
+    case ErrorCode::FirmwareVerifyFailed:
+    case ErrorCode::FirmwareNotFoundInCatalog:
+    case ErrorCode::FirmwareModemUpdateFailed:
+    case ErrorCode::NetworkDownloadFailed:
+    case ErrorCode::TargetWrongFamily:
+    case ErrorCode::TargetProtected:
+    case ErrorCode::TargetProgramFailed:
+    case ErrorCode::TargetEraseFailed:
+    case ErrorCode::TargetRecoverFailed:
+    case ErrorCode::PibInvalid:
+    case ErrorCode::DependencyNrfUtilNotFound:
+    case ErrorCode::DependencyNrfUtilDeviceMissing:
+    case ErrorCode::DependencyNrfUtilTooOld:
+    case ErrorCode::InternalBusy:
         return true;
     }
     return false;
@@ -416,6 +434,213 @@ constexpr std::array defaultTexts{
         .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Reconnect the console (F4).",
                                          "target.not_connected suggestion"),
         .wizard = WizardId::ConnectDevice,
+    },
+    // ---- M2 (plan/features/0003-m2-flashing.md) ----
+    DefaultTexts{
+        .code = ErrorCode::FirmwareHexParseError,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The firmware file is not a valid HEX file.",
+                                      "firmware.hex_parse_error message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The file is damaged or it is not a HEX file.",
+                                    "firmware.hex_parse_error cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Use the .hex file produced by the build or download it again.",
+            "firmware.hex_parse_error suggestion"),
+        .wizard = WizardId::FlashFirmware,
+    },
+    DefaultTexts{
+        .code = ErrorCode::FirmwareInvalidImage,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The file is not a supported firmware file.",
+                                      "firmware.invalid_image message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "It is not a CHESTER LTE bundle, a modem firmware zip or a HEX "
+                                    "file, or the zip exceeds the safety limits.",
+                                    "firmware.invalid_image cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Use a CHESTER .hex file or LTE bundle (.zip).",
+                               "firmware.invalid_image suggestion"),
+        .wizard = WizardId::FlashFirmware,
+    },
+    DefaultTexts{
+        .code = ErrorCode::FirmwareOutOfRange,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The firmware does not fit the MCU.",
+                                      "firmware.out_of_range message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The image was built for another MCU.",
+                                    "firmware.out_of_range cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Check that the firmware is for this MCU.",
+                                         "firmware.out_of_range suggestion"),
+        .wizard = WizardId::FlashFirmware,
+    },
+    DefaultTexts{
+        .code = ErrorCode::FirmwareUicrInImage,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The firmware also writes the UICR configuration area.",
+                               "firmware.uicr_in_image message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The build includes UICR settings.",
+                                    "firmware.uicr_in_image cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core",
+                                         "Re-run with --allow-uicr if this is intended; the "
+                                         "Product Information Block is kept.",
+                                         "firmware.uicr_in_image suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::FirmwareVerifyFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Verification of the written firmware failed.",
+                                      "firmware.verify_failed message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The connection is unstable, or the flash is protected or faulty.",
+            "firmware.verify_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Flash again; if it repeats, lower the J-Link speed or check the cables.",
+            "firmware.verify_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::FirmwareNotFoundInCatalog,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The firmware was not found in the catalog.",
+                                      "firmware.not_found_in_catalog message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The firmware ID is wrong or it was deleted.",
+                                    "firmware.not_found_in_catalog cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Check the firmware ID.",
+                                         "firmware.not_found_in_catalog suggestion"),
+        .wizard = WizardId::FlashFirmware,
+    },
+    DefaultTexts{
+        .code = ErrorCode::FirmwareModemUpdateFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The modem firmware update failed.",
+                                      "firmware.modem_update_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The modem firmware zip is wrong, the connection was lost, or "
+                                    "nRF Util reported an error (see Details).",
+                                    "firmware.modem_update_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Check the cable and power, then flash the modem firmware again.",
+            "firmware.modem_update_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::NetworkDownloadFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Downloading the firmware failed.",
+                                      "network.download_failed message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "There is no internet connection, a proxy blocks it, or the server failed.",
+            "network.download_failed cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Check the internet connection and try again.",
+                               "network.download_failed suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetWrongFamily,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The J-Link is connected to another MCU.",
+                                      "target.wrong_family message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The J-Link is connected to the other connector of the device.",
+                                    "target.wrong_family cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Connect the J-Link to the connector of the MCU you want to program.",
+            "target.wrong_family suggestion"),
+        .wizard = WizardId::ConnectDevice,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetProtected,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The MCU is read-back protected.",
+                                      "target.protected message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "Access port protection (APPROTECT) is enabled.",
+                                    "target.protected cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core",
+                                         "Recover the MCU (this erases it), then flash it again.",
+                                         "target.protected suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetProgramFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Programming the MCU failed.",
+                                      "target.program_failed message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The connection was lost, the power is low or the MCU is protected.",
+            "target.program_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Check the cables and power, then try again.",
+                                         "target.program_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetEraseFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Erasing the MCU failed.",
+                                      "target.erase_failed message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The connection was lost, the power is low or the MCU is protected.",
+            "target.erase_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Check the cables and power, then try again.",
+                                         "target.erase_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetRecoverFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Recovering the MCU failed.",
+                                      "target.recover_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The device has no power or its control access port does "
+                                    "not answer.",
+                                    "target.recover_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Power-cycle the device and try again.",
+                                         "target.recover_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::PibInvalid,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The Product Information Block is missing or damaged.",
+                               "pib.invalid message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "It was never written, or it was erased by a full erase or a "
+                                    "recover.",
+                                    "pib.invalid cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Contact HARDWARIO support to restore it.",
+                                         "pib.invalid suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::DependencyNrfUtilNotFound,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "nRF Util was not found.",
+                                      "dependency.nrfutil_not_found message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "It is not installed; it is needed only for the modem firmware.",
+            "dependency.nrfutil_not_found cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Install nRF Util and its device command, or set its path with --nrfutil.",
+            "dependency.nrfutil_not_found suggestion"),
+        .wizard = WizardId::FirstRunSetup,
+    },
+    DefaultTexts{
+        .code = ErrorCode::DependencyNrfUtilDeviceMissing,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The nRF Util device command is not installed.",
+                                      "dependency.nrfutil_device_missing message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "nRF Util is installed without its device command.",
+                               "dependency.nrfutil_device_missing cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Run `nrfutil install device`.",
+                                         "dependency.nrfutil_device_missing suggestion"),
+        .wizard = WizardId::FirstRunSetup,
+    },
+    DefaultTexts{
+        .code = ErrorCode::DependencyNrfUtilTooOld,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "nRF Util is too old.",
+                                      "dependency.nrfutil_too_old message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "HARDWARIO Monitor needs a newer nRF Util or device command.",
+                                    "dependency.nrfutil_too_old cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core",
+                                         "Run `nrfutil self-upgrade` and `nrfutil upgrade device`.",
+                                         "dependency.nrfutil_too_old suggestion"),
+        .wizard = WizardId::FirstRunSetup,
+    },
+    DefaultTexts{
+        .code = ErrorCode::InternalBusy,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Another operation is running on this device.",
+                                      "internal.busy message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "Only one operation can run at a time.",
+                                    "internal.busy cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Wait for it to finish or cancel it.",
+                                         "internal.busy suggestion"),
     },
 };
 

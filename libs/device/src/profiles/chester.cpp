@@ -1,7 +1,8 @@
-// HARDWARIO CHESTER (plan/features/0002-m1-jlink-rtt.md; py-hardwario
-// hardwario/chester/cli/app.py).
+// HARDWARIO CHESTER (plan/features/0002-m1-jlink-rtt.md, plan/features/0003-m2-flashing.md;
+// py-hardwario hardwario/chester/cli/app.py, lte.py, hardwario/device/nrfjprog.py).
 
 #include "hio/device/profile.h"
+#include "hio/hw/jlink/programmer.h"
 #include "profiles.h"
 
 #include <array>
@@ -9,6 +10,22 @@
 namespace hio::device::profiles {
 
 namespace {
+
+// FICR INFO.PART values and J-Link device names. The nRF9151 reports 0x9120 (py-hardwario maps
+// the nrfjprog name NRF9120_xxAA to the J-Link name NRF9151_XXCA).
+constexpr std::array appParts{
+    ChipPart{.part = 0x52840, .displayName = "nRF52840", .jlinkDevice = "NRF52840_xxAA"},
+};
+constexpr std::array ltePartsList{
+    ChipPart{.part = 0x9120, .displayName = "nRF9151", .jlinkDevice = "NRF9151_XXCA"},
+    ChipPart{.part = 0x9160, .displayName = "nRF9160", .jlinkDevice = "NRF9160_xxAA"},
+};
+
+// FICR / CTRL-AP (nRF52840 and nRF91 product specifications; AP indexes to confirm in Phase 0).
+constexpr jlink::ChipFamily nrf52{
+    .name = "nRF52", .ficrPart = 0x10000100, .ficrVariant = 0x10000104, .ctrlApIndex = 1};
+constexpr jlink::ChipFamily nrf91{
+    .name = "nRF91", .ficrPart = 0x00FF0140, .ficrVariant = 0x00FF0144, .ctrlApIndex = 4};
 
 constexpr std::array chesterTargets{
     // Application MCU: the RTT console of `hio chester app console` / `command`.
@@ -19,9 +36,18 @@ constexpr std::array chesterTargets{
                   .hashPrefixIsLog = true,
                   .defaultSpeedKhz = 2000,
                   .defaultLatencyMs = 50,
-                  .minTargetMillivolts = 1000},
-    // LTE modem MCU (nRF91 series, J-Link device name of the nRF9151; py-hardwario maps every
-    // nRF91 to it). Declared for M2 (flashing); no RTT console.
+                  .minTargetMillivolts = 1000,
+                  .parts = appParts,
+                  .chipFamily = nrf52,
+                  .flash = {.start = 0x00000000, .end = 0x00100000},
+                  .uicr = {.start = 0x10001000, .end = 0x10002000},
+                  .pibOffset = 0x80,
+                  .pibErasableWithUicr = true,
+                  .recoverImage = RecoverImage::None,
+                  .defaultErase = EraseScope::Code},
+    // LTE modem MCU (nRF9151 or nRF9160). Programming only; no RTT console. Connected with the
+    // first part's J-Link name, then with the exact part's name (to confirm in Phase 0). The PIB
+    // lies in the UICR OTP area, which a UICR erase does not touch.
     TargetProfile{.id = "lte",
                   .jlinkDevice = "NRF9151_XXCA",
                   .rttTerminal = "",
@@ -29,12 +55,23 @@ constexpr std::array chesterTargets{
                   .hashPrefixIsLog = false,
                   .defaultSpeedKhz = 2000,
                   .defaultLatencyMs = 50,
-                  .minTargetMillivolts = 1000},
+                  .minTargetMillivolts = 1000,
+                  .parts = ltePartsList,
+                  .chipFamily = nrf91,
+                  .flash = {.start = 0x00000000, .end = 0x00100000},
+                  .uicr = {.start = 0x00FF8000, .end = 0x00FF9000},
+                  .pibOffset = 0x108,
+                  .pibErasableWithUicr = false,
+                  .recoverImage = RecoverImage::Nrf91DisableApProtect,
+                  .defaultErase = EraseScope::All},
 };
 
 } // namespace
 
-constinit const DeviceProfile chester{
-    .id = "chester", .displayName = "CHESTER", .targets = chesterTargets};
+constinit const DeviceProfile chester{.id = "chester",
+                                      .displayName = "CHESTER",
+                                      .targets = chesterTargets,
+                                      .firmwareCatalogUrl =
+                                          "https://firmware.hardwario.com/chester"};
 
 } // namespace hio::device::profiles

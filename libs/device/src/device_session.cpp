@@ -8,14 +8,18 @@
 #include "hio/device/console_file_sink.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
+#include "hio/device/operation.h"
 #include "hio/device/probe_lock.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
 #include "hio/device/session_registry.h"
+#include "hio/firmware/firmware_image.h"
+#include "hio/firmware/lte_input.h"
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_library.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/types.h"
+#include "hio/hw/nrfutil/nrfutil.h"
 #include "session_internal.h"
 
 #include <QCoreApplication>
@@ -74,7 +78,7 @@ Result<const TargetProfile*> validate(const SessionOptions& options) {
                 .arg(toQString(options.profile->displayName), toQString(options.targetId)),
             {}));
     }
-    if (target->rttTerminal.empty()) {
+    if (target->rttTerminal.empty() && options.attachRtt) {
         return std::unexpected(invalidOption(
             QCoreApplication::translate("hio::device", "The %1 target of %2 has no console.")
                 .arg(toQString(target->id), toQString(options.profile->displayName)),
@@ -118,6 +122,15 @@ namespace detail {
 
 std::optional<std::uint32_t> SessionInternals::requestedSerial(const DeviceSession& session) {
     return session.m_internals->requestedSn;
+}
+
+std::optional<OperationResult> SessionInternals::finished(const DeviceSession& session,
+                                                          OperationId id) {
+    const auto& last = session.m_internals->lastFinished;
+    if (last && last->first == id) {
+        return last->second;
+    }
+    return std::nullopt;
 }
 
 Result<std::unique_ptr<DeviceSession>> openSession(SessionRegistry& registry,
@@ -164,6 +177,7 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
     config.latencyMs = options.latencyMs;
     config.autoReconnect = options.autoReconnect;
     config.resetOnOpen = options.resetOnOpen;
+    config.attachRtt = options.attachRtt;
     config.lockDirectory = registry.options().lockDirectory;
     config.timing = hooks.timing;
     config.cycles = std::move(hooks.cycles);
@@ -187,6 +201,22 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
         };
     }
 
+    ModemUpdaterFactory modemFactory = std::move(hooks.modemUpdaterFactory);
+    if (!modemFactory) {
+        modemFactory = [locator =
+                            options.nrfUtil]() -> Result<std::unique_ptr<nrfutil::IModemUpdater>> {
+            auto executable = nrfutil::locate(locator);
+            if (!executable) {
+                return std::unexpected(std::move(executable).error());
+            }
+            auto info = nrfutil::checkVersions(*executable);
+            if (!info) {
+                return std::unexpected(std::move(info).error());
+            }
+            return std::make_unique<nrfutil::NrfUtilModemUpdater>(info->executable);
+        };
+    }
+
     auto session =
         std::make_unique<DeviceSession>(DeviceSession::Passkey{}, registry, std::move(internals));
     registry.add(session.get());
@@ -194,13 +224,13 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
     // 4. the worker; no library or probe access happens on this thread.
     DeviceSession* facade = session.get();
     SessionInternals& state = *facade->m_internals;
-    state.worker =
-        std::jthread([config = std::move(config), factory = std::move(factory),
-                      lock = std::move(lock), &state, facade](const std::stop_token& stop) mutable {
-            const std::function<void()> wake = [facade] { facade->wakeUp(); };
-            runWorker(stop, std::move(config), std::move(factory), std::move(lock), state.commands,
-                      state.events, wake);
-        });
+    state.worker = std::jthread([config = std::move(config), factory = std::move(factory),
+                                 modemFactory = std::move(modemFactory), lock = std::move(lock),
+                                 &state, facade](const std::stop_token& stop) mutable {
+        const std::function<void()> wake = [facade] { facade->wakeUp(); };
+        runWorker(stop, std::move(config), std::move(factory), std::move(modemFactory),
+                  std::move(lock), state.commands, state.events, wake);
+    });
     qCInfo(log::lcDevice).noquote()
         << QStringLiteral("Session opened: %1 %2, J-Link %3")
                .arg(toQString(options.profile->id), toQString((*target)->id),
@@ -257,10 +287,6 @@ Status DeviceSession::sendLine(std::string line) {
     return post(*m_internals, m_closed, detail::SendLineCommand{.line = std::move(line)});
 }
 
-Status DeviceSession::reset(bool halt) {
-    return post(*m_internals, m_closed, detail::ResetCommand{.halt = halt});
-}
-
 Status DeviceSession::reconnect() {
     return post(*m_internals, m_closed, detail::ReconnectCommand{});
 }
@@ -268,6 +294,132 @@ Status DeviceSession::reconnect() {
 Status DeviceSession::suspend() { return post(*m_internals, m_closed, detail::SuspendCommand{}); }
 
 Status DeviceSession::resume() { return post(*m_internals, m_closed, detail::ResumeCommand{}); }
+
+// ---- operations ----------------------------------------------------------------------------
+
+Result<OperationId> DeviceSession::startOperation(detail::OperationCommand command,
+                                                  std::string_view targetId) {
+    if (m_closed) {
+        return fail(ErrorCode::Cancelled);
+    }
+    const TargetProfile* target = findTarget(*m_internals->profile, targetId);
+    if (target == nullptr) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hio::device", "The device %1 has no target \"%2\".")
+                .arg(toQString(m_internals->profile->displayName), toQString(targetId)),
+            {}));
+    }
+    if (m_internals->runningOperation) {
+        return std::unexpected(
+            makeError(ErrorCode::InternalBusy,
+                      std::format("operation {} is running", *m_internals->runningOperation)));
+    }
+    const OperationId id = m_internals->nextOperation++;
+    m_internals->operationStop = std::stop_source();
+    command.id = id;
+    command.target = target;
+    command.stop = m_internals->operationStop.get_token();
+    const OperationKind kind = command.kind;
+    if (Status queued = m_internals->commands.push(std::move(command)); !queued) {
+        return std::unexpected(std::move(queued).error());
+    }
+    m_internals->runningOperation = id;
+    qCInfo(log::lcDevice).noquote()
+        << QStringLiteral("Operation %1 (%2) on %3 queued")
+               .arg(id)
+               .arg(toQString(operationKindId(kind)), toQString(target->id));
+    return id;
+}
+
+Result<OperationId> DeviceSession::flash(std::string_view targetId,
+                                         std::shared_ptr<const firmware::FirmwareImage> image,
+                                         FlashOptions options) {
+    if (!image || image->empty()) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hio::device", "The firmware image is empty."), {}));
+    }
+    detail::OperationCommand command;
+    command.kind = OperationKind::Flash;
+    command.image = std::move(image);
+    command.flash = options;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::flashLteBundle(std::string_view targetId,
+                                                  std::shared_ptr<const firmware::LteBundle> bundle,
+                                                  FlashOptions options) {
+    if (!bundle || bundle->application.empty() || bundle->modemZip.empty()) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hio::device", "The LTE bundle is incomplete."), {}));
+    }
+    detail::OperationCommand command;
+    command.kind = OperationKind::LteBundle;
+    command.bundle = std::move(bundle);
+    command.flash = options;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::erase(std::string_view targetId, EraseScope scope) {
+    detail::OperationCommand command;
+    command.kind = scope == EraseScope::Code ? OperationKind::EraseCode : OperationKind::EraseAll;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::recover(std::string_view targetId) {
+    detail::OperationCommand command;
+    command.kind = OperationKind::Recover;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::updateModem(std::string_view targetId,
+                                               std::filesystem::path modemZip) {
+    if (modemZip.empty()) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hio::device", "No modem firmware file was given."), {}));
+    }
+    detail::OperationCommand command;
+    command.kind = OperationKind::Modem;
+    command.modemZip = std::move(modemZip);
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::reset(std::string_view targetId, ResetMode mode) {
+    detail::OperationCommand command;
+    command.kind = OperationKind::Reset;
+    command.reset = mode;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::readMemory(std::string_view targetId, std::uint32_t address,
+                                              std::size_t size) {
+    if (size == 0 || size > maxReadMemoryBytes) {
+        return std::unexpected(
+            invalidOption(QCoreApplication::translate(
+                              "hio::device", "A memory read must be between 1 and %1 bytes.")
+                              .arg(maxReadMemoryBytes),
+                          std::to_string(size)));
+    }
+    detail::OperationCommand command;
+    command.kind = OperationKind::ReadMemory;
+    command.address = address;
+    command.size = size;
+    return startOperation(std::move(command), targetId);
+}
+
+Status DeviceSession::cancel(OperationId id) {
+    if (!m_internals->runningOperation || *m_internals->runningOperation != id) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hio::device", "Operation %1 is not running.").arg(id),
+            {}));
+    }
+    qCInfo(log::lcDevice) << "Operation" << id << "cancel requested";
+    m_internals->operationStop.request_stop(); // thread-safe; the worker checks it
+    return {};
+}
+
+std::optional<OperationId> DeviceSession::runningOperation() const {
+    return m_internals->runningOperation;
+}
 
 const ConsoleLog& DeviceSession::log() const { return *m_internals->log; }
 
@@ -326,6 +478,18 @@ void DeviceSession::drainEvents() {
                     emit warning(item.error);
                 },
                 [&](detail::ProbeIdentified& identified) { m_probe = std::move(identified.probe); },
+                [&](const detail::OperationProgressEvent& item) {
+                    flushBatch();
+                    emit operationProgress(item.id, item.progress);
+                },
+                [&](const detail::OperationFinishedEvent& item) {
+                    flushBatch();
+                    if (m_internals->runningOperation == item.id) {
+                        m_internals->runningOperation.reset();
+                    }
+                    m_internals->lastFinished = std::pair(item.id, item.result);
+                    emit operationFinished(item.id, item.result);
+                },
             },
             *event);
     }
@@ -412,6 +576,55 @@ Status waitUntilConnected(DeviceSession& session, std::chrono::milliseconds time
                                  }
                                  return stoppedResult(event);
                              });
+}
+
+OperationResult waitForOperation(DeviceSession& session, OperationId id,
+                                 const std::function<void(const OperationProgress&)>& onProgress,
+                                 const std::stop_token& stop) {
+    std::optional<OperationResult> result = detail::SessionInternals::finished(session, id);
+    QEventLoop loop;
+    const QMetaObject::Connection progress =
+        QObject::connect(&session, &DeviceSession::operationProgress, &loop,
+                         [&](OperationId operation, const OperationProgress& event) {
+                             if (operation == id && onProgress) {
+                                 onProgress(event);
+                             }
+                         });
+    const QMetaObject::Connection finished =
+        QObject::connect(&session, &DeviceSession::operationFinished, &loop,
+                         [&](OperationId operation, const OperationResult& event) {
+                             if (operation == id && !result) {
+                                 result = event;
+                                 loop.quit();
+                             }
+                         });
+    bool cancelRequested = false;
+    QTimer stopPoll;
+    QObject::connect(&stopPoll, &QTimer::timeout, &loop, [&] {
+        if (stop.stop_requested() && !cancelRequested) {
+            cancelRequested = true;
+            if (const Status cancelled = session.cancel(id); !cancelled) {
+                qCDebug(log::lcDevice) << "Operation" << id << "not cancelled (finished)";
+            } // otherwise the worker ends it with `cancelled`
+        }
+        if (!session.runningOperation() && !result) {
+            loop.quit(); // e.g. the session was closed
+        }
+    });
+    stopPoll.start(std::chrono::milliseconds(50));
+    if (!result) {
+        loop.exec();
+    }
+    QObject::disconnect(progress);
+    QObject::disconnect(finished);
+    if (!result) {
+        return OperationResult{.kind = OperationKind::Reset,
+                               .status = fail(ErrorCode::Cancelled),
+                               .duration = {},
+                               .chip = std::nullopt,
+                               .data = {}};
+    }
+    return std::move(*result);
 }
 
 Status waitForFirstAttempt(DeviceSession& session, std::chrono::milliseconds timeout,

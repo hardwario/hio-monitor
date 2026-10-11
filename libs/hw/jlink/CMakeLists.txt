@@ -10,6 +10,7 @@ hio_add_backend_library(hio_hw_jlink
     include/hio/hw/jlink/jlink_probe.h
     include/hio/hw/jlink/library_locator.h
     include/hio/hw/jlink/probe_enumerator.h
+    include/hio/hw/jlink/programmer.h
     include/hio/hw/jlink/rtt_channel.h
     include/hio/hw/jlink/types.h
     src/clock.cpp
@@ -20,12 +21,13 @@ hio_add_backend_library(hio_hw_jlink
     src/out_handlers.cpp
     src/out_handlers.h
     src/probe_enumerator.cpp
+    src/programmer.cpp
     src/rtt_channel.cpp
     src/types.cpp)
 add_library(hio::hw_jlink ALIAS hio_hw_jlink)
 
 target_include_directories(hio_hw_jlink PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(hio_hw_jlink PUBLIC hio::core Qt6::Core)
+target_link_libraries(hio_hw_jlink PUBLIC hio::core hio::firmware Qt6::Core)
 
 if(HIO_BUILD_TESTS)
     add_subdirectory(tests)

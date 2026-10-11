@@ -30,6 +30,39 @@ namespace hio::device::test {
 using jlink::RttBufferInfo;
 using jlink::RttDirection;
 
+// One simulated MCU behind the probe (M2): flash, UICR, FICR part, CTRL-AP protection.
+struct ScriptedChip {
+    std::uint32_t part = 0x52840;
+    bool nrf91 = false;
+    bool protectedChip = false;
+    std::vector<std::uint8_t> flash = std::vector<std::uint8_t>(0x100000, 0xFF);
+    std::vector<std::uint8_t> uicr = std::vector<std::uint8_t>(0x1000, 0xFF);
+
+    [[nodiscard]] std::uint32_t uicrBase() const { return nrf91 ? 0x00FF8000U : 0x10001000U; }
+    [[nodiscard]] std::uint32_t ficrPart() const { return nrf91 ? 0x00FF0140U : 0x10000100U; }
+    [[nodiscard]] std::uint32_t ctrlAp() const { return nrf91 ? 4U : 1U; }
+    [[nodiscard]] std::uint8_t* at(std::uint64_t address) {
+        if (address < flash.size()) {
+            return &flash.at(static_cast<std::size_t>(address));
+        }
+        if (address >= uicrBase() && address < uicrBase() + uicr.size()) {
+            return &uicr.at(static_cast<std::size_t>(address - uicrBase()));
+        }
+        return nullptr;
+    }
+    void eraseAll() {
+        std::ranges::fill(flash, std::uint8_t{0xFF});
+        std::ranges::fill(uicr, std::uint8_t{0xFF});
+    }
+};
+
+inline ScriptedChip nrf91Chip() {
+    ScriptedChip chip;
+    chip.part = 0x9120;
+    chip.nrf91 = true;
+    return chip;
+}
+
 // The simulated probe + target. Every member is guarded by `mutex` (use set()/get()).
 class ScriptedTarget {
 public:
@@ -95,6 +128,27 @@ public:
     bool open = false;
     bool rttStarted = false;
 
+    // ---- M2: the two MCUs a CHESTER probe can reach (by J-Link device name: NRF91* = lte) ----
+    ScriptedChip app;
+    ScriptedChip lte = nrf91Chip();
+    std::string device;           // the last "Device = ..." command
+    std::string failConnectTo;    // connect() with this device name fails
+    std::vector<std::string> ops; // connect:<device>, reset, go, halt, download, eraseChip, ...
+    bool connected = false;
+    bool downloading = false;
+    std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>> download;
+    int endDownloadResult = 0; // < 0: EndDownload fails
+    std::chrono::milliseconds endDownloadDelay{0};
+    std::chrono::milliseconds readDelay{0}; // per readMemory() call
+    std::optional<std::uint32_t> verifyMismatchAt;
+    int eraseAllPolls = 1;
+    int eraseAllLeft = 0;
+    bool eraseAllRunning = false;
+    std::uint32_t apSelect = 0;
+    int readMemoryCalls = 0;
+
+    [[nodiscard]] ScriptedChip& chip() { return device.starts_with("NRF91") ? lte : app; }
+
     // Guards every member (all public, like a struct: the test reads and changes them through
     // set() / get()).
     std::mutex mutex;
@@ -152,7 +206,9 @@ public:
     void close() override {
         m_target->set([](ScriptedTarget& t) {
             t.open = false;
+            t.connected = false;
             t.rttStarted = false;
+            t.ops.emplace_back("close");
         });
     }
 
@@ -160,7 +216,14 @@ public:
         return m_target->get([](ScriptedTarget& t) { return t.open; });
     }
 
-    std::string execCommand(std::string_view /*command*/) override { return {}; }
+    std::string execCommand(std::string_view command) override {
+        constexpr std::string_view prefix = "Device = ";
+        if (command.starts_with(prefix)) {
+            m_target->set(
+                [&](ScriptedTarget& t) { t.device = std::string(command.substr(prefix.size())); });
+        }
+        return {};
+    }
     int selectInterface(jlink::TargetInterface /*targetInterface*/) override { return 0; }
     void setSpeed(std::uint32_t /*kiloHertz*/) override {}
 
@@ -171,15 +234,24 @@ public:
         }));
         return m_target->get([](ScriptedTarget& t) {
             ++t.connects;
+            t.ops.push_back("connect:" + t.device);
+            t.connected = false;
             if (t.connectFailures > 0) {
                 --t.connectFailures;
                 return -1;
             }
-            return t.vtref >= 1000 ? 0 : -1;
+            if (t.vtref < 1000 || t.chip().protectedChip ||
+                (!t.failConnectTo.empty() && t.device == t.failConnectTo)) {
+                return -1;
+            }
+            t.connected = true;
+            return 0;
         });
     }
 
-    bool isConnected() override { return true; }
+    bool isConnected() override {
+        return m_target->get([](ScriptedTarget& t) { return t.connected; });
+    }
 
     std::optional<jlink::HardwareStatus> hardwareStatus() override {
         return m_target->get([](ScriptedTarget& t) -> std::optional<jlink::HardwareStatus> {
@@ -219,12 +291,163 @@ public:
         return m_target->get([](ScriptedTarget& t) {
             ++t.resets;
             t.rttStarted = false;
+            t.ops.emplace_back("reset");
             return 0;
         });
     }
 
-    int halt() override { return 0; }
-    void go() override {}
+    int halt() override {
+        m_target->set([](ScriptedTarget& t) { t.ops.emplace_back("halt"); });
+        return 0;
+    }
+    void go() override {
+        m_target->set([](ScriptedTarget& t) { t.ops.emplace_back("go"); });
+    }
+
+    // ---- M2: memory, download, erase, CoreSight ----
+    void beginDownload() override {
+        m_target->set([](ScriptedTarget& t) {
+            t.downloading = true;
+            t.download.clear();
+        });
+    }
+
+    int writeMemory(std::uint32_t address, std::span<const std::byte> data) override {
+        return m_target->get([&](ScriptedTarget& t) {
+            if (!t.downloading || !t.connected) {
+                return -1;
+            }
+            std::vector<std::uint8_t> bytes;
+            for (const std::byte b : data) {
+                bytes.push_back(static_cast<std::uint8_t>(b));
+            }
+            t.download.emplace_back(address, std::move(bytes));
+            return static_cast<int>(data.size());
+        });
+    }
+
+    int endDownload(const jlink::FlashProgressFn& progress) override {
+        std::this_thread::sleep_for(
+            m_target->get([](ScriptedTarget& t) { return t.endDownloadDelay; }));
+        if (progress) {
+            progress("Erase", 100);
+            progress("Program", 100);
+        }
+        return m_target->get([](ScriptedTarget& t) {
+            t.downloading = false;
+            t.ops.emplace_back("download");
+            if (t.endDownloadResult < 0 || !t.connected) {
+                return t.endDownloadResult < 0 ? t.endDownloadResult : -1;
+            }
+            for (const auto& [address, bytes] : t.download) {
+                for (std::size_t i = 0; i < bytes.size(); ++i) {
+                    std::uint8_t* byte = t.chip().at(std::uint64_t{address} + i);
+                    if (byte == nullptr) {
+                        return -1;
+                    }
+                    *byte = bytes[i];
+                }
+            }
+            t.download.clear();
+            return 0;
+        });
+    }
+
+    int readMemory(std::uint32_t address, std::span<std::byte> buffer) override {
+        std::this_thread::sleep_for(m_target->get([](ScriptedTarget& t) { return t.readDelay; }));
+        return m_target->get([&](ScriptedTarget& t) {
+            ++t.readMemoryCalls;
+            if (!t.connected || t.chip().protectedChip) {
+                return -1;
+            }
+            for (std::size_t i = 0; i < buffer.size(); ++i) {
+                const std::uint8_t* byte = t.chip().at(std::uint64_t{address} + i);
+                if (byte == nullptr) {
+                    return -1;
+                }
+                const bool mismatch = t.verifyMismatchAt && *t.verifyMismatchAt == address + i;
+                buffer[i] = static_cast<std::byte>(mismatch ? (*byte ^ 0xFFU) : *byte);
+            }
+            return static_cast<int>(buffer.size());
+        });
+    }
+
+    std::expected<std::uint32_t, int> readU32(std::uint32_t address) override {
+        return m_target->get([&](ScriptedTarget& t) -> std::expected<std::uint32_t, int> {
+            ScriptedChip& chip = t.chip();
+            if (!t.connected || chip.protectedChip) {
+                return std::unexpected(-1);
+            }
+            if (address == chip.ficrPart()) {
+                return chip.part;
+            }
+            if (address == chip.ficrPart() + 4) {
+                return 0x41414130U;
+            }
+            return std::unexpected(-1);
+        });
+    }
+
+    int eraseChip() override {
+        return m_target->get([](ScriptedTarget& t) {
+            t.ops.emplace_back("eraseChip");
+            if (!t.connected) {
+                return -1;
+            }
+            t.chip().eraseAll();
+            return 0;
+        });
+    }
+
+    int coresightConfigure() override { return 0; }
+
+    std::expected<std::uint32_t, int> coresightRead(std::uint8_t index, bool ap) override {
+        return m_target->get([&](ScriptedTarget& t) -> std::expected<std::uint32_t, int> {
+            if (!ap) {
+                return index == 2 ? t.apSelect : 0U;
+            }
+            ScriptedChip& chip = t.chip();
+            if ((t.apSelect >> 24U) != chip.ctrlAp()) {
+                return std::unexpected(-1);
+            }
+            if (index == 2) {
+                if (t.eraseAllRunning && t.eraseAllLeft > 0) {
+                    --t.eraseAllLeft;
+                    return 1U;
+                }
+                if (t.eraseAllRunning) {
+                    t.eraseAllRunning = false;
+                    chip.eraseAll();
+                    chip.protectedChip = false;
+                    t.ops.emplace_back("eraseAll");
+                }
+                return 0U;
+            }
+            if (index == 3) {
+                return chip.protectedChip ? 0U : 1U;
+            }
+            return 0U;
+        });
+    }
+
+    int coresightWrite(std::uint8_t index, bool ap, std::uint32_t value) override {
+        return m_target->get([&](ScriptedTarget& t) {
+            if (!ap) {
+                if (index == 2) {
+                    t.apSelect = value;
+                }
+                return 0;
+            }
+            if ((t.apSelect >> 24U) != t.chip().ctrlAp()) {
+                return -1;
+            }
+            if (index == 1 && value == 1 && !t.eraseAllRunning) {
+                t.eraseAllRunning = true;
+                t.eraseAllLeft = t.eraseAllPolls;
+            }
+            return 0;
+        });
+    }
 
     int rttStart() override {
         return m_target->get([](ScriptedTarget& t) {

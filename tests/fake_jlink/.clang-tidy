@@ -3,5 +3,5 @@
 ---
 InheritParentConfig: true
 CheckOptions:
-  readability-identifier-naming.FunctionIgnoredRegexp: '^JLINK(ARM)?_[A-Za-z_]+$'
+  readability-identifier-naming.FunctionIgnoredRegexp: '^JLINK(ARM)?_[A-Za-z0-9_]+$'
 ...

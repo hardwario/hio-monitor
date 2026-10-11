@@ -50,6 +50,16 @@ public:
                 (override));
     MOCK_METHOD(int, rttRead, (int, std::span<std::byte>), (override));
     MOCK_METHOD(int, rttWrite, (int, std::span<const std::byte>), (override));
+    MOCK_METHOD(void, beginDownload, (), (override));
+    MOCK_METHOD(int, writeMemory, (std::uint32_t, std::span<const std::byte>), (override));
+    MOCK_METHOD(int, endDownload, (const FlashProgressFn&), (override));
+    MOCK_METHOD(int, readMemory, (std::uint32_t, std::span<std::byte>), (override));
+    MOCK_METHOD((std::expected<std::uint32_t, int>), readU32, (std::uint32_t), (override));
+    MOCK_METHOD(int, eraseChip, (), (override));
+    MOCK_METHOD(int, coresightConfigure, (), (override));
+    MOCK_METHOD((std::expected<std::uint32_t, int>), coresightRead, (std::uint8_t, bool),
+                (override));
+    MOCK_METHOD(int, coresightWrite, (std::uint8_t, bool, std::uint32_t), (override));
     MOCK_METHOD(void, flushMessages, (), (override));
     MOCK_METHOD(std::string, takeErrorText, (), (override));
 };

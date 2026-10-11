@@ -38,6 +38,8 @@ namespace hio::log {
 Q_LOGGING_CATEGORY(lcCore, "hio.core")
 Q_LOGGING_CATEGORY(lcJLink, "hio.jlink")
 Q_LOGGING_CATEGORY(lcDevice, "hio.device")
+Q_LOGGING_CATEGORY(lcFirmware, "hio.firmware")
+Q_LOGGING_CATEGORY(lcFlash, "hio.flash")
 
 namespace {
 

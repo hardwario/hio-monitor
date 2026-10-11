@@ -6,6 +6,7 @@
 // while idle -> auto-reconnect every 3 s when enabled -> wait on the command queue for the rest of
 // the poll interval. No QTimer and no event loop; every wait takes the stop token.
 
+#include "flash_workflows.h"
 #include "hio/core/bounded_queue.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
@@ -15,14 +16,20 @@
 #include "hio/device/console_file_sink.h"
 #include "hio/device/console_line.h"
 #include "hio/device/line_assembler.h"
+#include "hio/device/operation.h"
 #include "hio/device/probe_lock.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
+#include "hio/firmware/firmware_image.h"
+#include "hio/firmware/program_progress.h"
 #include "hio/hw/jlink/clock.h"
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_probe.h"
+#include "hio/hw/jlink/programmer.h"
 #include "hio/hw/jlink/rtt_channel.h"
 #include "hio/hw/jlink/types.h"
+#include "hio/hw/nrfutil/nrfutil.h"
+#include "operation_reporter.h"
 #include "session_internal.h"
 
 #include <QCoreApplication>
@@ -36,6 +43,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <filesystem>
 #include <format>
 #include <functional>
 #include <memory>
@@ -78,11 +86,12 @@ bool isFatalOnFirstConnect(const Error& error) {
 
 class SessionWorker {
 public:
-    SessionWorker(WorkerConfig config, ApiFactory apiFactory, std::optional<ProbeLock> lock,
-                  BoundedQueue<Command>& commands, BoundedQueue<WorkerEvent>& events,
-                  const std::function<void()>& wake)
-        : m_config(std::move(config)), m_apiFactory(std::move(apiFactory)), m_lock(std::move(lock)),
-          m_commands(commands), m_events(events), m_wake(wake),
+    SessionWorker(WorkerConfig config, ApiFactory apiFactory, ModemUpdaterFactory modemFactory,
+                  std::optional<ProbeLock> lock, BoundedQueue<Command>& commands,
+                  BoundedQueue<WorkerEvent>& events, const std::function<void()>& wake)
+        : m_config(std::move(config)), m_apiFactory(std::move(apiFactory)),
+          m_modemFactory(std::move(modemFactory)), m_lock(std::move(lock)), m_commands(commands),
+          m_events(events), m_wake(wake),
           m_shellLines(Channel::Shell, m_config.target->hashPrefixIsLog),
           m_logLines(Channel::Log, false), m_readBuffer(maxReadBytes) {
         if (m_config.probeSn) {
@@ -362,8 +371,7 @@ private:
         if (!step(m_probe->selectSwd())) {
             return;
         }
-        if (!step(m_probe->connect(m_config.target->jlinkDevice,
-                                   m_config.target->minTargetMillivolts, m_seenPower, stop))) {
+        if (!step(connectDevice(*m_config.target, m_config.target->jlinkDevice, stop))) {
             return;
         }
         readPowerAfterConnect();
@@ -373,10 +381,24 @@ private:
                 return;
             }
         }
-        if (!step(attachRtt(stop))) {
+        if (m_config.attachRtt && !step(attachRtt(stop))) {
             return;
         }
         report(ConnectionState::Connected);
+    }
+
+    // Connects the probe to `target` with the J-Link device name `device`.
+    [[nodiscard]] Status connectDevice(const TargetProfile& target, std::string_view device,
+                                       const std::stop_token& stop) {
+        m_probeTarget = nullptr;
+        if (Status connected =
+                m_probe->connect(device, target.minTargetMillivolts, m_seenPower, stop);
+            !connected) {
+            return connected;
+        }
+        m_probeTarget = &target;
+        m_connectedDevice = std::string(device);
+        return {};
     }
 
     void detach() {
@@ -387,6 +409,7 @@ private:
         if (m_probe) {
             m_probe->close();
         }
+        m_probeTarget = nullptr;
     }
 
     // The next automatic attempt is due one reconnect interval after this attempt ENDED,
@@ -557,41 +580,374 @@ private:
         report(ConnectionState::Connected); // a write that landed proves the link works
     }
 
-    void resetTarget(bool halt, const std::stop_token& stop) {
-        if (!m_probe || !m_probe->isOpen()) {
-            warn(notConnected("reset not done"));
+    // ---- operations (plan/features/0003, ADR-0057, ADR-0062) -----------------------------------
+
+    void emitProgress(OperationId id, const OperationProgress& progress) {
+        emitEvent(OperationProgressEvent{.id = id, .progress = progress});
+    }
+
+    void flashLog(const std::string& text) {
+        qCInfo(log::lcFlash).noquote() << toQString(text);
+        if (m_sink) {
+            sinkResult(m_sink->writeConnection(text, std::chrono::system_clock::now()));
+        }
+    }
+
+    // The programmer for `target`: its own chip family first, the other targets' after (so that
+    // identify() recognizes the other MCU for target.wrong_family).
+    [[nodiscard]] jlink::ProgrammerConfig programmerConfigFor(const TargetProfile& target) const {
+        jlink::ProgrammerConfig config;
+        config.families.push_back(target.chipFamily);
+        for (const TargetProfile& other : m_config.profile->targets) {
+            if (other.chipFamily.ficrPart != target.chipFamily.ficrPart) {
+                config.families.push_back(other.chipFamily);
+            }
+        }
+        config.timing = m_config.timing.programmer;
+        return config;
+    }
+
+    // Library, probe and the connection to `target` (Connecting). `requireTarget` = false (recover)
+    // continues when the target does not connect (a protected chip): CoreSight still works.
+    [[nodiscard]] Status prepareProbe(const TargetProfile& target, bool requireTarget,
+                                      const std::stop_token& stop) {
+        if (Status api = ensureApi(); !api) {
+            return api;
+        }
+        if (!m_probe->isOpen()) {
+            if (Status opened = openProbe(stop); !opened) {
+                return opened;
+            }
+        }
+        m_probe->setSpeed(m_config.speedKhz);
+        if (Status swd = m_probe->selectSwd(); !swd) {
+            return swd;
+        }
+        if (m_probeTarget == &target && m_api->isConnected()) {
+            m_fatal = false;
+            return {};
+        }
+        Status connected = connectDevice(target, target.jlinkDevice, stop);
+        if (!connected && requireTarget) {
+            return connected;
+        }
+        if (!connected) {
+            flashLog("Target not connected (" + connected.error().detail + "); continuing");
+        }
+        m_fatal = false;
+        return {};
+    }
+
+    // The probe is released for nRF Util: closed, the library copy stays loaded (ADR-0016).
+    void releaseProbe() {
+        if (m_probe && m_probe->isOpen()) {
+            m_probe->close();
+            flashLog("J-Link released for nRF Util");
+        }
+        m_probeTarget = nullptr;
+    }
+
+    // Opens the probe again after nRF Util (also after a failure or cancel).
+    [[nodiscard]] Status reopenProbe(const std::stop_token& stop) {
+        if (Status api = ensureApi(); !api) {
+            return api;
+        }
+        if (m_probe->isOpen()) {
+            return {};
+        }
+        auto info = m_probe->open(m_serial);
+        if (!info) {
+            return std::unexpected(std::move(info).error());
+        }
+        (void)stop;
+        return {};
+    }
+
+    // Step "Modem": nRF Util with the probe released.
+    [[nodiscard]] Status runModem(const std::filesystem::path& modemZip,
+                                  OperationReporter& reporter, const std::stop_token& stop) {
+        auto updater = m_modemFactory
+                           ? m_modemFactory()
+                           : Result<std::unique_ptr<nrfutil::IModemUpdater>>(
+                                 std::unexpected(makeError(ErrorCode::DependencyNrfUtilNotFound)));
+        if (!updater) {
+            return std::unexpected(std::move(updater).error());
+        }
+        if (!m_serial) {
+            // The probe was never opened (e.g. the first connect failed): find it now.
+            if (Status api = ensureApi(); !api) {
+                return api;
+            }
+            if (Status opened = openProbe(stop); !opened) {
+                return opened;
+            }
+        }
+        reporter.phase(ProgramPhase::Modem);
+        releaseProbe();
+        flashLog("Updating the modem firmware: " + toUtf8(modemZip));
+        Status updated = (*updater)->updateModem(
+            modemZip, m_serial.value_or(0),
+            [&reporter](const firmware::ProgramProgress& progress) { reporter.update(progress); },
+            stop);
+        // resume(): also after a failure or cancel.
+        if (Status reopened = reopenProbe(stop); !reopened && updated) {
+            updated = std::move(reopened);
+        }
+        flashLog(updated ? std::string("Modem firmware updated")
+                         : "Modem firmware update failed: " + updated.error().detail);
+        return updated;
+    }
+
+    // Moves the probe back to the console target and re-attaches RTT unless the CPU was left
+    // halted (ADR-0057, ADR-0062). A failed restore reports Disconnected with the error.
+    void restoreAfterOperation(bool crossTarget, bool cpuHalted, OperationReporter& reporter,
+                               const std::stop_token& stop) {
+        const auto restoreFailed = [this](Error error) {
+            report(ConnectionState::Disconnected, std::move(error));
+        };
+        if (crossTarget) {
+            reporter.phase(ProgramPhase::Restoring);
+        }
+        if (Status reopened = reopenProbe(stop); !reopened) {
+            restoreFailed(std::move(reopened).error());
             return;
         }
-        if (!halt) {
-            m_halted = false; // a reset without halt lets the CPU run (review R25)
+        const bool targetLost = m_probeTarget != m_config.target || !m_api->isConnected();
+        if (targetLost) {
+            m_probe->setSpeed(m_config.speedKhz);
+            if (Status swd = m_probe->selectSwd(); !swd) {
+                restoreFailed(std::move(swd).error());
+                return;
+            }
+            if (Status connected =
+                    connectDevice(*m_config.target, m_config.target->jlinkDevice, stop);
+                !connected) {
+                restoreFailed(std::move(connected).error());
+                return;
+            }
+            cpuHalted = cpuHalted && !crossTarget; // the console target was not touched
         }
-        // Stop RTT without reporting a disconnect; a plain reset re-attaches below.
-        m_rtt->stop();
-        m_attached = false;
-        if (const Status status = m_probe->reset(halt); !status) {
-            report(ConnectionState::Disconnected, status.error());
-            return;
-        }
-        if (halt) {
-            // The CPU stays halted: no automatic re-attach (like a suspend) until an explicit
-            // reconnect, resume or reset without halt (ADR-0034 "unless halted"; review R25).
+        if (cpuHalted) {
+            // Like M1's reset(halt): no automatic re-attach until an explicit reconnect, resume or
+            // reset with go (ADR-0034, review R25).
             m_halted = true;
-            report(ConnectionState::Disconnected);
+            report(m_config.attachRtt ? ConnectionState::Disconnected : ConnectionState::Connected);
             return;
         }
-        if (const Status status = attachRtt(stop); !status) {
-            if (status.error().code != ErrorCode::Cancelled) {
-                report(ConnectionState::Disconnected, status.error());
+        m_halted = false;
+        if (!m_config.attachRtt) {
+            report(ConnectionState::Connected);
+            return;
+        }
+        if (Status attached = attachRtt(stop); !attached) {
+            if (attached.error().code != ErrorCode::Cancelled) {
+                report(ConnectionState::Disconnected, attached.error());
             }
             return;
         }
         report(ConnectionState::Connected);
     }
 
+    // The state of one running operation (runOperation()).
+    struct OperationRun {
+        const OperationCommand& command;
+        const TargetProfile& target;
+        bool crossTarget;
+        std::stop_token stop;
+        OperationReporter& reporter;
+        WorkflowContext context;
+        std::optional<jlink::JLinkProgrammer> programmer;
+    };
+
+    // Connecting (after SwitchingTarget for another target): probe and target ready, programmer
+    // created. A target that does not connect may be read-back protected: its CTRL-AP is asked.
+    [[nodiscard]] Status prepareOperation(OperationRun& run, bool requireTarget) {
+        if (run.crossTarget && run.command.kind != OperationKind::LteBundle) {
+            run.reporter.phase(ProgramPhase::SwitchingTarget);
+        }
+        Status prepared = prepareProbe(run.target, requireTarget, run.stop);
+        run.reporter.phase(ProgramPhase::Connecting);
+        if (m_api && m_probe && m_probe->isOpen()) {
+            run.programmer.emplace(*m_api, *m_probe, clock(), programmerConfigFor(run.target));
+            run.context.programmer = &*run.programmer;
+        }
+        if (!prepared) {
+            if (run.programmer && prepared.error().code == ErrorCode::TargetConnectFailed) {
+                if (auto chip = run.programmer->identify(); chip && chip->protectedChip) {
+                    return std::unexpected(forTarget(makeError(ErrorCode::TargetProtected),
+                                                     *m_config.profile, run.target));
+                }
+            }
+            return prepared;
+        }
+        run.context.connectedDevice = m_connectedDevice;
+        run.context.connectAs = [this, &run](std::string_view device) {
+            return connectDevice(run.target, device, run.stop);
+        };
+        return {};
+    }
+
+    // Keeps the identified chip of a workflow result (ChipInfo or optional<ChipInfo>).
+    template <class T> static Status keepChip(const Result<T>& chip, OperationResult& result) {
+        if (!chip) {
+            return std::unexpected(chip.error());
+        }
+        result.chip = *chip;
+        return {};
+    }
+
+    [[nodiscard]] Status runFlashStep(OperationRun& run, const firmware::FirmwareImage& image,
+                                      OperationResult& result) {
+        if (Status prepared = prepareOperation(run, true); !prepared) {
+            return prepared;
+        }
+        return keepChip(runFlash(run.context, image, run.command.flash), result);
+    }
+
+    [[nodiscard]] Status executeOperation(OperationRun& run, OperationResult& result) {
+        const OperationCommand& command = run.command;
+        switch (command.kind) {
+        case OperationKind::Flash:
+            return runFlashStep(run, *command.image, result);
+        case OperationKind::EraseCode:
+        case OperationKind::EraseAll: {
+            if (Status prepared = prepareOperation(run, true); !prepared) {
+                return prepared;
+            }
+            return keepChip(runErase(run.context, command.kind == OperationKind::EraseCode
+                                                      ? EraseScope::Code
+                                                      : EraseScope::All),
+                            result);
+        }
+        case OperationKind::Recover: {
+            if (Status prepared = prepareOperation(run, false); !prepared) {
+                return prepared;
+            }
+            return keepChip(runRecover(run.context,
+                                       [this, &run]() -> Status {
+                                           return connectDevice(run.target, run.target.jlinkDevice,
+                                                                run.stop);
+                                       }),
+                            result);
+        }
+        case OperationKind::Reset:
+            if (Status prepared = prepareOperation(run, true); !prepared) {
+                return prepared;
+            }
+            return runReset(run.context, command.reset);
+        case OperationKind::ReadMemory: {
+            if (Status prepared = prepareOperation(run, true); !prepared) {
+                return prepared;
+            }
+            auto data = runReadMemory(run.context, command.address, command.size);
+            if (!data) {
+                return std::unexpected(std::move(data).error());
+            }
+            result.data = std::move(*data);
+            return {};
+        }
+        case OperationKind::Modem:
+            if (run.crossTarget) {
+                run.reporter.phase(ProgramPhase::SwitchingTarget);
+            }
+            return runModem(command.modemZip, run.reporter, run.stop);
+        case OperationKind::LteBundle: {
+            if (run.crossTarget) {
+                run.reporter.phase(ProgramPhase::SwitchingTarget);
+            }
+            if (Status modem = runModem(command.bundle->modemZip, run.reporter, run.stop); !modem) {
+                return modem; // a failed or cancelled step 1 skips step 2 (ADR-0062)
+            }
+            run.reporter.step(2, 2);
+            return runFlashStep(run, command.bundle->application, result);
+        }
+        }
+        return std::unexpected(makeError(ErrorCode::InternalUnexpected, "unknown operation"));
+    }
+
+    void runOperation(const OperationCommand& command, const std::stop_token& sessionStop) {
+        std::stop_source operationStop;
+        const std::stop_callback fromSession(sessionStop,
+                                             [&operationStop] { operationStop.request_stop(); });
+        const std::stop_callback fromCancel(command.stop,
+                                            [&operationStop] { operationStop.request_stop(); });
+        const TargetProfile& target = *command.target;
+        const bool crossTarget = &target != m_config.target;
+        const bool withImage =
+            command.kind == OperationKind::Recover && target.recoverImage != RecoverImage::None;
+        OperationReporter reporter(command.kind,
+                                   plannedPhases(command.kind, crossTarget, withImage), clock(),
+                                   m_config.timing.progressInterval,
+                                   [this, id = command.id](const OperationProgress& progress) {
+                                       emitProgress(id, progress);
+                                   });
+        if (command.kind == OperationKind::LteBundle) {
+            reporter.step(1, 2);
+        }
+        flashLog(
+            std::format("Operation {} on {} started", operationKindId(command.kind), target.id));
+        OperationResult result{
+            .kind = command.kind, .status = {}, .duration = {}, .chip = std::nullopt, .data = {}};
+        if (m_suspended) {
+            result.status = std::unexpected(notConnected("operation not run (suspended)"));
+            finishOperation(command, reporter, std::move(result));
+            return;
+        }
+        // Pause RTT without reporting a disconnect (ADR-0034).
+        if (m_attached) {
+            m_rtt->stop();
+            m_attached = false;
+        }
+        OperationRun run{
+            .command = command,
+            .target = target,
+            .crossTarget = crossTarget,
+            .stop = operationStop.get_token(),
+            .reporter = reporter,
+            .context = WorkflowContext{
+                .profile = m_config.profile,
+                .target = &target,
+                .programmer = nullptr,
+                .progress = [&reporter](const firmware::ProgramProgress& p) { reporter.update(p); },
+                .stop = operationStop.get_token(),
+                .log = [this](const std::string& text) { flashLog(text); },
+                .connectAs = {},
+                .connectedDevice = {},
+                .cpuHalted = false},
+            .programmer = std::nullopt};
+        Status outcome = executeOperation(run, result);
+        // Cancelled while halted (e.g. during verify): let the CPU run again where possible.
+        if (!outcome && outcome.error().code == ErrorCode::Cancelled && run.context.cpuHalted &&
+            run.programmer && !sessionStop.stop_requested() &&
+            run.programmer->reset(ResetMode::Go)) {
+            run.context.cpuHalted = false;
+        }
+        result.status = std::move(outcome);
+        if (!sessionStop.stop_requested()) {
+            restoreAfterOperation(crossTarget, run.context.cpuHalted, reporter, sessionStop);
+        }
+        finishOperation(command, reporter, std::move(result));
+    }
+
+    void finishOperation(const OperationCommand& command, OperationReporter& reporter,
+                         OperationResult result) {
+        reporter.flush();
+        result.duration = reporter.elapsed();
+        if (result.status) {
+            flashLog(std::format("Operation {} finished in {} ms", operationKindId(command.kind),
+                                 result.duration.count()));
+        } else {
+            flashLog(std::format("Operation {} failed: {} ({})", operationKindId(command.kind),
+                                 result.status.error().message, result.status.error().detail));
+        }
+        flushSink();
+        emitEvent(OperationFinishedEvent{.id = command.id, .result = std::move(result)});
+    }
+
     void handle(Command command, const std::stop_token& stop) {
         std::visit(Overloaded{
                        [&](SendLineCommand& send) { sendLine(std::move(send.line), stop); },
-                       [&](const ResetCommand& reset) { resetTarget(reset.halt, stop); },
+                       [&](const OperationCommand& operation) { runOperation(operation, stop); },
                        [&](const ReconnectCommand&) {
                            m_suspended = false;
                            m_halted = false;
@@ -631,6 +987,7 @@ private:
 
     WorkerConfig m_config;
     ApiFactory m_apiFactory;
+    ModemUpdaterFactory m_modemFactory;
     std::optional<ProbeLock> m_lock;
     std::reference_wrapper<BoundedQueue<Command>> m_commands;
     std::reference_wrapper<BoundedQueue<WorkerEvent>> m_events;
@@ -641,6 +998,8 @@ private:
     std::unique_ptr<jlink::JLinkProbe> m_probe; // uses *m_api; destroyed before it
     std::unique_ptr<jlink::RttChannel> m_rtt;   // uses *m_api; destroyed before it
     std::optional<std::uint32_t> m_serial;
+    const TargetProfile* m_probeTarget = nullptr; // the target the probe is connected to now
+    std::string m_connectedDevice;                // with this J-Link device name
     std::unique_ptr<ConsoleFileSink> m_sink;
     LineAssembler m_shellLines;
     LineAssembler m_logLines;
@@ -665,11 +1024,13 @@ private:
 } // namespace
 
 void runWorker(const std::stop_token& stop, WorkerConfig config, ApiFactory apiFactory,
-               std::optional<ProbeLock> lock, BoundedQueue<Command>& commands,
-               BoundedQueue<WorkerEvent>& events, const std::function<void()>& wake) {
+               ModemUpdaterFactory modemUpdaterFactory, std::optional<ProbeLock> lock,
+               BoundedQueue<Command>& commands, BoundedQueue<WorkerEvent>& events,
+               const std::function<void()>& wake) {
     try {
-        SessionWorker worker(std::move(config), std::move(apiFactory), std::move(lock), commands,
-                             events, wake);
+        SessionWorker worker(std::move(config), std::move(apiFactory),
+                             std::move(modemUpdaterFactory), std::move(lock), commands, events,
+                             wake);
         worker.run(stop);
     } catch (...) {
         // No exception crosses the thread boundary (ADR-0007): report it as a fatal error.

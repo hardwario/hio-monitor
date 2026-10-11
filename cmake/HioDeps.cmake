@@ -3,7 +3,8 @@
 # Every dependency is pinned to a release archive URL and its SHA-256 (or, under ADR-0064, to the
 # archive of one exact commit). Adding or upgrading a dependency needs user approval in a feature
 # plan. Versions and hashes are recorded in plan/features/0001-m0-skeleton.md (CPM.cmake,
-# GoogleTest, CLI11) and plan/features/0002-m1-jlink-rtt.md (replxx).
+# GoogleTest, CLI11), plan/features/0002-m1-jlink-rtt.md (replxx) and
+# plan/features/0003-m2-flashing.md (miniz).
 #
 # CPM_SOURCE_CACHE (cache variable or environment) enables a shared, offline-capable source
 # cache; the presets point it at the git-ignored <source>/.cpm-cache/.
@@ -47,6 +48,32 @@ CPMAddPackage(
     OPTIONS
         "REPLXX_BUILD_EXAMPLES OFF"
         "REPLXX_BUILD_PACKAGE OFF")
+
+# miniz 3.1.2 - MIT - read-only zip access in libs/firmware (ADR-0041, plan/features/0003). The
+# release archive holds the amalgamated miniz.c / miniz.h, built here as a static C library
+# (third-party code: no own warning flags, no clang-tidy). Definitions:
+#   MINIZ_NO_STDIO   archives are read through our own QFile callback (Unicode paths on Windows),
+#                    miniz never opens files itself
+#   MINIZ_NO_TIME    no file times are needed
+#   MINIZ_USE_UNALIGNED_LOADS_AND_STORES=0   no type-punned unaligned access (UBSan-clean)
+CPMAddPackage(
+    NAME miniz
+    VERSION 3.1.2
+    URL "https://github.com/richgel999/miniz/releases/download/3.1.2/miniz-3.1.2.zip"
+    URL_HASH "SHA256=f0446d863f9c19926ad9483c523fdc42e42b8d4a6a431d27e09d49c79a140d9a"
+    DOWNLOAD_ONLY YES)
+enable_language(C)
+add_library(hio_miniz STATIC "${miniz_SOURCE_DIR}/miniz.c")
+add_library(hio::miniz ALIAS hio_miniz)
+target_include_directories(hio_miniz SYSTEM PUBLIC "${miniz_SOURCE_DIR}")
+target_compile_definitions(hio_miniz PUBLIC
+    MINIZ_NO_STDIO
+    MINIZ_NO_TIME
+    MINIZ_USE_UNALIGNED_LOADS_AND_STORES=0)
+set_target_properties(hio_miniz PROPERTIES
+    C_CLANG_TIDY ""
+    SKIP_LINTING ON
+    POSITION_INDEPENDENT_CODE ON)
 
 if(HIO_BUILD_TESTS)
     # GoogleTest + GMock 1.18.0 - BSD-3-Clause - unit tests only.

@@ -5,9 +5,12 @@
 #   HIO_JLINK_LIBRARY=PATH     the J-Link library (default: auto-discovery)
 #   HIO_HIL_SN=SERIAL_NUMBER   the probe (default: the first free one)
 #   HIO_HIL_SN2=SERIAL_NUMBER  a second probe with a second CHESTER (two-session test)
+#   M2 flashing (hil_flash_test.cpp, plan/features/0003 G1): HIO_HIL_APP_HEX, HIO_HIL_FIRMWARE_ID,
+#   HIO_HIL_LTE_SN, HIO_HIL_LTE_BUNDLE, HIO_HIL_DESTRUCTIVE=1 (erase --all / recover erase the PIB)
 # Run: ctest --preset linux-debug -L hil --output-on-failure   (with HIO_HIL=1 exported)
 
 add_executable(hio_hil_tests
+    hil_flash_test.cpp
     hil_test.cpp
     main.cpp)
 hio_apply_target_defaults(hio_hil_tests)

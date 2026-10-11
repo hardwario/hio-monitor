@@ -41,7 +41,7 @@ include(HioSanitizers)
 include(HioCxxFeatureChecks)
 include(HioBackendRules)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core LinguistTools)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Network LinguistTools)
 qt_standard_project_setup(REQUIRES 6.8
     I18N_SOURCE_LANGUAGE en
     I18N_TRANSLATED_LANGUAGES cs)
@@ -55,7 +55,9 @@ if(HIO_BUILD_TESTS)
 endif()
 
 add_subdirectory(libs/core)
+add_subdirectory(libs/firmware)
 add_subdirectory(libs/hw/jlink)
+add_subdirectory(libs/hw/nrfutil)
 add_subdirectory(libs/device)
 add_subdirectory(app/cli)
 add_subdirectory(app/gui)
@@ -65,6 +67,7 @@ include(HioTranslations)
 if(HIO_BUILD_TESTS)
     add_subdirectory(tests/cmake)
     add_subdirectory(tests/fake_jlink)
+    add_subdirectory(tests/fake_nrfutil)
     add_subdirectory(tests/integration)
 endif()
 
