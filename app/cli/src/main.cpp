@@ -104,6 +104,12 @@ int run(int& argc, char** argv) {
         output.printError(error);
         return hio::cli::exitCodeFor(hio::categoryOf(error.code));
     }
+    if (result->streamed) {
+        if (mode == OutputMode::Human && !result->humanText.empty()) {
+            std::cout << result->humanText << '\n' << std::flush;
+        }
+        return hio::cli::exitSuccess;
+    }
     output.printResult(result->data, result->humanText);
     return hio::cli::exitSuccess;
 }

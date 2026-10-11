@@ -65,6 +65,24 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::SettingsNewerSchema:
     case ErrorCode::Timeout:
     case ErrorCode::Cancelled:
+    case ErrorCode::DependencyJLinkNotFound:
+    case ErrorCode::DependencyJLinkLoadFailed:
+    case ErrorCode::DependencyJLinkTooOld:
+    case ErrorCode::ProbeNotFound:
+    case ErrorCode::ProbeInUseByOtherProcess:
+    case ErrorCode::ProbeOpenFailed:
+    case ErrorCode::ProbeFirmwareOutdated:
+    case ErrorCode::TargetNoPower:
+    case ErrorCode::TargetConnectFailed:
+    case ErrorCode::TargetRttNotFound:
+    case ErrorCode::TargetRttBufferNotFound:
+    case ErrorCode::TargetRttWriteTimeout:
+    case ErrorCode::TargetRttReadFailed:
+    case ErrorCode::InternalSessionLimit:
+    case ErrorCode::UsageConfirmationRequired:
+    case ErrorCode::TargetRttWriteFailed:
+    case ErrorCode::ProbeFirmwareUpdateFailed:
+    case ErrorCode::TargetNotConnected:
         return true;
     }
     return false;
@@ -90,13 +108,15 @@ struct SourceText {
 };
 
 struct DefaultTexts {
-    ErrorCode code;
-    SourceText message;
-    SourceText cause;
-    SourceText suggestion;
+    ErrorCode code = ErrorCode::InternalUnexpected;
+    SourceText message{};
+    SourceText cause{};
+    SourceText suggestion{};
+    std::optional<WizardId> wizard = std::nullopt; // the wizard that helps to fix it (M4)
 };
 
-// One row per ErrorCode, in enum order (checked below). No placeholders: values go into `detail`.
+// One row per ErrorCode, in enum order (checked below). No placeholders: values go into `detail`,
+// or the call site builds its own text with %1 placeholders (e.g. hio::jlink, hio::device).
 constexpr std::array defaultTexts{
     DefaultTexts{
         .code = ErrorCode::InternalUnexpected,
@@ -188,6 +208,215 @@ constexpr std::array defaultTexts{
         .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Run the operation again if needed.",
                                          "cancelled suggestion"),
     },
+    DefaultTexts{
+        .code = ErrorCode::DependencyJLinkNotFound,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "SEGGER J-Link Software was not found.",
+                                      "dependency.jlink_not_found message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "It is not installed, or it is installed in a non-standard location.",
+            "dependency.jlink_not_found cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Install J-Link Software 8.00 or newer, or set its path with --jlink-library.",
+            "dependency.jlink_not_found suggestion"),
+        .wizard = WizardId::FirstRunSetup,
+    },
+    DefaultTexts{
+        .code = ErrorCode::DependencyJLinkLoadFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The J-Link library could not be loaded.",
+                                      "dependency.jlink_load_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The installation is damaged, is for another processor "
+                                    "architecture, or lacks a required function.",
+                                    "dependency.jlink_load_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Reinstall J-Link Software.",
+                                         "dependency.jlink_load_failed suggestion"),
+        .wizard = WizardId::FirstRunSetup,
+    },
+    DefaultTexts{
+        .code = ErrorCode::DependencyJLinkTooOld,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The J-Link Software is too old.",
+                                      "dependency.jlink_too_old message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "HARDWARIO Monitor needs J-Link Software 8.00 or newer.",
+                                    "dependency.jlink_too_old cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Install the current J-Link Software.",
+                                         "dependency.jlink_too_old suggestion"),
+        .wizard = WizardId::FirstRunSetup,
+    },
+    DefaultTexts{
+        .code = ErrorCode::ProbeNotFound,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "No J-Link probe found.", "probe.not_found message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The USB cable is disconnected or the J-Link is not powered.",
+                                    "probe.not_found cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core",
+                                         "Check the USB cable between the J-Link and the computer.",
+                                         "probe.not_found suggestion"),
+        .wizard = WizardId::ConnectDevice,
+    },
+    DefaultTexts{
+        .code = ErrorCode::ProbeInUseByOtherProcess,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The J-Link is used by another program.",
+                                      "probe.in_use_by_other_process message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "Another HARDWARIO Monitor window or hio command is using it.",
+                                    "probe.in_use_by_other_process cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Close the other program, or choose another J-Link.",
+                               "probe.in_use_by_other_process suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::ProbeOpenFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The J-Link probe could not be opened.",
+                                      "probe.open_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "It is used by another program or session, or the USB "
+                                    "permissions are missing (Linux udev rules).",
+                                    "probe.open_failed cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Close other programs using the J-Link and try again.",
+                               "probe.open_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::ProbeFirmwareOutdated,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The J-Link firmware is outdated.",
+                                      "probe.firmware_outdated message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "The J-Link firmware differs from the firmware bundled with the J-Link Software.",
+            "probe.firmware_outdated cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Run `hio jlink update-firmware`.",
+                                         "probe.firmware_outdated suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetNoPower,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The device has no power.", "target.no_power message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The device is not powered or the flat cable is disconnected.",
+                                    "target.no_power cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Power the device and check the flat cable.",
+                                         "target.no_power suggestion"),
+        .wizard = WizardId::ConnectDevice,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetConnectFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Could not connect to the device.",
+                                      "target.connect_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The flat cable is disconnected or in the wrong connector, or "
+                                    "the MCU is in a low-power or protected state.",
+                                    "target.connect_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core",
+                                         "Check the flat cable between the J-Link and the device.",
+                                         "target.connect_failed suggestion"),
+        .wizard = WizardId::ConnectDevice,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetRttNotFound,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The device's console (RTT) was not found.",
+                                      "target.rtt_not_found message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The firmware has no RTT console, is still booting, or the CPU is halted.",
+            "target.rtt_not_found cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Reset the device or flash firmware with RTT console support.",
+            "target.rtt_not_found suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetRttBufferNotFound,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "An RTT buffer was not found.",
+                                      "target.rtt_buffer_not_found message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The firmware is older or different.",
+                                    "target.rtt_buffer_not_found cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Use firmware with the CHESTER shell.",
+                                         "target.rtt_buffer_not_found suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetRttWriteTimeout,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The device is not reading commands.",
+                                      "target.rtt_write_timeout message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The firmware is hung or its shell is disabled.",
+                                    "target.rtt_write_timeout cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Reset the device.",
+                                         "target.rtt_write_timeout suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetRttReadFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Reading from the device failed.",
+                                      "target.rtt_read_failed message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "A cable was disconnected or the device was reset.",
+                               "target.rtt_read_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Check the cables; the console reconnects automatically if enabled.",
+            "target.rtt_read_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::InternalSessionLimit,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Too many devices are open (max 8).",
+                                      "internal.session_limit message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "HARDWARIO Monitor works with at most 8 devices at the same time.",
+            "internal.session_limit cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Close a device first.",
+                                         "internal.session_limit suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::UsageConfirmationRequired,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "This operation needs confirmation.",
+                                      "usage.confirmation_required message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "The command runs non-interactively, so it cannot ask.",
+                               "usage.confirmation_required cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Re-run with --yes.",
+                                         "usage.confirmation_required suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetRttWriteFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Writing to the device failed.",
+                                      "target.rtt_write_failed message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "A cable was disconnected or the device was reset.",
+                               "target.rtt_write_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Check the cables; the console reconnects automatically if enabled.",
+            "target.rtt_write_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::ProbeFirmwareUpdateFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The J-Link firmware could not be updated.",
+                                      "probe.firmware_update_failed message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "The update failed or the probe still reports a firmware different from the library's.",
+            "probe.firmware_update_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Disconnect and reconnect the J-Link, then run `hio jlink update-firmware` again.",
+            "probe.firmware_update_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetNotConnected,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The device is not connected.",
+                                      "target.not_connected message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "The console is disconnected or still reconnecting.",
+                               "target.not_connected cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Reconnect the console (F4).",
+                                         "target.not_connected suggestion"),
+        .wizard = WizardId::ConnectDevice,
+    },
 };
 
 consteval bool defaultTextsComplete() {
@@ -224,7 +453,15 @@ Error makeError(ErrorCode code, std::string detail) {
                  .cause = translate(texts.cause),
                  .suggestion = translate(texts.suggestion),
                  .detail = std::move(detail),
-                 .wizard = std::nullopt};
+                 .wizard = texts.wizard};
+}
+
+Error outputClosedError(std::string detail) {
+    Error error = makeError(ErrorCode::Cancelled, std::move(detail));
+    error.message = QCoreApplication::translate("hio::core", "The output was closed.",
+                                                "cancelled message when the stdout was closed")
+                        .toStdString();
+    return error;
 }
 
 std::unexpected<Error> fail(ErrorCode code, std::string detail) {

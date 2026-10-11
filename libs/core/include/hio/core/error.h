@@ -39,6 +39,25 @@ enum class ErrorCode : std::uint8_t {
     SettingsNewerSchema,
     Timeout,
     Cancelled,
+    // M1 (plan/features/0002-m1-jlink-rtt.md)
+    DependencyJLinkNotFound,
+    DependencyJLinkLoadFailed,
+    DependencyJLinkTooOld,
+    ProbeNotFound,
+    ProbeInUseByOtherProcess,
+    ProbeOpenFailed,
+    ProbeFirmwareOutdated,
+    TargetNoPower,
+    TargetConnectFailed,
+    TargetRttNotFound,
+    TargetRttBufferNotFound,
+    TargetRttWriteTimeout,
+    TargetRttReadFailed,
+    InternalSessionLimit,
+    UsageConfirmationRequired,
+    TargetRttWriteFailed,      // review fix 2026-10-09
+    ProbeFirmwareUpdateFailed, // review R11, 2026-10-10
+    TargetNotConnected,        // review R18, 2026-10-10
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -80,6 +99,60 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::Timeout, .id = "timeout", .category = ErrorCategory::Timeout},
     ErrorInfo{
         .code = ErrorCode::Cancelled, .id = "cancelled", .category = ErrorCategory::Cancelled},
+    ErrorInfo{.code = ErrorCode::DependencyJLinkNotFound,
+              .id = "dependency.jlink_not_found",
+              .category = ErrorCategory::Dependency},
+    ErrorInfo{.code = ErrorCode::DependencyJLinkLoadFailed,
+              .id = "dependency.jlink_load_failed",
+              .category = ErrorCategory::Dependency},
+    ErrorInfo{.code = ErrorCode::DependencyJLinkTooOld,
+              .id = "dependency.jlink_too_old",
+              .category = ErrorCategory::Dependency},
+    ErrorInfo{.code = ErrorCode::ProbeNotFound,
+              .id = "probe.not_found",
+              .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::ProbeInUseByOtherProcess,
+              .id = "probe.in_use_by_other_process",
+              .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::ProbeOpenFailed,
+              .id = "probe.open_failed",
+              .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::ProbeFirmwareOutdated,
+              .id = "probe.firmware_outdated",
+              .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::TargetNoPower,
+              .id = "target.no_power",
+              .category = ErrorCategory::Target},
+    ErrorInfo{.code = ErrorCode::TargetConnectFailed,
+              .id = "target.connect_failed",
+              .category = ErrorCategory::Target},
+    ErrorInfo{.code = ErrorCode::TargetRttNotFound,
+              .id = "target.rtt_not_found",
+              .category = ErrorCategory::Target},
+    ErrorInfo{.code = ErrorCode::TargetRttBufferNotFound,
+              .id = "target.rtt_buffer_not_found",
+              .category = ErrorCategory::Target},
+    ErrorInfo{.code = ErrorCode::TargetRttWriteTimeout,
+              .id = "target.rtt_write_timeout",
+              .category = ErrorCategory::Target},
+    ErrorInfo{.code = ErrorCode::TargetRttReadFailed,
+              .id = "target.rtt_read_failed",
+              .category = ErrorCategory::Target},
+    ErrorInfo{.code = ErrorCode::InternalSessionLimit,
+              .id = "internal.session_limit",
+              .category = ErrorCategory::Internal},
+    ErrorInfo{.code = ErrorCode::UsageConfirmationRequired,
+              .id = "usage.confirmation_required",
+              .category = ErrorCategory::Usage},
+    ErrorInfo{.code = ErrorCode::TargetRttWriteFailed,
+              .id = "target.rtt_write_failed",
+              .category = ErrorCategory::Target},
+    ErrorInfo{.code = ErrorCode::ProbeFirmwareUpdateFailed,
+              .id = "probe.firmware_update_failed",
+              .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::TargetNotConnected,
+              .id = "target.not_connected",
+              .category = ErrorCategory::Target},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every
@@ -112,5 +185,10 @@ struct Error {
 // (context "hio::core", ADR-0027). The texts have no placeholders; values such as paths go into
 // `detail`. Call sites that know more use the full hio::fail(code, message, cause, ...).
 [[nodiscard]] Error makeError(ErrorCode code, std::string detail = {});
+
+// `cancelled` because the reader of the result stream went away (e.g. `hio ... --json | head`, a
+// closed stdout; review R32, R44): the default cause and suggestion of `cancelled` with the message
+// "The output was closed." instead of "Cancelled by user.".
+[[nodiscard]] Error outputClosedError(std::string detail);
 
 } // namespace hio

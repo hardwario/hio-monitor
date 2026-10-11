@@ -108,6 +108,13 @@ cmake --build --preset linux-debug --target check_translations    # .ts freshnes
 git ls-files -z -- '*.h' '*.cpp' | xargs -0 clang-format-21 --dry-run --Werror   # formatting
 tools/check-lfs.sh [--untracked]                # Git LFS rule (binary or > 100 KB files)
 build/linux-debug/app/cli/hio --help            # CLI; GUI: build/linux-debug/app/gui/hio-monitor
+build/linux-debug/app/cli/hio jlink list        # probes (J-Link Software 8.x: auto-discovered, or
+                                                # --jlink-library PATH / $HIO_JLINK_LIBRARY)
+build/linux-debug/app/cli/hio chester app console   # RTT console; `chester app command version`
+# Without hardware: the test-only fake J-Link library and a JSON scenario (tests/fake_jlink/fake_jlink.cpp)
+HIO_JLINK_LIBRARY=build/linux-debug/tests/fake_jlink/libhio_fake_jlink.so \
+  HIO_FAKE_JLINK_SCENARIO=scenario.json build/linux-debug/app/cli/hio chester app console
+HIO_HIL=1 ctest --preset linux-debug -L hil --output-on-failure   # hardware-in-the-loop (CHESTER + J-Link)
 ```
 
 Translations: run `update_translations`, translate the new entries of `i18n/hio_cs.ts` (Qt Linguist), commit

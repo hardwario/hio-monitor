@@ -3,8 +3,8 @@
 // The `hio` command tree (ADR-0017, plan/0006-cli.md). Commands return data or an error and never
 // print themselves (except streaming commands, through Context::output).
 //
-// Later milestones add their command groups in separate files, e.g.
-// void registerChesterCommands(CLI::App&, CommandSlot&).
+// Command groups live in separate files: selftest.cpp, jlink_commands.cpp (M1),
+// chester_commands.cpp (M1).
 
 #include "hio/core/log.h"
 #include "hio/core/result.h"
@@ -34,6 +34,9 @@ struct Context {
 struct CommandResult {
     QJsonValue data;       // "data" of the --json envelope
     std::string humanText; // printed in human mode (may be empty)
+    // A streaming command (e.g. console) printed its own envelopes (NDJSON): main() then prints
+    // only humanText in human mode and no final envelope with --json.
+    bool streamed = false;
 };
 
 using Command = std::function<Result<CommandResult>(const Context&)>;
@@ -47,6 +50,7 @@ struct GlobalOptions {
     bool json = false;
     bool version = false;
     log::Level logLevel = log::Level::Critical;
+    std::string jlinkLibrary; // --jlink-library (empty = not given)
 };
 
 enum class ParseOutcome : std::uint8_t {

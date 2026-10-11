@@ -1,10 +1,12 @@
 #include "cli_app.h"
 
+#include "chester_commands.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/log.h"
 #include "hio/core/result.h"
 #include "hio/core/version.h"
+#include "jlink_commands.h"
 #include "selftest.h"
 
 #include <QJsonObject>
@@ -66,10 +68,16 @@ CliApp::CliApp()
         ->check(CLI::IsMember(levelNames))
         ->capture_default_str()
         ->option_text("{debug,info,success,warning,error,critical}");
+    app.add_option("--jlink-library", m_options.jlinkLibrary,
+                   "SEGGER J-Link library to use (default: $HIO_JLINK_LIBRARY, the setting "
+                   "jlink/libraryPath, or the installed J-Link Software)")
+        ->option_text("PATH");
     app.require_subcommand(0, 1);
     app.fallthrough(true);
 
     registerSelftestCommands(app, m_slot);
+    registerJLinkCommands(app, m_slot, m_options);
+    registerChesterCommands(app, m_slot, m_options);
 }
 
 CliApp::~CliApp() = default;

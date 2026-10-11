@@ -1,0 +1,206 @@
+#pragma once
+
+// DeviceSession - the single owner of one probe connection (ADR-0031, ADR-0034, ADR-0053, ADR-0058,
+// ADR-0063; plan/features/0002-m1-jlink-rtt.md).
+//
+// A QObject facade on the owner thread (GUI main thread or the CLI's QCoreApplication thread) and
+// one owned std::jthread worker. The worker owns the J-Link library copy (ADR-0030), the probe, the
+// RTT channel, the line assemblers and the console file; every vendor call of the session happens
+// there. Commands go to the worker through a BoundedQueue (capacity commandQueueCapacity, Reject ->
+// internal.queue_full); events come back through a BoundedQueue (eventQueueCapacity; when full the
+// oldest console lines are dropped, never other events, losses reported as linesDropped). The
+// worker wakes the facade with one coalesced queued call (atomic flag); the facade drains the
+// events, appends the lines to the ConsoleLog and emits batched signals.
+//
+// open() is non-blocking (ADR-0053): it validates the options, takes the registry slot and (when a
+// serial number is given) the cross-process ProbeLock (ADR-0058), starts the worker and returns.
+// The worker then loads the library, opens the probe (without a serial number: the first probe
+// that is not locked, then locks it), connects the target and attaches RTT, reporting Connecting
+// -> Connected, or Disconnected (auto-reconnect on) / Stopped (fatal: library, lock or probe
+// errors, or any error with auto-reconnect off) with the hio::Error. Every step checks the stop
+// token, so close() returns within one step (apart from a single blocking vendor call).
+//
+// Worker behaviour (ADR-0034): the command is echoed only after it was written; a read failure
+// reports Disconnected and reading continues; only received data or a successful write reports
+// Connected again; the target voltage is checked every second while idle; auto-reconnect every
+// 3 s, only while the target is powered; an explicit reconnect is always tried; a suspended
+// session never re-attaches automatically; connection events are reported only on a change. An
+// outdated or newer probe firmware is reported once as a warning (probe.firmware_outdated), never
+// updated automatically.
+//
+// Thread safety: every member function must be called on the owner thread.
+
+#include "hio/core/bounded_queue.h"
+#include "hio/core/error.h"
+#include "hio/core/result.h"
+#include "hio/device/console_line.h"
+#include "hio/device/console_log.h"
+#include "hio/device/profile.h"
+#include "hio/device/session_events.h"
+#include "hio/hw/jlink/jlink_probe.h"
+#include "hio/hw/jlink/library_locator.h"
+#include "hio/hw/jlink/rtt_channel.h"
+#include "hio/hw/jlink/types.h"
+
+#include <QList>
+#include <QObject>
+#include <QtTypes>
+
+#include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <optional>
+#include <stop_token>
+#include <string>
+#include <string_view>
+#include <thread>
+
+namespace hio::device {
+
+class SessionRegistry;
+
+namespace detail {
+struct SessionInternals;
+} // namespace detail
+
+struct SessionOptions {
+    const DeviceProfile* profile = nullptr;
+    std::string_view targetId;
+    std::optional<std::uint32_t> probeSn; // nullopt = the first probe that is not locked
+    int speedKhz = 0;                     // J-Link speed (minSpeedKhz..maxSpeedKhz)
+    int latencyMs = 0;                    // RTT poll interval (minLatencyMs..maxLatencyMs)
+    bool autoReconnect = false;
+    bool resetOnOpen = false; // reset the target (no halt) before attaching
+    // nullopt = default console file, empty path = no console file, otherwise this file.
+    std::optional<std::filesystem::path> consoleFile;
+    // ADR-0063: nullptr = the session creates its own log; a GUI tab passes one log for all its
+    // sessions. Accessed on the owner thread only.
+    std::shared_ptr<ConsoleLog> consoleLog;
+};
+
+// Option ranges checked by open() (usage.invalid_argument).
+inline constexpr int minSpeedKhz = 5;
+inline constexpr int maxSpeedKhz = 50000;
+inline constexpr int minLatencyMs = 1;
+inline constexpr int maxLatencyMs = 1000;
+
+class DeviceSession : public QObject {
+    Q_OBJECT
+
+    struct Passkey {
+        explicit Passkey() = default;
+    };
+
+public:
+    static constexpr std::size_t commandQueueCapacity = 256;
+    static constexpr std::size_t eventQueueCapacity = 10000;
+
+    // Non-blocking (ADR-0053): validates options, takes the registry slot (and the probe lock when
+    // probeSn is given), starts the worker, returns at once. Errors: usage.invalid_argument,
+    // internal.session_limit, probe.open_failed (SN already used by this application),
+    // probe.in_use_by_other_process, io.write_failed (lock directory).
+    [[nodiscard]] static Result<std::unique_ptr<DeviceSession>>
+    open(SessionRegistry& registry, jlink::LibraryLocation location, SessionOptions options);
+
+    DeviceSession(Passkey key, SessionRegistry& registry,
+                  std::unique_ptr<detail::SessionInternals> internals);
+    ~DeviceSession() override; // close()
+    DeviceSession(const DeviceSession&) = delete;
+    DeviceSession& operator=(const DeviceSession&) = delete;
+    DeviceSession(DeviceSession&&) = delete;
+    DeviceSession& operator=(DeviceSession&&) = delete;
+
+    // Queued for the worker; an Error only when the queue is full (internal.queue_full) or the
+    // session is closed (cancelled). Results arrive as events (echo line, warning, connection).
+    [[nodiscard]] Status sendLine(std::string line);
+    [[nodiscard]] Status reset(bool halt);
+    [[nodiscard]] Status reconnect();
+    [[nodiscard]] Status suspend(); // detach and release the probe (M2 / nRF Util)
+    [[nodiscard]] Status resume();  // allow attaching again and re-attach now
+
+    // Stops and joins the worker, releases the probe lock and the registry slot. Idempotent.
+    void close();
+
+    // Owner thread only; the provided or the session's own log.
+    [[nodiscard]] const ConsoleLog& log() const;
+    // The probe; serialNumber is 0 until the worker has opened it (connectionChanged is emitted
+    // after it is set).
+    [[nodiscard]] jlink::ProbeInfo probe() const;
+    // The last reported connection event (Connecting before the first one).
+    [[nodiscard]] const ConnectionEvent& connection() const noexcept { return m_connection; }
+    [[nodiscard]] const DeviceProfile& profile() const noexcept;
+    [[nodiscard]] const TargetProfile& target() const noexcept;
+
+signals:
+    void linesReceived(const QList<hio::device::ConsoleLine>& lines);
+    void connectionChanged(const hio::device::ConnectionEvent& event);
+    void linesDropped(quint64 count);
+    void warning(const hio::Error& error);
+
+private:
+    friend struct detail::SessionInternals;
+
+    // Owner thread: invoked (queued, by name) by wakeUp().
+    Q_INVOKABLE void drainEvents();
+
+    // Worker thread. Queues drainEvents() by name, so the queued call object is created and
+    // consumed inside Qt (its own locking), not in a functor of ours that ThreadSanitizer would
+    // see crossing threads without the uninstrumented Qt mutex.
+    void wakeUp();
+
+    SessionRegistry* m_registry;
+    std::unique_ptr<detail::SessionInternals> m_internals;
+    std::atomic<bool> m_wakePending{false};
+    ConnectionEvent m_connection;
+    jlink::ProbeInfo m_probe;
+    std::uint64_t m_reportedDrops = 0;
+    bool m_closed = false;
+};
+
+// CLI helper (ADR-0053): runs a local QEventLoop until the first Connected (success), a
+// Disconnected or Stopped event with an error (that error), a Stopped event without an error
+// (cancelled: the session was stopped on purpose and does not connect by itself), `timeout`
+// (timeout) or a stop request (cancelled).
+[[nodiscard]] Status waitUntilConnected(DeviceSession& session, std::chrono::milliseconds timeout,
+                                        const std::stop_token& stop = {});
+
+// The console with --auto-reconnect (rttt behaviour, decided 2026-10-09): waits only for the
+// outcome of the first attempt. Success when it Connected or ended Disconnected (the session keeps
+// retrying); a Stopped event ends it with its error (or cancelled without one); also timeout and
+// cancelled (stop request) as in waitUntilConnected().
+[[nodiscard]] Status waitForFirstAttempt(DeviceSession& session, std::chrono::milliseconds timeout,
+                                         const std::stop_token& stop = {});
+
+// The parts of the worst-case first connect that are not timings of the session (review R38;
+// plan/features/0002 Bounds).
+struct ConnectTimeoutBudget {
+    // Copy + load of the library, probe list and open.
+    std::chrono::milliseconds libraryLoad{5000};
+    // One JLINKARM_Connect call (the library has no timeout of ours; a target that does not
+    // answer takes a few seconds).
+    std::chrono::milliseconds connectAttempt{3000};
+    // Power reading, optional reset, scheduling.
+    std::chrono::milliseconds margin{2000};
+};
+
+// The timeout for waitUntilConnected() / waitForFirstAttempt() that covers the worst-case first
+// attempt, so that its own error (e.g. target.rtt_not_found) arrives before `timeout`:
+//   library load + connectAttempts x (connect attempt + retry delay)
+//   + RTT attach deadline + logger wait (it may start just before the attach deadline) + margin.
+[[nodiscard]] constexpr std::chrono::milliseconds
+connectTimeoutFor(const jlink::ProbeTiming& probe, const jlink::RttTiming& rtt,
+                  const ConnectTimeoutBudget& budget = {}) {
+    return budget.libraryLoad +
+           (probe.connectAttempts * (budget.connectAttempt + probe.connectRetryDelay)) +
+           rtt.attachDeadline + rtt.loggerWait + budget.margin;
+}
+
+// The timeout the CLI passes to the waits above: 5 + 3 x (3 + 0.5) + 15 + 3 + 2 = 35.5 s.
+inline constexpr std::chrono::milliseconds defaultConnectTimeout =
+    connectTimeoutFor(jlink::ProbeTiming{}, jlink::RttTiming{});
+static_assert(defaultConnectTimeout == std::chrono::milliseconds(35500));
+
+} // namespace hio::device

@@ -1,24 +1,38 @@
 # app/cli - the `hio` command-line interface (ADR-0017, ADR-0018). English only (ADR-0027).
 #
 # hio_cli_impl holds everything except main() so that the unit tests can link it.
-# QtCore only; no translations are embedded.
+# QtCore only; no translations are embedded. The interactive console uses replxx (ADR-0033).
 
 add_library(hio_cli_impl STATIC
+    src/chester_commands.cpp
+    src/chester_commands.h
     src/cli_app.cpp
     src/cli_app.h
     src/cli_log.cpp
     src/cli_log.h
+    src/command_response.cpp
+    src/command_response.h
+    src/console_events.cpp
+    src/console_events.h
+    src/console_ui.cpp
+    src/console_ui.h
     src/exit_codes.cpp
     src/exit_codes.h
+    src/jlink_commands.cpp
+    src/jlink_commands.h
     src/output.cpp
     src/output.h
     src/selftest.cpp
     src/selftest.h
     src/signals.cpp
-    src/signals.h)
+    src/signals.h
+    src/terminal.cpp
+    src/terminal.h)
 hio_apply_target_defaults(hio_cli_impl)
 target_include_directories(hio_cli_impl PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(hio_cli_impl PUBLIC hio::core Qt6::Core CLI11::CLI11)
+target_link_libraries(hio_cli_impl PUBLIC hio::core hio::device Qt6::Core CLI11::CLI11)
+# replxx (ADR-0033) only for the interactive console; the backend never links it.
+target_link_libraries(hio_cli_impl PRIVATE replxx::replxx)
 if(WIN32)
     target_compile_definitions(hio_cli_impl PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()

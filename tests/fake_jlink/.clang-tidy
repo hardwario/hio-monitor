@@ -1,0 +1,7 @@
+# The fake library exports the vendor's C function names (JLINKARM_*, JLINK_RTTERMINAL_*), which
+# cannot follow ADR-0023 naming. Everything else is checked as in the parent configuration.
+---
+InheritParentConfig: true
+CheckOptions:
+  readability-identifier-naming.FunctionIgnoredRegexp: '^JLINK(ARM)?_[A-Za-z_]+$'
+...

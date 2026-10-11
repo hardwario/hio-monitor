@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <memory>
 #include <string>
 
@@ -58,6 +59,32 @@ TEST(RingBuffer, ClearKeepsCapacityAndDropCount) {
     EXPECT_EQ(buffer.droppedCount(), 1U);
     (void)buffer.push(9);
     EXPECT_EQ(buffer[0], 9);
+}
+
+// The storage grows with the elements (M1 review, 2026-10-09): a huge capacity costs nothing up
+// front (allocating 10^9 strings would fail), and order and overwriting stay correct across growth.
+TEST(RingBuffer, StorageGrowsLazily) {
+    hio::RingBuffer<std::string> huge(1'000'000'000);
+    EXPECT_EQ(huge.capacity(), 1'000'000'000U);
+    (void)huge.push("a");
+    (void)huge.push("b");
+    EXPECT_EQ(huge.size(), 2U);
+    EXPECT_EQ(huge[1], "b");
+
+    hio::RingBuffer<int> buffer(37);
+    for (int i = 0; i < 100; ++i) {
+        EXPECT_EQ(buffer.push(i), i >= 37);
+    }
+    EXPECT_EQ(buffer.size(), 37U);
+    for (std::size_t i = 0; i < buffer.size(); ++i) {
+        EXPECT_EQ(buffer[i], static_cast<int>(63 + i));
+    }
+    buffer.clear();
+    for (int i = 0; i < 40; ++i) {
+        (void)buffer.push(i);
+    }
+    EXPECT_EQ(buffer[0], 3);
+    EXPECT_EQ(buffer.droppedCount(), 63U + 3U);
 }
 
 TEST(RingBuffer, MoveOnlyElements) {

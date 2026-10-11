@@ -70,7 +70,7 @@ No GUI changes in M2. CLI transcripts (English only, ADR-0027):
 
 ```
 $ hio chester app flash 0123456789abcdef0123456789abcdef
-Using J-Link 801234567 (J-Link EDU Mini), library 8.10a
+Using J-Link 801234567, library 8.10a
 Firmware 0123456789abcdef0123456789abcdef: cached (412 KiB)
 Target: nRF52840 (app)
 Erasing     [##############################] 100 %

@@ -5,18 +5,23 @@
 // Bound: at most `capacity` elements. What happens when full is chosen per queue:
 //   Block      push() waits for space; a stop request or close() ends the wait -> `cancelled`
 //   DropOldest push() always succeeds; the oldest element is discarded and counted
+//   DropOldestMatching  like DropOldest, but discards the oldest element for which the queue's
+//              drop predicate is true (the oldest element when none is), so elements that must
+//              not be lost survive while others are dropped (M1 review R10, 2026-10-10)
 //   Reject     push() fails immediately with `internal.queue_full`
 // Thread safety: all members may be called from any thread (one mutex + condition variables).
 
 #include "hio/core/error.h"
 #include "hio/core/result.h"
 
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <stop_token>
@@ -27,6 +32,7 @@ namespace hio {
 enum class OverflowPolicy : std::uint8_t {
     Block,
     DropOldest,
+    DropOldestMatching,
     Reject,
 };
 
@@ -35,6 +41,12 @@ public:
     // Contract: capacity >= 1 (a zero capacity terminates the process: it is a programming error).
     BoundedQueue(std::size_t capacity, OverflowPolicy policy)
         : m_capacity(checkedCapacity(capacity)), m_policy(policy) {}
+
+    // DropOldestMatching: `dropPreferred` says which elements may be dropped first. It is called
+    // under the queue's lock and must not touch the queue.
+    BoundedQueue(std::size_t capacity, std::function<bool(const T&)> dropPreferred)
+        : m_capacity(checkedCapacity(capacity)), m_policy(OverflowPolicy::DropOldestMatching),
+          m_dropPreferred(std::move(dropPreferred)) {}
 
     BoundedQueue(const BoundedQueue&) = delete;
     BoundedQueue& operator=(const BoundedQueue&) = delete;
@@ -57,6 +69,24 @@ public:
                 m_items.pop_front();
                 ++m_dropped;
                 break;
+            case OverflowPolicy::DropOldestMatching: {
+                // When no element matches, the oldest element of any kind is dropped and counted
+                // in droppedCount() like the others (the session reports the count as dropped
+                // lines). Practically unreachable there: state events are de-duplicated and
+                // warnings are rare, so a full event queue holds lines (review R29, documented).
+                auto victim = m_items.begin();
+                if (m_dropPreferred) {
+                    const auto preferred =
+                        std::find_if(m_items.begin(), m_items.end(),
+                                     [this](const T& item) { return m_dropPreferred(item); });
+                    if (preferred != m_items.end()) {
+                        victim = preferred;
+                    }
+                }
+                m_items.erase(victim);
+                ++m_dropped;
+                break;
+            }
             case OverflowPolicy::Block:
                 if (!m_notFull.wait(lock, std::move(stop),
                                     [this] { return m_closed || m_items.size() < m_capacity; })) {
@@ -114,7 +144,7 @@ public:
 
     [[nodiscard]] std::size_t capacity() const noexcept { return m_capacity; }
 
-    // Number of elements discarded by the DropOldest policy.
+    // Number of elements discarded by the DropOldest / DropOldestMatching policies.
     [[nodiscard]] std::uint64_t droppedCount() const {
         const std::scoped_lock lock(m_mutex);
         return m_dropped;
@@ -130,6 +160,7 @@ private:
 
     const std::size_t m_capacity;
     const OverflowPolicy m_policy;
+    const std::function<bool(const T&)> m_dropPreferred; // DropOldestMatching only
     mutable std::mutex m_mutex;
     std::condition_variable_any m_notEmpty;
     std::condition_variable_any m_notFull;

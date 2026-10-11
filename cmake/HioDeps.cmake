@@ -1,8 +1,9 @@
 # Third-party dependencies (ADR-0010, plan/features/0001-m0-skeleton.md).
 #
-# Every dependency is pinned to a release archive URL and its SHA-256. Adding or upgrading a
-# dependency needs user approval in a feature plan. Versions and hashes are recorded in
-# plan/features/0001-m0-skeleton.md.
+# Every dependency is pinned to a release archive URL and its SHA-256 (or, under ADR-0064, to the
+# archive of one exact commit). Adding or upgrading a dependency needs user approval in a feature
+# plan. Versions and hashes are recorded in plan/features/0001-m0-skeleton.md (CPM.cmake,
+# GoogleTest, CLI11) and plan/features/0002-m1-jlink-rtt.md (replxx).
 #
 # CPM_SOURCE_CACHE (cache variable or environment) enables a shared, offline-capable source
 # cache; the presets point it at the git-ignored <source>/.cpm-cache/.
@@ -29,6 +30,23 @@ CPMAddPackage(
         "CLI11_BUILD_EXAMPLES OFF"
         "CLI11_BUILD_DOCS OFF"
         "CLI11_INSTALL OFF")
+
+# replxx - BSD-3-Clause - line editing, history and Ctrl+R search for the interactive
+# `hio chester app console` (ADR-0033). Only app/cli links it.
+# Pinned to a commit (ADR-0064): master 1f149bfe20bf6e49c1afd4154eaf0032c8c2fda2 of 2021-11-25,
+# the newest commit. The only tag, release-0.0.4 (2021-10-21), lacks the fixes that came after it
+# and that the console needs: printing from another thread while input() runs on Windows
+# consoles (dd2cd8d, ba84204: "Keep lock during whole print() on Windows"), enabling raw mode under
+# the lock (f1bf1a5) and position tracking without colors (76ee383).
+CPMAddPackage(
+    NAME replxx
+    URL "https://github.com/AmokHuginnsson/replxx/archive/1f149bfe20bf6e49c1afd4154eaf0032c8c2fda2.tar.gz"
+    URL_HASH "SHA256=ee6d6c92efd060717c884f10293f32692bec17a2956d10cfcedfee5618c9a5ab"
+    SYSTEM YES
+    EXCLUDE_FROM_ALL YES
+    OPTIONS
+        "REPLXX_BUILD_EXAMPLES OFF"
+        "REPLXX_BUILD_PACKAGE OFF")
 
 if(HIO_BUILD_TESTS)
     # GoogleTest + GMock 1.18.0 - BSD-3-Clause - unit tests only.

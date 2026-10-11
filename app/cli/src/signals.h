@@ -7,7 +7,8 @@
 // `cancelled` (exit 130). A second Ctrl+C uses the default handler, i.e. forces the exit.
 //
 // POSIX: sigaction() with SA_RESETHAND sets a lock-free std::atomic<bool>; an owned std::jthread
-// polls it every 50 ms and calls request_stop() (a signal handler must not do more).
+// polls it every 50 ms and calls request_stop() (a signal handler must not do more). SIGPIPE is
+// ignored while the guard lives: writes to a closed pipe fail with EPIPE instead (review R32).
 // Windows: SetConsoleCtrlHandler; the handler runs on its own thread and calls request_stop().
 // The destructor restores the previous handlers and joins the watcher thread.
 // Only one SignalGuard may exist at a time (process-wide handlers).

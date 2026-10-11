@@ -3,6 +3,11 @@
 # Only for uninstrumented third-party binaries (system / official Qt builds are not built with
 # -fsanitize=thread, so TSan cannot see their internal synchronization). Every entry needs a
 # comment with the reason. Never suppress our own code (libs/, app/).
+#
+# Symbolization: the sanitizer test presets (CMakePresets.json, linux-asan / linux-tsan /
+# macos-asan) set DEBUGINFOD_URLS to an empty value, so llvm-symbolizer uses local debug info only
+# and never blocks on an unreachable debuginfod server while matching a report against this file
+# (plan/features/0002-m1-jlink-rtt.md, T1). JSON presets of schema version 6 cannot hold comments.
 
 
 # QThread lifetime is managed inside uninstrumented libQt6Core: QThread::wait() synchronizes with
@@ -16,3 +21,13 @@ thread:QThread::start
 # reports the allocation (main thread) vs. the deletion (worker thread) as a race. Seen with
 # Qt Quick's type loader thread in tst_gui.
 race:QObject::moveToThread
+
+# Queued calls to a QObject of another thread (QMetaObject::invokeMethod): Qt allocates the posted
+# call event on the sending thread and deletes it in QCoreApplicationPrivate::sendPostedEvents() on
+# the receiving thread, and concurrent invokeMethod() calls share internal Qt data. All of it is
+# protected by QMutex (futex) inside uninstrumented libQt6Core, so TSan misses the happens-before
+# edges and reports allocation vs. deletion, or two invokeMethod() calls of different threads. Seen
+# with DeviceSession::wakeUp() (libs/device, ADR-0031), which does nothing but this call. Only
+# reports with one access inside Qt's invokeMethod() are matched; our own cross-thread data goes
+# through hio::BoundedQueue (std::mutex, instrumented) and stays checked.
+race:QMetaObject::invokeMethod

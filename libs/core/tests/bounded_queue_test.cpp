@@ -51,6 +51,22 @@ TEST(BoundedQueue, DropOldestWhenFull) {
     EXPECT_EQ(queue.pop({}, std::chrono::milliseconds(0)), 5);
 }
 
+// M1 review R10 (2026-10-10): drop the oldest element matching the predicate, else the oldest.
+TEST(BoundedQueue, DropOldestMatchingKeepsOtherElements) {
+    BoundedQueue<int> queue(3, [](const int& value) { return value % 2 == 0; }); // evens may go
+    ASSERT_TRUE(queue.push(1));
+    ASSERT_TRUE(queue.push(2));
+    ASSERT_TRUE(queue.push(3));
+    ASSERT_TRUE(queue.push(5)); // full: drops 2, the oldest even
+    EXPECT_EQ(queue.droppedCount(), 1U);
+    ASSERT_TRUE(queue.push(7)); // full, no even left: drops the oldest (1)
+    EXPECT_EQ(queue.droppedCount(), 2U);
+    EXPECT_EQ(queue.pop({}, std::chrono::milliseconds(0)), 3);
+    EXPECT_EQ(queue.pop({}, std::chrono::milliseconds(0)), 5);
+    EXPECT_EQ(queue.pop({}, std::chrono::milliseconds(0)), 7);
+    EXPECT_FALSE(queue.pop({}, std::chrono::milliseconds(0)).has_value());
+}
+
 TEST(BoundedQueue, PopTimesOut) {
     BoundedQueue<int> queue(1, OverflowPolicy::Block);
     const auto start = std::chrono::steady_clock::now();

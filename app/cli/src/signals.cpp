@@ -1,5 +1,7 @@
 #include "signals.h"
 
+#include "cli_log.h"
+
 #include <atomic>
 #include <cstdlib>
 #include <stop_token>
@@ -69,6 +71,7 @@ struct PosixState {
     std::atomic<bool> signalled{false}; // set by the signal handler, read by the watcher
     struct sigaction previousInt{};     // restored by ~SignalGuard
     struct sigaction previousTerm{};
+    struct sigaction previousPipe{};
 };
 
 PosixState& posixState() {
@@ -105,14 +108,28 @@ SignalGuard::SignalGuard(std::stop_source source) : m_source(std::move(source)) 
     action.sa_flags = SA_RESETHAND; // the second signal gets the default action (forced exit)
     sigaction(SIGINT, &action, &state.previousInt);
     sigaction(SIGTERM, &action, &state.previousTerm);
+    // SIGPIPE is ignored (review R32): a closed stdout (`hio ... | head`) makes the write fail
+    // with EPIPE instead of killing the process, and the console turns that into a stop request
+    // (the session closes and the console file is flushed).
+    struct sigaction ignore{};
+    ignore.sa_handler = SIG_IGN; // NOLINT(cppcoreguidelines-pro-type-cstyle-cast): POSIX macro
+    sigemptyset(&ignore.sa_mask);
+    sigaction(SIGPIPE, &ignore, &state.previousPipe);
 
     m_watcher = std::jthread([source = m_source](const std::stop_token& own) mutable {
         constexpr std::chrono::milliseconds pollInterval{50};
-        while (!own.stop_requested()) {
-            if (posixState().signalled.exchange(false)) {
-                source.request_stop();
+        try {
+            while (!own.stop_requested()) {
+                if (posixState().signalled.exchange(false)) {
+                    source.request_stop();
+                }
+                std::this_thread::sleep_for(pollInterval);
             }
-            std::this_thread::sleep_for(pollInterval);
+        } catch (...) {
+            // No exception escapes the thread (review R27): without the watcher a signal could
+            // not stop the command any more, so stop it now.
+            logThreadException("signal watcher");
+            source.request_stop();
         }
     });
 #endif
@@ -130,6 +147,7 @@ SignalGuard::~SignalGuard() {
     PosixState& state = posixState();
     sigaction(SIGINT, &state.previousInt, nullptr);
     sigaction(SIGTERM, &state.previousTerm, nullptr);
+    sigaction(SIGPIPE, &state.previousPipe, nullptr);
     m_watcher.request_stop();
     if (m_watcher.joinable()) {
         m_watcher.join();

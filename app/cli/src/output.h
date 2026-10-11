@@ -39,6 +39,9 @@ public:
     void printError(const Error& error);
     // One event of a streaming command (NDJSON line in Json mode).
     void printEvent(const QJsonValue& event, std::string_view humanText);
+    // A write to the result stream (stdout) failed, e.g. the reading end of a pipe was closed
+    // (SIGPIPE is ignored, review R32). Later writes are no-ops.
+    [[nodiscard]] bool outFailed() const { return m_out.get().fail(); }
 
 private:
     void printJsonLine(const QJsonValue& data);

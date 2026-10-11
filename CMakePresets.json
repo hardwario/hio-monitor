@@ -144,8 +144,18 @@
     },
     { "name": "linux-debug", "inherits": "test-base", "configurePreset": "linux-debug" },
     { "name": "linux-release", "inherits": "test-base", "configurePreset": "linux-release" },
-    { "name": "linux-asan", "inherits": "test-base", "configurePreset": "linux-asan" },
-    { "name": "linux-tsan", "inherits": "test-base", "configurePreset": "linux-tsan" },
+    {
+      "name": "linux-asan",
+      "inherits": "test-base",
+      "configurePreset": "linux-asan",
+      "environment": { "DEBUGINFOD_URLS": "" }
+    },
+    {
+      "name": "linux-tsan",
+      "inherits": "test-base",
+      "configurePreset": "linux-tsan",
+      "environment": { "DEBUGINFOD_URLS": "" }
+    },
     {
       "name": "linux-coverage",
       "inherits": "test-base",
@@ -156,7 +166,12 @@
     },
     { "name": "linux-tidy", "inherits": "test-base", "configurePreset": "linux-tidy" },
     { "name": "macos-debug", "inherits": "test-base", "configurePreset": "macos-debug" },
-    { "name": "macos-asan", "inherits": "test-base", "configurePreset": "macos-asan" },
+    {
+      "name": "macos-asan",
+      "inherits": "test-base",
+      "configurePreset": "macos-asan",
+      "environment": { "DEBUGINFOD_URLS": "" }
+    },
     { "name": "macos-release", "inherits": "test-base", "configurePreset": "macos-release" },
     { "name": "windows-debug", "inherits": "test-base", "configurePreset": "windows-debug" },
     { "name": "windows-release", "inherits": "test-base", "configurePreset": "windows-release" }

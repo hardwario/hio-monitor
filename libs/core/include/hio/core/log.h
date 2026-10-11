@@ -31,6 +31,9 @@
 namespace hio::log {
 
 Q_DECLARE_LOGGING_CATEGORY(lcCore) // "hio.core"
+Q_DECLARE_LOGGING_CATEGORY(
+    lcJLink) // "hio.jlink"  (libs/hw/jlink, incl. the J-Link library's own output)
+Q_DECLARE_LOGGING_CATEGORY(lcDevice) // "hio.device" (libs/device)
 
 enum class AppKind : std::uint8_t {
     Gui,

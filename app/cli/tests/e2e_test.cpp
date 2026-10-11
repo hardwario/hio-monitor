@@ -1,5 +1,6 @@
 // End-to-end tests: run the real `hio` executable (HIO_CLI_EXECUTABLE) with QProcess.
 
+#include "cli_process.h"
 #include "hio/core/json.h"
 #include "hio/core/version.h"
 
@@ -21,59 +22,12 @@
 
 #ifndef _WIN32
 #include <csignal>
-#include <sys/types.h> // pid_t
 #endif
 
 namespace {
 
-struct RunResult {
-    int exitCode = -1;
-    bool normalExit = false;
-    std::string out;
-    std::string err;
-};
-
-class CliProcess : public ::testing::Test {
-protected:
-    // Every child gets private config/data directories, so tests never write the user's files.
-    [[nodiscard]] QProcessEnvironment environment() const {
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-        const QString root = m_home.path();
-        env.insert(QStringLiteral("HOME"), root);
-        env.insert(QStringLiteral("XDG_CONFIG_HOME"), root + QStringLiteral("/config"));
-        env.insert(QStringLiteral("XDG_DATA_HOME"), root + QStringLiteral("/data"));
-        env.insert(QStringLiteral("APPDATA"), root + QStringLiteral("/appdata"));
-        env.insert(QStringLiteral("LOCALAPPDATA"), root + QStringLiteral("/localappdata"));
-        env.remove(QStringLiteral("NO_COLOR"));
-        return env;
-    }
-
-    [[nodiscard]] static RunResult run(const QStringList& args, const QProcessEnvironment& env) {
-        QProcess process;
-        process.setProcessEnvironment(env);
-        process.start(QStringLiteral(HIO_CLI_EXECUTABLE), args);
-        RunResult result;
-        if (!process.waitForStarted(10000) || !process.waitForFinished(30000)) {
-            process.kill();
-            process.waitForFinished();
-            return result;
-        }
-        result.normalExit = process.exitStatus() == QProcess::NormalExit;
-        result.exitCode = process.exitCode();
-        result.out = process.readAllStandardOutput().toStdString();
-        result.err = process.readAllStandardError().toStdString();
-        return result;
-    }
-
-    [[nodiscard]] RunResult run(const QStringList& args) const { return run(args, environment()); }
-
-    [[nodiscard]] QString logDir() const {
-        return m_home.path() + QStringLiteral("/data/HARDWARIO/Monitor/logs");
-    }
-
-private:
-    QTemporaryDir m_home;
-};
+using hio::cli::test::CliProcess;
+using hio::cli::test::RunResult;
 
 QJsonObject parseEnvelope(const std::string& line) {
     const QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(line));
@@ -206,7 +160,7 @@ void cancelWaitWith(const QProcessEnvironment& env, int signal) {
         err += process.readAllStandardError();
     }
     ASSERT_TRUE(err.contains("waiting for cancellation")) << err.toStdString();
-    ASSERT_EQ(::kill(static_cast<pid_t>(process.processId()), signal), 0);
+    ASSERT_EQ(::kill(static_cast<int>(process.processId()), signal), 0);
     ASSERT_TRUE(process.waitForFinished(10000)) << "hio did not stop after the signal";
     err += process.readAllStandardError();
     EXPECT_EQ(process.exitStatus(), QProcess::NormalExit);

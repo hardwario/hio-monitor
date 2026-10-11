@@ -55,6 +55,8 @@ if(HIO_BUILD_TESTS)
 endif()
 
 add_subdirectory(libs/core)
+add_subdirectory(libs/hw/jlink)
+add_subdirectory(libs/device)
 add_subdirectory(app/cli)
 add_subdirectory(app/gui)
 
@@ -62,6 +64,8 @@ include(HioTranslations)
 
 if(HIO_BUILD_TESTS)
     add_subdirectory(tests/cmake)
+    add_subdirectory(tests/fake_jlink)
+    add_subdirectory(tests/integration)
 endif()
 
 # The backend link rule (ADR-0004) is checked automatically at the end of this file
