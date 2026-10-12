@@ -173,7 +173,18 @@ using ReadMemU32Fn = int (*)(std::uint32_t, std::uint32_t, std::uint32_t*,
                              std::uint8_t*);                // JLINKARM_ReadMemU32
 using EraseChipFn = int(HIO_JLINK_STDCALL*)();              // JLINK_EraseChip
 using SetFlashProgressFn = void (*)(FlashProgressCallback); // JLINK_SetFlashProgProgressCallback
-using CoresightConfigureFn = int (*)(const char*);          // JLINKARM_CORESIGHT_Configure
+
+// The "unsecure (erase) the device?" dialog hook (review R1): int (*)(const char* sTitle,
+// const char* sMsg, U32 Flags), returning one of the dlgButton* values [pylink
+// enums.JLinkFunctions.UNSECURE_HOOK_PROTOTYPE, CFUNCTYPE = __cdecl]. The setter
+// JLINK_SetHookUnsecureDialog is __stdcall on 32-bit Windows [pylink library.py _standard_calls_]
+// and returns int [UM08002].
+inline constexpr int dlgButtonYes = 1 << 0; // [pylink enums.JLinkFlags.DLG_BUTTON_YES]
+inline constexpr int dlgButtonNo = 1 << 1;  // [pylink enums.JLinkFlags.DLG_BUTTON_NO]
+using UnsecureDialogHook = int (*)(const char*, const char*, std::uint32_t);
+using SetHookUnsecureDialogFn =
+    int(HIO_JLINK_STDCALL*)(UnsecureDialogHook);   // JLINK_SetHookUnsecureDialog
+using CoresightConfigureFn = int (*)(const char*); // JLINKARM_CORESIGHT_Configure
 using CoresightReadFn = int (*)(std::uint8_t, std::uint8_t,
                                 std::uint32_t*); // JLINKARM_CORESIGHT_ReadAPDPReg
 using CoresightWriteFn = int (*)(std::uint8_t, std::uint8_t,
@@ -215,6 +226,7 @@ struct Functions {
     ReadMemU32Fn readMemU32 = nullptr;
     EraseChipFn eraseChip = nullptr;
     SetFlashProgressFn setFlashProgress = nullptr;
+    SetHookUnsecureDialogFn setHookUnsecureDialog = nullptr;
     CoresightConfigureFn coresightConfigure = nullptr;
     CoresightReadFn coresightRead = nullptr;
     CoresightWriteFn coresightWrite = nullptr;

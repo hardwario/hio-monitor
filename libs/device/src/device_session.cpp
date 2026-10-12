@@ -5,6 +5,7 @@
 #include "hio/core/json.h"
 #include "hio/core/log.h"
 #include "hio/core/result.h"
+#include "hio/core/settings.h"
 #include "hio/device/console_file_sink.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
@@ -124,6 +125,44 @@ std::optional<std::uint32_t> SessionInternals::requestedSerial(const DeviceSessi
     return session.m_internals->requestedSn;
 }
 
+std::optional<std::pair<OperationId, OperationResult>>
+SessionInternals::abandonRunning(Error error) {
+    if (!runningOperation) {
+        return std::nullopt;
+    }
+    const OperationId id = *runningOperation;
+    runningOperation.reset();
+    qCWarning(log::lcDevice).noquote()
+        << "Operation" << id << "ended without a worker result:" << toQString(error.message)
+        << toQString(error.detail);
+    lastFinished = std::pair(id, OperationResult{.kind = runningKind,
+                                                 .status = std::unexpected(std::move(error)),
+                                                 .duration = {},
+                                                 .chip = std::nullopt,
+                                                 .data = {}});
+    return lastFinished;
+}
+
+nrfutil::LocatorOptions nrfUtilLocator(const SessionOptions& options) {
+    if (options.nrfUtil) {
+        return *options.nrfUtil;
+    }
+    auto settings = Settings::openDefault();
+    return nrfutil::defaultLocatorOptions(std::nullopt, settings ? &*settings : nullptr);
+}
+
+bool SessionInternals::takeQueuedResult() {
+    while (auto event = events.pop({}, std::chrono::milliseconds(0))) {
+        if (auto* finishedEvent = std::get_if<OperationFinishedEvent>(&*event);
+            finishedEvent != nullptr && runningOperation == finishedEvent->id) {
+            runningOperation.reset();
+            lastFinished = std::pair(finishedEvent->id, std::move(finishedEvent->result));
+            return true;
+        }
+    }
+    return false;
+}
+
 std::optional<OperationResult> SessionInternals::finished(const DeviceSession& session,
                                                           OperationId id) {
     const auto& last = session.m_internals->lastFinished;
@@ -203,8 +242,8 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
 
     ModemUpdaterFactory modemFactory = std::move(hooks.modemUpdaterFactory);
     if (!modemFactory) {
-        modemFactory = [locator =
-                            options.nrfUtil]() -> Result<std::unique_ptr<nrfutil::IModemUpdater>> {
+        modemFactory = [locator = nrfUtilLocator(
+                            options)]() -> Result<std::unique_ptr<nrfutil::IModemUpdater>> {
             auto executable = nrfutil::locate(locator);
             if (!executable) {
                 return std::unexpected(std::move(executable).error());
@@ -229,7 +268,7 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
                                  &state, facade](const std::stop_token& stop) mutable {
         const std::function<void()> wake = [facade] { facade->wakeUp(); };
         runWorker(stop, std::move(config), std::move(factory), std::move(modemFactory),
-                  std::move(lock), state.commands, state.events, wake);
+                  std::move(lock), state.commands, state.events, wake, state.workerFailed);
     });
     qCInfo(log::lcDevice).noquote()
         << QStringLiteral("Session opened: %1 %2, J-Link %3")
@@ -263,6 +302,16 @@ void DeviceSession::close() {
     if (m_internals->worker.joinable()) {
         m_internals->worker.request_stop();
         m_internals->worker.join(); // the worker releases the probe lock and the library copy
+    }
+    // Review R13: the worker may have finished the operation after a waiter gave up: its real
+    // result (success or a real error) wins over a synthesized one. Review R4: otherwise the
+    // operation ends as cancelled (or internal.unexpected when the worker died). No signal after
+    // close(); waitForOperation() / finishedResult() pick the result up.
+    if (m_internals->runningOperation && !m_internals->takeQueuedResult()) {
+        (void)m_internals->abandonRunning(
+            m_internals->workerFailed.load()
+                ? makeError(ErrorCode::InternalUnexpected, "the session worker died")
+                : makeError(ErrorCode::Cancelled, "the session was closed"));
     }
     m_internals->events.close();
     if (m_registry != nullptr) {
@@ -309,6 +358,11 @@ Result<OperationId> DeviceSession::startOperation(detail::OperationCommand comma
                 .arg(toQString(m_internals->profile->displayName), toQString(targetId)),
             {}));
     }
+    if (m_internals->workerFailed.load()) {
+        // Review R14: nothing would ever run or finish it.
+        return std::unexpected(
+            makeError(ErrorCode::InternalUnexpected, "the session worker is not running"));
+    }
     if (m_internals->runningOperation) {
         return std::unexpected(
             makeError(ErrorCode::InternalBusy,
@@ -324,6 +378,7 @@ Result<OperationId> DeviceSession::startOperation(detail::OperationCommand comma
         return std::unexpected(std::move(queued).error());
     }
     m_internals->runningOperation = id;
+    m_internals->runningKind = kind;
     qCInfo(log::lcDevice).noquote()
         << QStringLiteral("Operation %1 (%2) on %3 queued")
                .arg(id)
@@ -417,6 +472,10 @@ Status DeviceSession::cancel(OperationId id) {
     return {};
 }
 
+std::optional<OperationResult> DeviceSession::finishedResult(OperationId id) const {
+    return detail::SessionInternals::finished(*this, id);
+}
+
 std::optional<OperationId> DeviceSession::runningOperation() const {
     return m_internals->runningOperation;
 }
@@ -472,6 +531,13 @@ void DeviceSession::drainEvents() {
                     flushBatch();
                     m_connection = connection;
                     emit connectionChanged(m_connection);
+                    // Review R4: the worker died (exception) - its operation never finishes.
+                    if (connection.state == ConnectionState::Stopped && connection.error &&
+                        connection.error->code == ErrorCode::InternalUnexpected) {
+                        if (auto ended = m_internals->abandonRunning(*connection.error)) {
+                            emit operationFinished(ended->first, ended->second);
+                        }
+                    }
                 },
                 [&](const Warning& item) {
                     flushBatch();
@@ -580,7 +646,8 @@ Status waitUntilConnected(DeviceSession& session, std::chrono::milliseconds time
 
 OperationResult waitForOperation(DeviceSession& session, OperationId id,
                                  const std::function<void(const OperationProgress&)>& onProgress,
-                                 const std::stop_token& stop) {
+                                 const std::stop_token& stop,
+                                 std::chrono::milliseconds cancelGrace) {
     std::optional<OperationResult> result = detail::SessionInternals::finished(session, id);
     QEventLoop loop;
     const QMetaObject::Connection progress =
@@ -598,11 +665,17 @@ OperationResult waitForOperation(DeviceSession& session, OperationId id,
                                  loop.quit();
                              }
                          });
-    bool cancelRequested = false;
+    std::optional<std::chrono::steady_clock::time_point> cancelRequested;
+    bool gaveUp = false;
     QTimer stopPoll;
     QObject::connect(&stopPoll, &QTimer::timeout, &loop, [&] {
+        if (cancelRequested && std::chrono::steady_clock::now() - *cancelRequested > cancelGrace) {
+            gaveUp = true; // review R4: the operation did not stop within the grace period
+            loop.quit();
+            return;
+        }
         if (stop.stop_requested() && !cancelRequested) {
-            cancelRequested = true;
+            cancelRequested = std::chrono::steady_clock::now();
             if (const Status cancelled = session.cancel(id); !cancelled) {
                 qCDebug(log::lcDevice) << "Operation" << id << "not cancelled (finished)";
             } // otherwise the worker ends it with `cancelled`
@@ -618,11 +691,20 @@ OperationResult waitForOperation(DeviceSession& session, OperationId id,
     QObject::disconnect(progress);
     QObject::disconnect(finished);
     if (!result) {
-        return OperationResult{.kind = OperationKind::Reset,
-                               .status = fail(ErrorCode::Cancelled),
-                               .duration = {},
-                               .chip = std::nullopt,
-                               .data = {}};
+        result = detail::SessionInternals::finished(session, id); // e.g. ended by close()
+    }
+    if (!result) {
+        return OperationResult{
+            .kind = OperationKind::Reset,
+            .status = std::unexpected(
+                makeError(ErrorCode::Cancelled,
+                          gaveUp ? std::format("operation {} did not stop within {} ms "
+                                               "after the cancel request",
+                                               id, cancelGrace.count())
+                                 : std::format("operation {} ended without a result", id))),
+            .duration = {},
+            .chip = std::nullopt,
+            .data = {}};
     }
     return std::move(*result);
 }

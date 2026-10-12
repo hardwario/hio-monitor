@@ -149,6 +149,9 @@ struct SessionInternals {
     // Operations (owner thread): the running one and its cancel source (ADR-0062).
     OperationId nextOperation = 1;
     std::optional<OperationId> runningOperation;
+    OperationKind runningKind = OperationKind::Reset;
+    // Set by the worker thread when it died (review R14); read on the owner thread.
+    std::atomic<bool> workerFailed{false};
     std::stop_source operationStop;
     // The last finished operation, so that waitForOperation() also works when the result was
     // delivered before it started waiting (one entry).
@@ -158,11 +161,20 @@ struct SessionInternals {
     [[nodiscard]] static std::optional<std::uint32_t> requestedSerial(const DeviceSession& session);
     [[nodiscard]] static std::optional<OperationResult> finished(const DeviceSession& session,
                                                                  OperationId id);
+    // After join(): takes the OperationFinishedEvent of the running operation from the event
+    // queue, if the worker delivered one (review R13). True when it was found.
+    bool takeQueuedResult();
+    // Ends the running operation (if any) with `error` without a worker result (review R4: the
+    // session was closed or its worker died). Returns the synthesized result.
+    std::optional<std::pair<OperationId, OperationResult>> abandonRunning(Error error);
     // The implementation of openSession() (a friend of DeviceSession and SessionRegistry).
     [[nodiscard]] static Result<std::unique_ptr<DeviceSession>>
     open(SessionRegistry& registry, jlink::LibraryLocation location, SessionOptions options,
          OpenHooks hooks);
 };
+
+// SessionOptions::nrfUtil, or the default locator options with the user's settings (review R9).
+[[nodiscard]] nrfutil::LocatorOptions nrfUtilLocator(const SessionOptions& options);
 
 // DeviceSession::open() with test hooks.
 [[nodiscard]] Result<std::unique_ptr<DeviceSession>> openSession(SessionRegistry& registry,
@@ -170,11 +182,12 @@ struct SessionInternals {
                                                                  SessionOptions options,
                                                                  OpenHooks hooks);
 
-// The worker loop (session_worker.cpp). Runs on SessionInternals::worker until `stop`.
+// The worker loop (session_worker.cpp). Runs on SessionInternals::worker until `stop`. Sets
+// `failed` when it ended with an exception (the worker died; review R14).
 void runWorker(const std::stop_token& stop, WorkerConfig config, ApiFactory apiFactory,
                ModemUpdaterFactory modemUpdaterFactory, std::optional<ProbeLock> lock,
                BoundedQueue<Command>& commands, BoundedQueue<WorkerEvent>& events,
-               const std::function<void()>& wake);
+               const std::function<void()>& wake, std::atomic<bool>& failed);
 
 } // namespace detail
 

@@ -181,7 +181,8 @@ private:
         if (m_sink) {
             sinkResult(m_sink->writeConnection(text, std::chrono::system_clock::now()));
         }
-        emitEvent(ConnectionEvent{.state = state, .error = std::move(error)});
+        emitEvent(ConnectionEvent{
+            .state = state, .error = std::move(error), .targetMillivolts = m_lastMillivolts});
     }
 
     void emitLine(ConsoleLine line) {
@@ -410,6 +411,7 @@ private:
             m_probe->close();
         }
         m_probeTarget = nullptr;
+        m_lastMillivolts.reset();
     }
 
     // The next automatic attempt is due one reconnect interval after this attempt ENDED,
@@ -489,8 +491,19 @@ private:
 
     // A VTref reading right after the target connected: a target that connects is powered, so a
     // healthy reading arms the power-loss detection from the start (review R13).
+    // ADR-0091: the voltage reported with connection events, from the readings below (no extra
+    // polling). 0 mV without a healthy reading before means "cannot measure" (review R21/R33).
+    void rememberVoltage(const std::optional<jlink::HardwareStatus>& status) {
+        if (!status || (status->targetMillivolts <= 0 && !m_seenPower)) {
+            m_lastMillivolts.reset();
+            return;
+        }
+        m_lastMillivolts = status->targetMillivolts;
+    }
+
     void readPowerAfterConnect() {
         const auto status = m_probe->hardwareStatus();
+        rememberVoltage(status ? std::optional(*status) : std::nullopt);
         if (status && status->targetMillivolts >= m_config.target->minTargetMillivolts) {
             m_seenPower = true;
             m_powered = true;
@@ -509,6 +522,7 @@ private:
         }
         m_nextPowerCheck = now + m_config.timing.powerCheckInterval;
         const auto status = m_probe->hardwareStatus();
+        rememberVoltage(status ? std::optional(*status) : std::nullopt);
         if (!status) {
             m_powered = false;
             report(ConnectionState::Disconnected, status.error());
@@ -772,10 +786,13 @@ private:
             run.context.programmer = &*run.programmer;
         }
         if (!prepared) {
+            // A target that does not connect may be read-back protected, or the probe may sit on
+            // the other MCU's connector: ask the CTRL-APs (reviews R2, R15).
             if (run.programmer && prepared.error().code == ErrorCode::TargetConnectFailed) {
-                if (auto chip = run.programmer->identify(); chip && chip->protectedChip) {
-                    return std::unexpected(forTarget(makeError(ErrorCode::TargetProtected),
-                                                     *m_config.profile, run.target));
+                if (auto chip = identifyTarget(run.context, false);
+                    !chip && (chip.error().code == ErrorCode::TargetProtected ||
+                              chip.error().code == ErrorCode::TargetWrongFamily)) {
+                    return std::unexpected(std::move(chip).error());
                 }
             }
             return prepared;
@@ -916,10 +933,10 @@ private:
                 .cpuHalted = false},
             .programmer = std::nullopt};
         Status outcome = executeOperation(run, result);
-        // Cancelled while halted (e.g. during verify): let the CPU run again where possible.
+        // Cancelled while halted (e.g. during verify): let the CPU run again where possible -
+        // also when the session is stopping (review R20).
         if (!outcome && outcome.error().code == ErrorCode::Cancelled && run.context.cpuHalted &&
-            run.programmer && !sessionStop.stop_requested() &&
-            run.programmer->reset(ResetMode::Go)) {
+            run.programmer && run.programmer->reset(ResetMode::Go)) {
             run.context.cpuHalted = false;
         }
         result.status = std::move(outcome);
@@ -1014,7 +1031,8 @@ private:
     bool m_halted = false; // after reset(halt = true): no auto-reconnect (review R25)
     bool m_fatal = false;
     bool m_seenPower = false;
-    bool m_powered = true; // false after a power loss (or an unanswered status read)
+    std::optional<int> m_lastMillivolts; // ADR-0091
+    bool m_powered = true;               // false after a power loss (or an unanswered status read)
     bool m_firmwareChecked = false;
     bool m_loggerWarned = false;
     bool m_resetDone = false;
@@ -1026,17 +1044,20 @@ private:
 void runWorker(const std::stop_token& stop, WorkerConfig config, ApiFactory apiFactory,
                ModemUpdaterFactory modemUpdaterFactory, std::optional<ProbeLock> lock,
                BoundedQueue<Command>& commands, BoundedQueue<WorkerEvent>& events,
-               const std::function<void()>& wake) {
+               const std::function<void()>& wake, std::atomic<bool>& failed) {
     try {
         SessionWorker worker(std::move(config), std::move(apiFactory),
                              std::move(modemUpdaterFactory), std::move(lock), commands, events,
                              wake);
         worker.run(stop);
     } catch (...) {
+        // Remembered before the event, which a full queue could lose (review R14).
+        failed.store(true);
         // No exception crosses the thread boundary (ADR-0007): report it as a fatal error.
         if (events.push(ConnectionEvent{.state = ConnectionState::Stopped,
                                         .error = makeError(ErrorCode::InternalUnexpected,
-                                                           "exception in the session worker")})) {
+                                                           "exception in the session worker"),
+                                        .targetMillivolts = std::nullopt})) {
             wake();
         }
     }

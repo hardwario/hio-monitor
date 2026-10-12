@@ -191,6 +191,10 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   changes; the CLI and `--json` never produce them); used by `command` now and MCP later. Owner thread only.
 - **`SessionEvent`** = `std::variant<ConsoleLine, ConnectionEvent, LinesDropped, Warning>`;
   `ConnectionEvent { ConnectionState state /*Connecting, Connected, Disconnected, Stopped*/; std::optional<Error> error; }`.
+  *Amended by ADR-0091 (2026-10-12):* `ConnectionEvent` also carries `std::optional<int> targetMillivolts`, the
+  VTref of the worker's last power reading (set at least on Connected; empty when not measured).
+  *Amended by ADR-0093 (2026-10-12):* `libs/hw/jlink` also offers `ProbeEnumerator`, a kept library copy for repeated
+  enumerations (the GUI probe scanner, ADR-0050); `enumerateProbes()` is the one-shot form built on it.
 - **`DeviceSession`** (façade `QObject`, ADR-0031):
   ```cpp
   struct SessionOptions { const DeviceProfile* profile; std::string_view targetId;
@@ -455,6 +459,7 @@ Phase F — CLI
   `app/cli/tests/jlink_e2e_test.cpp` (the M0 QProcess fixture moved to `cli_process.h`).
 
 Phase G — hardware and docs
+- [ ] (2026-10-12, M2 review R1) The J-Link unsecure-dialog hook (answers NO) is added on `v2/m2-flashing`; run the M1 HIL on code that contains it.
 - [ ] G1 HIL tests `tests/integration/` (opt-in `HIO_HIL=1`) — written (`hio_hil_tests`, ctest label `hil`, every
   test skipped without `HIO_HIL=1`); not yet run on hardware. Also measure the connect and RTT attach time at
   `--jlink-speed` 5, 100 and 1000 kHz against the 35.5 s connect timeout (R47).

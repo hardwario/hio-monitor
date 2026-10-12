@@ -214,6 +214,9 @@ TEST_F(FlashCli, InputErrors) {
 }
 
 TEST_F(FlashCli, FlashByCatalogId) {
+#ifndef HIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_CATALOG_URL)";
+#endif
     HttpFixture http;
     ASSERT_TRUE(http.listening());
     const QString id = QStringLiteral("0123456789abcdef0123456789abcdef");
@@ -253,6 +256,9 @@ TEST_F(FlashCli, FlashByCatalogId) {
 }
 
 TEST_F(FlashCli, CatalogNetworkDown) {
+#ifndef HIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_CATALOG_URL)";
+#endif
     QProcessEnvironment env = fakeEnvironment();
     env.insert(QStringLiteral("HIO_CATALOG_URL"), QStringLiteral("http://127.0.0.1:1/chester"));
     const RunResult result =

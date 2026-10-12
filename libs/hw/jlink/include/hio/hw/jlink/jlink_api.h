@@ -120,6 +120,10 @@ public:
     // Write: bytes written (>= 0, may be less than requested) or a negative vendor code.
     [[nodiscard]] virtual int rttWrite(int index, std::span<const std::byte> data) = 0;
 
+    // JLINK_SetHookUnsecureDialog with a hook that always answers NO (review R1): the library never
+    // mass-erases a read-back protected chip on its own. Returns the vendor code (< 0: error).
+    [[nodiscard]] virtual int installUnsecureDialogHook() = 0;
+
     // ---- memory and flash (M2, plan/features/0003) ------------------------------------------
     // JLINKARM_BeginDownload(0): following writeMemory() calls go to the flash loader's buffer.
     virtual void beginDownload() = 0;

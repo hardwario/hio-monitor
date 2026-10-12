@@ -114,8 +114,10 @@ void ConsoleView::printStopped() {
     // last state, with or without an error (review R28).
     if (m_context->mode == OutputMode::Json && !m_stoppedPrinted) {
         m_stoppedPrinted = true;
-        printEvent(connectionEventJson(device::ConnectionEvent{
-            .state = device::ConnectionState::Stopped, .error = std::nullopt}));
+        printEvent(
+            connectionEventJson(device::ConnectionEvent{.state = device::ConnectionState::Stopped,
+                                                        .error = std::nullopt,
+                                                        .targetMillivolts = std::nullopt}));
     }
 }
 

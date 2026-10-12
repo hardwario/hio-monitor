@@ -164,21 +164,18 @@ TEST_F(Catalog, Cancel) {
     EXPECT_EQ(result.error().code, ErrorCode::Cancelled);
 }
 
-TEST_F(Catalog, RedirectToHttpsOnlyFromHttps) {
-    // The fixture's base is http, so an http redirect to the same scheme is followed.
+// Review R8: redirects are followed only to https - never to http, also from an http base.
+TEST_F(Catalog, RedirectsOnlyToHttps) {
     auto catalog = this->catalog(nullptr);
     const FirmwareId other = id("ffffffffffffffffffffffffffffffff");
     serve(id(), HttpFixture::Response::redirect(QByteArray::fromStdString(path(other))));
     serve(other, HttpFixture::Response::ok(QByteArray::fromStdString(hexText())));
     auto operation = catalog->download(id(), {});
     const auto result = waitForDownload(*operation);
-    ASSERT_TRUE(result) << result.error().detail;
-    // A redirect to another scheme is refused.
-    serve(other, HttpFixture::Response::redirect("ftp://127.0.0.1/x"));
-    auto refused = catalog->download(other, {});
-    const auto failed = waitForDownload(*refused);
-    ASSERT_FALSE(failed);
-    EXPECT_EQ(failed.error().code, ErrorCode::NetworkDownloadFailed);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, ErrorCode::NetworkDownloadFailed);
+    EXPECT_NE(result.error().detail.find("redirect"), std::string::npos) << result.error().detail;
+    EXPECT_EQ(requests(other), 0);
 }
 
 TEST_F(Catalog, CorruptCacheEntryIsDeletedAndDownloadedAgain) {

@@ -89,14 +89,41 @@ std::optional<bool> JLinkProgrammer::isProtected(const ChipFamily& family) {
     return (*status & 1U) == 0;
 }
 
+bool JLinkProgrammer::ctrlApPresent(const ChipFamily& family, std::string& detail) {
+    if (m_api.coresightConfigure() < 0 ||
+        m_api.coresightWrite(dpSelect, false,
+                             (std::uint32_t{family.ctrlApIndex} << 24U) | idrBank) < 0) {
+        detail += std::format("; {} CTRL-AP {}: not selectable", family.name, family.ctrlApIndex);
+        return false;
+    }
+    const auto idr = m_api.coresightRead(ctrlApIdr, true);
+    const bool present = idr && (*idr & ctrlApIdrMask) == (family.ctrlApIdr & ctrlApIdrMask);
+    detail += std::format("; {} CTRL-AP {} IDR {}", family.name, family.ctrlApIndex,
+                          idr ? std::format("0x{:08X}", *idr)
+                              : std::format("read error {}", idr.error()));
+    return present;
+}
+
+const ChipFamily* JLinkProgrammer::answeringFamily(std::string& detail) {
+    for (const ChipFamily& family : m_config.families) {
+        if (ctrlApPresent(family, detail)) {
+            return &family;
+        }
+    }
+    return nullptr;
+}
+
 Result<ChipInfo> JLinkProgrammer::identify() {
     std::string tried;
     for (const ChipFamily& family : m_config.families) {
         const auto part = m_api.readU32(family.ficrPart);
         if (part && *part != 0 && *part != 0xFFFFFFFFU) {
             const auto variant = m_api.readU32(family.ficrVariant);
-            ChipInfo info{
-                .part = *part, .variant = variant.value_or(0), .protectedChip = false, .name = {}};
+            ChipInfo info{.part = *part,
+                          .variant = variant.value_or(0),
+                          .protectedChip = false,
+                          .name = {},
+                          .family = family.name};
             qCInfo(log::lcFlash).noquote() << QStringLiteral("FICR (%1): part 0x%2 variant 0x%3")
                                                   .arg(toQString(family.name))
                                                   .arg(info.part, 0, 16)
@@ -107,12 +134,21 @@ Result<ChipInfo> JLinkProgrammer::identify() {
             "{}{} FICR 0x{:08X}: {}", tried.empty() ? "" : "; ", family.name, family.ficrPart,
             part ? std::format("0x{:08X}", *part) : std::format("read error {}", part.error()));
     }
-    // FICR unreadable: a protected chip blocks the memory access port (APPROTECT).
-    for (const ChipFamily& family : m_config.families) {
-        if (const auto protectedChip = isProtected(family); protectedChip && *protectedChip) {
+    // FICR unreadable (a protected chip blocks the memory access port). Only an AP index that holds
+    // a Nordic CTRL-AP (IDR) is trusted (review R2: an absent AP reads 0, which would look like
+    // "protected"); the AP index tells the families apart (review R15).
+    if (const ChipFamily* family = answeringFamily(tried)) {
+        const bool expected = family == &m_config.families.front();
+        const auto protectedChip = expected ? isProtected(*family) : std::optional<bool>(false);
+        if (protectedChip) {
             qCInfo(log::lcFlash).noquote()
-                << "CTRL-AP" << family.ctrlApIndex << "reports APPROTECT enabled";
-            return ChipInfo{.part = 0, .variant = 0, .protectedChip = true, .name = {}};
+                << "CTRL-AP" << family->ctrlApIndex << "of" << toQString(family->name)
+                << (*protectedChip ? "reports APPROTECT enabled" : "answers");
+            return ChipInfo{.part = 0,
+                            .variant = 0,
+                            .protectedChip = *protectedChip,
+                            .name = {},
+                            .family = family->name};
         }
     }
     Error error = makeError(ErrorCode::TargetConnectFailed, libraryDetail(tried));
@@ -120,6 +156,13 @@ Result<ChipInfo> JLinkProgrammer::identify() {
         QCoreApplication::translate("hio::jlink", "The MCU type could not be read (FICR).")
             .toStdString();
     return std::unexpected(std::move(error));
+}
+
+void JLinkProgrammer::abandonDownload(std::string_view reason) {
+    qCWarning(log::lcFlash).noquote()
+        << "Flash download abandoned (" << toQString(reason)
+        << "): closing the J-Link so the buffered data is never programmed";
+    m_probe.close();
 }
 
 Status JLinkProgrammer::download(const std::vector<Segment>& segments, bool programsData,
@@ -139,8 +182,8 @@ Status JLinkProgrammer::download(const std::vector<Segment>& segments, bool prog
         const std::span<const std::byte> data(segment.data);
         for (std::size_t offset = 0; offset < data.size(); offset += m_config.timing.writeChunk) {
             if (m_clock.now() > deadline) {
-                // The buffered data is handed to the loader only by EndDownload, which is not
-                // called: nothing was written.
+                // Nothing was written yet; EndDownload would program the partial buffer.
+                abandonDownload("deadline");
                 return std::unexpected(timedOut("flash download buffering exceeded the deadline"));
             }
             const auto chunk =
@@ -148,19 +191,20 @@ Status JLinkProgrammer::download(const std::vector<Segment>& segments, bool prog
             const auto address = static_cast<std::uint32_t>(segment.address + offset);
             const int written = m_api.writeMemory(address, chunk);
             if (written < 0) {
-                (void)m_api.endDownload({}); // close the download mode of the library
-                return std::unexpected(makeError(
-                    failure,
-                    libraryDetail(std::format("JLINKARM_WriteMem(0x{:08X}, {}) returned {}",
-                                              address, chunk.size(), written))));
+                const std::string detail = libraryDetail(std::format(
+                    "JLINKARM_WriteMem(0x{:08X}, {}) returned {}", address, chunk.size(), written));
+                abandonDownload("WriteMem failed");
+                return std::unexpected(makeError(failure, detail));
             }
         }
     }
-    // The loader's own phases: when it programs data, "Erase" -> Erasing and everything else ->
-    // Programming, never going back to Erasing; an erase reports everything as Erasing.
+    // The loader's own actions (review R6): "Compare" and "Erase" -> Erasing, "Program" and
+    // "Verify" -> Programming (the loader's own verify), anything else keeps the phase; never back
+    // to Erasing. An erase (eraseCode) reports everything as Erasing.
     ProgramPhase current = ProgramPhase::Erasing;
     const FlashProgressFn loaderProgress = [&](std::string_view action, int percent) {
-        if (programsData && !containsIgnoringCase(action, "erase")) {
+        if (programsData &&
+            (containsIgnoringCase(action, "program") || containsIgnoringCase(action, "verify"))) {
             current = ProgramPhase::Programming;
         }
         const auto clamped = static_cast<std::uint64_t>(std::clamp(percent, 0, 100));
@@ -291,6 +335,19 @@ Status JLinkProgrammer::recover(std::stop_token stop) {
         return std::unexpected(
             makeError(ErrorCode::TargetRecoverFailed, libraryDetail(std::move(detail))));
     };
+    // Review R2: ERASEALL is written only to the expected family's CTRL-AP, after its IDR matched.
+    std::string idrDetail;
+    if (const ChipFamily* answering = answeringFamily(idrDetail); answering != &family) {
+        if (answering != nullptr) {
+            return std::unexpected(
+                makeError(ErrorCode::TargetWrongFamily,
+                          libraryDetail(std::format("expected {}, found {}{}", family.name,
+                                                    answering->name, idrDetail))));
+        }
+        return std::unexpected(
+            makeError(ErrorCode::TargetConnectFailed,
+                      libraryDetail("no CTRL-AP answers with the expected IDR" + idrDetail)));
+    }
     if (const int selected = selectCtrlAp(family); selected < 0) {
         return failed(
             std::format("selecting CTRL-AP {} returned {}", family.ctrlApIndex, selected));

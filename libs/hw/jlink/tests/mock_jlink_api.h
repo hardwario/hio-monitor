@@ -56,6 +56,7 @@ public:
     MOCK_METHOD(int, readMemory, (std::uint32_t, std::span<std::byte>), (override));
     MOCK_METHOD((std::expected<std::uint32_t, int>), readU32, (std::uint32_t), (override));
     MOCK_METHOD(int, eraseChip, (), (override));
+    MOCK_METHOD(int, installUnsecureDialogHook, (), (override));
     MOCK_METHOD(int, coresightConfigure, (), (override));
     MOCK_METHOD((std::expected<std::uint32_t, int>), coresightRead, (std::uint8_t, bool),
                 (override));

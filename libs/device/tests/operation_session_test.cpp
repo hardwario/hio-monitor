@@ -20,6 +20,8 @@
 #include "session_test_support.h"
 
 #include <QTemporaryDir>
+#include <QTimer>
+#include <QtEnvironmentVariables>
 
 #include <gtest/gtest.h>
 
@@ -554,6 +556,112 @@ TEST_F(Operations, WrongFamilyOnTheConsoleTarget) {
     const OperationResult* result = finish(session->erase("app", EraseScope::Code));
     ASSERT_FALSE(result->status);
     EXPECT_EQ(result->status.error().code, ErrorCode::TargetWrongFamily);
+}
+
+// ---- review R4: waitForOperation() always ends -----------------------------------------------
+
+TEST_F(Operations, WaitEndsWhenTheWorkerDies) {
+    auto session = openConnected(options("app", false));
+    ASSERT_TRUE(session);
+    target().set([](ScriptedTarget& t) { t.throwOnReadMemory = true; });
+    const auto id = session->readMemory("app", 0x10001080, 4);
+    ASSERT_TRUE(id);
+    const OperationResult result = hio::device::waitForOperation(*session, *id);
+    ASSERT_FALSE(result.status);
+    EXPECT_EQ(result.status.error().code, ErrorCode::InternalUnexpected);
+    EXPECT_FALSE(session->runningOperation());
+    // Review R14: nothing is queued for a dead worker.
+    const auto next = session->reset("app", hio::device::ResetMode::Go);
+    ASSERT_FALSE(next);
+    EXPECT_EQ(next.error().code, ErrorCode::InternalUnexpected);
+}
+
+TEST_F(Operations, WaitEndsWhenTheSessionIsClosed) {
+    auto session = openConnected(options("app", false));
+    ASSERT_TRUE(session);
+    target().set([](ScriptedTarget& t) { t.readDelay = std::chrono::milliseconds(30); });
+    const auto id =
+        session->flash("app", std::make_shared<FirmwareImage>(appImage(256ULL * 1024)), {});
+    ASSERT_TRUE(id);
+    QTimer::singleShot(std::chrono::milliseconds(100), [&session] { session->close(); });
+    const OperationResult result = hio::device::waitForOperation(*session, *id);
+    ASSERT_FALSE(result.status);
+    EXPECT_EQ(result.status.error().code, ErrorCode::Cancelled);
+    EXPECT_FALSE(session->runningOperation());
+}
+
+TEST_F(Operations, WaitGivesUpAfterTheCancelGrace) {
+    auto session = openConnected(options("app", false));
+    ASSERT_TRUE(session);
+    // One flash-loader download is not interruptible.
+    target().set([](ScriptedTarget& t) { t.endDownloadDelay = std::chrono::milliseconds(1500); });
+    const auto id = session->flash("app", std::make_shared<FirmwareImage>(appImage()), {});
+    ASSERT_TRUE(id);
+    std::stop_source stop;
+    stop.request_stop();
+    const auto started = std::chrono::steady_clock::now();
+    const OperationResult result = hio::device::waitForOperation(
+        *session, *id, {}, stop.get_token(), std::chrono::milliseconds(200));
+    EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::milliseconds(1200));
+    ASSERT_FALSE(result.status);
+    EXPECT_EQ(result.status.error().code, ErrorCode::Cancelled);
+    EXPECT_NE(result.status.error().detail.find("did not stop"), std::string::npos);
+    session->close(); // joins once the download returned
+}
+
+// Review R9: without nrfUtil the session uses the default locator options (environment, PATH,
+// install directories), so the GUI needs no special call.
+TEST(NrfUtilLocatorDefault, UsesTheEnvironmentAndThePath) {
+    qputenv("HIO_NRFUTIL", "/opt/test/nrfutil");
+    const SessionOptions defaults;
+    const auto locator = hio::device::detail::nrfUtilLocator(defaults);
+    qunsetenv("HIO_NRFUTIL");
+    EXPECT_EQ(locator.environment.value_or(fs::path()), fs::path("/opt/test/nrfutil"));
+    EXPECT_FALSE(locator.installDirs.empty());
+    SessionOptions explicitOptions;
+    explicitOptions.nrfUtil = hio::nrfutil::LocatorOptions{};
+    EXPECT_TRUE(hio::device::detail::nrfUtilLocator(explicitOptions).installDirs.empty());
+}
+
+// Review R13: a waiter that gave up does not hide the real result: close() takes it from the
+// worker's queue (here an erase-all, which a cancel cannot interrupt, that succeeded).
+TEST_F(Operations, CloseKeepsTheRealResultAfterTheWaitGaveUp) {
+    auto session = openConnected(options("app", false));
+    ASSERT_TRUE(session);
+    target().set([](ScriptedTarget& t) { t.eraseChipDelay = std::chrono::milliseconds(600); });
+    const auto id = session->erase("app", EraseScope::All);
+    ASSERT_TRUE(id);
+    std::stop_source stop;
+    stop.request_stop();
+    const OperationResult waited = hio::device::waitForOperation(
+        *session, *id, {}, stop.get_token(), std::chrono::milliseconds(100));
+    ASSERT_FALSE(waited.status);
+    EXPECT_EQ(waited.status.error().code, ErrorCode::Cancelled);
+    session->close(); // joins the erase
+    const auto real = session->finishedResult(*id);
+    ASSERT_TRUE(real.has_value());
+    EXPECT_TRUE(real.value_or(OperationResult{}).status);
+    EXPECT_EQ(real.value_or(OperationResult{}).kind, OperationKind::EraseAll);
+}
+
+// Review R20: a flash cancelled by close() while the CPU is halted still lets the CPU run again.
+TEST_F(Operations, CloseDuringVerifyResetsTheCpuWithGo) {
+    auto session = openConnected(options("app", false));
+    ASSERT_TRUE(session);
+    target().set([](ScriptedTarget& t) { t.readDelay = std::chrono::milliseconds(30); });
+    const auto id =
+        session->flash("app", std::make_shared<FirmwareImage>(appImage(256ULL * 1024)), {});
+    ASSERT_TRUE(id);
+    ASSERT_TRUE(waitFor([&] {
+        return std::ranges::any_of(events().progress, [&](const auto& p) {
+            return p.first == *id && p.second.phase == ProgramPhase::Verifying;
+        });
+    }));
+    session->close();
+    const auto sequence = ops();
+    const auto download = std::ranges::find(sequence, "download");
+    ASSERT_NE(download, sequence.end());
+    EXPECT_NE(std::find(download, sequence.end(), "go"), sequence.end());
 }
 
 } // namespace

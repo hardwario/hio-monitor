@@ -64,6 +64,17 @@ void log(const WorkflowContext& context, const std::string& text) {
     }
 }
 
+std::string hexBytes(std::span<const std::byte> bytes) {
+    constexpr std::string_view digits = "0123456789abcdef";
+    std::string text;
+    text.reserve(bytes.size() * 2);
+    for (const std::byte b : bytes) {
+        text += digits[std::to_integer<unsigned>(b) >> 4U];
+        text += digits[std::to_integer<unsigned>(b) & 0x0FU];
+    }
+    return text;
+}
+
 // The UICR page with the image's UICR bytes merged in (ADR-0036).
 Result<FirmwareImage> mergedUicr(WorkflowContext& context, const FirmwareImage& uicr) {
     const TargetProfile& target = *context.target;
@@ -198,6 +209,56 @@ Result<ImagePlan> planImage(const DeviceProfile& profile, const TargetProfile& t
     return plan;
 }
 
+namespace {
+
+Error wrongFamily(const TargetProfile& target, const QString& found, std::string detail) {
+    const QString expected =
+        toQString(target.parts.empty() ? std::string_view() : target.parts.front().displayName);
+    Error error = makeError(ErrorCode::TargetWrongFamily, std::move(detail));
+    error.message =
+        QCoreApplication::translate("hio::device", "Expected the %1 MCU (%2) but found %3.")
+            .arg(toQString(target.id), expected, found)
+            .toStdString();
+    error.suggestion =
+        QCoreApplication::translate("hio::device", "Connect the J-Link to the %1 connector.")
+            .arg(toQString(target.id))
+            .toStdString();
+    return error;
+}
+
+// FICR could not be read; the family comes from the CTRL-AP IDR (review R2).
+Result<jlink::ChipInfo> unreadableChip(WorkflowContext& context, jlink::ChipInfo chip,
+                                       bool allowProtected) {
+    const DeviceProfile& profile = *context.profile;
+    const TargetProfile& target = *context.target;
+    if (chip.family != target.chipFamily.name) {
+        return std::unexpected(wrongFamily(
+            target,
+            QCoreApplication::translate("hio::device", "an %1 MCU").arg(toQString(chip.family)),
+            std::format("Nordic CTRL-AP at the {} AP index", chip.family)));
+    }
+    if (chip.protectedChip) {
+        log(context, std::format("{} MCU: APPROTECT enabled", target.id));
+        if (allowProtected) {
+            return chip;
+        }
+        return std::unexpected(forTarget(makeError(ErrorCode::TargetProtected), profile, target));
+    }
+    if (allowProtected) {
+        log(context, std::format("{} MCU: FICR unreadable, its CTRL-AP answers", target.id));
+        return chip; // recover: the expected CTRL-AP is there
+    }
+    Error error =
+        makeError(ErrorCode::TargetConnectFailed, "FICR unreadable, APPROTECT not enabled");
+    error.message =
+        QCoreApplication::translate("hio::device", "The type of the %1 MCU could not be read.")
+            .arg(toQString(target.id))
+            .toStdString();
+    return std::unexpected(std::move(error));
+}
+
+} // namespace
+
 Result<jlink::ChipInfo> identifyTarget(WorkflowContext& context, bool allowProtected) {
     const DeviceProfile& profile = *context.profile;
     const TargetProfile& target = *context.target;
@@ -206,29 +267,13 @@ Result<jlink::ChipInfo> identifyTarget(WorkflowContext& context, bool allowProte
     if (!chip) {
         return std::unexpected(forTarget(std::move(chip).error(), profile, target));
     }
-    if (chip->protectedChip) {
-        log(context, std::format("{} MCU: APPROTECT enabled", target.id));
-        if (allowProtected) {
-            return chip;
-        }
-        return std::unexpected(forTarget(makeError(ErrorCode::TargetProtected), profile, target));
+    if (chip->part == 0) {
+        return unreadableChip(context, std::move(*chip), allowProtected);
     }
     const ChipPart* part = findPart(target, chip->part);
     if (part == nullptr) {
-        const QString expected =
-            toQString(target.parts.empty() ? std::string_view() : target.parts.front().displayName);
-        const QString found = partName(profile, chip->part);
-        Error error =
-            makeError(ErrorCode::TargetWrongFamily, std::format("FICR part 0x{:X}", chip->part));
-        error.message =
-            QCoreApplication::translate("hio::device", "Expected the %1 MCU (%2) but found %3.")
-                .arg(toQString(target.id), expected, found)
-                .toStdString();
-        error.suggestion =
-            QCoreApplication::translate("hio::device", "Connect the J-Link to the %1 connector.")
-                .arg(toQString(target.id))
-                .toStdString();
-        return std::unexpected(std::move(error));
+        return std::unexpected(wrongFamily(target, partName(profile, chip->part),
+                                           std::format("FICR part 0x{:X}", chip->part)));
     }
     chip->name = std::string(part->displayName);
     // LTE: connected with the first part's J-Link name; use the exact part's name when it differs
@@ -307,8 +352,64 @@ Result<jlink::ChipInfo> runErase(WorkflowContext& context, EraseScope scope) {
     context.cpuHalted = true; // the erase halts the CPU; nothing runs afterwards
     Status erased;
     if (scope == EraseScope::Code) {
+        // Review R5: the PIB must survive a code-only erase. Phase 0.3 confirms the loader keeps
+        // UICR; until then (and afterwards, as a guard) the PIB is compared before and after.
+        const firmware::AddressRange pib = pibRange(target);
+        const auto pibAddress = static_cast<std::uint32_t>(pib.start);
+        auto before = context.programmer->readMemory(pibAddress, pibSize);
+        if (!before) {
+            return std::unexpected(forTarget(std::move(before).error(), profile, target));
+        }
         log(context, "Erasing the code flash (UICR and the Product Information Block are kept)");
         erased = context.programmer->eraseCode(target.flash, context.progress, context.stop);
+        if (erased) {
+            auto after = context.programmer->readMemory(pibAddress, pibSize);
+            if (!after) {
+                // Review R17: say that the PIB state is unknown; keep its old bytes in the log.
+                log(context, "ERROR: the Product Information Block could not be read after the "
+                             "code-only erase; it was " +
+                                 hexBytes(*before));
+                Error error =
+                    makeError(ErrorCode::TargetEraseFailed,
+                              std::format("PIB at 0x{:08X} not readable after the erase: "
+                                          "{}; before: {}",
+                                          pib.start, after.error().detail, hexBytes(*before)));
+                error.message =
+                    QCoreApplication::translate("hio::device",
+                                                "The Product Information Block of the %1 MCU could "
+                                                "not be checked after the erase.")
+                        .arg(toQString(target.id))
+                        .toStdString();
+                // Review R19: a second erase would read the possibly wiped PIB as "before".
+                error.suggestion =
+                    QCoreApplication::translate(
+                        "hio::device",
+                        "Do not erase again. Run `hio %1 %2 pib read` and compare it with the "
+                        "bytes "
+                        "in the log (see Details); if they differ, contact HARDWARIO support.")
+                        .arg(toQString(profile.id), toQString(target.id))
+                        .toStdString();
+                return std::unexpected(std::move(error));
+            }
+            if (*after != *before) {
+                log(context, "ERROR: the code-only erase changed the Product Information Block");
+                Error error = makeError(ErrorCode::TargetEraseFailed,
+                                        std::format("PIB at 0x{:08X} changed by the code-only "
+                                                    "erase",
+                                                    pib.start));
+                error.message = QCoreApplication::translate(
+                                    "hio::device", "Erasing the code flash of the %1 MCU also "
+                                                   "changed its Product Information Block.")
+                                    .arg(toQString(target.id))
+                                    .toStdString();
+                error.suggestion =
+                    QCoreApplication::translate(
+                        "hio::device",
+                        "Do not erase again; report this with the log file to HARDWARIO support.")
+                        .toStdString();
+                return std::unexpected(std::move(error));
+            }
+        }
     } else {
         log(context, "Erasing all flash and UICR");
         erased = context.programmer->eraseAll();
@@ -324,13 +425,11 @@ Result<std::optional<jlink::ChipInfo>> runRecover(WorkflowContext& context,
                                                   const std::function<Status()>& reconnect) {
     const DeviceProfile& profile = *context.profile;
     const TargetProfile& target = *context.target;
-    // A protected chip is what recover is for; an unreadable one is recovered anyway.
+    // A protected chip is what recover is for. Only the expected family's CTRL-AP is recovered
+    // (its FICR or its CTRL-AP IDR answered; review R2).
     auto before = identifyTarget(context, true);
-    if (!before && before.error().code == ErrorCode::TargetWrongFamily) {
-        return std::unexpected(std::move(before).error());
-    }
     if (!before) {
-        log(context, "MCU not identified before the recover: " + before.error().detail);
+        return std::unexpected(std::move(before).error());
     }
     report(context, ProgramPhase::Recovering);
     log(context, "Recovering (CTRL-AP ERASEALL)");
@@ -375,6 +474,10 @@ Result<std::optional<jlink::ChipInfo>> runRecover(WorkflowContext& context,
 }
 
 Status runReset(WorkflowContext& context, ResetMode mode) {
+    // Review R7: the family check first, so the wrong connector never resets the other MCU.
+    if (auto chip = identifyTarget(context, true); !chip) {
+        return std::unexpected(std::move(chip).error());
+    }
     report(context, ProgramPhase::Resetting);
     log(context, mode == ResetMode::Halt ? "Reset (halt)" : "Reset (go)");
     if (Status reset = context.programmer->reset(mode); !reset) {
@@ -387,6 +490,10 @@ Status runReset(WorkflowContext& context, ResetMode mode) {
 
 Result<std::vector<std::byte>> runReadMemory(WorkflowContext& context, std::uint32_t address,
                                              std::size_t size) {
+    // Review R7: the family check first (pib read / uicr read on the wrong connector).
+    if (auto chip = identifyTarget(context, false); !chip) {
+        return std::unexpected(std::move(chip).error());
+    }
     return context.programmer->readMemory(address, size);
 }
 

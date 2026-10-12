@@ -119,6 +119,7 @@ std::vector<std::string> resolveAll(QLibrary& library, abi::Functions& fn) {
     resolveInto(library, "JLINKARM_ReadMemU32", fn.readMemU32, missing);
     resolveInto(library, "JLINK_EraseChip", fn.eraseChip, missing);
     resolveInto(library, "JLINK_SetFlashProgProgressCallback", fn.setFlashProgress, missing);
+    resolveInto(library, "JLINK_SetHookUnsecureDialog", fn.setHookUnsecureDialog, missing);
     resolveInto(library, "JLINKARM_CORESIGHT_Configure", fn.coresightConfigure, missing);
     resolveInto(library, "JLINKARM_CORESIGHT_ReadAPDPReg", fn.coresightRead, missing);
     resolveInto(library, "JLINKARM_CORESIGHT_WriteAPDPReg", fn.coresightWrite, missing);
@@ -160,6 +161,16 @@ void flashProgressCallback(const char* action, const char* /*progress*/, int per
         (*sink)(action == nullptr ? std::string_view() : std::string_view(action), percent);
     } catch (...) { // NOLINT(bugprone-empty-catch): nothing may cross the C boundary
     }
+}
+
+// Review R1: the library asks "unsecure (mass-erase) the device?" when it meets a read-back
+// protected chip. Batch mode would take the dialog's default answer and may erase the chip incl.
+// the PIB without the ADR-0038 confirmation, so this hook always answers NO (as pylink's default
+// util.unsecure_hook_dialog). Erasing a protected chip is only done by `recover`. C callback:
+// never throws, never touches Qt objects.
+int unsecureDialogHook(const char* /*title*/, const char* /*message*/,
+                       std::uint32_t /*flags*/) noexcept {
+    return abi::dlgButtonNo;
 }
 
 // Sets currentFlashProgress for the lifetime of one vendor call.
@@ -535,6 +546,12 @@ std::expected<std::uint32_t, int> JLinkLibrary::readU32(std::uint32_t address) {
 }
 
 int JLinkLibrary::eraseChip() { return m_impl->fn.eraseChip(); }
+
+int JLinkLibrary::installUnsecureDialogHook() {
+    return m_impl->fn.setHookUnsecureDialog(&unsecureDialogHook);
+}
+
+int JLinkLibrary::unsecureDialogAnswer() { return unsecureDialogHook("test", "test", 0); }
 
 int JLinkLibrary::coresightConfigure() { return m_impl->fn.coresightConfigure(""); }
 

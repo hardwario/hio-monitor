@@ -33,6 +33,9 @@ Qt is obtained as official binaries: Qt online installer locally, `aqtinstall` (
 ## CMake
 
 - `CMakePresets.json` with presets per OS × {Debug, Release, ASan+UBSan, TSan, clang-tidy}.
+- Shipped/packaged binaries are built with `HIO_TEST_OVERRIDES=OFF` (test-only overrides such as
+  `HIO_CATALOG_URL` are not compiled in); only the Debug presets turn it ON, and configure enforces it: a
+  Release-type build with it ON fails (feature 0003, review R12).
 - Third-party libs via CPM.cmake / FetchContent, each pinned to exact tag **and** hash; a CPM
   source cache for offline/CI reuse. Candidate deps (each requires user approval in a plan):
   GoogleTest/GMock, possibly a JSON library (or QJsonDocument), possibly an MCP SDK.

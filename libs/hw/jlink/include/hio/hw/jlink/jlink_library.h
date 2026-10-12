@@ -100,6 +100,9 @@ public:
     [[nodiscard]] int readMemory(std::uint32_t address, std::span<std::byte> buffer) override;
     [[nodiscard]] std::expected<std::uint32_t, int> readU32(std::uint32_t address) override;
     [[nodiscard]] int eraseChip() override;
+    [[nodiscard]] int installUnsecureDialogHook() override;
+    // What the installed hook answers (abi DLG_BUTTON_NO = 2; exposed for tests).
+    [[nodiscard]] static int unsecureDialogAnswer();
     [[nodiscard]] int coresightConfigure() override;
     [[nodiscard]] std::expected<std::uint32_t, int> coresightRead(std::uint8_t index,
                                                                   bool ap) override;

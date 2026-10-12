@@ -28,6 +28,8 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -278,6 +280,73 @@ TEST_F(FakeLibrary, FlashFunctionsReachTheLibrary) {
     const auto status = api.coresightRead(3, true);
     ASSERT_TRUE(status);
     EXPECT_EQ(*status & 1U, 1U); // not protected
+}
+
+} // namespace
+
+namespace {
+
+// Review R1: our hook answers NO (DLG_BUTTON_NO). In the fake, a protected chip without a hook is
+// mass-erased on connect (what batch mode may do), with the hook the connect fails and nothing is
+// erased.
+TEST_F(FakeLibrary, UnsecureDialogHookAnswersNo) {
+    EXPECT_EQ(JLinkLibrary::unsecureDialogAnswer(), 2);
+    const char* scenario = R"({"probes": [{"serialNumber": 5, "chip": {"protected": true,
+        "memory": [{"address": 268439680, "hex": "babecafe"}]}}]})";
+    {
+        useScenario(scenario);
+        auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
+        ASSERT_TRUE(library);
+        ASSERT_EQ((*library)->selectBySerialNumber(5), 0);
+        ASSERT_FALSE((*library)->open().has_value());
+        EXPECT_GE((*library)->connect(), 0); // no hook: unsecured = erased
+        std::array<std::byte, 4> pib{};
+        ASSERT_EQ((*library)->readMemory(0x10001080, pib), 4);
+        EXPECT_EQ(pib[0], std::byte{0xFF});
+    }
+    useScenario(scenario);
+    auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
+    ASSERT_TRUE(library);
+    ASSERT_EQ((*library)->selectBySerialNumber(5), 0);
+    ASSERT_FALSE((*library)->open().has_value());
+    ASSERT_GE((*library)->installUnsecureDialogHook(), 0);
+    EXPECT_LT((*library)->connect(), 0); // NO: still protected, nothing erased
+    ASSERT_GE((*library)->coresightConfigure(), 0);
+    ASSERT_GE((*library)->coresightWrite(2, false, 1U << 24U), 0);
+    EXPECT_EQ((*library)->coresightRead(3, true).value_or(1), 0U); // APPROTECT still enabled
+}
+
+} // namespace
+
+namespace {
+
+// ADR-0093: a kept library copy for repeated enumerations (the GUI probe scanner).
+TEST_F(FakeLibrary, ProbeEnumeratorKeepsOneCopy) {
+    useScenario(R"({"probes": [{"serialNumber": 1, "product": "A"},
+                               {"serialNumber": 2, "connection": "ip"}]})");
+    const auto oneShot = hio::jlink::enumerateProbes(fakeLocation(), instanceRoot());
+    ASSERT_TRUE(oneShot);
+    EXPECT_EQ(instanceCount(), 0U);
+    {
+        auto loaded = hio::jlink::ProbeEnumerator::load(fakeLocation(), instanceRoot());
+        ASSERT_TRUE(loaded) << loaded.error().detail;
+        hio::jlink::ProbeEnumerator enumerator = std::move(*loaded); // movable
+        EXPECT_EQ(instanceCount(), 1U);
+        std::vector<fs::path> copies;
+        for (int i = 0; i < 5; ++i) {
+            const auto probes = enumerator.enumerate();
+            ASSERT_TRUE(probes);
+            ASSERT_EQ(probes->size(), oneShot->probes.size());
+            for (std::size_t j = 0; j < probes->size(); ++j) {
+                EXPECT_EQ((*probes)[j].serialNumber, oneShot->probes[j].serialNumber);
+                EXPECT_EQ((*probes)[j].connection, oneShot->probes[j].connection);
+            }
+            EXPECT_EQ(instanceCount(), 1U); // loaded and copied once
+        }
+        EXPECT_EQ(enumerator.libraryVersion(), oneShot->libraryVersion);
+        EXPECT_EQ(enumerator.location().path, fakeLocation().path);
+    }
+    EXPECT_EQ(instanceCount(), 0U); // the destructor removed the copy
 }
 
 } // namespace

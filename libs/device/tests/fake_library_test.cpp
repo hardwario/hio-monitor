@@ -384,4 +384,50 @@ TEST_F(FakeLibrarySession, LteEraseAllAndRecoverWithTheUnlockImage) {
     EXPECT_NE(code.data, std::vector<std::byte>(4, std::byte{0xFF})); // the image is there
 }
 
+// Review R1: a protected chip is never mass-erased by connecting: flashing it fails with
+// target.protected again and again (without the hook the first connect would erase it).
+TEST_F(FakeLibrarySession, ProtectedChipIsNotErasedByConnecting) {
+    useScenario(R"({"probes": [{"serialNumber": 6, "chip": {"protected": true,
+        "memory": [{"address": 268439680, "hex": "babecafe"}]}}]})");
+    SessionOptions opts = options(6U);
+    opts.attachRtt = false;
+    auto session = DeviceSession::open(registry(), location(), opts);
+    ASSERT_TRUE(session);
+    for (int i = 0; i < 2; ++i) {
+        const auto flash = runToEnd(**session, (*session)->flash("app", testImage(), {}));
+        ASSERT_FALSE(flash.status);
+        EXPECT_EQ(flash.status.error().code, ErrorCode::TargetProtected);
+    }
+}
+
+// Review R15: on a real DAP an absent AP reads 0. The probe sits on the LTE MCU (protected, so
+// FICR is unreadable) while the session is for app: AP 1 reads 0, AP 4 holds a Nordic CTRL-AP ->
+// target.wrong_family, not "protected".
+TEST_F(FakeLibrarySession, AbsentApsReadingZeroAreTheWrongConnector) {
+    useScenario(R"({"probes": [{"serialNumber": 9, "chip": {"family": "nrf91", "protected": true,
+        "absentApsReadZero": true}}]})");
+    SessionOptions opts = options(9U);
+    opts.attachRtt = false;
+    auto session = DeviceSession::open(registry(), location(), opts);
+    ASSERT_TRUE(session);
+    const auto flash = runToEnd(**session, (*session)->flash("app", testImage(), {}));
+    ASSERT_FALSE(flash.status);
+    EXPECT_EQ(flash.status.error().code, ErrorCode::TargetWrongFamily);
+    const auto recover = runToEnd(**session, (*session)->recover("app"));
+    ASSERT_FALSE(recover.status);
+    EXPECT_EQ(recover.status.error().code, ErrorCode::TargetWrongFamily);
+}
+
+// ADR-0091: the scenario's VTref reaches the Connected event.
+TEST_F(FakeLibrarySession, ConnectedEventCarriesTheScenarioVoltage) {
+    useScenario(R"({"probes": [{"serialNumber": 11, "vtref": [[0, 3712]]}]})");
+    auto session = DeviceSession::open(registry(), location(), options(11U));
+    ASSERT_TRUE(session);
+    Recorder events(**session);
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Connected); }));
+    EXPECT_EQ(events.connections.back().targetMillivolts, 3712);
+    EXPECT_EQ((*session)->connection().targetMillivolts, 3712);
+}
+
 } // namespace

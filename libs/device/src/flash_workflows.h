@@ -13,7 +13,10 @@
 // Erase:   Connecting (identify) -> Erasing (code flash, or erase-all). The CPU stays halted.
 // Recover: Connecting (identify; a protected chip is expected) -> Recovering (CTRL-AP ERASEALL,
 //          reconnect) -> [nRF91: program + verify the disable-AP-protect image] -> reset(Go).
-// Reset:   Resetting.        ReadMemory: no own phase (Connecting is reported by the worker).
+// Erase (code only): the PIB is read before and after; a change fails with target.erase_failed
+//          (review R5).
+// Reset:   Connecting (identify, family check; protected allowed) -> Resetting.
+// ReadMemory: Connecting (identify, family check) -> read (review R7).
 
 #include "hio/core/error.h"
 #include "hio/core/result.h"

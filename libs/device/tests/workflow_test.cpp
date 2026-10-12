@@ -72,7 +72,17 @@ public:
 };
 
 ChipInfo chip(std::uint32_t part) {
-    return ChipInfo{.part = part, .variant = 0, .protectedChip = false, .name = {}};
+    return ChipInfo{.part = part,
+                    .variant = 0,
+                    .protectedChip = false,
+                    .name = {},
+                    .family = part == 0x52840 ? "nRF52" : "nRF91"};
+}
+
+// FICR unreadable: what the CTRL-AP IDR said (review R2).
+ChipInfo unreadable(std::string_view family, bool protectedChip) {
+    return ChipInfo{
+        .part = 0, .variant = 0, .protectedChip = protectedChip, .name = {}, .family = family};
 }
 
 FirmwareImage image(const std::vector<std::pair<std::uint32_t, std::size_t>>& blocks,
@@ -176,8 +186,7 @@ TEST_F(Workflow, UnknownPart) {
 }
 
 TEST_F(Workflow, ProtectedChip) {
-    EXPECT_CALL(programmer(), identify())
-        .WillOnce(Return(ChipInfo{.part = 0, .variant = 0, .protectedChip = true, .name = {}}));
+    EXPECT_CALL(programmer(), identify()).WillOnce(Return(unreadable("nRF91", true)));
     EXPECT_CALL(programmer(), program(_, _, _)).Times(0);
     auto ctx = context("lte");
     const auto result = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
@@ -305,7 +314,7 @@ TEST_F(Workflow, EraseScopes) {
 
 TEST_F(Workflow, RecoverAppWithoutImage) {
     EXPECT_CALL(programmer(), identify())
-        .WillOnce(Return(ChipInfo{.part = 0, .variant = 0, .protectedChip = true, .name = {}}))
+        .WillOnce(Return(unreadable("nRF52", true)))
         .WillOnce(Return(chip(0x52840)));
     int reconnects = 0;
     {
@@ -354,6 +363,95 @@ TEST_F(Workflow, RecoverFailure) {
     const auto result = hio::device::detail::runRecover(ctx, [] { return Status{}; });
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().message, "Recovering the lte MCU failed.");
+}
+
+// Review R2: FICR unreadable and APPROTECT not enabled is no "protected"; the other family's
+// CTRL-AP is the wrong connector; recover never runs without the expected family.
+TEST_F(Workflow, UnreadableChipIsNotReportedAsProtected) {
+    EXPECT_CALL(programmer(), identify()).WillOnce(Return(unreadable("nRF52", false)));
+    auto ctx = context();
+    const auto result = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, ErrorCode::TargetConnectFailed);
+    EXPECT_EQ(result.error().message, "The type of the app MCU could not be read.");
+}
+
+TEST_F(Workflow, OtherFamilysCtrlApIsTheWrongConnector) {
+    ON_CALL(programmer(), identify()).WillByDefault(Return(unreadable("nRF91", false)));
+    EXPECT_CALL(programmer(), recover(_)).Times(0);
+    auto ctx = context();
+    const auto flash = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
+    ASSERT_FALSE(flash);
+    EXPECT_EQ(flash.error().code, ErrorCode::TargetWrongFamily);
+    EXPECT_EQ(flash.error().message, "Expected the app MCU (nRF52840) but found an nRF91 MCU.");
+    const auto recover = hio::device::detail::runRecover(ctx, [] { return Status{}; });
+    ASSERT_FALSE(recover);
+    EXPECT_EQ(recover.error().code, ErrorCode::TargetWrongFamily);
+}
+
+TEST_F(Workflow, RecoverNeedsTheExpectedFamily) {
+    EXPECT_CALL(programmer(), identify())
+        .WillOnce(Return(hio::Result<ChipInfo>(
+            std::unexpected(hio::makeError(ErrorCode::TargetConnectFailed)))));
+    EXPECT_CALL(programmer(), recover(_)).Times(0);
+    auto ctx = context();
+    const auto result = hio::device::detail::runRecover(ctx, [] { return Status{}; });
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, ErrorCode::TargetConnectFailed);
+    // An unprotected but unreadable chip of the right family can be recovered.
+    EXPECT_CALL(programmer(), identify())
+        .WillOnce(Return(unreadable("nRF52", false)))
+        .WillOnce(Return(chip(0x52840)));
+    EXPECT_CALL(programmer(), recover(_));
+    EXPECT_TRUE(hio::device::detail::runRecover(ctx, [] { return Status{}; }));
+}
+
+// Review R5: a code-only erase that changes the PIB fails loudly.
+TEST_F(Workflow, CodeEraseThatChangesThePibFails) {
+    const std::vector<std::byte> pib(128, std::byte{0xBA});
+    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U))
+        .WillOnce(Return(pib))
+        .WillOnce(Return(std::vector<std::byte>(128, std::byte{0xFF})));
+    auto ctx = context();
+    const auto result = hio::device::detail::runErase(ctx, EraseScope::Code);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, ErrorCode::TargetEraseFailed);
+    EXPECT_EQ(result.error().message,
+              "Erasing the code flash of the app MCU also changed its Product Information Block.");
+    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U)).Times(2).WillRepeatedly(Return(pib));
+    EXPECT_TRUE(hio::device::detail::runErase(ctx, EraseScope::Code));
+}
+
+// Review R17: a PIB that cannot be read after the erase is an erase failure that says so.
+TEST_F(Workflow, PibUnreadableAfterTheCodeEraseFails) {
+    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U))
+        .WillOnce(Return(std::vector<std::byte>(128, std::byte{0xBA})))
+        .WillOnce(Return(hio::Result<std::vector<std::byte>>(
+            std::unexpected(hio::makeError(ErrorCode::TargetConnectFailed, "read failed")))));
+    auto ctx = context();
+    const auto result = hio::device::detail::runErase(ctx, EraseScope::Code);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, ErrorCode::TargetEraseFailed);
+    EXPECT_EQ(result.error().message,
+              "The Product Information Block of the app MCU could not be checked after the erase.");
+    EXPECT_NE(result.error().detail.find("before: baba"), std::string::npos);
+    EXPECT_EQ(result.error().suggestion,
+              "Do not erase again. Run `hio chester app pib read` and compare it with the bytes in "
+              "the log (see Details); if they differ, contact HARDWARIO support.");
+}
+
+// Review R7: reset and memory reads check the family first.
+TEST_F(Workflow, ResetAndReadMemoryCheckTheFamily) {
+    ON_CALL(programmer(), identify()).WillByDefault(Return(chip(0x9120)));
+    EXPECT_CALL(programmer(), reset(_)).Times(0);
+    EXPECT_CALL(programmer(), readMemory(_, _)).Times(0);
+    auto ctx = context();
+    const auto reset = hio::device::detail::runReset(ctx, ResetMode::Go);
+    ASSERT_FALSE(reset);
+    EXPECT_EQ(reset.error().code, ErrorCode::TargetWrongFamily);
+    const auto read = hio::device::detail::runReadMemory(ctx, 0x10001080, 128);
+    ASSERT_FALSE(read);
+    EXPECT_EQ(read.error().code, ErrorCode::TargetWrongFamily);
 }
 
 // ADR-0039: the embedded image is py-hardwario's file, byte for byte, and covers 0x0-0xBA4.

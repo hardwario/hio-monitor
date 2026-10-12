@@ -84,6 +84,12 @@ public:
         }
     }
 
+    // Removes the group (e.g. "devices/801234567") and every key under it (ADR-0092); a missing
+    // group is no error. Errors: `settings.newer_schema` when read-only, `io.write_failed` when the
+    // file is not writable, `usage.invalid_argument` for an empty group or the "meta" group (the
+    // schema version). Written to disk on sync() or when the object is destroyed.
+    [[nodiscard]] Status remove(std::string_view group);
+
     // Writes pending changes. Errors: `io.write_failed`, `io.read_failed` (corrupt file).
     [[nodiscard]] Status sync();
 
