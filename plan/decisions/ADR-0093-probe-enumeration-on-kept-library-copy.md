@@ -32,3 +32,10 @@ ADR-0050 has the GUI probe scanner enumerate probes every 2 s while a picker is 
 
 - No copy and load every 2 s; one extra library copy exists while a picker is visible.
 - A probe opened by a session is still listed through the scanner's own copy (unchanged).
+
+## Amendment (2026-10-12, M3 review fix S4, accepted by Matej Strnad)
+
+Loading and unloading of library copies (`QLibrary::load()` / `unload()` in `jlink_library.cpp`) is serialized by
+one process-wide mutex. Copies are loaded and unloaded by different threads (session workers, the GUI probe
+scanner), and a new copy may be mapped where an unloaded one was; the dynamic loader's own locking is invisible to
+ThreadSanitizer. Cost: concurrent loads wait for each other (one library load).

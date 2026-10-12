@@ -134,6 +134,15 @@ std::string joined(const std::vector<std::string>& items) {
     return text;
 }
 
+// Loading and unloading of library copies is serialized in the process: copies are loaded and
+// unloaded by different threads (sessions, the GUI probe scanner, ADR-0093), and a new copy may be
+// mapped where an unloaded one was. ld.so's own locking is invisible to ThreadSanitizer, so without
+// this lock TSan reports the new copy's first accesses as races with the old copy's last ones.
+std::mutex& libraryLoadMutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
 // Slots of library copies that could not be unloaded (see JLinkLibrary::Impl::~Impl). At most
 // OutHandlerSlot::maxSlots; destroyed at process exit.
 void keepForProcessLifetime(std::unique_ptr<OutHandlerSlot> slot) {
@@ -226,7 +235,12 @@ struct JLinkLibrary::Impl {
             if (fn.setFlashProgress != nullptr) {
                 fn.setFlashProgress(nullptr);
             }
-            if (!library->unload()) {
+            bool unloaded = false;
+            {
+                const std::scoped_lock lock(libraryLoadMutex());
+                unloaded = library->unload();
+            }
+            if (!unloaded) {
                 // The copy stays loaded and may still call its handlers: keep the slot (and its
                 // queue) for the rest of the process instead of freeing memory the library can
                 // reach (review fix 6). Bounded by OutHandlerSlot::maxSlots.
@@ -275,7 +289,12 @@ Result<std::unique_ptr<JLinkLibrary>> JLinkLibrary::loadCopy(const LibraryLocati
     }
 
     impl->library = std::make_unique<QLibrary>(toQString(toUtf8(impl->copyPath)));
-    if (!impl->library->load()) {
+    bool loaded = false;
+    {
+        const std::scoped_lock lock(libraryLoadMutex());
+        loaded = impl->library->load();
+    }
+    if (!loaded) {
         return std::unexpected(
             loadFailed(toUtf8(location.path) + ": " + impl->library->errorString().toStdString()));
     }
