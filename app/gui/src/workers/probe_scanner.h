@@ -9,9 +9,19 @@
 // (ProbeLock::owner) every `interval` (2 s), and once at once on scanNow(). ADR-0093: the worker
 // keeps one jlink::ProbeEnumerator (its own library copy, ADR-0030) loaded while a picker is
 // visible, unloads it when the last picker goes away and loads a new one when the library location
-// changes; a Refresh without a visible picker uses a copy only for that scan. At most one scan runs
-// at a time. It never touches the SessionRegistry (GUI-owned): the "in use by a tab" information is
-// added by the pickers on the GUI thread.
+// changes; a Refresh without a visible picker uses a copy only for that scan. A library that
+// could not be loaded or could not list probes is remembered (path, size, modification time) and
+// not loaded again on the 2 s tick; a Refresh, another location or a changed file retries (S17).
+//
+// Waiting (review S19): copies are loaded and unloaded under one process-wide lock in
+// libs/hw/jlink (ADR-0093 amendment). A session's worker unloads its copy inside
+// DeviceSession::close(), which the GUI thread joins (Disconnect, tab close, quit), so the GUI
+// thread can wait for at most one library load of this scanner that is in progress (on Windows an
+// antivirus scan can make a load take seconds). Loads are rare: when a picker becomes visible, on
+// a location change and on a Refresh after a failure, never on the periodic tick (the copy is kept
+// and failures are remembered). The scanner never takes the lock on the GUI thread. At most one
+// scan runs at a time. It never touches the SessionRegistry (GUI-owned): the "in use by a tab"
+// information is added by the pickers on the GUI thread.
 //
 // Results are handed over in a mutex-protected slot; the worker wakes the GUI thread with one
 // coalesced queued call by name (the DeviceSession pattern, ADR-0031), and `scanned` is emitted
@@ -80,6 +90,8 @@ public:
     // has loaded so far.
     [[nodiscard]] bool libraryLoaded() const noexcept { return m_libraryLoaded.load(); }
     [[nodiscard]] int libraryLoads() const noexcept { return m_libraryLoads.load(); }
+    // Load attempts, failed ones included.
+    [[nodiscard]] int libraryLoadAttempts() const noexcept { return m_libraryLoadAttempts.load(); }
 
     // Scans as soon as possible (Refresh), also when no picker is visible.
     void scanNow();
@@ -95,9 +107,21 @@ private:
     Q_INVOKABLE void deliver();
 
     void run(const std::stop_token& stop);
-    // Worker thread.
+    // Worker thread. `forced`: a Refresh / a picker became visible (retries a failed library).
     [[nodiscard]] ProbeScan scan(const jlink::LocatorOptions& options,
-                                 std::optional<jlink::ProbeEnumerator>& enumerator);
+                                 std::optional<jlink::ProbeEnumerator>& enumerator, bool forced);
+
+    // The library file a load failed for (path, size, modification time; review S17).
+    struct LibraryIdentity {
+        std::filesystem::path path;
+        std::uintmax_t size = 0;
+        std::filesystem::file_time_type modified;
+        [[nodiscard]] bool operator==(const LibraryIdentity& other) const = default;
+    };
+    struct FailedLibrary {
+        LibraryIdentity identity;
+        Error error;
+    };
 
     const std::filesystem::path m_instanceRoot;
     const std::filesystem::path m_lockDirectory;
@@ -107,6 +131,8 @@ private:
     std::atomic<bool> m_deliverPending{false};
     std::atomic<bool> m_libraryLoaded{false};
     std::atomic<int> m_libraryLoads{0};
+    std::atomic<int> m_libraryLoadAttempts{0};
+    std::optional<FailedLibrary> m_failed; // worker thread only
 
     std::mutex m_mutex; // guards the members below
     std::condition_variable_any m_wake;

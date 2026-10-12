@@ -7,6 +7,7 @@
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
 #include "hio/device/device_session.h"
+#include "hio/device/probe_lock.h"
 #include "hio/device/session_events.h"
 #include "support/test_page_view_model.h"
 #include "viewmodels/app_view_model.h"
@@ -199,27 +200,43 @@ TEST_F(DeviceTabTest, EnsureSessionOpensTheConsoleTarget) {
     testPage()->finishWork();
 }
 
-TEST_F(DeviceTabTest, AStoppedSessionIsReplaced) {
-    // Review S1: a fatal connect failure (missing probe) keeps a stopped session; the target can
-    // be changed and ensureSession() opens a new session.
+TEST_F(DeviceTabTest, AFatallyStoppedSessionIsReleased) {
+    // Review S1, S18: a fatal connect failure (missing probe) releases the session on the next
+    // event-loop turn; its error stays shown, the target can be changed, Connect opens a new one.
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 123456));
     tab().connectDevice();
     ASSERT_TRUE(waitFor([&] { return tab().connection()->error().valid(); }));
-    ASSERT_NE(tab().session(), nullptr);
+    ASSERT_TRUE(waitFor([&] { return tab().session() == nullptr; }));
+    EXPECT_EQ(app().sessionRegistry().sessionCount(), 0U);
+    EXPECT_EQ(tab().connection()->error().code(), QStringLiteral("probe.not_found"));
+    EXPECT_TRUE(tab().hasError());
+    EXPECT_EQ(tab().connection()->stateKind(), QStringLiteral("error"));
+    EXPECT_TRUE(tab().connection()->stateText().startsWith(QStringLiteral("Disconnected — ")));
     EXPECT_TRUE(tab().connection()->canChangeTarget());
     EXPECT_EQ(tab().connection()->action(), QStringLiteral("connect"));
     tab().connection()->setTargetId(QStringLiteral("lte"));
     EXPECT_EQ(tab().consoleTargetId(), QStringLiteral("lte"));
-    EXPECT_EQ(tab().session(), nullptr); // the stopped session was released
     tab().connection()->setTargetId(QStringLiteral("app"));
+    EXPECT_TRUE(tab().ensureSession()); // a new session
+    EXPECT_NE(tab().session(), nullptr);
+    ASSERT_TRUE(waitFor([&] { return tab().session() == nullptr; })); // fails and is released
+    spin(std::chrono::milliseconds(20));
+}
+
+TEST_F(DeviceTabTest, TheProbeLockIsFreeAfterAFatalConnectError) {
+    // Review S18: an unpowered target with auto-reconnect off stops the session fatally; the
+    // cross-process ProbeLock (and the registry slot) is released, so `hio` can use the probe.
+    useScenario(R"({"probes": [{"serialNumber": 801000009, "vtref": [[0, 0]]}]})");
+    ASSERT_TRUE(app().settingsStore()->setValue(QStringLiteral("rtt/autoReconnect"), false));
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000009));
     tab().connectDevice();
     ASSERT_TRUE(waitFor([&] { return tab().connection()->error().valid(); }));
-    const hio::device::DeviceSession* stopped = tab().session();
-    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 123456));
-    EXPECT_TRUE(tab().ensureSession()); // replaces the stopped session
-    EXPECT_NE(tab().session(), nullptr);
-    EXPECT_NE(tab().session(), stopped);
-    spin(std::chrono::milliseconds(20));
+    ASSERT_TRUE(waitFor([&] { return tab().session() == nullptr; }));
+    EXPECT_FALSE(hio::device::ProbeLock::owner(801000009, root() / "locks").has_value());
+    auto lock = hio::device::ProbeLock::acquire(801000009, root() / "locks");
+    EXPECT_TRUE(lock) << (lock ? "" : lock.error().detail);
+    EXPECT_EQ(app().sessionRegistry().sessionCount(), 0U);
+    EXPECT_TRUE(tab().connection()->error().valid()); // still shown
 }
 
 TEST_F(DeviceTabTest, ShutdownTellsThePages) {

@@ -138,6 +138,11 @@ std::string joined(const std::vector<std::string>& items) {
 // unloaded by different threads (sessions, the GUI probe scanner, ADR-0093), and a new copy may be
 // mapped where an unloaded one was. ld.so's own locking is invisible to ThreadSanitizer, so without
 // this lock TSan reports the new copy's first accesses as races with the old copy's last ones.
+// Cost (ADR-0093 amendment, M3 review S19): a load or unload waits for one that is in progress;
+// on Windows an antivirus scan can make a load take seconds. A session's unload runs inside
+// DeviceSession::close(), which the owner thread (the GUI) joins, so Disconnect / tab close / quit
+// can wait for at most one load of the GUI probe scanner (loads there are rare: app/gui
+// probe_scanner.h).
 std::mutex& libraryLoadMutex() {
     static std::mutex mutex;
     return mutex;

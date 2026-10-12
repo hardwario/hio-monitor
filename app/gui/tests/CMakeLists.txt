@@ -58,9 +58,10 @@ target_include_directories(hio_gui_tests PRIVATE
     "${PROJECT_SOURCE_DIR}/libs/device/tests")
 target_link_libraries(hio_gui_tests PRIVATE hio_gui Qt6::Test GTest::gmock)
 target_compile_definitions(hio_gui_tests PRIVATE
-    "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\"")
+    "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\""
+    "HIO_FAKE_JLINK_INCOMPLETE_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink_incomplete>\"")
 set_target_properties(hio_gui_tests PROPERTIES AUTOMOC ON)
-add_dependencies(hio_gui_tests hio_fake_jlink)
+add_dependencies(hio_gui_tests hio_fake_jlink hio_fake_jlink_incomplete)
 gtest_discover_tests(hio_gui_tests
     DISCOVERY_TIMEOUT 60
     PROPERTIES

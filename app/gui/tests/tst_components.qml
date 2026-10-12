@@ -69,7 +69,16 @@ TestCase {
     Component {
         id: spinComponent
 
-        StepSpinBox {}
+        // Bound like AdvancedPopover: the owner writes its source on steps and on typed values.
+        StepSpinBox {
+            id: bound
+
+            property int source: 1
+
+            value: bound.source
+            onStepped: newValue => bound.source = newValue
+            onValueModified: bound.source = bound.value
+        }
     }
 
     Component {
@@ -265,20 +274,24 @@ TestCase {
         waitForRendering(stepper);
     }
 
-    // Review S15: +/− snap to the step grid; typed values stay exact.
+    // Review S15, S16, S20: +/− snap to the step grid through the owner, the `value` binding
+    // stays, the wheel steps once per 120, held buttons auto-repeat; typed values stay exact.
     function test_stepSpinBox() {
-        const box = createTemporaryObject(spinComponent, testCase, { from: 1, to: 1000, step: 10, value: 1 });
-        let modified = 0;
-        box.valueModified.connect(() => ++modified);
+        const box = createTemporaryObject(spinComponent, testCase, { from: 1, to: 1000, step: 10, y: 300 });
         box.forceActiveFocus();
         keyClick(Qt.Key_Up);
         compare(box.value, 10);
+        compare(box.source, 10);
         keyClick(Qt.Key_Up);
         compare(box.value, 20);
-        box.value = 15;
+        // The binding survives the steps: a change of the source is shown (S16).
+        box.source = 15;
+        compare(box.value, 15);
         keyClick(Qt.Key_Down);
         compare(box.value, 10);
-        compare(modified, 3);
+        box.source = 500;
+        compare(box.value, 500);
+        box.source = 10;
         // The + and − buttons.
         mousePress(box.up.indicator);
         mouseRelease(box.up.indicator);
@@ -286,8 +299,21 @@ TestCase {
         mousePress(box.down.indicator);
         mouseRelease(box.down.indicator);
         compare(box.value, 10);
-        // The wheel.
+        // Held +: auto-repeat after 300 ms.
+        mousePress(box.up.indicator);
+        wait(700);
+        mouseRelease(box.up.indicator);
+        verify(box.value >= 40, box.value);
+        box.source = 10;
+        // The wheel: one step per 120 (touchpad deltas accumulate).
         mouseWheel(box, box.width / 2, box.height / 2, 0, 120);
+        compare(box.value, 20);
+        mouseWheel(box, box.width / 2, box.height / 2, 0, 40);
+        mouseWheel(box, box.width / 2, box.height / 2, 0, 40);
+        compare(box.value, 20);
+        mouseWheel(box, box.width / 2, box.height / 2, 0, 40);
+        compare(box.value, 30);
+        mouseWheel(box, box.width / 2, box.height / 2, 0, -120);
         compare(box.value, 20);
         // Typed: exact.
         box.contentItem.selectAll();
@@ -295,8 +321,11 @@ TestCase {
         keyClick(Qt.Key_5);
         keyClick(Qt.Key_Return);
         compare(box.value, 15);
+        compare(box.source, 15);
+        box.source = 500;
+        compare(box.value, 500); // still bound after typing
         // Bounds.
-        box.value = 995;
+        box.source = 995;
         keyClick(Qt.Key_Up);
         compare(box.value, 1000);
     }

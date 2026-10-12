@@ -39,3 +39,11 @@ Loading and unloading of library copies (`QLibrary::load()` / `unload()` in `jli
 one process-wide mutex. Copies are loaded and unloaded by different threads (session workers, the GUI probe
 scanner), and a new copy may be mapped where an unloaded one was; the dynamic loader's own locking is invisible to
 ThreadSanitizer. Cost: concurrent loads wait for each other (one library load).
+
+Waiting on the GUI thread (M3 review S19, decided 2026-10-12: keep the lock, document it): a session's worker
+unloads its copy inside `DeviceSession::close()`, which the owner thread joins. In the GUI, Disconnect, closing a tab
+and quitting can therefore wait for one library load of the probe scanner that is in progress; on Windows an
+antivirus scan of the fresh copy can make that load take seconds. The scanner keeps its copy while a picker is
+visible and remembers failed libraries (S17), so it loads only when a picker becomes visible, the library location
+or file changes, or on a Refresh after a failure; it never takes the lock on the GUI thread. No further mitigation
+in `libs/*`; if this shows up on Windows, the session close can move off the GUI thread (a new decision).

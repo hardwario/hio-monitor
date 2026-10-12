@@ -607,3 +607,32 @@ All fixed on `v2/m3-gui` on top of the merge of `v2/m2-flashing` (55c348c); test
 | CI | `lfs: true` for the checkout of the build jobs (the check job keeps `lfs: false` for `check-lfs.sh`). | — |
 | (S4 follow-up, backend) | `libs/hw/jlink/src/jlink_library.cpp`: loading and unloading of library copies are serialized by one process-wide mutex. With S4 the scanner unloads its copy on its own thread while a session may load one; a new copy can be mapped where the old one was, and ld.so's locking is invisible to TSan, which reported the fake library's state as a race (`tst_gui.tst_shell` under TSan). Deviation from "no change to `libs/*`"; to be confirmed. | `tst_gui.tst_shell` (TSan), the 30× TSan repeat |
 
+
+## Open findings (independent review round 2, 2026-10-12)
+
+Review of ee47114 (code reading + one qmltestrunner check). No high findings. Decided 2026-10-12: fix all S16–S22 (S19: keep the lock, document it, scanner never holds it on a GUI-critical path), then commit; 0005 starts only after a separate approval.
+
+| # | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| S16 | medium (confirmed) | `StepSpinBox` assigns `box.value` from JS, which breaks the `value:` binding to the view model: after one step, option changes made by the VM (probe change → `loadOptions`) are not shown; the next connect uses a different value than displayed. | Don't assign `value`: emit `stepped(newValue)` and let the owner write the VM (or a C++ `increase()` path); test that changes the bound source after a step. |
+| S17 | medium | When `ProbeEnumerator` load/enumerate fails (e.g. J-Link < 8.00, missing exports), nothing remembers it: the 29 MB copy + load repeats every 2 s. | Cache the failure per location (path + size + mtime); retry on Refresh / location or file change. |
+| S18 | low–medium | A fatally Stopped session counts as "none" in the UI but keeps the cross-process probe lock, the library copy and a registry slot; the bar offers only Connect → `hio` CLI fails with "in use by hio-monitor". `sessionStopped()` is also true for a deliberate `suspend()`. | Release a fatally Stopped session automatically (keep its error in the ConnectionViewModel); only treat `Stopped && error` as dead. |
+| S19 | low (plausible) | The process-wide load/unload mutex can freeze the GUI on Disconnect/close/quit while the scanner loads a fresh copy on Windows (antivirus, seconds). No deadlock found. | Accept and document, or scanner unload/load off the critical path (e.g. scanner never holds the lock across AV-slow steps); or limit to TSan builds. |
+| S20 | low | `StepSpinBox` steps on every wheel event (touchpad small deltas → huge jumps); holding +/− no longer auto-repeats. | Accumulate `angleDelta.y` per 120; restore auto-repeat. |
+| S21 | low (plausible) | Socket path from `XDG_RUNTIME_DIR` but lock file in the home dir: sessions with different runtime dirs (ssh, `su -l`) → "does not respond" instead of activation. | Derive the socket path from the lock-file directory, or accept. |
+| S22 | note | CI `lfs: true` in 11 jobs without an LFS cache (bandwidth quota); no tests for scanner reload on location change and one-shot Refresh copy. | Cache `.git/lfs` in CI; add the two tests. |
+
+### Fixes of review round 2 (2026-10-12)
+
+Uncommitted on top of ee47114; tests in `app/gui/tests`.
+
+| # | Fix | Tests |
+|---|---|---|
+| S16 | `StepSpinBox` never assigns `value`: a step emits `stepped(newValue)` and `AdvancedPopover` writes the view model, so the `value:` binding stays (typed values arrive through `valueModified`, the SpinBox's own setter). | `Components::test_stepSpinBox` (changes the bound source after steps and after typing) |
+| S17 | The scanner remembers a library that failed to load or list probes (path + size + modification time) and does not copy/load it on the 2 s tick; a Refresh (or a picker becoming visible), another location or a changed file retries. New counter `libraryLoadAttempts()`. | `ProbePickerTest.AFailedLibraryIsNotLoadedOnEveryTick` (incomplete fake library) |
+| S18 | A session that stops with an error is released on the next event-loop turn (probe lock, library copy, registry slot); its error stays in the `ConnectionViewModel` (bar text, ErrorPanel, red dot unchanged). `sessionFailed()` = Stopped **with** an error; a Stopped session without one (deliberate `suspend()`) is a working session. | `DeviceTabTest.AFatallyStoppedSessionIsReleased`, `DeviceTabTest.TheProbeLockIsFreeAfterAFatalConnectError` |
+| S19 | Kept the process-wide load/unload lock (ADR-0093 amendment); documented in ADR-0093, `jlink_library.cpp` and `probe_scanner.h`: `DeviceSession::close()` (joined by the GUI thread on Disconnect, tab close, quit) unloads its copy under the lock and so can wait for one scanner load in progress (seconds with a Windows antivirus). Mitigation within app/gui: the scanner loads rarely (picker shown, location/file change, Refresh after a failure; never on the tick thanks to the kept copy and S17) and never takes the lock on the GUI thread. No further libs change. | — (documentation) |
+| S20 | Wheel deltas accumulate, one step per 120 (touchpads); held +/− auto-repeat (300 ms delay, then every 100 ms). | `Components::test_stepSpinBox` |
+| S21 | The socket is `gui.sock` next to the lock file (AppLocalData; owner-only socket via `UserAccessOption`); a path too long for a Unix socket falls back to the runtime directory. Windows unchanged (named pipe). | `SingleInstanceTest.ActivationThroughASocketBesideTheLock`, `SingleInstanceTest.ASecondInstanceActivatesTheFirst` (now with a socket path beside the lock), `SingleInstanceNames.DefaultServerNameIsPrivate` |
+| S22 | CI build jobs check out without LFS, restore `.git/lfs` from `actions/cache` keyed by the LFS object list (`git lfs ls-files --long`) and `.gitattributes`, then `git lfs pull`; `.lfs-assets-id` is ignored. Tests for the reload on a location change and for the one-shot Refresh copy. | `ProbePickerTest.AnotherLibraryLocationLoadsANewCopy`, `ProbePickerTest.ARefreshWithoutAPickerUsesAOneShotCopy` |
+

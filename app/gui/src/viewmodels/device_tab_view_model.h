@@ -189,7 +189,8 @@ private:
     };
 
     [[nodiscard]] Status openSession();
-    [[nodiscard]] bool sessionStopped() const;
+    // The session stopped with an error (fatal); see sessionFailed() in the .cpp (S18).
+    [[nodiscard]] bool sessionFailed() const;
     void releaseSession();
     void onConnectionChanged(const device::ConnectionEvent& event);
     void addMarker(const QString& text);

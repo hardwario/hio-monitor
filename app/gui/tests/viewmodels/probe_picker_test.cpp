@@ -4,12 +4,14 @@
 
 #include "gui_test_support.h"
 #include "hio/device/probe_lock.h"
+#include "hio/hw/jlink/library_locator.h"
 #include "lock_holder.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/probe_picker_view_model.h"
 #include "workers/probe_scanner.h"
 
+#include <QByteArray>
 #include <QModelIndex>
 #include <QSignalSpy>
 #include <QString>
@@ -19,6 +21,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <system_error>
@@ -174,6 +177,80 @@ TEST_F(ProbePickerTest, OneLibraryCopyWhileAPickerIsVisible) {
     // Visible again: a new copy.
     picker.setActive(true);
     ASSERT_TRUE(waitFor([&] { return scanner.libraryLoads() == 2; }));
+}
+
+TEST_F(ProbePickerTest, AFailedLibraryIsNotLoadedOnEveryTick) {
+    // Review S17: a library that cannot be loaded (missing exports) is not copied and loaded again
+    // every scan; a Refresh or a changed file retries.
+    const std::filesystem::path broken = root() / "broken" / "libjlinkarm.so";
+    std::filesystem::create_directories(broken.parent_path());
+    std::filesystem::copy_file(HIO_FAKE_JLINK_INCOMPLETE_LIBRARY, broken);
+    qputenv("HIO_JLINK_LIBRARY", QByteArray(broken.string().c_str()));
+    const auto app = makeApp();
+    hio::gui::ProbeScanner& scanner = app->probeScanner();
+    ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
+    picker.setActive(true);
+    ASSERT_TRUE(waitFor([&] { return picker.libraryError().valid(); }));
+    EXPECT_EQ(picker.libraryError().code(), QStringLiteral("dependency.jlink_load_failed"));
+    EXPECT_EQ(scanner.libraryLoadAttempts(), 1);
+    const auto sequence = [&scanner] {
+        const auto& last = scanner.last();
+        return last ? last->sequence : std::uint64_t{0};
+    };
+    const std::uint64_t first = sequence();
+    ASSERT_TRUE(waitFor([&] { return sequence() >= first + 3; }));
+    EXPECT_EQ(scanner.libraryLoadAttempts(), 1); // remembered, not loaded again
+    EXPECT_TRUE(picker.libraryError().valid());
+    picker.refresh();
+    ASSERT_TRUE(waitFor([&] { return scanner.libraryLoadAttempts() == 2; }));
+    // A changed file is tried again on the periodic scan.
+    std::filesystem::last_write_time(broken, std::filesystem::last_write_time(broken) +
+                                                 std::chrono::seconds(10));
+    ASSERT_TRUE(waitFor([&] { return scanner.libraryLoadAttempts() == 3; }));
+    EXPECT_EQ(scanner.libraryLoads(), 0);
+}
+
+TEST_F(ProbePickerTest, AnotherLibraryLocationLoadsANewCopy) {
+    // Review S22: a location change (setting, environment) replaces the kept copy.
+    const auto app = makeApp();
+    hio::gui::ProbeScanner& scanner = app->probeScanner();
+    ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
+    picker.setActive(true);
+    ASSERT_TRUE(waitForRows(picker, 2));
+    EXPECT_EQ(scanner.libraryLoads(), 1);
+    const std::filesystem::path other = root() / "other" / "libjlinkarm.so";
+    std::filesystem::create_directories(other.parent_path());
+    std::filesystem::copy_file(HIO_FAKE_JLINK_LIBRARY, other);
+    hio::jlink::LocatorOptions options = app->locatorOptions();
+    options.option = other;
+    scanner.setLocatorOptions(options);
+    ASSERT_TRUE(waitFor([&] { return scanner.libraryLoads() == 2; }));
+    ASSERT_TRUE(waitFor([&] {
+        const auto& last = scanner.last();
+        return last && last->libraryPath == other;
+    }));
+    EXPECT_TRUE(scanner.libraryLoaded());
+    EXPECT_EQ(picker.count(), 2);
+}
+
+TEST_F(ProbePickerTest, ARefreshWithoutAPickerUsesAOneShotCopy) {
+    // Review S22: no picker visible: the Refresh loads a copy for that scan only.
+    const auto app = makeApp();
+    hio::gui::ProbeScanner& scanner = app->probeScanner();
+    EXPECT_EQ(scanner.activeCount(), 0);
+    scanner.scanNow();
+    ASSERT_TRUE(waitFor([&] { return scanner.last().has_value(); }));
+    const std::size_t probes = scanner.last() ? scanner.last()->probes.size() : 0;
+    EXPECT_EQ(probes, 2U);
+    EXPECT_EQ(scanner.libraryLoads(), 1);
+    EXPECT_FALSE(scanner.libraryLoaded());
+    std::size_t copies = 0;
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(root() / "instances", ec), end; !ec && it != end;
+         it.increment(ec)) {
+        ++copies;
+    }
+    EXPECT_EQ(copies, 0U);
 }
 
 TEST_F(ProbePickerTest, MissingLibrary) {

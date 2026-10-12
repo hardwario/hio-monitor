@@ -11,7 +11,6 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QString>
-#include <QUuid>
 
 #include <gtest/gtest.h>
 
@@ -60,8 +59,8 @@ protected:
     }
 
 private:
-    QString m_serverName =
-        QStringLiteral("hio-monitor-test-") + QUuid::createUuid().toString(QUuid::Id128).left(12);
+    // A socket file beside the lock file, as the product does (review S21).
+    QString m_serverName = QString::fromStdU16String((root() / "gui.sock").u16string());
 };
 
 TEST_F(SingleInstanceTest, TheFirstInstanceIsPrimary) {
@@ -120,14 +119,28 @@ TEST_F(SingleInstanceTest, AListenFailureTurnsSingleInstanceOff) {
     EXPECT_TRUE(second.serving());
 }
 
+TEST_F(SingleInstanceTest, ActivationThroughASocketBesideTheLock) {
+    // Review S21: the primary and a second instance find each other by the lock directory.
+    const QString socket = QFileInfo(lockFile()).absolutePath() + QStringLiteral("/gui.sock");
+    SingleInstance first(lockFile(), socket);
+    ASSERT_EQ(first.start(), SingleInstance::Result::Primary);
+    EXPECT_TRUE(first.serving());
+    EXPECT_TRUE(QFileInfo::exists(socket));
+}
+
 TEST(SingleInstanceNames, DefaultServerNameIsPrivate) {
     const QString name = SingleInstance::defaultServerName();
 #ifdef Q_OS_WIN
     EXPECT_TRUE(name.startsWith(QStringLiteral("hio-monitor-")));
 #else
-    // A full path in the user's own directory, never a name in /tmp (review S11).
+    // A full path next to the lock file (review S11, S21), never a name in /tmp.
     EXPECT_TRUE(QFileInfo(name).isAbsolute()) << name.toStdString();
-    EXPECT_TRUE(name.endsWith(QStringLiteral("/hio-monitor.sock")));
+    if (QFileInfo(SingleInstance::defaultLockFile()).absolutePath().toLocal8Bit().size() + 9 <=
+        SingleInstance::maxSocketPathBytes) {
+        EXPECT_EQ(QFileInfo(name).absolutePath(),
+                  QFileInfo(SingleInstance::defaultLockFile()).absolutePath());
+        EXPECT_TRUE(name.endsWith(QStringLiteral("/gui.sock")));
+    }
     EXPECT_FALSE(name.startsWith(QStringLiteral("/tmp/hio-monitor")));
 #endif
 }

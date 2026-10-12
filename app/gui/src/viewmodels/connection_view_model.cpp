@@ -98,7 +98,8 @@ QVariantList ConnectionViewModel::targets() const {
 
 bool ConnectionViewModel::canChangeTarget() const {
     // A stopped session (fatal error) counts as none: it is replaced on the next connect (S1).
-    return (!m_connection || m_connection->state == device::ConnectionState::Stopped) &&
+    return (!m_connection || (m_connection->state == device::ConnectionState::Stopped &&
+                              m_connection->error.has_value())) &&
            !m_tab->isBusy();
 }
 

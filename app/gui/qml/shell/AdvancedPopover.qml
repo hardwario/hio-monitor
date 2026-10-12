@@ -54,6 +54,7 @@ Popup {
                 value: popover.connection.speedKhz
                 Accessible.name: qsTr("J-Link speed (kHz)")
                 onValueModified: popover.connection.speedKhz = speedBox.value
+                onStepped: newValue => popover.connection.speedKhz = newValue
             }
 
             Label {
@@ -73,6 +74,7 @@ Popup {
                 value: popover.connection.latencyMs
                 Accessible.name: qsTr("RTT latency (ms)")
                 onValueModified: popover.connection.latencyMs = latencyBox.value
+                onStepped: newValue => popover.connection.latencyMs = newValue
             }
         }
 

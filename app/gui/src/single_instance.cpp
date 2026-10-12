@@ -66,13 +66,17 @@ QString SingleInstance::defaultServerName() {
     }
     return QStringLiteral("hio-monitor-") + (safe.isEmpty() ? QStringLiteral("user") : safe);
 #else
-    // A full socket path in a directory only this user can write (review S11): the runtime
-    // directory ($XDG_RUNTIME_DIR, 0700) or the application data directory, never /tmp.
-    QString directory = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    if (directory.isEmpty()) {
-        directory = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    // Next to the lock file (review S21): every session of the user that sees the lock also finds
+    // the server (ssh, `su -l` and desktop sessions have different runtime directories). It is the
+    // user's own application data directory, never /tmp (S11); the socket itself is owner-only
+    // (QLocalServer::UserAccessOption). A path too long for a Unix socket falls back to the
+    // runtime directory.
+    QString besideLock = QFileInfo(defaultLockFile()).absolutePath() + QStringLiteral("/gui.sock");
+    if (besideLock.toLocal8Bit().size() <= maxSocketPathBytes) {
+        return besideLock;
     }
-    return directory + QStringLiteral("/hio-monitor.sock");
+    return QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) +
+           QStringLiteral("/hio-monitor.sock");
 #endif
 }
 

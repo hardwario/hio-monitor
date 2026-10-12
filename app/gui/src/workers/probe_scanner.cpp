@@ -1,6 +1,7 @@
 #include "workers/probe_scanner.h"
 
 #include "gui_log.h"
+#include "hio/core/error.h"
 #include "hio/device/probe_lock.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/probe_enumerator.h"
@@ -16,6 +17,7 @@
 #include <mutex>
 #include <optional>
 #include <stop_token>
+#include <system_error>
 #include <utility>
 
 namespace hio::gui {
@@ -87,7 +89,7 @@ void ProbeScanner::run(const std::stop_token& stop) {
             m_libraryLoaded.store(false);
             continue;
         }
-        ProbeScan result = scan(options, enumerator);
+        ProbeScan result = scan(options, enumerator, requested);
         if (m_active.load() == 0) {
             enumerator.reset(); // a Refresh without a visible picker: no copy is kept
         }
@@ -107,7 +109,7 @@ void ProbeScanner::run(const std::stop_token& stop) {
 }
 
 ProbeScan ProbeScanner::scan(const jlink::LocatorOptions& options,
-                             std::optional<jlink::ProbeEnumerator>& enumerator) {
+                             std::optional<jlink::ProbeEnumerator>& enumerator, bool forced) {
     ProbeScan result;
     auto location = jlink::locateLibrary(options);
     if (!location) {
@@ -116,13 +118,28 @@ ProbeScan ProbeScanner::scan(const jlink::LocatorOptions& options,
         return result;
     }
     result.libraryPath = location->path;
+    // Review S17: a library that could not be loaded or could not list probes is not copied and
+    // loaded again every 2 s; only a Refresh (forced), another location or a changed file retries.
+    std::error_code ec;
+    LibraryIdentity identity{.path = location->path,
+                             .size = std::filesystem::file_size(location->path, ec),
+                             .modified = std::filesystem::last_write_time(location->path, ec)};
+    if (!forced && m_failed && m_failed->identity == identity) {
+        result.libraryError = m_failed->error;
+        return result;
+    }
+    const auto remember = [this, &identity](const Error& error) {
+        m_failed = FailedLibrary{.identity = std::move(identity), .error = error};
+    };
     // Another library (the setting or the environment changed): load that one instead.
     if (enumerator && enumerator->location().path != location->path) {
         enumerator.reset();
     }
     if (!enumerator) {
+        m_libraryLoadAttempts.fetch_add(1);
         auto loaded = jlink::ProbeEnumerator::load(*location, m_instanceRoot);
         if (!loaded) {
+            remember(loaded.error());
             result.libraryError = std::move(loaded).error();
             return result;
         }
@@ -131,10 +148,12 @@ ProbeScan ProbeScanner::scan(const jlink::LocatorOptions& options,
     }
     auto probes = enumerator->enumerate();
     if (!probes) {
-        enumerator.reset(); // a fresh copy next time
+        enumerator.reset(); // a fresh copy on the next retry
+        remember(probes.error());
         result.libraryError = std::move(probes).error();
         return result;
     }
+    m_failed.reset();
     result.libraryVersion = enumerator->libraryVersion();
     for (jlink::ProbeInfo& probe : *probes) {
         ScannedProbe scanned;

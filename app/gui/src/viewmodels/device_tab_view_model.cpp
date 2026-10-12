@@ -17,6 +17,7 @@
 #include <QLoggingCategory>
 #include <QMetaObject>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QtCore/qnamespace.h>
 
@@ -158,7 +159,7 @@ bool DeviceTabViewModel::configure(const QString& profileId, const QString& targ
 }
 
 void DeviceTabViewModel::setConsoleTarget(const QString& targetId) {
-    if (targetId == m_targetId || isBusy() || (m_session && !sessionStopped()) ||
+    if (targetId == m_targetId || isBusy() || (m_session && !sessionFailed()) ||
         m_profile == nullptr) {
         return;
     }
@@ -175,15 +176,18 @@ void DeviceTabViewModel::setConsoleTarget(const QString& targetId) {
     updateState();
 }
 
-bool DeviceTabViewModel::sessionStopped() const {
-    return m_session && m_session->connection().state == device::ConnectionState::Stopped;
+bool DeviceTabViewModel::sessionFailed() const {
+    // Stopped with an error = a fatal error (dead). Stopped without one is a deliberate suspend()
+    // and still a working session (review S18).
+    return m_session && m_session->connection().state == device::ConnectionState::Stopped &&
+           m_session->connection().error.has_value();
 }
 
 Status DeviceTabViewModel::ensureSession() {
     if (m_busy) {
         return std::unexpected(makeError(ErrorCode::InternalBusy, "the tab is busy"));
     }
-    if (m_session && !sessionStopped()) {
+    if (m_session && !sessionFailed()) {
         return {};
     }
     // A stopped session (fatal error) is replaced by a new one (S1).
@@ -251,7 +255,10 @@ void DeviceTabViewModel::releaseSession() {
         return;
     }
     m_session->disconnect(this);
-    m_session->close(); // joins the worker, releases the probe lock and the registry slot
+    // Joins the worker, releases the probe lock and the registry slot. The worker unloads its
+    // library copy under the process-wide load lock (ADR-0093): this can wait for a library load
+    // of the probe scanner in progress (review S19, see probe_scanner.h).
+    m_session->close();
     m_retiredSessions.push_back(std::move(m_session));
     QMetaObject::invokeMethod(this, [this] { m_retiredSessions.clear(); }, Qt::QueuedConnection);
     m_connection->setConnection(std::nullopt);
@@ -341,6 +348,20 @@ void DeviceTabViewModel::onConnectionChanged(const device::ConnectionEvent& even
         break;
     }
     updateState();
+    if (event.state == device::ConnectionState::Stopped && event.error) {
+        // A fatally stopped session is released on the next event-loop turn (never inside its own
+        // signal): the probe lock, the library copy and the registry slot are freed, so another
+        // program (hio) can use the probe. Its error stays in the ConnectionViewModel (S18).
+        const QPointer<device::DeviceSession> failed(m_session.get());
+        QMetaObject::invokeMethod(
+            this,
+            [this, failed] {
+                if (failed && m_session.get() == failed.data() && sessionFailed()) {
+                    releaseSession();
+                }
+            },
+            Qt::QueuedConnection);
+    }
 }
 
 void DeviceTabViewModel::addMarker(const QString& text) {

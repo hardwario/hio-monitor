@@ -76,7 +76,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          lfs: true # the bundled GUI fonts (ADR-0048) are LFS objects
+          lfs: false # LFS objects come from the cache below, then `git lfs pull`
+      # The bundled GUI fonts (ADR-0048) are LFS objects: cache .git/lfs keyed by the LFS object list
+      # (review S22: LFS bandwidth quota), then fetch only what the cache does not have.
+      - name: LFS object list
+        shell: bash
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id', '.gitattributes') }}
+      - name: Git LFS pull
+        shell: bash
+        run: git lfs pull
       - name: Install LLVM ${{ env.LLVM_MAJOR }} and build tools
         run: |
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
@@ -150,7 +162,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          lfs: true # the bundled GUI fonts (ADR-0048) are LFS objects
+          lfs: false # LFS objects come from the cache below, then `git lfs pull`
+      # The bundled GUI fonts (ADR-0048) are LFS objects: cache .git/lfs keyed by the LFS object list
+      # (review S22: LFS bandwidth quota), then fetch only what the cache does not have.
+      - name: LFS object list
+        shell: bash
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id', '.gitattributes') }}
+      - name: Git LFS pull
+        shell: bash
+        run: git lfs pull
       - name: Build tools
         run: brew install ninja
       - uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
@@ -181,7 +205,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          lfs: true # the bundled GUI fonts (ADR-0048) are LFS objects
+          lfs: false # LFS objects come from the cache below, then `git lfs pull`
+      # The bundled GUI fonts (ADR-0048) are LFS objects: cache .git/lfs keyed by the LFS object list
+      # (review S22: LFS bandwidth quota), then fetch only what the cache does not have.
+      - name: LFS object list
+        shell: bash
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id', '.gitattributes') }}
+      - name: Git LFS pull
+        shell: bash
+        run: git lfs pull
       - name: Install LLVM ${{ env.LLVM_WINDOWS_VERSION }} (checksum verified)
         shell: pwsh
         run: |
