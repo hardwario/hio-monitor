@@ -15,7 +15,6 @@ Item {
     property PlaceholderViewModel vm
     readonly property string pageId: page.vm ? page.vm.pageId : ""
     readonly property bool settings: page.pageId === "settings"
-    readonly property var info: AppViewModel.pages.find(entry => entry.id === page.pageId)
 
     ScrollView {
         id: scroll
@@ -34,7 +33,8 @@ Item {
 
             Label {
                 objectName: "placeholderTitle"
-                text: page.info ? page.info.title : ""
+                // revision: re-read after a language switch.
+                text: AppViewModel.pages.revision >= 0 ? AppViewModel.pages.title(page.pageId) : ""
                 font: Theme.fontTitle
                 color: Theme.text
             }

@@ -56,11 +56,14 @@ Item {
         model: AppViewModel.pages
 
         delegate: Shortcut {
-            required property var modelData
+            id: pageShortcut
 
-            enabled: !modelData.global
-            sequence: shortcuts.registry.portableText("page." + modelData.id)
-            onActivated: AppViewModel.showPage(modelData.id)
+            required property string pageId
+            required property bool isGlobal
+
+            enabled: !pageShortcut.isGlobal
+            sequence: shortcuts.registry.portableText("page." + pageShortcut.pageId)
+            onActivated: AppViewModel.showPage(pageShortcut.pageId)
         }
     }
 }

@@ -3,6 +3,7 @@
 
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QLocale>
 #include <QLockFile>
 #include <QStandardPaths>
 #include <QString>
@@ -64,6 +65,8 @@ int main(int argc, char** argv) {
         return RUN_ALL_TESTS(); // test discovery: no application, no Qt threads
     }
     const QGuiApplication app(argc, argv);
+    // Numbers in texts ("3.30 V") do not depend on the machine's language.
+    QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
     hio::initApplicationIdentity();
     return RUN_ALL_TESTS();
 }

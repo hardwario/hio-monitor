@@ -44,14 +44,13 @@ Popup {
                 wrapMode: Text.Wrap
             }
 
-            SpinBox {
+            StepSpinBox {
                 id: speedBox
 
                 objectName: "speedBox"
                 from: popover.connection.minSpeedKhz
                 to: popover.connection.maxSpeedKhz
-                stepSize: 100
-                editable: true
+                step: 100
                 value: popover.connection.speedKhz
                 Accessible.name: qsTr("J-Link speed (kHz)")
                 onValueModified: popover.connection.speedKhz = speedBox.value
@@ -64,14 +63,13 @@ Popup {
                 wrapMode: Text.Wrap
             }
 
-            SpinBox {
+            StepSpinBox {
                 id: latencyBox
 
                 objectName: "latencyBox"
                 from: popover.connection.minLatencyMs
                 to: popover.connection.maxLatencyMs
-                stepSize: 10
-                editable: true
+                step: 10
                 value: popover.connection.latencyMs
                 Accessible.name: qsTr("RTT latency (ms)")
                 onValueModified: popover.connection.latencyMs = latencyBox.value

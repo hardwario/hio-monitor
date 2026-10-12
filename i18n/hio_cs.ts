@@ -10,33 +10,33 @@
     </message>
     <message>
         <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="42"/>
-        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="56"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="55"/>
         <source>J-Link speed (kHz)</source>
         <translation>Rychlost J-Link (kHz)</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="62"/>
-        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="76"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="61"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="74"/>
         <source>RTT latency (ms)</source>
         <translation>Latence RTT (ms)</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="84"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="82"/>
         <source>Auto-reconnect</source>
         <translation>Automaticky znovu připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="92"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="90"/>
         <source>Reset on connect</source>
         <translation>Reset při připojení</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="100"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="98"/>
         <source>Save console to log file</source>
         <translation>Ukládat konzoli do souboru</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="107"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="105"/>
         <source>Changes apply on the next connect.</source>
         <translation>Změny se projeví při dalším připojení.</translation>
     </message>
@@ -44,22 +44,22 @@
 <context>
     <name>AlreadyRunningDialog</name>
     <message>
-        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="20"/>
+        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="22"/>
         <source>HARDWARIO Monitor</source>
         <translation>HARDWARIO Monitor</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="35"/>
+        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="37"/>
         <source>HARDWARIO Monitor is already running but does not respond.</source>
         <translation>HARDWARIO Monitor už běží, ale neodpovídá.</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="46"/>
+        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="47"/>
         <source>Start anyway</source>
         <translation>Přesto spustit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="56"/>
+        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="57"/>
         <source>Quit</source>
         <translation>Ukončit</translation>
     </message>
@@ -211,27 +211,27 @@
         <translation>Pro změnu cíle se odpojte</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="151"/>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="155"/>
         <source>Choose another probe</source>
         <translation>Vybrat jiný programátor</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="160"/>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="164"/>
         <source>Connect</source>
         <translation>Připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="161"/>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="165"/>
         <source>Cancel</source>
         <translation>Zrušit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="161"/>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="165"/>
         <source>Disconnect</source>
         <translation>Odpojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="172"/>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="176"/>
         <source>Advanced</source>
         <translation>Pokročilé</translation>
     </message>
@@ -346,33 +346,33 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="23"/>
+        <location filename="../app/gui/qml/Main.qml" line="22"/>
         <source>HARDWARIO Monitor</source>
         <translation>HARDWARIO Monitor</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="131"/>
+        <location filename="../app/gui/qml/Main.qml" line="132"/>
         <source>Close the tab?</source>
         <translation>Zavřít kartu?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="132"/>
+        <location filename="../app/gui/qml/Main.qml" line="133"/>
         <source>Cancel and close</source>
         <translation>Zrušit a zavřít</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="133"/>
-        <location filename="../app/gui/qml/Main.qml" line="143"/>
+        <location filename="../app/gui/qml/Main.qml" line="134"/>
+        <location filename="../app/gui/qml/Main.qml" line="144"/>
         <source>Keep running</source>
         <translation>Pokračovat</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="141"/>
+        <location filename="../app/gui/qml/Main.qml" line="142"/>
         <source>Quit HARDWARIO Monitor?</source>
         <translation>Ukončit HARDWARIO Monitor?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="142"/>
+        <location filename="../app/gui/qml/Main.qml" line="143"/>
         <source>Cancel and quit</source>
         <translation>Zrušit a ukončit</translation>
     </message>
@@ -390,7 +390,7 @@
         <translation>Probíhá operace</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/shell/NavRail.qml" line="144"/>
+        <location filename="../app/gui/qml/shell/NavRail.qml" line="151"/>
         <source>Help</source>
         <translation>Nápověda</translation>
     </message>
@@ -507,45 +507,45 @@
 <context>
     <name>Shortcuts</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="251"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="270"/>
         <source>New device tab</source>
         <translation>Nová karta zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="254"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="273"/>
         <source>Close the device tab</source>
         <translation>Zavřít kartu zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="257"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="260"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="276"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="279"/>
         <source>Next tab</source>
         <translation>Další karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="263"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="266"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="282"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="285"/>
         <source>Previous tab</source>
         <translation>Předchozí karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="269"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="288"/>
         <source>Settings</source>
         <translation>Nastavení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="272"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="291"/>
         <source>Connect or disconnect</source>
         <translation>Připojit nebo odpojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="275"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="294"/>
         <source>Reconnect</source>
         <translation>Znovu připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="278"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="281"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="297"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="300"/>
         <source>Keyboard shortcuts</source>
         <translation>Klávesové zkratky</translation>
     </message>
@@ -1599,80 +1599,80 @@
 <context>
     <name>hio::gui::ConnectionViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="128"/>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="142"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="131"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="145"/>
         <source>Disconnected — %1</source>
         <translation>Odpojeno — %1</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="128"/>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="143"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="131"/>
         <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="145"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="147"/>
         <source>Disconnected</source>
         <translation>Odpojeno</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="132"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="135"/>
         <source>Connecting…</source>
         <translation>Připojování…</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="135"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="138"/>
         <source>Connected</source>
         <translation>Připojeno</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="136"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="139"/>
         <source>Connected · %1 V</source>
         <translation>Připojeno · %1 V</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="139"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="142"/>
         <source>Reconnecting… (%1)</source>
         <translation>Opětovné připojování… (%1)</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="140"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="143"/>
         <source>Reconnecting…</source>
         <translation>Opětovné připojování…</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="406"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="412"/>
         <source>target not powered</source>
         <translation>zařízení není napájené</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="408"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="414"/>
         <source>J-Link not found</source>
         <translation>J-Link nenalezen</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="410"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="416"/>
         <source>J-Link used by another program</source>
         <translation>J-Link používá jiný program</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="412"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="418"/>
         <source>J-Link could not be opened</source>
         <translation>J-Link nelze otevřít</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="414"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="420"/>
         <source>target does not respond</source>
         <translation>zařízení neodpovídá</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="417"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="423"/>
         <source>no RTT console found</source>
         <translation>konzole RTT nenalezena</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="421"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="427"/>
         <source>connection lost</source>
         <translation>spojení ztraceno</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="425"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="431"/>
         <source>J-Link Software missing</source>
         <translation>chybí software J-Link</translation>
     </message>
@@ -1680,42 +1680,47 @@
 <context>
     <name>hio::gui::DeviceTabViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="90"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="93"/>
         <source>New device</source>
         <translation>Nové zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="263"/>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="322"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="278"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="337"/>
         <source>— disconnected: %1 —</source>
         <translation>— odpojeno: %1 —</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="277"/>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="323"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="292"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="338"/>
         <source>— disconnected —</source>
         <translation>— odpojeno —</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="316"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="331"/>
         <source>— connected —</source>
         <translation>— připojeno —</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="350"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="365"/>
         <source>— paused: %1 —</source>
         <translation>— pozastaveno: %1 —</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="378"/>
+        <source>— resumed —</source>
+        <translation>— obnoveno —</translation>
     </message>
 </context>
 <context>
     <name>hio::gui::ProbePickerViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/probe_picker_view_model.cpp" line="157"/>
+        <location filename="../app/gui/src/viewmodels/probe_picker_view_model.cpp" line="158"/>
         <source>Application MCU (app)</source>
         <translation>Aplikační MCU (app)</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/probe_picker_view_model.cpp" line="160"/>
+        <location filename="../app/gui/src/viewmodels/probe_picker_view_model.cpp" line="161"/>
         <source>LTE modem MCU (lte)</source>
         <translation>MCU LTE modemu (lte)</translation>
     </message>

@@ -7,6 +7,7 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QString>
@@ -106,13 +107,29 @@ TEST_F(SingleInstanceTest, AStaleLockIsTakenOver) {
     EXPECT_EQ(next.start(), SingleInstance::Result::Primary);
 }
 
-TEST(SingleInstanceNames, DefaultServerNameIsSafe) {
+TEST_F(SingleInstanceTest, AListenFailureTurnsSingleInstanceOff) {
+    // Review S11: without the server the lock is given up, so a later launch is not told that a
+    // running instance "does not respond".
+    const QString unusable =
+        QString::fromStdU16String((root() / "gui.lock").u16string()) + QStringLiteral("/sock");
+    SingleInstance first(lockFile(), unusable); // a path below a file: listen() fails
+    EXPECT_EQ(first.start(), SingleInstance::Result::Primary);
+    EXPECT_FALSE(first.serving());
+    SingleInstance second(lockFile(), serverName());
+    EXPECT_EQ(second.start(), SingleInstance::Result::Primary);
+    EXPECT_TRUE(second.serving());
+}
+
+TEST(SingleInstanceNames, DefaultServerNameIsPrivate) {
     const QString name = SingleInstance::defaultServerName();
+#ifdef Q_OS_WIN
     EXPECT_TRUE(name.startsWith(QStringLiteral("hio-monitor-")));
-    for (const QChar character : name) {
-        EXPECT_TRUE(character.isLetterOrNumber() || character == QLatin1Char('-') ||
-                    character == QLatin1Char('_'));
-    }
+#else
+    // A full path in the user's own directory, never a name in /tmp (review S11).
+    EXPECT_TRUE(QFileInfo(name).isAbsolute()) << name.toStdString();
+    EXPECT_TRUE(name.endsWith(QStringLiteral("/hio-monitor.sock")));
+    EXPECT_FALSE(name.startsWith(QStringLiteral("/tmp/hio-monitor")));
+#endif
 }
 
 } // namespace

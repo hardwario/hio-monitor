@@ -67,6 +67,12 @@ TestCase {
     }
 
     Component {
+        id: spinComponent
+
+        StepSpinBox {}
+    }
+
+    Component {
         id: overlayComponent
 
         ShortcutOverlay {}
@@ -257,6 +263,42 @@ TestCase {
         mouseClick(findChild(stepper, "phaseCancel"));
         compare(cancelled, 1);
         waitForRendering(stepper);
+    }
+
+    // Review S15: +/− snap to the step grid; typed values stay exact.
+    function test_stepSpinBox() {
+        const box = createTemporaryObject(spinComponent, testCase, { from: 1, to: 1000, step: 10, value: 1 });
+        let modified = 0;
+        box.valueModified.connect(() => ++modified);
+        box.forceActiveFocus();
+        keyClick(Qt.Key_Up);
+        compare(box.value, 10);
+        keyClick(Qt.Key_Up);
+        compare(box.value, 20);
+        box.value = 15;
+        keyClick(Qt.Key_Down);
+        compare(box.value, 10);
+        compare(modified, 3);
+        // The + and − buttons.
+        mousePress(box.up.indicator);
+        mouseRelease(box.up.indicator);
+        compare(box.value, 20);
+        mousePress(box.down.indicator);
+        mouseRelease(box.down.indicator);
+        compare(box.value, 10);
+        // The wheel.
+        mouseWheel(box, box.width / 2, box.height / 2, 0, 120);
+        compare(box.value, 20);
+        // Typed: exact.
+        box.contentItem.selectAll();
+        keyClick(Qt.Key_1);
+        keyClick(Qt.Key_5);
+        keyClick(Qt.Key_Return);
+        compare(box.value, 15);
+        // Bounds.
+        box.value = 995;
+        keyClick(Qt.Key_Up);
+        compare(box.value, 1000);
     }
 
     function test_toast() {

@@ -5,11 +5,13 @@
 //
 // One owned std::jthread for the application (owned by AppViewModel). While at least one picker is
 // visible (acquire()/release(), an atomic count set from the GUI thread) it locates the JLinkARM
-// library, enumerates the probes with a separate short-lived library copy (jlink::enumerateProbes,
-// ADR-0030) and reads the cross-process lock owner of every probe (ProbeLock::owner) every
-// `interval` (2 s), and once at once on scanNow(). At most one scan runs at a time. It never
-// touches the SessionRegistry (GUI-owned): the "in use by a tab" information is added by the
-// pickers on the GUI thread.
+// library, enumerates the probes and reads the cross-process lock owner of every probe
+// (ProbeLock::owner) every `interval` (2 s), and once at once on scanNow(). ADR-0093: the worker
+// keeps one jlink::ProbeEnumerator (its own library copy, ADR-0030) loaded while a picker is
+// visible, unloads it when the last picker goes away and loads a new one when the library location
+// changes; a Refresh without a visible picker uses a copy only for that scan. At most one scan runs
+// at a time. It never touches the SessionRegistry (GUI-owned): the "in use by a tab" information is
+// added by the pickers on the GUI thread.
 //
 // Results are handed over in a mutex-protected slot; the worker wakes the GUI thread with one
 // coalesced queued call by name (the DeviceSession pattern, ADR-0031), and `scanned` is emitted
@@ -21,6 +23,7 @@
 #include "hio/core/error.h"
 #include "hio/device/probe_lock.h"
 #include "hio/hw/jlink/library_locator.h"
+#include "hio/hw/jlink/probe_enumerator.h"
 #include "hio/hw/jlink/types.h"
 
 #include <QMetaType>
@@ -73,6 +76,10 @@ public:
     void acquire();
     void release();
     [[nodiscard]] int activeCount() const noexcept { return m_active.load(); }
+    // Diagnostics and tests (ADR-0093): the worker holds a library copy now; how many copies it
+    // has loaded so far.
+    [[nodiscard]] bool libraryLoaded() const noexcept { return m_libraryLoaded.load(); }
+    [[nodiscard]] int libraryLoads() const noexcept { return m_libraryLoads.load(); }
 
     // Scans as soon as possible (Refresh), also when no picker is visible.
     void scanNow();
@@ -88,7 +95,9 @@ private:
     Q_INVOKABLE void deliver();
 
     void run(const std::stop_token& stop);
-    [[nodiscard]] ProbeScan scan(const jlink::LocatorOptions& options) const;
+    // Worker thread.
+    [[nodiscard]] ProbeScan scan(const jlink::LocatorOptions& options,
+                                 std::optional<jlink::ProbeEnumerator>& enumerator);
 
     const std::filesystem::path m_instanceRoot;
     const std::filesystem::path m_lockDirectory;
@@ -96,10 +105,13 @@ private:
 
     std::atomic<int> m_active{0};
     std::atomic<bool> m_deliverPending{false};
+    std::atomic<bool> m_libraryLoaded{false};
+    std::atomic<int> m_libraryLoads{0};
 
     std::mutex m_mutex; // guards the members below
     std::condition_variable_any m_wake;
     bool m_scanRequested = false;
+    bool m_activityChanged = false; // the last picker was released
     jlink::LocatorOptions m_options;
     std::optional<ProbeScan> m_pending; // the newest result not yet delivered
     std::uint64_t m_sequence = 0;

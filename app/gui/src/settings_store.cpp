@@ -185,6 +185,19 @@ QVariant SettingsStore::value(QAnyStringView key) const {
     return stored;
 }
 
+Status SettingsStore::removeGroup(const QString& group) {
+    if (!m_settings) {
+        const QString prefix = group + QLatin1Char('/');
+        m_memory.removeIf([&prefix](const auto& entry) { return entry.key().startsWith(prefix); });
+        return {};
+    }
+    Status status = m_settings->remove(toStdString(group));
+    if (status) {
+        status = m_settings->sync();
+    }
+    return status;
+}
+
 Status SettingsStore::setValue(QAnyStringView key, const QVariant& newValue) {
     const QString path = key.toString();
     const SettingKey* spec = find(path);

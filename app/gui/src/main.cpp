@@ -17,6 +17,7 @@
 #include "hio/device/session_registry.h"
 #include "language_manager.h"
 #include "pages/builtin_pages.h"
+#include "settings_store.h"
 #include "single_instance.h"
 #include "viewmodels/app_view_model.h"
 #include "workers/probe_scanner.h"
@@ -30,6 +31,7 @@
 #include <QQuickStyle>
 #include <QString>
 #include <QStringLiteral>
+#include <QStyleHints>
 #include <QVariant>
 #include <QWindow>
 #include <QtCore/qnamespace.h>
@@ -47,7 +49,23 @@ namespace {
 // "HARDWARIO Monitor is already running but does not respond." [Quit] [Start anyway].
 // True for "Start anyway".
 bool askStartAnyway() {
+    // A minimal context (review S7): the settings for the language and the theme, no
+    // AppViewModel (no scanner thread, no registry); the dialog does not use the AppViewModel
+    // singleton.
+    std::optional<hio::Settings> settings;
+    if (auto opened = hio::Settings::openDefault(); opened) {
+        settings.emplace(std::move(*opened));
+    }
+    hio::gui::SettingsStore store(std::move(settings));
+    hio::gui::AppViewModel::registerShellKeys(store);
+    const hio::gui::LanguageManager language(&store);
+    const QString theme = store.value(QStringLiteral("ui/theme")).toString();
+    const bool dark = theme == QStringLiteral("dark") ||
+                      (theme == QStringLiteral("system") &&
+                       QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+
     QQmlApplicationEngine engine;
+    engine.setInitialProperties({{QStringLiteral("darkTheme"), dark}});
     engine.loadFromModule("HardwarioMonitor", "AlreadyRunningDialog");
     if (engine.rootObjects().isEmpty()) {
         return false;

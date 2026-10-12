@@ -108,7 +108,7 @@ TestCase {
         tryCompare(tab, "state", DeviceTabViewModel.Connected, 10000);
         compare(tab.title, "CHESTER app · 801000002");
         compare(currentBar("probeLabel").text, "Test Probe 2 · 801000002");
-        tryCompare(currentBar("stateText"), "text", "Connected");
+        tryCompare(currentBar("stateText"), "text", "Connected · 3.30 V"); // ADR-0091
         compare(currentBar("connectionAction").text, "Disconnect");
         compare(currentBar("targetBox").enabled, false); // disabled while connected
         click(currentBar("connectionAction"));

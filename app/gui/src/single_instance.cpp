@@ -46,17 +46,17 @@ SingleInstance::~SingleInstance() {
     }
 }
 
+bool SingleInstance::serving() const { return m_server.isListening(); }
+
 QString SingleInstance::defaultLockFile() {
     return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) +
            QStringLiteral("/gui.lock");
 }
 
 QString SingleInstance::defaultServerName() {
-    QString user = qEnvironmentVariable("USER");
-    if (user.isEmpty()) {
-        user = qEnvironmentVariable("USERNAME");
-    }
-    // Only characters that are valid in a socket / pipe name.
+#ifdef Q_OS_WIN
+    // A named pipe; the user name keeps the pipes of several users apart.
+    QString user = qEnvironmentVariable("USERNAME");
     QString safe;
     for (const QChar character : user) {
         safe.append(character.isLetterOrNumber() || character == QLatin1Char('_') ||
@@ -65,6 +65,15 @@ QString SingleInstance::defaultServerName() {
                         : QLatin1Char('_'));
     }
     return QStringLiteral("hio-monitor-") + (safe.isEmpty() ? QStringLiteral("user") : safe);
+#else
+    // A full socket path in a directory only this user can write (review S11): the runtime
+    // directory ($XDG_RUNTIME_DIR, 0700) or the application data directory, never /tmp.
+    QString directory = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (directory.isEmpty()) {
+        directory = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    }
+    return directory + QStringLiteral("/hio-monitor.sock");
+#endif
 }
 
 SingleInstance::Result SingleInstance::start() {
@@ -72,11 +81,16 @@ SingleInstance::Result SingleInstance::start() {
     auto lock = std::make_unique<QLockFile>(m_lockFile);
     lock->setStaleLockTime(std::chrono::milliseconds(0)); // stale only when the owner is gone
     if (lock->tryLock(std::chrono::milliseconds(0))) {
-        m_lock = std::move(lock);
         if (!listen()) {
-            qCWarning(lcGui) << "Single instance: cannot listen on" << m_serverName << "-"
-                             << m_server.errorString();
+            // Without the server a later launch could not reach this instance and would report
+            // it as not responding, so the lock is given up: single-instance is off for this run
+            // (review S11).
+            qCCritical(lcGui) << "Single instance: cannot listen on" << m_serverName << "-"
+                              << m_server.errorString() << "- single-instance mode is off";
+            lock->unlock();
+            return Result::Primary;
         }
+        m_lock = std::move(lock);
         return Result::Primary;
     }
     if (askToActivate()) {
@@ -101,6 +115,9 @@ void SingleInstance::startWithoutLock() {
 
 bool SingleInstance::listen() {
     // A socket file left behind by a crashed instance (Unix) would block listen().
+    if (QFileInfo(m_serverName).isAbsolute()) {
+        QDir().mkpath(QFileInfo(m_serverName).absolutePath());
+    }
     QLocalServer::removeServer(m_serverName);
     m_server.setSocketOptions(QLocalServer::UserAccessOption);
     return m_server.listen(m_serverName);

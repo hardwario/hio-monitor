@@ -25,6 +25,7 @@ set(HIO_GUI_QML_FILES
     qml/components/PhaseStepper.qml
     qml/components/ShortcutOverlay.qml
     qml/components/StateDot.qml
+    qml/components/StepSpinBox.qml
     qml/components/Toast.qml
     qml/components/WarningBanner.qml
     qml/pages/ChooseDevicePage.qml
@@ -76,6 +77,8 @@ qt_add_qml_module(hio_gui
         src/viewmodels/device_tab_view_model.h
         src/viewmodels/error_info.cpp
         src/viewmodels/error_info.h
+        src/viewmodels/page_list_model.cpp
+        src/viewmodels/page_list_model.h
         src/viewmodels/page_registry.cpp
         src/viewmodels/page_registry.h
         src/viewmodels/probe_picker_view_model.cpp

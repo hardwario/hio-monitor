@@ -60,6 +60,9 @@ DeviceTabViewModel::DeviceTabViewModel(TabContext context, QObject* parent)
             });
     m_connection = new ConnectionViewModel( // NOLINT(cppcoreguidelines-owning-memory)
         this, m_context.settings);
+    // A dismissed error clears the tab's red dot too (S10).
+    connect(m_connection, &ConnectionViewModel::errorChanged, this,
+            &DeviceTabViewModel::updateState);
 
     if (m_context.pages != nullptr) {
         for (const PageDescriptor& page : m_context.pages->pages()) {
@@ -155,13 +158,15 @@ bool DeviceTabViewModel::configure(const QString& profileId, const QString& targ
 }
 
 void DeviceTabViewModel::setConsoleTarget(const QString& targetId) {
-    if (targetId == m_targetId || m_session || m_profile == nullptr) {
+    if (targetId == m_targetId || isBusy() || (m_session && !sessionStopped()) ||
+        m_profile == nullptr) {
         return;
     }
     const device::TargetProfile* target = device::findTarget(*m_profile, toStdString(targetId));
     if (target == nullptr) {
         return;
     }
+    releaseSession(); // a stopped session of the old target (S1)
     m_targetId = targetId;
     m_connection->loadOptions(m_serial, *target);
     m_connection->setOpenError(std::nullopt);
@@ -170,21 +175,31 @@ void DeviceTabViewModel::setConsoleTarget(const QString& targetId) {
     updateState();
 }
 
-Status DeviceTabViewModel::ensureSession(std::string_view targetId, bool attachRtt) {
-    if (m_session) {
-        return {};
-    }
-    return openSession(targetId, attachRtt);
+bool DeviceTabViewModel::sessionStopped() const {
+    return m_session && m_session->connection().state == device::ConnectionState::Stopped;
 }
 
-Status DeviceTabViewModel::openSession(std::string_view targetId, bool attachRtt) {
+Status DeviceTabViewModel::ensureSession() {
+    if (m_busy) {
+        return std::unexpected(makeError(ErrorCode::InternalBusy, "the tab is busy"));
+    }
+    if (m_session && !sessionStopped()) {
+        return {};
+    }
+    // A stopped session (fatal error) is replaced by a new one (S1).
+    releaseSession();
+    return openSession();
+}
+
+Status DeviceTabViewModel::openSession() {
     if (m_choosing || !m_serial || m_profile == nullptr) {
         return std::unexpected(makeError(ErrorCode::UsageInvalidArgument, "no probe chosen"));
     }
+    const std::string targetId = toStdString(m_targetId);
     const device::TargetProfile* target = device::findTarget(*m_profile, targetId);
     if (target == nullptr) {
-        return std::unexpected(makeError(ErrorCode::UsageInvalidArgument,
-                                         "unknown target '" + std::string(targetId) + "'"));
+        return std::unexpected(
+            makeError(ErrorCode::UsageInvalidArgument, "unknown target '" + targetId + "'"));
     }
     if (m_context.registry == nullptr) {
         return std::unexpected(makeError(ErrorCode::InternalUnexpected, "no session registry"));
@@ -206,7 +221,7 @@ Status DeviceTabViewModel::openSession(std::string_view targetId, bool attachRtt
     sessionOptions.autoReconnect = options.autoReconnect;
     sessionOptions.resetOnOpen = options.resetOnOpen;
     // A target without an RTT console (CHESTER lte) connects without RTT.
-    sessionOptions.attachRtt = attachRtt && !target->rttTerminal.empty();
+    sessionOptions.attachRtt = !target->rttTerminal.empty();
     // nullopt = the default console file; an empty path = none.
     if (!options.logToFile) {
         sessionOptions.consoleFile = std::filesystem::path();
@@ -257,7 +272,7 @@ void DeviceTabViewModel::connectDevice() {
         // A stopped or failed session is replaced by a fresh one (new options apply).
         releaseSession();
     }
-    if (Status status = openSession(toStdString(m_targetId), true); !status) {
+    if (Status status = openSession(); !status) {
         qCInfo(lcGui) << "Connect failed:" << toQString(idOf(status.error().code))
                       << toQString(status.error().detail);
         addMarker(tr("— disconnected: %1 —").arg(ConnectionViewModel::shortCause(status.error())));
@@ -359,6 +374,9 @@ void DeviceTabViewModel::clearBusy(const QString& pageId) {
         return;
     }
     m_busy.reset();
+    if (!m_closePending) {
+        addMarker(tr("— resumed —"));
+    }
     busyChanged(); // signal
     m_connection->refresh();
     updateState();
@@ -397,9 +415,11 @@ void DeviceTabViewModel::shutdown() {
         m_picker->setActive(false);
     }
     if (m_session) {
-        m_session->disconnect(this);
-        m_session->close();
-        m_session.reset();
+        // Pages drop their pointers on sessionChanged (contract), before the session is deleted.
+        std::unique_ptr<device::DeviceSession> session = std::move(m_session);
+        session->disconnect(this);
+        session->close();
+        sessionChanged(); // signal
     }
     m_retiredSessions.clear();
 }

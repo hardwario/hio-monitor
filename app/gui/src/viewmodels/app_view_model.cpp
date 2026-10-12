@@ -14,6 +14,7 @@
 #include "system_preferences.h"
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
+#include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
 #include "workers/probe_scanner.h"
@@ -91,7 +92,8 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
       // children of this object (destroyed explicitly in the right order by the destructor).
       m_settings(new SettingsStore( // NOLINT(cppcoreguidelines-owning-memory)
           std::move(m_options.settings), this)),
-      m_shortcuts(new ShortcutRegistry(this)), // NOLINT(cppcoreguidelines-owning-memory)
+      m_shortcuts(new ShortcutRegistry(this)),      // NOLINT(cppcoreguidelines-owning-memory)
+      m_pageList(new PageListModel(m_pages, this)), // NOLINT(cppcoreguidelines-owning-memory)
       m_registry(std::make_unique<device::SessionRegistry>(m_options.registry)),
       m_scanner(std::make_unique<ProbeScanner>(m_options.registry.instanceRoot,
                                                m_options.registry.lockDirectory,
@@ -106,7 +108,7 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
                         {QStringLiteral("nativeName"), toQString(info.nativeName)}});
     }
 
-    registerShellKeys();
+    registerShellKeys(*m_settings);
     registerShellShortcuts();
     // The plans' pages, sections, keys and shortcuts: before the first tab exists (contract).
     if (m_options.registerExtensions) {
@@ -150,6 +152,23 @@ AppViewModel::~AppViewModel() {
         std::unique_ptr<DeviceTabViewModel> tab = m_tabs->take(m_tabs->count() - 1);
         tab->shutdown();
     }
+    // Then the remaining children that use the members (review S12): closed tabs still waiting
+    // for their deleteLater() and the global page view models. The store, the shortcut registry
+    // and the models are deleted by QObject after the members.
+    const QObjectList current = children(); // a copy: setParent() changes children()
+    for (QObject* child : current) {
+        if (qobject_cast<DeviceTabViewModel*>(child) != nullptr) {
+            child->setParent(nullptr);
+            const std::unique_ptr<QObject> owned(child); // deleted now, not by QObject later
+        }
+    }
+    for (auto& [pageId, viewModel] : m_globalViewModels) {
+        if (viewModel != nullptr && viewModel->parent() == this) {
+            viewModel->setParent(nullptr);
+            const std::unique_ptr<QObject> owned(viewModel);
+        }
+        viewModel = nullptr;
+    }
     // The members follow: the scanner's worker is joined, then the registry is destroyed.
 }
 
@@ -170,7 +189,7 @@ AppViewModel* AppViewModel::create(QQmlEngine* qmlEngine, QJSEngine* /*jsEngine*
         qmlEngine);
 }
 
-void AppViewModel::registerShellKeys() {
+void AppViewModel::registerShellKeys(SettingsStore& store) {
     const std::array keys{
         SettingKey{.path = QStringLiteral("ui/language"),
                    .type = QMetaType::QString,
@@ -235,7 +254,7 @@ void AppViewModel::registerShellKeys() {
                    .defaultValue = QString(),
                    .validator = validators::maxLength(512)},
     };
-    m_settings->registerKeys(keys);
+    store.registerKeys(keys);
 }
 
 void AppViewModel::registerShellShortcuts() {
@@ -364,18 +383,6 @@ void AppViewModel::setCurrentTab(int index) {
 
 DeviceTabViewModel* AppViewModel::currentTabViewModel() const { return m_tabs->at(m_currentTab); }
 
-QVariantList AppViewModel::pages() const {
-    QVariantList list;
-    for (const PageDescriptor& page : m_pages.pages()) {
-        list.append(QVariantMap{{QStringLiteral("id"), page.id},
-                                {QStringLiteral("title"), PageRegistry::title(page)},
-                                {QStringLiteral("icon"), page.icon},
-                                {QStringLiteral("qml"), page.qml},
-                                {QStringLiteral("global"), page.global}});
-    }
-    return list;
-}
-
 void AppViewModel::setWindowWidth(int width) {
     if (width == m_windowWidth) {
         return;
@@ -463,13 +470,21 @@ void AppViewModel::closeTab(int index, bool force) {
     }
     if (tab->isBusy()) {
         if (!force) {
-            closeConfirmationNeeded(index, tab->busyConfirmText()); // signal
+            // The tab itself, not its index: tabs may move while the dialog is open (S6).
+            closeConfirmationNeeded(tab, tab->busyConfirmText()); // signal
         } else {
             tab->cancelBusy(true); // closes on closeReady
         }
         return;
     }
     removeTab(index);
+}
+
+void AppViewModel::closeTabObject(DeviceTabViewModel* tab, bool force) {
+    const int index = m_tabs->indexOf(tab);
+    if (index >= 0) {
+        closeTab(index, force);
+    }
 }
 
 void AppViewModel::removeTab(int index) {
@@ -798,6 +813,19 @@ void AppViewModel::expireToast(std::uint64_t id) {
     }
 }
 
+int AppViewModel::stepValue(int value, int step, int direction, int minimum, int maximum) {
+    if (step <= 0 || direction == 0) {
+        return std::clamp(value, minimum, maximum);
+    }
+    // Floor / ceiling division that also works for negative values.
+    const auto floorDiv = [](int a, int b) { return (a / b) - ((a % b != 0 && a < 0) ? 1 : 0); };
+    const auto ceilDiv = [](int a, int b) { return (a / b) + ((a % b != 0 && a > 0) ? 1 : 0); };
+    const long long next = direction > 0
+                               ? (static_cast<long long>(floorDiv(value, step)) + 1) * step
+                               : (static_cast<long long>(ceilDiv(value, step)) - 1) * step;
+    return static_cast<int>(std::clamp<long long>(next, minimum, maximum));
+}
+
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static): a QML invokable
 void AppViewModel::copyToClipboard(const QString& text) {
     if (QClipboard* clipboard = QGuiApplication::clipboard(); clipboard != nullptr) {
@@ -818,7 +846,7 @@ void AppViewModel::onScan(const ProbeScan& scan) {
 }
 
 void AppViewModel::retranslate() {
-    pagesChanged(); // signal
+    m_pageList->retranslate();
     m_shortcuts->retranslate();
     for (int i = 0; i < m_tabs->count(); ++i) {
         m_tabs->at(i)->retranslate();

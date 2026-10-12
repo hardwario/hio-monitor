@@ -104,6 +104,9 @@ TestCase {
         verify(items.length >= 5, items.length);
         checkInside(items);
         checkNoOverlap(items);
+        // The state text names the cause in full (two lines when needed, review S13).
+        const state = findAll(window.contentItem, "stateText").filter(effectivelyVisible)[0];
+        verify(!state.truncated, state.text);
         // The ErrorPanel at a small height: headline + primary action, inside the window.
         const compact = findAll(window.contentItem, "errorPrimaryCompact").filter(effectivelyVisible);
         if (data.height < 700)

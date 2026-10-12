@@ -8,6 +8,7 @@
 
 #include <QAbstractListModel>
 #include <QByteArray>
+#include <QCoreApplication>
 #include <QDate>
 #include <QHash>
 #include <QLocale>
@@ -227,7 +228,11 @@ std::vector<ProbePickerViewModel::Row> ProbePickerViewModel::rowsOf(const ProbeS
                                                     : toQString(scanned.probe.product);
         row.firmware = firmwareDate(toQString(scanned.probe.firmware));
         row.inUseTab = m_tabUsingProbe ? m_tabUsingProbe(row.serial) : -1;
-        if (row.inUseTab < 0 && scanned.lockOwner) {
+        // Our own lock (a tab that just disconnected, before the next scan) is not "another
+        // program" (review S8); the tabs of this process are covered by inUseTab.
+        const bool ownLock =
+            scanned.lockOwner && scanned.lockOwner->pid == QCoreApplication::applicationPid();
+        if (row.inUseTab < 0 && scanned.lockOwner && !ownLock) {
             row.inUseOther = QStringLiteral("%1, PID %2")
                                  .arg(toQString(scanned.lockOwner->app))
                                  .arg(scanned.lockOwner->pid);

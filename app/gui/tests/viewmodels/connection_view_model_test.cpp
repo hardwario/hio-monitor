@@ -10,6 +10,7 @@
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/error_info.h"
 
+#include <QLocale>
 #include <QSettings>
 #include <QString>
 #include <QStringList>
@@ -59,39 +60,56 @@ TEST_F(ConnectionTest, StateTextForEveryConnectionEvent) {
     EXPECT_EQ(vm.action(), QStringLiteral("connect"));
     EXPECT_TRUE(std::isnan(vm.targetVolts()));
 
-    vm.setConnection(ConnectionEvent{.state = ConnectionState::Connecting, .error = std::nullopt});
+    vm.setConnection(ConnectionEvent{.state = ConnectionState::Connecting,
+                                     .error = std::nullopt,
+                                     .targetMillivolts = std::nullopt});
     EXPECT_EQ(vm.stateText(), QStringLiteral("Connecting…"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("connecting"));
     EXPECT_EQ(vm.action(), QStringLiteral("cancel"));
 
-    vm.setConnection(ConnectionEvent{.state = ConnectionState::Connected, .error = std::nullopt});
+    vm.setConnection(ConnectionEvent{.state = ConnectionState::Connected,
+                                     .error = std::nullopt,
+                                     .targetMillivolts = std::nullopt});
     EXPECT_EQ(vm.stateText(), QStringLiteral("Connected"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("connected"));
     EXPECT_EQ(vm.action(), QStringLiteral("disconnect"));
     EXPECT_FALSE(vm.error().valid());
 
+    // ADR-0091: the measured target voltage while connected.
+    vm.setConnection(ConnectionEvent{
+        .state = ConnectionState::Connected, .error = std::nullopt, .targetMillivolts = 3300});
+    EXPECT_EQ(vm.stateText(), QStringLiteral("Connected · 3.30 V"));
+    EXPECT_DOUBLE_EQ(vm.targetVolts(), 3.3);
+
     vm.setConnection(ConnectionEvent{.state = ConnectionState::Disconnected,
-                                     .error = hio::makeError(ErrorCode::TargetNoPower)});
+                                     .error = hio::makeError(ErrorCode::TargetNoPower),
+                                     .targetMillivolts = std::nullopt});
     EXPECT_EQ(vm.stateText(), QStringLiteral("Reconnecting… (target not powered)"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("reconnecting"));
     EXPECT_EQ(vm.action(), QStringLiteral("disconnect"));
     EXPECT_EQ(vm.error().code(), QStringLiteral("target.no_power"));
 
-    vm.setConnection(
-        ConnectionEvent{.state = ConnectionState::Disconnected, .error = std::nullopt});
+    vm.setConnection(ConnectionEvent{.state = ConnectionState::Disconnected,
+                                     .error = std::nullopt,
+                                     .targetMillivolts = std::nullopt});
     EXPECT_EQ(vm.stateText(), QStringLiteral("Reconnecting…"));
 
     vm.setConnection(ConnectionEvent{.state = ConnectionState::Stopped,
-                                     .error = hio::makeError(ErrorCode::TargetConnectFailed)});
+                                     .error = hio::makeError(ErrorCode::TargetConnectFailed),
+                                     .targetMillivolts = std::nullopt});
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected — target does not respond"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("error"));
     EXPECT_EQ(vm.action(), QStringLiteral("connect"));
 
-    vm.setConnection(ConnectionEvent{.state = ConnectionState::Stopped, .error = std::nullopt});
+    vm.setConnection(ConnectionEvent{.state = ConnectionState::Stopped,
+                                     .error = std::nullopt,
+                                     .targetMillivolts = std::nullopt});
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("idle"));
 
-    vm.setConnection(ConnectionEvent{.state = ConnectionState::Connected, .error = std::nullopt});
+    vm.setConnection(ConnectionEvent{.state = ConnectionState::Connected,
+                                     .error = std::nullopt,
+                                     .targetMillivolts = std::nullopt});
     vm.setConnection(std::nullopt);
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected"));
 
@@ -103,6 +121,21 @@ TEST_F(ConnectionTest, StateTextForEveryConnectionEvent) {
     vm.triggerErrorAction(hio::gui::error_action::Dismiss);
     EXPECT_FALSE(vm.error().valid());
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected"));
+}
+
+TEST_F(ConnectionTest, VoltageFollowsTheLocale) {
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    const QLocale previous;
+    QLocale::setDefault(QLocale(QStringLiteral("cs")));
+    connection().setConnection(ConnectionEvent{
+        .state = ConnectionState::Connected, .error = std::nullopt, .targetMillivolts = 3300});
+    EXPECT_EQ(connection().stateText(), QStringLiteral("Connected · 3,30 V"));
+    QLocale::setDefault(previous);
+    // Not measured: no voltage.
+    connection().setConnection(ConnectionEvent{.state = ConnectionState::Connected,
+                                               .error = std::nullopt,
+                                               .targetMillivolts = std::nullopt});
+    EXPECT_EQ(connection().stateText(), QStringLiteral("Connected"));
 }
 
 TEST_F(ConnectionTest, ShortCauses) {
@@ -170,6 +203,12 @@ TEST_F(ConnectionTest, AtMost32ProbesAreRemembered) {
     ASSERT_EQ(recent.size(), 32);
     EXPECT_EQ(recent.front(), QStringLiteral("40"));
     EXPECT_EQ(recent.back(), QStringLiteral("9"));
+    // The groups of the forgotten probes are removed from the file (ADR-0092).
+    const QSettings raw(QString::fromStdU16String(settingsFile().u16string()),
+                        QSettings::IniFormat);
+    EXPECT_FALSE(raw.contains(QStringLiteral("probes/3/speedKhz")));
+    EXPECT_FALSE(raw.childGroups().isEmpty());
+    EXPECT_TRUE(raw.contains(QStringLiteral("probes/39/speedKhz")));
     // A forgotten probe gets the defaults again.
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 3));
     EXPECT_EQ(connection().speedKhz(), 2000);

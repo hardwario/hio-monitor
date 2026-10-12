@@ -5,13 +5,16 @@
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
+#include "viewmodels/page_list_model.h"
 
+#include <QAbstractItemModel>
 #include <QByteArray>
 #include <QRect>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSize>
 #include <QString>
+#include <QUrl>
 #include <QVariant>
 #include <QVariantMap>
 #include <QWindow>
@@ -185,13 +188,16 @@ TEST_F(AppViewModelTest, Theme) {
 
 TEST_F(AppViewModelTest, PagesAndGlobalPages) {
     const auto app = makeApp();
-    const QVariantList pages = app->pages();
-    ASSERT_EQ(pages.size(), 4);
-    EXPECT_EQ(pages[0].toMap().value(QStringLiteral("id")).toString(), QStringLiteral("console"));
-    EXPECT_EQ(pages[1].toMap().value(QStringLiteral("id")).toString(), QStringLiteral("flash"));
-    EXPECT_EQ(pages[2].toMap().value(QStringLiteral("id")).toString(), QStringLiteral("test"));
-    EXPECT_EQ(pages[3].toMap().value(QStringLiteral("id")).toString(), QStringLiteral("settings"));
-    EXPECT_TRUE(pages[3].toMap().value(QStringLiteral("global")).toBool());
+    const hio::gui::PageListModel& pages = *app->pages();
+    ASSERT_EQ(pages.rowCount(), 4);
+    const auto id = [&pages](int row) {
+        return pages.data(pages.index(row), hio::gui::PageListModel::PageIdRole).toString();
+    };
+    EXPECT_EQ(id(0), QStringLiteral("console"));
+    EXPECT_EQ(id(1), QStringLiteral("flash"));
+    EXPECT_EQ(id(2), QStringLiteral("test"));
+    EXPECT_EQ(id(3), QStringLiteral("settings"));
+    EXPECT_TRUE(pages.data(pages.index(3), hio::gui::PageListModel::GlobalRole).toBool());
 
     ASSERT_NE(app->globalPageViewModel(QStringLiteral("settings")), nullptr);
     EXPECT_EQ(app->globalPageViewModel(QStringLiteral("settings"))->parent(), app.get());
@@ -202,6 +208,47 @@ TEST_F(AppViewModelTest, PagesAndGlobalPages) {
     EXPECT_EQ(app->globalPage(), QStringLiteral("settings"));
     app->showPage(QStringLiteral("console"));
     EXPECT_TRUE(app->globalPage().isEmpty());
+}
+
+TEST_F(AppViewModelTest, PageModelUpdatesTitlesOnly) {
+    // Review S9: a language switch changes the titles (dataChanged), not the rows.
+    const auto app = makeApp();
+    hio::gui::PageListModel& pages = *app->pages();
+    ASSERT_EQ(pages.rowCount(), 4);
+    QSignalSpy reset(&pages, &QAbstractItemModel::modelReset);
+    QSignalSpy changed(&pages, &QAbstractItemModel::dataChanged);
+    pages.retranslate();
+    EXPECT_EQ(reset.count(), 0);
+    EXPECT_EQ(changed.count(), 1);
+    EXPECT_EQ(pages.revision(), 1);
+    EXPECT_EQ(pages.title(QStringLiteral("flash")), QStringLiteral("Flash"));
+    EXPECT_EQ(pages.qml(QStringLiteral("test")), QUrl(QStringLiteral("qrc:/TestPage.qml")));
+    EXPECT_TRUE(pages.title(QStringLiteral("nope")).isEmpty());
+    EXPECT_EQ(pages.data(pages.index(0), hio::gui::PageListModel::PageIdRole).toString(),
+              QStringLiteral("console"));
+}
+
+TEST_F(AppViewModelTest, StepValueSnapsToTheGrid) {
+    // Review S15.
+    EXPECT_EQ(AppViewModel::stepValue(1, 10, 1, 1, 1000), 10);
+    EXPECT_EQ(AppViewModel::stepValue(10, 10, 1, 1, 1000), 20);
+    EXPECT_EQ(AppViewModel::stepValue(15, 10, -1, 1, 1000), 10);
+    EXPECT_EQ(AppViewModel::stepValue(10, 10, -1, 1, 1000), 1);
+    EXPECT_EQ(AppViewModel::stepValue(995, 10, 1, 1, 1000), 1000);
+    EXPECT_EQ(AppViewModel::stepValue(5, 100, 1, 5, 50000), 100);
+    EXPECT_EQ(AppViewModel::stepValue(2050, 100, -1, 5, 50000), 2000);
+    EXPECT_EQ(AppViewModel::stepValue(7, 0, 1, 1, 10), 7);
+}
+
+TEST_F(AppViewModelTest, DestroyedWithClosedTabsPending) {
+    // Review S12: closed tabs waiting for deleteLater() go before the store and the registries.
+    auto app = makeApp();
+    app->newTab();
+    ASSERT_TRUE(
+        app->tabs()->at(1)->configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
+    app->closeTab(1);
+    app.reset(); // no event loop turn in between (ASan checks the order)
+    SUCCEED();
 }
 
 TEST_F(AppViewModelTest, RailCollapsesBelow1100) {

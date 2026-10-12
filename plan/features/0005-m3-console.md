@@ -1,5 +1,15 @@
 # 0005 — M3 console page: shell + log, search/filter, history, batch
 
+> **Pending amendment from 0004 review (round 1, 2026-10-12; apply when this plan is approved):**
+> - Console markers are owned by the shell (`DeviceTabViewModel`): "— connected —", "— disconnected —",
+>   "— disconnected: <cause> —", "— paused: <busy text> —" and "— resumed —". The console view model only shows
+>   them (no `appendMarker` calls here; § Markers and the busy text below change accordingly).
+> - F4 (reconnect) is a global shortcut of the shell; the console toolbar's Reconnect shows it in its tooltip but
+>   does not register it.
+> - Console shortcuts are registered with `QT_TRANSLATE_NOOP("Shortcuts", "…")` descriptions.
+> - `DeviceTabViewModel::ensureSession()` has no parameters (console target with RTT), and `sessionChanged` is also
+>   emitted on tab close / quit: keep the session only as `QPointer`.
+
 - **Status:** Draft
 - **Milestone:** M3 (plan 2 of 3, ADR-0059)
 - **Author:** Matej Strnad (with Claude)

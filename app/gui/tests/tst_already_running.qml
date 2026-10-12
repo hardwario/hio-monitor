@@ -9,7 +9,7 @@ TestCase {
     function test_startAnyway() {
         const component = Qt.createComponent("HardwarioMonitor", "AlreadyRunningDialog");
         verify(component.status === Component.Ready, component.errorString());
-        const dialog = component.createObject(null);
+        const dialog = component.createObject(testCase, { darkTheme: false });
         waitForRendering(dialog.contentItem);
         compare(findChild(dialog.contentItem, "alreadyRunningText").text,
                 "HARDWARIO Monitor is already running but does not respond.");
@@ -22,7 +22,7 @@ TestCase {
     }
 
     function test_quit() {
-        const dialog = Qt.createComponent("HardwarioMonitor", "AlreadyRunningDialog").createObject(null);
+        const dialog = Qt.createComponent("HardwarioMonitor", "AlreadyRunningDialog").createObject(testCase, { darkTheme: true });
         waitForRendering(dialog.contentItem);
         mouseClick(findChild(dialog.contentItem, "quitButton"));
         compare(dialog.startAnyway, false);

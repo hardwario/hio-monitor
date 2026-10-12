@@ -105,17 +105,20 @@ Rectangle {
             model: AppViewModel.pages
 
             delegate: RailItem {
-                required property var modelData
-                required property int index
+                id: pageItem
 
-                visible: !modelData.global
-                text: modelData.title
-                iconName: modelData.icon
-                shortcutId: "page." + modelData.id
+                required property string pageId
+                required property string title
+                required property bool isGlobal
+                required iconName
+
+                visible: !pageItem.isGlobal
+                text: pageItem.title
+                shortcutId: "page." + pageItem.pageId
                 enabled: rail.tab !== null && rail.tab.state !== DeviceTabViewModel.ChoosingDevice
-                selected: enabled && AppViewModel.globalPage === "" && rail.tab.currentPage === modelData.id
-                busy: rail.tab !== null && rail.tab.busyPage === modelData.id
-                onClicked: AppViewModel.showPage(modelData.id)
+                selected: enabled && AppViewModel.globalPage === "" && rail.tab.currentPage === pageItem.pageId
+                busy: rail.tab !== null && rail.tab.busyPage === pageItem.pageId
+                onClicked: AppViewModel.showPage(pageItem.pageId)
             }
         }
 
@@ -127,15 +130,19 @@ Rectangle {
             model: AppViewModel.pages
 
             delegate: RailItem {
-                required property var modelData
+                id: globalItem
 
-                visible: modelData.global
-                text: modelData.title
-                iconName: modelData.icon
-                shortcutId: modelData.id === "settings" ? "settings.open" : ""
-                selected: AppViewModel.globalPage === modelData.id
-                onClicked: AppViewModel.globalPage === modelData.id ? AppViewModel.closeGlobalPage()
-                                                                    : AppViewModel.openGlobalPage(modelData.id)
+                required property string pageId
+                required property string title
+                required property bool isGlobal
+                required iconName
+
+                visible: globalItem.isGlobal
+                text: globalItem.title
+                shortcutId: globalItem.pageId === "settings" ? "settings.open" : ""
+                selected: AppViewModel.globalPage === globalItem.pageId
+                onClicked: AppViewModel.globalPage === globalItem.pageId ? AppViewModel.closeGlobalPage()
+                                                                        : AppViewModel.openGlobalPage(globalItem.pageId)
             }
         }
 

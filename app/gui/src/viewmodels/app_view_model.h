@@ -19,6 +19,7 @@
 #include "settings_store.h"
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
+#include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
 #include "workers/probe_scanner.h"
@@ -74,8 +75,8 @@ class AppViewModel : public QObject {
     Q_PROPERTY(hio::gui::DeviceTabViewModel* currentTabViewModel READ currentTabViewModel NOTIFY
                    currentTabChanged)
     Q_PROPERTY(int maxTabs READ maxTabs CONSTANT)
-    // Pages for the rail: [{id, title, icon, qml, global}] in order; titles translated.
-    Q_PROPERTY(QVariantList pages READ pages NOTIFY pagesChanged)
+    // Pages for the rail and the page hosts, in order; titles translated (review S9).
+    Q_PROPERTY(hio::gui::PageListModel* pages READ pages CONSTANT)
     Q_PROPERTY(QString globalPage READ globalPage NOTIFY globalPageChanged) // "" = the tab's page
     Q_PROPERTY(int windowWidth READ windowWidth WRITE setWindowWidth NOTIFY railCompactChanged)
     Q_PROPERTY(bool railCompact READ railCompact NOTIFY railCompactChanged) // width < 1100
@@ -104,6 +105,10 @@ public:
     // Without one (should not happen), a default instance owned by the engine is created.
     static AppViewModel* create(QQmlEngine* qmlEngine, QJSEngine* jsEngine);
 
+    // The setting keys of the shell (ui/*, jlink/*, rtt/*, probes/*); also used by main() for the
+    // "already running" dialog, which needs the language and the theme before this object exists.
+    static void registerShellKeys(SettingsStore& store);
+
     void setLanguageManager(LanguageManager* manager);
     // Restores the window geometry (ui/windowGeometry); saveState() stores it.
     void attachWindow(QWindow* window);
@@ -124,7 +129,7 @@ public:
     void setCurrentTab(int index);
     [[nodiscard]] DeviceTabViewModel* currentTabViewModel() const;
     [[nodiscard]] static int maxTabs() { return static_cast<int>(DeviceTabListModel::maxTabs); }
-    [[nodiscard]] QVariantList pages() const;
+    [[nodiscard]] PageListModel* pages() const { return m_pageList; }
     [[nodiscard]] QString globalPage() const { return m_globalPage; }
     [[nodiscard]] int windowWidth() const noexcept { return m_windowWidth; }
     void setWindowWidth(int width);
@@ -150,6 +155,9 @@ public:
     // cancels the operation and closes when the page has finished. The last tab is replaced by an
     // empty Choose device tab.
     Q_INVOKABLE void closeTab(int index, bool force = false);
+    // The same for a tab object (the close confirmation keeps the tab, not its index; review S6).
+    // Ignored when the tab is gone.
+    Q_INVOKABLE void closeTabObject(hio::gui::DeviceTabViewModel* tab, bool force);
     Q_INVOKABLE void nextTab();
     Q_INVOKABLE void previousTab();
     // Selects a per-tab page of the current tab (and leaves a global page).
@@ -173,18 +181,21 @@ public:
     // --- misc ---
     Q_INVOKABLE void showToast(const QString& text);
     Q_INVOKABLE void copyToClipboard(const QString& text);
+    // One spin-box step on the grid of `step` (review S15): up from 1 → 10, from 10 → 20; down
+    // from 15 → 10; clamped to [minimum, maximum]. direction: +1 / -1.
+    Q_INVOKABLE [[nodiscard]] static int stepValue(int value, int step, int direction, int minimum,
+                                                   int maximum);
 
 signals:
     void languageChanged();
     void themeChanged();
     void currentTabChanged();
-    void pagesChanged();
     void globalPageChanged();
     void railCompactChanged();
     void shortcutOverlayVisibleChanged();
     void toastsChanged();
     void jlinkLibraryChanged();
-    void closeConfirmationNeeded(int index, const QString& text);
+    void closeConfirmationNeeded(hio::gui::DeviceTabViewModel* tab, const QString& text);
     void quitConfirmationNeeded(const QString& text);
     void quitRequested();
 
@@ -194,7 +205,6 @@ private:
         QString text;
     };
 
-    void registerShellKeys();
     void registerShellShortcuts();
     void createGlobalPages();
     void restoreTabs();
@@ -214,6 +224,7 @@ private:
     SettingsStore* m_settings = nullptr;     // child
     ShortcutRegistry* m_shortcuts = nullptr; // child
     PageRegistry m_pages;
+    PageListModel* m_pageList = nullptr; // child
     // Destroyed after the tabs (the destructor closes them) and in reverse order: the scanner's
     // worker is joined before the registry goes away.
     std::unique_ptr<device::SessionRegistry> m_registry;

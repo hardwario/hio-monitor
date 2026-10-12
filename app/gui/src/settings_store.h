@@ -70,6 +70,10 @@ public:
     // Errors: usage.invalid_argument (unregistered key, wrong type, validator),
     // settings.newer_schema (read-only), io.write_failed.
     [[nodiscard]] Status setValue(QAnyStringView key, const QVariant& newValue);
+    // Removes a group and every key under it ("probes/683012345", ADR-0092), then sync().
+    // Errors: those of hio::Settings::remove (settings.newer_schema, io.write_failed,
+    // usage.invalid_argument for an empty group or "meta").
+    [[nodiscard]] Status removeGroup(const QString& group);
     // Duplicate paths are a programming error: asserted in debug, ignored and logged in release.
     void registerKeys(std::span<const SettingKey> keys);
     [[nodiscard]] bool isRegistered(QAnyStringView key) const;

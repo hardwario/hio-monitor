@@ -1,5 +1,12 @@
 # 0006 — M3 flash and settings pages
 
+> **Pending amendment from the 0004 review (2026-10-12, S2/S3/S5; applied when this plan is next revised — then it needs
+> re-approval):** `DeviceTabViewModel::ensureSession()` takes no parameters and always opens the console target with
+> RTT; operations carry their own target (ADR-0057), so `ensureSession(kindTarget, attachRtt = false)` in this plan is
+> replaced by `ensureSession()` + an operation with `targetId`. Pages hold the session only as `QPointer` or re-read it
+> on `sessionChanged()`. The shell owns the connection markers; F4 is global only; page shortcut descriptions use the
+> "Shortcuts" translation context. See plan 0004, "Fixes of review round 1".
+
 - **Status:** Draft
 - **Milestone:** M3 (plan 3 of 3, ADR-0059)
 - **Author:** Matej Strnad (with Claude)

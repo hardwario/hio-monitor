@@ -57,16 +57,18 @@ Item {
                 delegate: Loader {
                     id: pageLoader
 
-                    required property var modelData
-                    readonly property bool current: !host.choosing && !pageLoader.modelData.global
-                                                    && host.tab.currentPage === pageLoader.modelData.id
+                    required property string pageId
+                    required property bool isGlobal
+                    required property url qmlUrl
+                    readonly property bool current: !host.choosing && !pageLoader.isGlobal
+                                                    && host.tab.currentPage === pageLoader.pageId
 
-                    objectName: "page_" + pageLoader.modelData.id
+                    objectName: "page_" + pageLoader.pageId
                     anchors.fill: parent
                     // Loaded on first use and kept (the page keeps its state while hidden).
                     active: pageLoader.current || pageLoader.status === Loader.Ready
                     visible: pageLoader.current
-                    source: pageLoader.modelData.global ? "" : pageLoader.modelData.qml
+                    source: pageLoader.isGlobal ? "" : pageLoader.qmlUrl
 
                     Binding {
                         target: pageLoader.item
@@ -78,7 +80,7 @@ Item {
                     Binding {
                         target: pageLoader.item
                         property: "vm"
-                        value: host.tab.pageViewModel(pageLoader.modelData.id)
+                        value: host.tab.pageViewModel(pageLoader.pageId)
                         when: pageLoader.status === Loader.Ready
                     }
                 }

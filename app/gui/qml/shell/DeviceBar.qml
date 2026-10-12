@@ -127,6 +127,10 @@ Rectangle {
                 Layout.fillWidth: true
                 text: bar.connection.stateText
                 color: bar.connection.stateKind === "error" ? Theme.error : Theme.textMuted
+                // Two lines rather than an elided cause (Czech at 960 px, review S13).
+                wrapMode: Text.Wrap
+                maximumLineCount: 2
+                lineHeight: 0.95
                 elide: Text.ElideRight
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: stateLabel.text

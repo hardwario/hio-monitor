@@ -15,6 +15,8 @@ called_from_lib:libQt6Qml.so.6
 called_from_lib:libQt6Quick.so.6
 
 # ---- the entries of tsan.supp ----
+# TSAN_OPTIONS takes one suppressions file, so these lines are copied from tsan.supp (review S14,
+# accepted): a change there must be repeated here (and the reverse for entries that apply to both).
 thread:QThread::start
 race:QObject::moveToThread
 race:QMetaObject::invokeMethod

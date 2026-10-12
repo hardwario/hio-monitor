@@ -4,7 +4,11 @@
 //
 // start():
 //   - takes QLockFile <AppLocalData>/gui.lock (stale-lock detection by process, 0 wait) and
-//     listens on the QLocalServer "hio-monitor-<user>" -> Primary;
+//     listens on the QLocalServer -> Primary. The server is a socket file in the user's runtime
+//     directory ($XDG_RUNTIME_DIR, else AppLocalData; never /tmp, review S11), on Windows the
+//     named pipe "hio-monitor-<user>". If it cannot listen, the lock is released again and
+//     single-instance mode is off for this run (Primary, serving() false), so that later launches
+//     are not reported as "does not respond";
 //   - when the lock is held: connects to the server, sends "activate\n" and waits for "ok\n"
 //     (2 s in total) -> Activated (the first instance raises its window; this one exits with 0);
 //   - no answer within 2 s (a hung instance) -> NotResponding (main() asks: Quit / Start anyway).
@@ -38,7 +42,7 @@ public:
     static constexpr qsizetype maxMessageBytes = 64;
     static constexpr std::chrono::milliseconds timeout{2000};
 
-    // Defaults: <AppLocalData>/gui.lock and "hio-monitor-<user>".
+    // Defaults: <AppLocalData>/gui.lock and defaultServerName().
     explicit SingleInstance(QObject* parent = nullptr);
     SingleInstance(QString lockFile, QString serverName, QObject* parent = nullptr);
     ~SingleInstance() override;
@@ -48,6 +52,8 @@ public:
     SingleInstance& operator=(SingleInstance&&) = delete;
 
     [[nodiscard]] Result start();
+    // The activation server runs.
+    [[nodiscard]] bool serving() const;
     // "Start anyway": serve activation requests only if the server name is free; the lock is not
     // taken.
     void startWithoutLock();

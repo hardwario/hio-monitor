@@ -221,8 +221,11 @@ class DeviceTabViewModel : public QObject {    // QML_UNCREATABLE; parent = Devi
 public:
     // --- contract for pages (C++ only) ---
     [[nodiscard]] hio::device::DeviceSession* session() const;        // nullptr while choosing / disconnected
-    // Opens a session for `targetId` when none exists (Flash uses attachRtt=false; ADR-0057). No-op when one exists.
-    [[nodiscard]] Status ensureSession(std::string_view targetId, bool attachRtt);
+    // Opens the tab's session when none exists: always on the console target, with RTT when that target has an
+    // RTT console. Operations carry their own target (ADR-0057; amended after review S2: no target/attachRtt
+    // parameters). No-op when a working session exists; a stopped one (fatal error) is replaced (S1).
+    // Errors: those of DeviceSession::open, dependency.*, usage.invalid_argument (no probe), internal.busy.
+    [[nodiscard]] Status ensureSession();
     [[nodiscard]] const hio::device::DeviceProfile& profile() const;
     [[nodiscard]] QString consoleTargetId() const;
     // One log for all sessions of this tab (ADR-0063); passed as SessionOptions::consoleLog on every open.
@@ -234,7 +237,10 @@ public:
     void clearBusy(const QString& pageId);
     void showToast(QString text);               // queued in AppViewModel (≤ 3 visible)
 signals:
-    void sessionChanged();                      // pages reconnect their signal handlers to the new session
+    // session() was replaced or released (Connect, Disconnect, probe/target change, shutdown on tab close/quit).
+    // Emitted before the old session is deleted; pages keep the session only as QPointer or re-read session()
+    // here (amended after review S3).
+    void sessionChanged();
 };
 
 class SettingsStore : public QObject {          // owned by AppViewModel; GUI thread only
@@ -261,6 +267,15 @@ public:
 - The tab owns `std::unique_ptr<hio::device::DeviceSession> session_` and the tab's
   `std::shared_ptr<ConsoleLog>` (ADR-0063). Pages never own or close the session; they connect to its signals on
   `sessionChanged`. Disconnect = `session_->close()` and release; the log stays.
+- **Amendments after review round 1 (S2, S3, S5; 2026-10-12):**
+  - `ensureSession()` opens the console target with RTT; operations carry their target (ADR-0057).
+  - `sessionChanged` is also emitted by `shutdown()`; pages hold the session only as `QPointer` or re-read it.
+  - The shell owns **all** console markers: "— connected —", "— disconnected —", "— disconnected: <cause> —",
+    "— paused: <busy text> —" and "— resumed —" (after the busy page clears). Pages never append them.
+  - F4 (reconnect) and Ctrl+Shift+D are **global** shortcuts of the shell only; a page must not register them.
+  - Pages register their shortcuts with `descriptionSourceText = QT_TRANSLATE_NOOP("Shortcuts", "…")`: the overlay
+    translates descriptions in the "Shortcuts" context (the shell's own Ctrl+1 … entries use the page titles,
+    context "Pages").
 - Settings is a global page (`global = true`). 0006 registers it. Until then 0004 ships `PlaceholderPage.qml` for
   the "settings" id.
 - The test page (`tests/qml/TestPage.qml` + a fake VM) exercises the contract: registration, busy, close
@@ -468,7 +483,7 @@ end need a decision by the user.
   `ErrorAction.Reconnect`, …; `ErrorPanel.primaryAction` overrides it. The wizard id comes from the error's JSON
   form (`hio::toJson`), the single place that names wizards.
 - **ProbeScanner** never touches the GUI-owned `SessionRegistry`: on its worker it runs `jlink::locateLibrary`,
-  `jlink::enumerateProbes` (short-lived library copy) and `ProbeLock::owner` per probe; results are handed over in a
+  a kept `jlink::ProbeEnumerator` (ADR-0093, review S4) and `ProbeLock::owner` per probe; results are handed over in a
   mutex-protected slot and a coalesced queued call by name (the `DeviceSession::wakeUp` pattern). "In use (tab N)"
   is computed on the GUI thread from the tabs' configured probe serial numbers (a superset of the registry's
   sessions: a restored, disconnected tab also reserves its probe). Rescans with the same probes update the rows in
@@ -516,7 +531,7 @@ end need a decision by the user.
   `race:QMetaType::registerConverter`). The view models and the scanner thread are checked by `hio_gui_tests` with
   the unchanged strict `tsan.supp`. The GTest discovery of `hio_gui_tests` creates no application.
 
-### Open points for the user
+### Open points for the user (all decided 2026-10-12, see below and "Fixes of review round 1")
 
 1. **Target voltage:** `DeviceSession` does not report VTref, so the device bar shows "Connected" without
    "· 3.30 V" (`targetVolts` is NaN). Proposal: a 0002 amendment that adds the measured millivolts to
@@ -565,3 +580,30 @@ Code reading only (no build; /tmp was full). Decided 2026-10-12: fix S1–S13, a
 | S14 | note | `tsan-qml.supp` `called_from_lib:libQt6Core.so.6` is broad but acceptable for `tst_gui.*` only; duplicates `tsan.supp` entries (sync hazard). | Accept; comment on the duplication. |
 
 | S15 (user report 2026-10-12) | low | The RTT latency spin box steps from 1 ms to 11 ms (not 10); J-Link speed likewise: Qt `SpinBox` adds `stepSize` without snapping. | +/− (buttons, arrow keys, wheel) snap to the step grid (1 → 10 → 20, 15 → 10); typed values are kept; one shared component for both boxes; Qt Quick test. Decided: fix with S1–S13. |
+
+### Fixes of review round 1 (2026-10-12)
+
+All fixed on `v2/m3-gui` on top of the merge of `v2/m2-flashing` (55c348c); tests in `app/gui/tests`.
+
+| # | Fix | Tests |
+|---|---|---|
+| S1 | A stopped session counts as none: `canChangeTarget` by state, `setConsoleTarget` and `ensureSession` release it, Connect replaces it. | `DeviceTabTest.AStoppedSessionIsReplaced` |
+| S2 | `ensureSession()` (no parameters) opens the console target with RTT; contract amended. | `DeviceTabTest.EnsureSessionOpensTheConsoleTarget` |
+| S3 | `shutdown()` emits `sessionChanged()` before the session is deleted; contract: pages keep `QPointer` / re-read. | `DeviceTabTest.ShutdownTellsThePages` |
+| S4 | `ProbeScanner` keeps one `jlink::ProbeEnumerator` (ADR-0093) while a picker is visible, unloads it when none is, reloads on another library location; a Refresh without a picker uses a copy for that scan only. | `ProbePickerTest.OneLibraryCopyWhileAPickerIsVisible` |
+| S5 | The shell owns all markers incl. "— resumed —"; F4 global only; page shortcut descriptions in the "Shortcuts" context; contract amended, notes in 0005. | `DeviceTabTest.BusyStateAndText`, `ShellShortcuts.TheShellMapHasNoDuplicates` |
+| S6 | The close confirmation carries the tab (`closeConfirmationNeeded(DeviceTabViewModel*, text)`, `closeTabObject()`); the dialog keeps a guarded tab property. | `DeviceTabTest.CloseConfirmationCancelsAndCloses`, `Shell::test_contractPageBusyAndCloseConfirmation` |
+| S7 | The "already running" dialog gets a minimal context in `main()` (settings, `SettingsStore` with the shell keys, `LanguageManager`, theme as initial property); it no longer uses `Theme` / `AppViewModel` (its two accent colours are the `Theme` values). | `AlreadyRunning::test_startAnyway`, `AlreadyRunning::test_quit` |
+| S8 | A lock owner with this process's PID is not shown as "another program". | `ProbePickerTest.OwnLockIsNotAnotherProgram` |
+| S9 | `AppViewModel.pages` is a `PageListModel` (roles `pageId`, `title`, `iconName`, `qmlUrl`, `isGlobal`); a language switch emits `dataChanged` for the titles only (`revision` for `title(id)` bindings). | `AppViewModelTest.PageModelUpdatesTitlesOnly`, all `tst_gui.*` |
+| S10 | `errorChanged` updates the tab's `hasError`; the Stopped state text and kind use the dismissible error. | `DeviceTabTest.DismissedErrorClearsTheTabError` |
+| S11 | The server is a socket path in `$XDG_RUNTIME_DIR` (else AppLocalData; named pipe on Windows); if `listen()` fails the lock is released (single-instance off for that run, logged as critical). | `SingleInstanceTest.AListenFailureTurnsSingleInstanceOff`, `SingleInstanceNames.DefaultServerNameIsPrivate` |
+| S12 | `~AppViewModel` deletes closed tabs still waiting for `deleteLater()` and the global page view models before the members. | `AppViewModelTest.DestroyedWithClosedTabsPending` (ASan) |
+| S13 | The device-bar state text wraps to two lines (tooltip when still truncated); the layout test asserts it is not truncated at 960 × 600 and 1099 px in Czech. | `Layout::test_deviceBar` |
+| S14 | Accepted; `tsan-qml.supp` notes that it repeats `tsan.supp`. | — |
+| S15 | `StepSpinBox.qml` (speed and latency): +/− buttons, Up/Down and the wheel step on the grid via `AppViewModel.stepValue()`; typed values stay exact. | `AppViewModelTest.StepValueSnapsToTheGrid`, `Components::test_stepSpinBox` |
+| ADR-0091 | "Connected · 3.30 V" from `ConnectionEvent::targetMillivolts` (nothing when empty; decimal comma in Czech). | `ConnectionTest.StateTextForEveryConnectionEvent`, `ConnectionTest.VoltageFollowsTheLocale`, `Shell::test_chooseDeviceAndConnect` |
+| ADR-0092 | LRU eviction removes the `probes/<sn>` group (`SettingsStore::removeGroup` → `Settings::remove`). | `ConnectionTest.AtMost32ProbesAreRemembered` |
+| CI | `lfs: true` for the checkout of the build jobs (the check job keeps `lfs: false` for `check-lfs.sh`). | — |
+| (S4 follow-up, backend) | `libs/hw/jlink/src/jlink_library.cpp`: loading and unloading of library copies are serialized by one process-wide mutex. With S4 the scanner unloads its copy on its own thread while a session may load one; a new copy can be mapped where the old one was, and ld.so's locking is invisible to TSan, which reported the fake library's state as a race (`tst_gui.tst_shell` under TSan). Deviation from "no change to `libs/*`"; to be confirmed. | `tst_gui.tst_shell` (TSan), the 30× TSan repeat |
+

@@ -46,8 +46,13 @@ void ProbeScanner::acquire() {
 }
 
 void ProbeScanner::release() {
-    if (m_active.load() > 0) {
-        m_active.fetch_sub(1);
+    if (m_active.load() > 0 && m_active.fetch_sub(1) == 1) {
+        // The last picker went away: the worker unloads its library copy (ADR-0093).
+        {
+            const std::scoped_lock lock(m_mutex);
+            m_activityChanged = true;
+        }
+        m_wake.notify_all();
     }
 }
 
@@ -60,22 +65,33 @@ void ProbeScanner::scanNow() {
 }
 
 void ProbeScanner::run(const std::stop_token& stop) {
+    // ADR-0093: one library copy, owned by this thread, kept while a picker is visible.
+    std::optional<jlink::ProbeEnumerator> enumerator;
     while (!stop.stop_requested()) {
         jlink::LocatorOptions options;
+        bool requested = false;
         {
             std::unique_lock lock(m_mutex);
-            const bool woken =
-                m_wake.wait_for(lock, stop, m_interval, [this] { return m_scanRequested; });
+            const bool woken = m_wake.wait_for(
+                lock, stop, m_interval, [this] { return m_scanRequested || m_activityChanged; });
             if (stop.stop_requested()) {
-                return;
+                break;
             }
-            if (!woken && m_active.load() == 0) {
-                continue; // periodic scans only while a picker is visible
-            }
+            m_activityChanged = false;
+            requested = woken && m_scanRequested;
             m_scanRequested = false;
             options = m_options;
         }
-        ProbeScan result = scan(options);
+        if (!requested && m_active.load() == 0) {
+            enumerator.reset(); // periodic scans only while a picker is visible
+            m_libraryLoaded.store(false);
+            continue;
+        }
+        ProbeScan result = scan(options, enumerator);
+        if (m_active.load() == 0) {
+            enumerator.reset(); // a Refresh without a visible picker: no copy is kept
+        }
+        m_libraryLoaded.store(enumerator.has_value());
         {
             const std::scoped_lock lock(m_mutex);
             result.sequence = ++m_sequence;
@@ -86,23 +102,41 @@ void ProbeScanner::run(const std::stop_token& stop) {
             QMetaObject::invokeMethod(this, "deliver", Qt::QueuedConnection);
         }
     }
+    enumerator.reset();
+    m_libraryLoaded.store(false);
 }
 
-ProbeScan ProbeScanner::scan(const jlink::LocatorOptions& options) const {
+ProbeScan ProbeScanner::scan(const jlink::LocatorOptions& options,
+                             std::optional<jlink::ProbeEnumerator>& enumerator) {
     ProbeScan result;
     auto location = jlink::locateLibrary(options);
     if (!location) {
+        enumerator.reset();
         result.libraryError = std::move(location).error();
         return result;
     }
     result.libraryPath = location->path;
-    auto enumeration = jlink::enumerateProbes(*location, m_instanceRoot);
-    if (!enumeration) {
-        result.libraryError = std::move(enumeration).error();
+    // Another library (the setting or the environment changed): load that one instead.
+    if (enumerator && enumerator->location().path != location->path) {
+        enumerator.reset();
+    }
+    if (!enumerator) {
+        auto loaded = jlink::ProbeEnumerator::load(*location, m_instanceRoot);
+        if (!loaded) {
+            result.libraryError = std::move(loaded).error();
+            return result;
+        }
+        enumerator.emplace(std::move(*loaded));
+        m_libraryLoads.fetch_add(1);
+    }
+    auto probes = enumerator->enumerate();
+    if (!probes) {
+        enumerator.reset(); // a fresh copy next time
+        result.libraryError = std::move(probes).error();
         return result;
     }
-    result.libraryVersion = enumeration->libraryVersion;
-    for (jlink::ProbeInfo& probe : enumeration->probes) {
+    result.libraryVersion = enumerator->libraryVersion();
+    for (jlink::ProbeInfo& probe : *probes) {
         ScannedProbe scanned;
         scanned.lockOwner = device::ProbeLock::owner(probe.serialNumber, m_lockDirectory);
         scanned.probe = std::move(probe);

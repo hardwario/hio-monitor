@@ -97,7 +97,9 @@ QVariantList ConnectionViewModel::targets() const {
 }
 
 bool ConnectionViewModel::canChangeTarget() const {
-    return m_tab->session() == nullptr && !m_tab->isBusy();
+    // A stopped session (fatal error) counts as none: it is replaced on the next connect (S1).
+    return (!m_connection || m_connection->state == device::ConnectionState::Stopped) &&
+           !m_tab->isBusy();
 }
 
 QString ConnectionViewModel::stateKind() const {
@@ -115,7 +117,8 @@ QString ConnectionViewModel::stateKind() const {
     case device::ConnectionState::Disconnected:
         return QStringLiteral("reconnecting");
     case device::ConnectionState::Stopped:
-        return m_connection->error ? QStringLiteral("error") : QStringLiteral("idle");
+        // The error can be dismissed (S10).
+        return m_error ? QStringLiteral("error") : QStringLiteral("idle");
     }
     return QStringLiteral("idle");
 }
@@ -139,8 +142,7 @@ QString ConnectionViewModel::stateText() const {
         return m_connection->error ? tr("Reconnecting… (%1)").arg(shortCause(*m_connection->error))
                                    : tr("Reconnecting…");
     case device::ConnectionState::Stopped:
-        return m_connection->error ? tr("Disconnected — %1").arg(shortCause(*m_connection->error))
-                                   : tr("Disconnected");
+        return m_error ? tr("Disconnected — %1").arg(shortCause(*m_error)) : tr("Disconnected");
     }
     return tr("Disconnected");
 }
@@ -157,10 +159,13 @@ QString ConnectionViewModel::action() const {
 
 bool ConnectionViewModel::actionEnabled() const { return !m_tab->isBusy() && m_serial; }
 
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static): a property, see below
 double ConnectionViewModel::targetVolts() const {
-    // DeviceSession does not report the target voltage yet (plan 0004, open question).
-    return std::numeric_limits<double>::quiet_NaN();
+    // ADR-0091: the voltage of the last connection event; shown only while connected.
+    if (!m_connection || m_connection->state != device::ConnectionState::Connected ||
+        !m_connection->targetMillivolts) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    return *m_connection->targetMillivolts / 1000.0;
 }
 
 bool ConnectionViewModel::canChooseAnotherProbe() const {
@@ -337,14 +342,15 @@ void ConnectionViewModel::touchRememberedProbe() {
     if (!m_remembered || !m_serial || m_settings == nullptr || m_settings->readOnly()) {
         return;
     }
-    // Most recently used first, at most maxRememberedProbes. The keys of a dropped probe stay in
-    // the file but are never read again (hio::Settings cannot remove keys; plan 0004 open point).
+    // Most recently used first, at most maxRememberedProbes; the probes/<sn> group of a dropped
+    // probe is removed (ADR-0092).
     const QString serial = QString::number(*m_serial);
     QStringList recent = recentProbes(m_settings);
     recent.removeAll(serial);
     recent.prepend(serial);
     while (recent.size() > static_cast<qsizetype>(maxRememberedProbes)) {
-        recent.removeLast();
+        logFailure("an evicted probe",
+                   m_settings->removeGroup(QStringLiteral("probes/") + recent.takeLast()));
     }
     logFailure("probes/recent", m_settings->setValue(recentKey, recent.join(QLatin1Char(','))));
 }

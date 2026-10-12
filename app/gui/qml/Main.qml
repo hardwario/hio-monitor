@@ -12,7 +12,6 @@ import HardwarioMonitor
 ApplicationWindow {
     id: window
 
-    readonly property var globalPageInfo: AppViewModel.pages.find(page => page.id === AppViewModel.globalPage)
 
     objectName: "mainWindow"
     width: 1280
@@ -44,8 +43,8 @@ ApplicationWindow {
             quitDialog.open();
         }
 
-        function onCloseConfirmationNeeded(index: int, text: string) {
-            closeDialog.tabIndex = index;
+        function onCloseConfirmationNeeded(tab: DeviceTabViewModel, text: string) {
+            closeDialog.tab = tab;
             closeDialog.body = text;
             closeDialog.open();
         }
@@ -96,8 +95,8 @@ ApplicationWindow {
 
                     objectName: "globalPage"
                     anchors.fill: parent
-                    active: window.globalPageInfo !== undefined
-                    source: window.globalPageInfo !== undefined ? window.globalPageInfo.qml : ""
+                    active: AppViewModel.globalPage !== ""
+                    source: AppViewModel.pages.qml(AppViewModel.globalPage)
 
                     Binding {
                         target: globalPageLoader.item
@@ -125,13 +124,15 @@ ApplicationWindow {
     ConfirmDialog {
         id: closeDialog
 
-        property int tabIndex: -1
+        // The tab, not its index: tabs may move while the dialog is open (review S6). Null when
+        // the tab is gone meanwhile.
+        property DeviceTabViewModel tab: null
 
         objectName: "closeTabDialog"
         title: qsTr("Close the tab?")
         acceptText: qsTr("Cancel and close")
         rejectText: qsTr("Keep running")
-        onAccepted: AppViewModel.closeTab(closeDialog.tabIndex, true)
+        onAccepted: AppViewModel.closeTabObject(closeDialog.tab, true)
     }
 
     ConfirmDialog {

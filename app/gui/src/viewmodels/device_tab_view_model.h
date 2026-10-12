@@ -7,16 +7,20 @@
 // profile, target and probe serial number. It owns at most one DeviceSession (opened on Connect or
 // by a page through ensureSession(); never at start) and one ConsoleLog for all its sessions
 // (ADR-0063), and the view models of the per-tab pages of the PageRegistry (Qt parent ownership).
-// Pages never own or close the session; they reconnect their handlers on sessionChanged.
-// Disconnect closes the session (the worker is joined, the probe lock and the registry slot are
-// released at once) and the QObject is deleted on the next event-loop turn; the log stays.
+// Pages never own or close the session. A page may keep a pointer only as QPointer, or re-read
+// session() on sessionChanged, which is emitted whenever the session is replaced or released,
+// also by shutdown() (tab close, quit) before the session is deleted (review S3). Disconnect
+// closes the session (the worker is joined, the probe lock and the registry slot are released at
+// once) and the QObject is deleted on the next event-loop turn; the log stays.
 //
 // Busy: one page at a time (setBusy / clearBusy). The tab state is Busy, the rail shows the
 // page's badge, the device bar shows the busy text, and closing the tab or quitting asks with the
 // page's confirmation text; [Cancel and close] calls the page's cancel callback and the tab closes
 // when the page calls clearBusy() (closeReady).
 //
-// The GUI adds console markers on connection and busy changes (ADR-0063).
+// The shell (this class) owns all console markers (ADR-0063, review S5): "— connected —",
+// "— disconnected —", "— disconnected: <cause> —" on connection changes, "— paused: <busy text> —"
+// on setBusy and "— resumed —" when the busy page clears; pages never add these markers.
 //
 // Ownership: child of DeviceTabListModel (Qt parent). GUI thread only.
 
@@ -119,10 +123,12 @@ public:
     // --- contract for pages (C++ only) ---
     // nullptr while choosing / disconnected.
     [[nodiscard]] device::DeviceSession* session() const;
-    // Opens a session for `targetId` when none exists (Flash uses attachRtt = false; ADR-0057).
-    // No-op when one exists. Errors: those of DeviceSession::open, dependency.jlink_not_found,
-    // usage.invalid_argument (no probe chosen, unknown target).
-    [[nodiscard]] Status ensureSession(std::string_view targetId, bool attachRtt);
+    // Opens the tab's session when none exists: always on the console target, with RTT when the
+    // target has an RTT console. Operations carry their own target (ADR-0057), so a page never
+    // opens a session on another target (review S2). No-op when a working session exists; a
+    // stopped one (fatal error) is replaced. Errors: those of DeviceSession::open,
+    // dependency.jlink_not_found, usage.invalid_argument (no probe chosen), internal.busy.
+    [[nodiscard]] Status ensureSession();
     [[nodiscard]] const device::DeviceProfile& profile() const;
     [[nodiscard]] QString consoleTargetId() const;
     // One log for all sessions of this tab (ADR-0063); passed as SessionOptions::consoleLog.
@@ -166,7 +172,9 @@ signals:
     void titleChanged();
     void currentPageChanged();
     void busyChanged();
-    void sessionChanged();       // pages reconnect their signal handlers to the new session
+    // session() changed (new, replaced, released, shutdown): pages reconnect their handlers and
+    // drop their pointers to the old session, which is deleted after this signal.
+    void sessionChanged();
     void configurationChanged(); // profile, target or probe changed (ui/tabs is saved)
     void closeReady();           // the busy page finished after cancelBusy(true)
     void tabActivationRequested(int tabIndex);
@@ -180,7 +188,8 @@ private:
         bool cancelled = false;
     };
 
-    [[nodiscard]] Status openSession(std::string_view targetId, bool attachRtt);
+    [[nodiscard]] Status openSession();
+    [[nodiscard]] bool sessionStopped() const;
     void releaseSession();
     void onConnectionChanged(const device::ConnectionEvent& event);
     void addMarker(const QString& text);

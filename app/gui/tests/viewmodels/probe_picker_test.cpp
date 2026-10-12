@@ -3,6 +3,7 @@
 // (plan 0004, B3; ADR-0050, ADR-0058).
 
 #include "gui_test_support.h"
+#include "hio/device/probe_lock.h"
 #include "lock_holder.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_view_model.h"
@@ -17,8 +18,10 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <memory>
+#include <system_error>
 
 namespace {
 
@@ -129,6 +132,48 @@ TEST_F(ProbePickerTest, ProbeUsedByAnotherProcess) {
     ASSERT_TRUE(waitFor([&] {
         return role(picker, 0, ProbePickerViewModel::InUseOtherRole).toString().isEmpty();
     }));
+}
+
+TEST_F(ProbePickerTest, OwnLockIsNotAnotherProgram) {
+    // Review S8: a lock of this process (a tab that just disconnected) is not "another program".
+    auto lock = hio::device::ProbeLock::acquire(801000001, root() / "locks");
+    ASSERT_TRUE(lock) << lock.error().detail;
+    const auto app = makeApp();
+    ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
+    picker.setActive(true);
+    ASSERT_TRUE(waitForRows(picker, 2));
+    EXPECT_TRUE(role(picker, 0, ProbePickerViewModel::InUseOtherRole).toString().isEmpty());
+}
+
+TEST_F(ProbePickerTest, OneLibraryCopyWhileAPickerIsVisible) {
+    // Review S4 / ADR-0093: one copy loaded for all scans, unloaded when no picker is visible.
+    const auto app = makeApp();
+    ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
+    hio::gui::ProbeScanner& scanner = app->probeScanner();
+    picker.setActive(true);
+    ASSERT_TRUE(waitForRows(picker, 2));
+    for (int i = 0; i < 3; ++i) {
+        picker.refresh();
+        spin(std::chrono::milliseconds(250));
+    }
+    EXPECT_EQ(scanner.libraryLoads(), 1);
+    EXPECT_TRUE(scanner.libraryLoaded());
+    const auto copies = [this] {
+        std::size_t count = 0;
+        std::error_code ec;
+        for (std::filesystem::directory_iterator it(root() / "instances", ec), end;
+             !ec && it != end; it.increment(ec)) {
+            ++count;
+        }
+        return count;
+    };
+    EXPECT_EQ(copies(), 1U);
+    picker.setActive(false);
+    ASSERT_TRUE(waitFor([&] { return !scanner.libraryLoaded(); }));
+    EXPECT_EQ(copies(), 0U);
+    // Visible again: a new copy.
+    picker.setActive(true);
+    ASSERT_TRUE(waitFor([&] { return scanner.libraryLoads() == 2; }));
 }
 
 TEST_F(ProbePickerTest, MissingLibrary) {
