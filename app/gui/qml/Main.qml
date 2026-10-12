@@ -1,57 +1,146 @@
-// Main window of HARDWARIO Monitor (M0 skeleton). Presentation only (ADR-0003): all data and
-// actions come from AppViewModel.
+// Main window of HARDWARIO Monitor (ADR-0043, ADR-0061): device tab strip on top, per tab the
+// rail, the device bar and the page area; global pages (Settings) replace the device bar and page
+// area. Presentation only (ADR-0003): all data and actions come from AppViewModel.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Layouts
 import HardwarioMonitor
 
 ApplicationWindow {
     id: window
 
-    width: 1024
-    height: 700
+    readonly property var globalPageInfo: AppViewModel.pages.find(page => page.id === AppViewModel.globalPage)
+
+    objectName: "mainWindow"
+    width: 1280
+    height: 800
+    minimumWidth: 960
+    minimumHeight: 600
     visible: true
     title: qsTr("HARDWARIO Monitor")
+    color: Theme.bg
+    font: Theme.fontUi
+    Material.theme: Theme.dark ? Material.Dark : Material.Light
+    Material.accent: Theme.accent
+    Material.primary: Theme.accent
+    Material.background: Theme.bg
+    Material.foreground: Theme.text
+    onClosing: close => close.accepted = AppViewModel.canQuit()
 
-    ColumnLayout {
-        anchors.centerIn: parent
-        spacing: 16
+    Binding {
+        target: AppViewModel
+        property: "windowWidth"
+        value: window.width
+    }
 
-        Label {
-            objectName: "headline"
-            Layout.alignment: Qt.AlignHCenter
-            text: qsTr("HARDWARIO Monitor %1 — nothing to see yet").arg(AppViewModel.version)
-            font.pixelSize: 24
+    Connections {
+        target: AppViewModel
+
+        function onQuitConfirmationNeeded(text: string) {
+            quitDialog.body = text;
+            quitDialog.open();
         }
 
-        Label {
-            objectName: "buildInfo"
-            Layout.alignment: Qt.AlignHCenter
-            text: AppViewModel.buildInfo
-            font.pixelSize: 12
-            opacity: 0.7
+        function onCloseConfirmationNeeded(index: int, text: string) {
+            closeDialog.tabIndex = index;
+            closeDialog.body = text;
+            closeDialog.open();
+        }
+
+        function onQuitRequested() {
+            Qt.quit();
+        }
+    }
+
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 0
+
+        DeviceTabBar {
+            objectName: "deviceTabBar"
+            Layout.fillWidth: true
         }
 
         RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 8
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
 
-            Label {
-                text: qsTr("Language:")
+            NavRail {
+                objectName: "navRail"
+                Layout.fillHeight: true
             }
 
-            ComboBox {
-                id: languageSelector
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-                objectName: "languageSelector"
-                model: AppViewModel.availableLanguages.map(
-                           language => language.nativeName !== "" ? language.nativeName
-                                                                  : qsTr("System"))
-                currentIndex: AppViewModel.availableLanguages.findIndex(
-                                  language => language.code === AppViewModel.language)
-                onActivated: index => AppViewModel.setLanguage(
-                                 AppViewModel.availableLanguages[index].code)
+                StackLayout {
+                    objectName: "tabStack"
+                    anchors.fill: parent
+                    currentIndex: AppViewModel.currentTab
+                    visible: AppViewModel.globalPage === ""
+
+                    Repeater {
+                        model: AppViewModel.tabs
+
+                        delegate: TabView {}
+                    }
+                }
+
+                Loader {
+                    id: globalPageLoader
+
+                    objectName: "globalPage"
+                    anchors.fill: parent
+                    active: window.globalPageInfo !== undefined
+                    source: window.globalPageInfo !== undefined ? window.globalPageInfo.qml : ""
+
+                    Binding {
+                        target: globalPageLoader.item
+                        property: "vm"
+                        value: AppViewModel.globalPageViewModel(AppViewModel.globalPage)
+                        when: globalPageLoader.status === Loader.Ready
+                    }
+                }
             }
         }
+    }
+
+    Toast {
+        objectName: "toasts"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.spacingL + 2
+        z: 20
+    }
+
+    ShortcutOverlay {}
+
+    Shortcuts {}
+
+    ConfirmDialog {
+        id: closeDialog
+
+        property int tabIndex: -1
+
+        objectName: "closeTabDialog"
+        title: qsTr("Close the tab?")
+        acceptText: qsTr("Cancel and close")
+        rejectText: qsTr("Keep running")
+        onAccepted: AppViewModel.closeTab(closeDialog.tabIndex, true)
+    }
+
+    ConfirmDialog {
+        id: quitDialog
+
+        objectName: "quitDialog"
+        title: qsTr("Quit HARDWARIO Monitor?")
+        acceptText: qsTr("Cancel and quit")
+        rejectText: qsTr("Keep running")
+        onAccepted: AppViewModel.cancelOperationsAndQuit()
     }
 }

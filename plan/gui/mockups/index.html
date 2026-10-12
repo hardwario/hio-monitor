@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor GUI Mockups</title>
+<!-- Static design mockups for plan/features/0004-m3-gui-shell.md, 0005-m3-console.md, 0006-m3-flash-settings.md. Not product code.
+     Colour tokens = plan/gui/design-system.md. Fonts fall back to system fonts here. -->
+<style>
+:root, :root[data-theme="light"] {
+  --bg:#FFFFFF; --surface:#F5F6F8; --surfaceRaised:#FFFFFF; --consoleBg:#FBFBFC; --border:#D5D9DF;
+  --text:#1B1F24; --textMuted:#57606A; --accent:#0B5FCC; --onAccent:#FFFFFF; --success:#1A7F37;
+  --warning:#8A5A00; --error:#C4232E; --logDebug:#636C76; --selection:#CCE0FF; --findMatch:#FFE08A;
+  --findCurrent:#FFB224; --errorPanelBg:#FFF1F1; --warningPanelBg:#FFF6E0; --accentSoft:#E3EEFC;
+  --page:#E9EBEF; --shadow:0 8px 28px rgba(0,0,0,.18);
+}
+:root[data-theme="dark"] {
+  --bg:#1E1F26; --surface:#262833; --surfaceRaised:#2E3040; --consoleBg:#191A20; --border:#3A3D4D;
+  --text:#E6E8EE; --textMuted:#9BA3B4; --accent:#79B8FF; --onAccent:#0B1A2E; --success:#56D364;
+  --warning:#FFAB70; --error:#FF7B86; --logDebug:#8B93A6; --selection:#264F78; --findMatch:#6B5418;
+  --findCurrent:#B07A10; --errorPanelBg:#3A2228; --warningPanelBg:#3A3020; --accentSoft:#24344A;
+  --page:#121318; --shadow:0 8px 28px rgba(0,0,0,.5);
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--page); color:var(--text);
+  font:13px/1.4 Inter, "Segoe UI", system-ui, -apple-system, sans-serif; }
+.mono { font-family:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; font-size:12.5px; }
+button { font:inherit; color:inherit; cursor:pointer; }
+/* review chrome */
+.review { position:sticky; top:0; z-index:50; display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center;
+  padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--border); }
+.review b { font-weight:600; margin-right:4px; }
+.seg { display:inline-flex; border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+.seg button { border:0; background:transparent; padding:4px 10px; }
+.seg button[aria-pressed="true"] { background:var(--accent); color:var(--onAccent); }
+.screens { display:flex; flex-wrap:wrap; gap:4px; }
+.screens button { border:1px solid var(--border); background:var(--bg); border-radius:14px; padding:3px 10px; }
+.screens button[aria-pressed="true"] { border-color:var(--accent); background:var(--accentSoft); }
+.note { max-width:1280px; margin:12px auto 0; padding:0 16px; color:var(--textMuted); }
+.stage { padding:16px; overflow-x:auto; }
+/* window */
+.win { position:relative; margin:0 auto; width:1280px; height:800px; background:var(--bg); border:1px solid var(--border);
+  border-radius:10px; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow); }
+.win.narrow { width:960px; height:600px; }
+.titlebar { height:28px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--textMuted);
+  background:var(--surface); border-bottom:1px solid var(--border); flex:none; }
+.tabbar { display:flex; align-items:flex-end; gap:2px; height:36px; padding:0 8px; background:var(--surface);
+  border-bottom:1px solid var(--border); flex:none; }
+.tab { display:flex; align-items:center; gap:8px; height:30px; padding:0 10px; border:1px solid transparent;
+  border-bottom:0; border-radius:6px 6px 0 0; color:var(--textMuted); white-space:nowrap; max-width:260px; }
+.tab.active { background:var(--bg); border-color:var(--border); color:var(--text); font-weight:600; margin-bottom:-1px; height:31px; }
+.tab .x { opacity:.6; padding:0 2px; }
+.tab-add { height:28px; width:28px; border:0; background:transparent; border-radius:6px; font-size:18px; color:var(--textMuted); margin-bottom:2px; }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--textMuted); flex:none; }
+.dot.ok { background:var(--success); } .dot.busy { background:var(--warning); } .dot.err { background:var(--error); }
+.body { flex:1; display:flex; min-height:0; }
+.rail { width:72px; flex:none; background:var(--surface); border-right:1px solid var(--border); display:flex;
+  flex-direction:column; align-items:center; padding:8px 0; gap:4px; }
+.narrow .rail { width:52px; }
+.rail .item { width:60px; padding:6px 0; display:flex; flex-direction:column; align-items:center; gap:3px; border-radius:8px;
+  color:var(--textMuted); font-size:11px; position:relative; border:0; background:transparent; }
+.narrow .rail .item { width:44px; } .narrow .rail .item span.l { display:none; }
+.rail .item .ic { width:40px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:13px; }
+.rail .item.sel { color:var(--text); font-weight:600; }
+.rail .item.sel .ic { background:var(--accentSoft); color:var(--accent); }
+.rail .spacer { flex:1; }
+.badge { position:absolute; top:3px; right:10px; width:9px; height:9px; border-radius:50%; background:var(--warning); border:2px solid var(--surface); }
+.main { flex:1; display:flex; flex-direction:column; min-width:0; }
+.devbar { height:48px; flex:none; display:flex; align-items:center; gap:12px; padding:0 12px; border-bottom:1px solid var(--border); background:var(--surface); }
+.chip { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 10px; border:1px solid var(--border); border-radius:6px; background:var(--bg); white-space:nowrap; }
+.chip .k { color:var(--textMuted); }
+.state { display:flex; align-items:center; gap:6px; color:var(--textMuted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.grow { flex:1; }
+.btn { height:30px; padding:0 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg); font-weight:600; white-space:nowrap; }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:var(--onAccent); }
+.btn.danger { background:var(--error); border-color:var(--error); color:#fff; }
+.btn.ghost { border-color:transparent; background:transparent; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.toolbar { height:40px; flex:none; display:flex; align-items:center; gap:2px; padding:0 8px; border-bottom:1px solid var(--border); }
+.tb { height:30px; display:inline-flex; align-items:center; gap:6px; padding:0 8px; border:0; background:transparent; border-radius:6px; white-space:nowrap; }
+.tb:hover { background:var(--surface); }
+.tb.on { background:var(--accentSoft); color:var(--accent); font-weight:600; }
+.narrow .tb .lbl { display:none; }
+.sep { width:1px; height:20px; background:var(--border); margin:0 6px; }
+.kbd { font-size:11px; color:var(--textMuted); }
+.content { flex:1; min-height:0; display:flex; flex-direction:column; position:relative; }
+/* console */
+.split { flex:1; display:flex; min-height:0; }
+.narrow .split { flex-direction:column; }
+.pane { flex:1; display:flex; flex-direction:column; min-width:0; min-height:0; }
+.pane + .pane { border-left:1px solid var(--border); }
+.narrow .pane + .pane { border-left:0; border-top:1px solid var(--border); }
+.panehead { height:32px; display:flex; align-items:center; gap:8px; padding:0 10px; border-bottom:1px solid var(--border); color:var(--textMuted); font-size:12px; flex:none; }
+.panehead b { color:var(--text); }
+.lines { flex:1; overflow:hidden; background:var(--consoleBg); padding:4px 0; position:relative; }
+.ln { display:flex; gap:10px; padding:0 10px; white-space:pre; line-height:19px; }
+.ln .t { color:var(--textMuted); flex:none; }
+.ln .lv { width:12px; flex:none; font-weight:700; }
+.ln.D, .ln.D .lv { color:var(--logDebug); } .ln.W .lv, .ln.W { color:var(--warning); } .ln.E .lv, .ln.E { color:var(--error); }
+.ln.I .lv { color:var(--success); }
+.ln.echo { color:var(--accent); }
+.ln.sel { background:var(--selection); }
+mark { background:var(--findMatch); color:var(--text); border-radius:2px; padding:0 1px; }
+mark.cur { background:var(--findCurrent); outline:1px solid var(--text); }
+.pill { position:absolute; right:14px; bottom:10px; background:var(--accent); color:var(--onAccent); border-radius:14px; padding:4px 12px; font-weight:600; box-shadow:var(--shadow); }
+.input { display:flex; gap:8px; padding:8px 10px; border-top:1px solid var(--border); background:var(--bg); flex:none; }
+.field { flex:1; height:30px; display:flex; align-items:center; gap:6px; padding:0 8px; border:1px solid var(--border); border-radius:4px; background:var(--bg); min-width:0; }
+.field.focus { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.field.bad { border-color:var(--error); box-shadow:0 0 0 1px var(--error); }
+.field .ph { color:var(--textMuted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tog { font-size:11px; padding:1px 5px; border-radius:4px; border:1px solid var(--border); color:var(--textMuted); }
+.tog.on { border-color:var(--accent); color:var(--accent); background:var(--accentSoft); }
+.findbar, .filterrow { display:flex; align-items:center; gap:6px; padding:6px 10px; border-bottom:1px solid var(--border); background:var(--surface); flex:none; flex-wrap:wrap; }
+.levels { display:inline-flex; gap:4px; }
+.lvchip { padding:2px 8px; border-radius:12px; border:1px solid var(--border); font-size:12px; }
+.lvchip.on { background:var(--accentSoft); border-color:var(--accent); color:var(--accent); font-weight:600; }
+.muted { color:var(--textMuted); }
+.small { font-size:12px; }
+.banner { display:flex; align-items:center; gap:10px; padding:7px 12px; background:var(--warningPanelBg); border-bottom:1px solid var(--border); flex:none; }
+.banner .ico { color:var(--warning); font-weight:700; }
+/* error panel */
+.errp { margin:12px; border:1px solid var(--border); border-left:4px solid var(--error); background:var(--errorPanelBg); border-radius:6px; padding:12px 14px; display:flex; gap:12px; }
+.errp .ico { color:var(--error); font-size:18px; line-height:1; }
+.errp h3 { margin:0 0 6px; font-size:14px; }
+.errp p { margin:2px 0; }
+.errp .acts { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.details { margin-top:8px; padding:8px; border-radius:4px; background:var(--consoleBg); border:1px solid var(--border); }
+/* cards / pages */
+.scroll { flex:1; overflow:auto; padding:20px 24px; }
+.cards { max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+.card { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; }
+.card h2 { margin:0 0 12px; font-size:14px; display:flex; align-items:center; gap:8px; }
+.card h2 .n { width:22px; height:22px; border-radius:50%; background:var(--accentSoft); color:var(--accent); display:inline-flex; align-items:center; justify-content:center; font-size:12px; }
+.drop { border:1.5px dashed var(--border); border-radius:8px; padding:18px; display:flex; align-items:center; gap:14px; }
+.row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.list { border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+.li { display:flex; align-items:center; gap:12px; padding:9px 12px; border-top:1px solid var(--border); }
+.li:first-child { border-top:0; }
+.li.sel { background:var(--accentSoft); }
+.radio { width:16px; height:16px; border-radius:50%; border:2px solid var(--textMuted); flex:none; }
+.li.sel .radio { border-color:var(--accent); box-shadow:inset 0 0 0 3px var(--bg); background:var(--accent); }
+.tag { font-size:11px; padding:1px 7px; border-radius:10px; background:var(--surface); border:1px solid var(--border); color:var(--textMuted); white-space:nowrap; }
+.segc { display:inline-flex; border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+.segc span { padding:6px 14px; } .segc span.on { background:var(--accentSoft); color:var(--accent); font-weight:600; }
+.check { display:inline-flex; align-items:center; gap:8px; }
+.box { width:16px; height:16px; border-radius:3px; border:2px solid var(--textMuted); }
+.box.on { background:var(--accent); border-color:var(--accent); }
+.hint { margin-top:10px; padding:8px 10px; border-radius:6px; background:var(--warningPanelBg); display:flex; gap:10px; align-items:center; }
+.summary { margin-top:12px; padding:10px 12px; border-radius:6px; background:var(--surface); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.ok { color:var(--success); font-weight:700; }
+.steps { display:flex; align-items:center; gap:6px; margin:6px 0 18px; flex-wrap:wrap; }
+.step { display:flex; align-items:center; gap:6px; color:var(--textMuted); }
+.step .c { width:22px; height:22px; border-radius:50%; border:2px solid var(--border); display:inline-flex; align-items:center; justify-content:center; font-size:11px; }
+.step.done { color:var(--text); } .step.done .c { background:var(--success); border-color:var(--success); color:#fff; }
+.step.cur { color:var(--text); font-weight:600; } .step.cur .c { border-color:var(--accent); border-top-color:transparent; }
+.step + .step::before { content:""; width:24px; height:2px; background:var(--border); margin-right:6px; }
+.bar { height:8px; border-radius:4px; background:var(--surface); border:1px solid var(--border); overflow:hidden; }
+.bar > i { display:block; height:100%; background:var(--accent); }
+.big { font-size:18px; font-weight:600; margin:0 0 4px; }
+.kinds { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
+.kind { border:1.5px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start; background:var(--bg); text-align:left; }
+.kind.on { border-color:var(--accent); background:var(--accentSoft); }
+.kind .radio { margin-top:2px; } .kind.on .radio { border-color:var(--accent); box-shadow:inset 0 0 0 3px var(--bg); background:var(--accent); }
+.kind b { display:block; margin-bottom:2px; } .kind .small { display:block; }
+.narrow .kinds { grid-template-columns:1fr; }
+.narrow .kind { padding:8px 12px; }
+.searchbar { display:flex; align-items:center; gap:6px; padding:6px 10px; border-top:1px solid var(--border); background:var(--surface); flex:none; flex-wrap:wrap; }
+.searchbar .segc span { padding:4px 10px; font-size:12px; }
+.fchip { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:12px; background:var(--accentSoft); color:var(--accent); font-size:12px; white-space:nowrap; }
+.stickyfoot { position:sticky; bottom:-20px; margin:0 -24px -20px; padding:12px 24px; background:var(--bg); border-top:1px solid var(--border); display:flex; align-items:center; gap:10px; z-index:2; }
+.empty { flex:1; display:flex; align-items:center; justify-content:center; text-align:center; }
+.empty .in { max-width:460px; }
+.empty .ico { font-size:40px; color:var(--textMuted); }
+.checks { text-align:left; margin:14px auto; display:inline-flex; flex-direction:column; gap:6px; }
+/* settings */
+.set { max-width:760px; margin:0 auto; }
+.set h2 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--textMuted); margin:22px 0 8px; }
+.srow { display:flex; align-items:center; gap:16px; padding:10px 0; border-bottom:1px solid var(--border); }
+.srow .lab { width:240px; flex:none; }
+.srow .lab .muted { display:block; font-size:12px; }
+.sel-box { height:30px; display:inline-flex; align-items:center; gap:8px; padding:0 10px; border:1px solid var(--border); border-radius:4px; min-width:160px; justify-content:space-between; }
+.switch { width:34px; height:18px; border-radius:9px; background:var(--border); position:relative; }
+.switch.on { background:var(--accent); }
+.switch::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; }
+.switch.on::after { left:18px; }
+/* overlays */
+.scrim { position:absolute; inset:0; background:rgba(0,0,0,.42); display:flex; align-items:center; justify-content:center; z-index:5; }
+.dialog { width:480px; max-width:92%; background:var(--surfaceRaised); border-radius:10px; padding:20px 22px; box-shadow:var(--shadow); border:1px solid var(--border); }
+.dialog h3 { margin:0 0 10px; font-size:16px; }
+.dialog ul { margin:8px 0 10px 18px; padding:0; }
+.dialog .acts { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.popover { position:absolute; right:12px; top:44px; width:320px; background:var(--surfaceRaised); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow); padding:14px; z-index:4; }
+.popover .srow .lab { width:150px; flex:1; }
+.popover .sel-box { min-width:110px; }
+.histpop { position:absolute; left:10px; bottom:50px; width:420px; background:var(--surfaceRaised); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow); z-index:4; }
+.histpop .li { padding:6px 10px; }
+.toast { position:absolute; left:50%; bottom:18px; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:8px 16px; border-radius:6px; box-shadow:var(--shadow); z-index:6; }
+.kbdlist { display:grid; grid-template-columns:auto 1fr; gap:6px 18px; }
+.kbdlist .k { font-family:ui-monospace, monospace; font-size:12px; padding:1px 6px; border:1px solid var(--border); border-radius:4px; background:var(--surface); justify-self:start; }
+@media (max-width: 700px) { .review { padding:10px 16px; } }
+</style>
+</head>
+<body>
+<div class="review" role="toolbar" aria-label="Mockup controls">
+  <b>Screen</b><div class="screens" id="screens"></div>
+  <span><b>Theme</b><span class="seg" id="themeSeg"><button data-v="light">Light</button><button data-v="dark">Dark</button></span></span>
+  <span><b>Lang</b><span class="seg" id="langSeg"><button data-v="en">EN</button><button data-v="cs">CS</button></span></span>
+  <span><b>Window</b><span class="seg" id="sizeSeg"><button data-v="wide">1280×800</button><button data-v="narrow">960×600 (min)</button></span></span>
+</div>
+<p class="note" id="note"></p>
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script>
+const S = { screen:'console', lang:'en', size:'wide',
+  theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' };
+try { Object.assign(S, JSON.parse(localStorage.getItem('hioMockup') || '{}')); } catch (e) {}
+
+/* ---------- strings (EN source, CS draft for layout checks) ---------- */
+const T = {
+ en:{ console:'Console', flash:'Flash', settings:'Settings', help:'Help', probe:'Probe', target:'Target',
+  connect:'Connect', disconnect:'Disconnect', cancel:'Cancel', connected:'Connected', connecting:'Connecting…',
+  disconnected:'Disconnected', noPower:'Disconnected — target not powered', flashing:'Flashing…',
+  reset:'Reset', reconnect:'Reconnect', batch:'Batch…', clear:'Clear', save:'Save view…', follow:'Follow', pause:'Pause',
+  shell:'Shell', log:'Log', lines:'lines', send:'Send', inputPh:'Type a command, Enter to send · ↑↓ history · Ctrl+R search',
+  findPh:'Find in log', filterPh:'Filter log lines', showing:'Showing 1 204 of 98 311 lines', clearFilter:'Clear filter',
+  newLines:'▼ 312 new lines', dropped:'312 lines were dropped because the device sent data faster than it could be displayed.',
+  dismiss:'Dismiss', chooseDevice:'Choose device', newTab:'New device',
+  chooseTitle:'Choose a device to connect', chooseSub:'J-Link probes connected to this computer. The list refreshes automatically.',
+  inUse:'In use (tab 2)', device:'Device', refresh:'Refresh',
+  appMcu:'Application MCU (app)', lteMcu:'LTE MCU (lte)',
+  noProbeTitle:'No J-Link probe found', noProbeSub:'Connect the J-Link to USB and to the device with the flat cable.',
+  chkJlink:'J-Link Software found (8.10)', chkUsb:'Is the USB cable connected?', chkBusy:'Is another application using the probe?',
+  helpFix:'Help me fix this', soon:'Coming soon', details:'Details', copy:'Copy',
+  errHead:'The device is not powered.', errCause:'Probably: the target voltage is 0.0 V — the battery or USB power of CHESTER is disconnected.',
+  errTodo:'What to do: connect power to CHESTER, then reconnect. The monitor reconnects automatically when power returns.',
+  reconnecting:'Reconnecting… (target not powered)',
+  fw:'Firmware', drop:'Drop a .hex or .zip file here', browse:'Browse…', orId:'or firmware ID from the catalog', download:'Download',
+  recent:'Recent', openCatalog:'Open firmware catalog', loaded:'Intel HEX · 412 kB · 0x00000–0x64F20',
+  tgt:'Target', options:'Options', haltAfter:'Halt the CPU after flashing', flashBtn:'Flash', maint:'Maintenance',
+  resetHalt:'Reset and halt', eraseApp:'Erase application', eraseAll:'Erase everything…', recover:'Recover…',
+  hintLte:'This looks like LTE modem firmware — switch to LTE MCU?', sw:'Switch',
+  flashingTitle:'Flashing app.hex to the application MCU', ph1:'Connecting', ph2:'Erasing', ph3:'Programming', ph4:'Verifying', ph5:'Resetting',
+  progress:'412 / 803 kB · 51 % · 0:07', consolePaused:'The console is paused and resumes automatically after flashing.',
+  failHead:'The firmware could not be verified.', failCause:'Probably: the flash contents differ from the file at address 0x0001F000 — unstable connection or damaged flash.',
+  failTodo:'What to do: lower the J-Link speed in ⋯ Advanced and try again.', tryAgain:'Try again', chooseOther:'Choose another file',
+  okToast:'Firmware flashed and verified in 14 s.',
+  dlgTitle:'Erase everything on the application MCU?', dlgBody:'This erases:', dl1:'Firmware (flash)', dl2:'UICR configuration',
+  dl3:'Product Information Block (serial number, hardware version, …)', dlgWarn:'This cannot be undone.', dlgBtn:'Erase everything',
+  general:'General', language:'Language', theme:'Theme', system:'System', reopen:'Reopen tabs at start', reopenSub:'Tabs are restored disconnected.',
+  consoleSec:'Console', fontSize:'Font size', timestamps:'Show timestamps', wrap:'Wrap long lines', logFiles:'Save console to log files',
+  logFolder:'Log folder', open:'Open', retention:'Keeps the last 50 files, max. 200 MB.',
+  jlinkSec:'J-Link', library:'Library', auto:'Automatic', detected:'Detected', speed:'Default speed', latency:'RTT latency',
+  autoRec:'Auto-reconnect', resetOn:'Reset on connect', nrfSec:'nRF Util', nrfNot:'Not found — needed only for LTE modem firmware',
+  about:'About', version:'Version', licences:'Licences', applyNote:'Changes apply on the next connect.',
+  advanced:'Advanced', histTitle:'History — type to search', shortcuts:'Keyboard shortcuts',
+  waiting:'Waiting for data from the device…',
+  whatFlash:'What do you want to flash?', kApp:'Application firmware', kAppSub:'Application MCU (nRF52840)', kAppFiles:'.hex file or catalog ID',
+  kLte:'LTE firmware', kLteSub:'LTE MCU (nRF91)', kLteFiles:'.hex or LTE bundle .zip', kModem:'LTE modem firmware', kModemSub:'Modem core via nRF Util', kModemFiles:'mfw_nrf91*.zip',
+  source:'Firmware file', dropApp:'Drop a .hex file here', dropModem:'Drop a modem firmware .zip (mfw_nrf91…) here',
+  nrfMissing:'nRF Util was not found. It is needed only for LTE modem firmware.', setPath:'Set path in Settings', install:'How to install',
+  modemNote:'Modem update takes 1–3 minutes. The console is disconnected meanwhile.',
+  mSearch:'Search', mFilter:'Filter', searchPh:'Search in log (Ctrl+F)', searchShellPh:'Search in shell', filterOn:'Filter: ctr_',
+  sumApp:'Application firmware · chester-clime-v3.2.1.hex',
+  scTabs:'New / close device tab', scNextTab:'Next tab', scPages:'Console / Flash', scConnect:'Connect-disconnect / reconnect',
+  scFind:'Search, next / previous match, close', scFilter:'Filter log', scClear:'Clear / pause / follow', scHistory:'Command history',
+  scBatch:'Batch / save view', scFont:'Console font size', close:'Close', prevMatch:'Previous match', nextMatch:'Next match',
+  more:'More', pages:'Pages', levels:'Log levels', eg:'e.g.', exToast:'example toast', light:'Light', dark:'Dark',
+ },
+ cs:{ console:'Konzole', flash:'Nahrát FW', settings:'Nastavení', help:'Nápověda', probe:'Programátor', target:'Cíl',
+  connect:'Připojit', disconnect:'Odpojit', cancel:'Zrušit', connected:'Připojeno', connecting:'Připojování…',
+  disconnected:'Odpojeno', noPower:'Odpojeno — zařízení není napájené', flashing:'Nahrávání…',
+  reset:'Reset', reconnect:'Znovu připojit', batch:'Dávka…', clear:'Vymazat', save:'Uložit výpis…', follow:'Sledovat', pause:'Pozastavit',
+  shell:'Shell', log:'Log', lines:'řádků', send:'Odeslat', inputPh:'Napište příkaz, Enter odešle · ↑↓ historie · Ctrl+R hledat',
+  findPh:'Hledat v logu', filterPh:'Filtrovat řádky logu', showing:'Zobrazeno 1 204 z 98 311 řádků', clearFilter:'Zrušit filtr',
+  newLines:'▼ 312 nových řádků', dropped:'312 řádků bylo zahozeno, protože zařízení posílalo data rychleji, než je bylo možné zobrazit.',
+  dismiss:'Zavřít', chooseDevice:'Vyberte zařízení', newTab:'Nové zařízení',
+  chooseTitle:'Vyberte zařízení k připojení', chooseSub:'Programátory J-Link připojené k tomuto počítači. Seznam se obnovuje automaticky.',
+  inUse:'Používá se (karta 2)', device:'Zařízení', refresh:'Obnovit',
+  appMcu:'Aplikační MCU (app)', lteMcu:'LTE MCU (lte)',
+  noProbeTitle:'Nenalezen žádný programátor J-Link', noProbeSub:'Připojte J-Link do USB a plochým kabelem k zařízení.',
+  chkJlink:'Software J-Link nalezen (8.10)', chkUsb:'Je připojen USB kabel?', chkBusy:'Nepoužívá programátor jiná aplikace?',
+  helpFix:'Pomozte mi to vyřešit', soon:'Připravujeme', details:'Podrobnosti', copy:'Kopírovat',
+  errHead:'Zařízení není napájené.', errCause:'Pravděpodobně: napětí cíle je 0,0 V — baterie nebo USB napájení CHESTERu je odpojené.',
+  errTodo:'Co dělat: připojte napájení CHESTERu a znovu se připojte. Monitor se po obnovení napájení připojí automaticky.',
+  reconnecting:'Opětovné připojování… (zařízení není napájené)',
+  fw:'Firmware', drop:'Přetáhněte sem soubor .hex nebo .zip', browse:'Procházet…', orId:'nebo ID firmwaru z katalogu', download:'Stáhnout',
+  recent:'Nedávné', openCatalog:'Otevřít katalog firmwarů', loaded:'Intel HEX · 412 kB · 0x00000–0x64F20',
+  tgt:'Cíl', options:'Možnosti', haltAfter:'Po nahrání zastavit procesor', flashBtn:'Nahrát', maint:'Údržba',
+  resetHalt:'Reset a zastavit', eraseApp:'Smazat aplikaci', eraseAll:'Smazat vše…', recover:'Obnovit (recover)…',
+  hintLte:'Vypadá to jako firmware LTE modemu — přepnout na LTE MCU?', sw:'Přepnout',
+  flashingTitle:'Nahrávání app.hex do aplikačního MCU', ph1:'Připojování', ph2:'Mazání', ph3:'Programování', ph4:'Ověřování', ph5:'Reset',
+  progress:'412 / 803 kB · 51 % · 0:07', consolePaused:'Konzole je pozastavená a po nahrání se automaticky obnoví.',
+  failHead:'Firmware se nepodařilo ověřit.', failCause:'Pravděpodobně: obsah paměti se na adrese 0x0001F000 liší od souboru — nestabilní spojení nebo poškozená paměť.',
+  failTodo:'Co dělat: snižte rychlost J-Link v ⋯ Pokročilé a zkuste to znovu.', tryAgain:'Zkusit znovu', chooseOther:'Vybrat jiný soubor',
+  okToast:'Firmware nahrán a ověřen za 14 s.',
+  dlgTitle:'Smazat vše v aplikačním MCU?', dlgBody:'Bude smazáno:', dl1:'Firmware (flash)', dl2:'Konfigurace UICR',
+  dl3:'Produktový informační blok (sériové číslo, verze hardwaru, …)', dlgWarn:'Tuto akci nelze vrátit.', dlgBtn:'Smazat vše',
+  general:'Obecné', language:'Jazyk', theme:'Vzhled', system:'Podle systému', reopen:'Při spuštění obnovit karty', reopenSub:'Karty se obnoví odpojené.',
+  consoleSec:'Konzole', fontSize:'Velikost písma', timestamps:'Zobrazit časové značky', wrap:'Zalamovat dlouhé řádky', logFiles:'Ukládat konzoli do souborů',
+  logFolder:'Složka s logy', open:'Otevřít', retention:'Uchovává posledních 50 souborů, max. 200 MB.',
+  jlinkSec:'J-Link', library:'Knihovna', auto:'Automaticky', detected:'Nalezeno', speed:'Výchozí rychlost', latency:'Latence RTT',
+  autoRec:'Automaticky znovu připojit', resetOn:'Reset při připojení', nrfSec:'nRF Util', nrfNot:'Nenalezeno — potřeba jen pro firmware LTE modemu',
+  about:'O aplikaci', version:'Verze', licences:'Licence', applyNote:'Změny se projeví při dalším připojení.',
+  advanced:'Pokročilé', histTitle:'Historie — pište pro hledání', shortcuts:'Klávesové zkratky',
+  waiting:'Čekání na data ze zařízení…',
+  whatFlash:'Co chcete nahrát?', kApp:'Aplikační firmware', kAppSub:'Aplikační MCU (nRF52840)', kAppFiles:'soubor .hex nebo ID z katalogu',
+  kLte:'LTE firmware', kLteSub:'LTE MCU (nRF91)', kLteFiles:'.hex nebo LTE balíček .zip', kModem:'Firmware LTE modemu', kModemSub:'Jádro modemu přes nRF Util', kModemFiles:'mfw_nrf91*.zip',
+  source:'Soubor s firmwarem', dropApp:'Přetáhněte sem soubor .hex', dropModem:'Přetáhněte sem .zip s firmwarem modemu (mfw_nrf91…)',
+  nrfMissing:'nRF Util nebyl nalezen. Je potřeba jen pro firmware LTE modemu.', setPath:'Nastavit cestu', install:'Jak nainstalovat',
+  modemNote:'Aktualizace modemu trvá 1–3 minuty. Konzole je mezitím odpojená.',
+  mSearch:'Hledat', mFilter:'Filtr', searchPh:'Hledat v logu (Ctrl+F)', searchShellPh:'Hledat v shellu', filterOn:'Filtr: ctr_',
+  sumApp:'Aplikační firmware · chester-clime-v3.2.1.hex',
+  scTabs:'Nová / zavřít kartu zařízení', scNextTab:'Další karta', scPages:'Konzole / Nahrát FW', scConnect:'Připojit-odpojit / znovu připojit',
+  scFind:'Hledat, další / předchozí shoda, zavřít', scFilter:'Filtrovat log', scClear:'Vymazat / pozastavit / sledovat', scHistory:'Historie příkazů',
+  scBatch:'Dávka / uložit výpis', scFont:'Velikost písma konzole', close:'Zavřít', prevMatch:'Předchozí shoda', nextMatch:'Další shoda',
+  more:'Další', pages:'Stránky', levels:'Úrovně logu', eg:'např.', exToast:'ukázková notifikace', light:'Světlý', dark:'Tmavý',
+ }
+};
+const t = k => (T[S.lang][k] ?? T.en[k] ?? k);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- shell pieces ---------- */
+const ICON = { console:'▤', flash:'⚡', settings:'⚙', help:'?' };
+function tabbar(active, st) {
+  const tabs = [
+    { title:'CHESTER app · 683012345', dot:st },
+    { title:'CHESTER lte · 801004417', dot:'' },
+  ];
+  return `<div class="tabbar" role="tablist">${tabs.map((x,i)=>`<div class="tab ${i===0?'active':''}" role="tab" aria-selected="${i===0}">
+    <span class="dot ${x.dot}"></span>${esc(i===0&&active==='choose'?t('newTab'):x.title)}<span class="x">×</span></div>`).join('')}
+    <button class="tab-add" title="${t('newTab')} (Ctrl+T)" aria-label="${t('newTab')}">+</button></div>`;
+}
+function rail(page, busy) {
+  const it = (k, sel, badge) => `<button class="item ${sel?'sel':''}" title="${t(k)}"><span class="ic">${ICON[k]}</span><span class="l">${t(k)}</span>${badge?'<span class="badge"></span>':''}</button>`;
+  return `<nav class="rail" aria-label="${t('pages')}">${it('console', page==='console', busy)}${it('flash', page==='flash')}<div class="spacer"></div>${it('settings', page==='settings')}${it('help')}</nav>`;
+}
+function devbar(state, extra='') {
+  const map = {
+    on:  [`<span class="dot ok"></span>${t('connected')} · 3.30 V`, `<button class="btn">${t('disconnect')}</button>`],
+    off: [`<span class="dot"></span>${t('disconnected')}`, `<button class="btn primary">${t('connect')}</button>`],
+    err: [`<span class="dot err"></span>${t('reconnecting')}`, `<button class="btn">${t('disconnect')}</button>`],
+    busy:[`<span class="dot busy"></span>${t('flashing')}`, `<button class="btn" disabled>${t('disconnect')}</button>`],
+    choose:[`<span class="muted">${t('chooseDevice')}</span>`, ''],
+  }[state];
+  const probe = state==='choose' ? '' : `<span class="chip"><span class="k">${t('probe')}</span> J-Link EDU Mini · <span class="mono">683012345</span></span>
+    <span class="chip"><span class="k">${t('target')}</span> CHESTER · app ▾</span>`;
+  return `<div class="devbar">${probe}<span class="state">${map[0]}</span><span class="grow"></span>${map[1]}
+    ${state==='choose'?'':`<button class="btn ghost" title="${t('advanced')}" aria-label="${t('advanced')}">⋯</button>`}</div>${extra}`;
+}
+function frame({page, dev, busy, tabState, content, overlay=''}) {
+  return `<div class="titlebar">HARDWARIO Monitor</div>${tabbar(page==='choose'?'choose':page, tabState)}
+   <div class="body">${rail(page==='choose'?'':page, busy)}<div class="main">${page==='settings'?'':devbar(dev)}${content}</div></div>${overlay}`;
+}
+
+/* ---------- console pieces ---------- */
+const shellLines = [
+  ['echo','> app info'], ['','Vendor name:  HARDWARIO'], ['','Product name: CHESTER-M'], ['','HW variant:   CDGLS'],
+  ['','Serial number: 2159018267'], ['','FW version:   v3.2.1'], ['echo','> lte state'], ['','registered: yes, rsrp: -94 dBm'],
+  ['echo','> app config show'], ['','app config interval-report 900'], ['','app config interval-sample 60'],
+];
+const logLines = [
+  ['I','12:41:02.118','<inf> app_work: Sample triggered'], ['D','12:41:02.120','<dbg> ctr_therm: Temperature: 23.81 C'],
+  ['I','12:41:02.402','<inf> ctr_lte_v2: Attach state: registered'], ['W','12:41:03.007','<wrn> ctr_lte_v2: RSRP low: -112 dBm'],
+  ['I','12:41:03.551','<inf> ctr_cloud: Uplink started (512 B)'], ['E','12:41:04.909','<err> ctr_cloud: Uplink timeout, retry 1/3'],
+  ['I','12:41:05.230','<inf> ctr_cloud: Uplink started (512 B)'], ['I','12:41:06.011','<inf> ctr_cloud: Uplink done'],
+  ['D','12:41:06.020','<dbg> app_work: Next sample in 60 s'], ['W','12:41:07.441','<wrn> ctr_batt: Voltage 3.41 V under load'],
+  ['I','12:41:08.003','<inf> app_handler: Button pressed'], ['E','12:41:09.890','<err> ctr_cloud: Uplink timeout, retry 2/3'],
+];
+function hl(text, q, cur) {
+  if (!q) return esc(text);
+  return esc(text).split(q).map((p,i,a)=> i<a.length-1 ? p+`<mark class="${cur&&i===0?'cur':''}">${q}</mark>` : p).join('');
+}
+function shellPane(opts={}) {
+  const lines = opts.empty ? `<div class="empty" style="height:100%"><div class="in muted">${t('waiting')}</div></div>`
+    : shellLines.map(([c,s])=>`<div class="ln mono ${c}">${esc(s)}</div>`).join('');
+  return `<section class="pane" aria-label="${t('shell')}"><div class="panehead"><b>${t('shell')}</b><span>${shellLines.length} ${t('lines')}</span></div>
+   <div class="lines">${lines}${opts.hist?histPopup():''}</div>
+   ${opts.find?`<div class="searchbar" role="search"><span class="segc"><span class="on">${t('mSearch')}</span></span><div class="field focus" style="max-width:300px"><span>lte</span><span class="grow"></span><span class="tog">Aa</span><span class="tog">.*</span></div><span class="small">1 / 2</span><button class="tb">↑</button><button class="tb">↓</button><button class="tb">×</button></div>`:''}
+   <div class="input"><div class="field mono ${opts.disabled?'':'focus'}">${opts.disabled?`<span class="ph">${esc(opts.disabled)}</span>`:`<span style="color:var(--accent)">&gt;</span><span class="ph">${t('inputPh')}</span>`}</div>
+   <button class="btn primary" ${opts.disabled?'disabled':''}>${t('send')}</button></div></section>`;
+}
+function histPopup() {
+  const h = ['lte state','lte config show','app config show','app config interval-report 900','lte test reset'];
+  return `<div class="histpop"><div class="panehead"><b>${t('histTitle')}</b></div><div class="field focus mono" style="margin:8px">lte</div>
+   ${h.filter(x=>x.includes('lte')).map((x,i)=>`<div class="li mono ${i===0?'sel':''}">${hl(x,'lte')}</div>`).join('')}</div>`;
+}
+function logPane(opts={}) {
+  // opts.mode: 'search' | 'filter'; opts.find: search query active; opts.filter: filter active
+  const mode = opts.mode || 'search';
+  const q = opts.find ? 'Uplink' : '';
+  let first = true;
+  const rows = logLines.filter(r => !opts.filter || (r[0]!=='D' && r[2].includes('ctr_'))).map(([lv,ts,s],i) => {
+    const has = q && s.includes(q); const cur = has && first; if (has) first = false;
+    return `<div class="ln mono ${lv} ${i===2&&opts.sel?'sel':''}"><span class="t">${ts}</span><span class="lv">${lv}</span><span>${hl(s.replace(/^<\w+> /,''), q, cur)}</span></div>`;
+  }).join('');
+  const field = mode==='search'
+    ? `<div class="field ${opts.find?'focus':''}" style="max-width:340px">${opts.find?'<span>Uplink</span>':`<span class="ph">${t('searchPh')}</span>`}<span class="grow"></span><span class="tog">Aa</span><span class="tog">.*</span></div>
+       ${opts.find?`<span class="small">3 / 128</span><button class="tb" aria-label="${t('prevMatch')} (Shift+N)">↑</button><button class="tb" aria-label="${t('nextMatch')} (N)">↓</button><button class="tb" aria-label="${t('close')} (Esc)">×</button>`:''}
+       ${opts.filter?`<span class="fchip">${t('filterOn')} <span>×</span></span>`:''}`
+    : `<div class="field focus" style="max-width:340px"><span>ctr_</span><span class="grow"></span><span class="tog">Aa</span><span class="tog">.*</span></div>
+       <span class="small muted">${t('showing')}</span><button class="tb small">${t('clearFilter')}</button>`;
+  const bar = `<div class="searchbar" role="search"><span class="segc"><span class="${mode==='search'?'on':''}">${t('mSearch')}</span><span class="${mode==='filter'?'on':''}">${t('mFilter')}</span></span>
+     ${field}<span class="grow"></span>
+     <span class="levels" aria-label="${t('levels')}"><span class="lvchip ${opts.filter?'':'on'}">D</span><span class="lvchip on">I</span><span class="lvchip on">W</span><span class="lvchip on">E</span></span></div>`;
+  return `<section class="pane" aria-label="${t('log')}"><div class="panehead"><b>${t('log')}</b><span>98 311 ${t('lines')}</span></div>
+    <div class="lines">${rows}${opts.pill?`<span class="pill">${t('newLines')}</span>`:''}</div>${bar}</section>`;
+}
+function consoleToolbar(following=true) {
+  return `<div class="toolbar" role="toolbar">
+   <button class="tb" title="${t('reset')}">⟲ <span class="lbl">${t('reset')} ▾</span></button>
+   <button class="tb" title="${t('reconnect')} (F4)">↻ <span class="lbl">${t('reconnect')}</span> <span class="kbd">F4</span></button>
+   <button class="tb" title="${t('batch')} (Ctrl+B)">≡ <span class="lbl">${t('batch')}</span></button>
+   <button class="tb" title="${t('clear')} (Ctrl+K)">⌫ <span class="lbl">${t('clear')} ▾</span></button>
+   <button class="tb" title="${t('save')} (Ctrl+S)">⤓ <span class="lbl">${t('save')}</span></button>
+   <span class="grow"></span>
+   <button class="tb ${following?'on':''}" title="${t('follow')} (End)">⇣ <span class="lbl">${t('follow')}</span></button>
+   <button class="tb" title="${t('pause')} (Ctrl+P)">❚❚ <span class="lbl">${t('pause')}</span></button>
+   <button class="tb" aria-label="${t('more')}">⋯</button></div>`;
+}
+
+/* ---------- screens ---------- */
+const SCREENS = {
+ choose: { label:'Choose device', note:'New tab (Ctrl+T): live probe list refreshed every 2 s (ADR-0050). Probe in use in another tab shows a badge and switches to it.',
+  render:() => frame({page:'choose', dev:'choose', tabState:'', content:`<div class="scroll"><div class="cards">
+   <div><p class="big">${t('chooseTitle')}</p><p class="muted" style="margin:0">${t('chooseSub')}</p></div>
+   <div class="card"><h2>${t('probe')} <span class="grow"></span><button class="tb small">↻ ${t('refresh')}</button></h2><div class="list">
+    <div class="li sel"><span class="radio"></span><b>J-Link EDU Mini</b><span class="mono">683012345</span><span class="muted small">FW 2024-03-07</span></div>
+    <div class="li"><span class="radio"></span><b>J-Link OB-SAM3U128</b><span class="mono">801004417</span><span class="muted small">FW 2023-11-02</span><span class="grow"></span><span class="tag">${t('inUse')}</span></div>
+    <div class="li"><span class="radio"></span><b>J-Link PLUS</b><span class="mono">600109876</span><span class="muted small">FW 2025-01-15</span></div></div></div>
+   <div class="card"><h2>${t('device')}</h2><div class="row"><span class="sel-box">CHESTER ▾</span><span class="segc"><span class="on">${t('appMcu')}</span><span>${t('lteMcu')}</span></span><span class="grow"></span><button class="btn primary">${t('connect')}</button></div></div>
+  </div></div>`}) },
+ noprobe: { label:'No probe (empty state)', note:'Empty state shows the next step and simple checks. “Help me fix this” is disabled until the M4 Connect wizard.',
+  render:() => frame({page:'choose', dev:'choose', tabState:'', content:`<div class="empty"><div class="in"><div class="ico">🔌</div>
+   <p class="big">${t('noProbeTitle')}</p><p class="muted">${t('noProbeSub')}</p>
+   <div class="checks"><span><span class="ok">✓</span> ${t('chkJlink')}</span><span class="muted">○ ${t('chkUsb')}</span><span class="muted">○ ${t('chkBusy')}</span></div>
+   <div class="row" style="justify-content:center"><button class="btn primary">↻ ${t('refresh')}</button><button class="btn" disabled title="${t('soon')}">${t('helpFix')}</button></div></div></div>`}) },
+ console: { label:'Console', note:'Shell | Log side by side, per-page toolbar, bottom Search | Filter bar under the log (as in the old app), Follow on.',
+  render:() => frame({page:'console', dev:'on', tabState:'ok', content:`${consoleToolbar()}<div class="content"><div class="split">${shellPane()}${logPane()}</div></div>`}) },
+ find: { label:'Console: search', note:'Bottom search bar like the old app, but labelled Search | Filter (ADR-0056). Search: counter, ↑ ↓ (N / Shift+N), Aa / .* — the stream keeps running. An active filter stays visible as a chip. Shell has its own search above the input.',
+  render:() => frame({page:'console', dev:'on', tabState:'ok', content:`${consoleToolbar(false)}<div class="banner"><span class="ico">!</span><span class="grow">${t('dropped')}</span><button class="tb">${t('dismiss')}</button></div><div class="content"><div class="split">${shellPane({find:true})}${logPane({mode:'search', find:true, filter:true, pill:true, sel:true})}</div></div>`}) },
+ filter: { label:'Console: filter', note:'Same bottom bar switched to Filter (Ctrl+L): non-matching lines hidden, counter + Clear filter. Level chips always on the right of the bar.',
+  render:() => frame({page:'console', dev:'on', tabState:'ok', content:`${consoleToolbar()}<div class="content"><div class="split">${shellPane()}${logPane({mode:'filter', filter:true})}</div></div>`}) },
+ history: { label:'Console: Ctrl+R history', note:'History popup filters as you type; Enter inserts, Esc closes. History is shared per profile/target and persisted.',
+  render:() => frame({page:'console', dev:'on', tabState:'ok', content:`${consoleToolbar()}<div class="content"><div class="split">${shellPane({hist:true})}${logPane()}</div></div>`}) },
+ error: { label:'Console: error panel', note:'Inline ErrorPanel from hio::Error (target.no_power): headline, cause, what to do, actions, Details. Input disabled with reason.',
+  render:() => frame({page:'console', dev:'err', tabState:'err', content:`${consoleToolbar()}<div class="errp" role="alert"><span class="ico">⛔</span><div class="grow">
+   <h3>${t('errHead')}</h3><p class="muted">${t('errCause')}</p><p>${t('errTodo')}</p>
+   <div class="acts"><button class="btn primary">${t('reconnect')}</button><button class="btn" disabled title="${t('soon')}">${t('helpFix')}</button><button class="btn ghost">${t('details')} ▾</button></div>
+   <div class="details mono small">target.no_power · VTref = 0 mV · J-Link 683012345 · JLinkARM 8.10 <button class="tb small">${t('copy')}</button></div></div></div>
+   <div class="content"><div class="split">${shellPane({disabled:t('noPower')})}${logPane()}</div></div>`}) },
+ flash: { label:'Flash: ready', note:'Kind first (ADR-0055): 1 what to flash (app / LTE / modem) → 2 file or catalog ID, filtered to that kind → 3 options; sticky Flash bar; Maintenance below.',
+  render:() => frame({page:'flash', dev:'on', tabState:'ok', content:`<div class="scroll"><div class="cards">
+   <div class="card"><h2><span class="n">1</span>${t('whatFlash')}</h2><div class="kinds" role="radiogroup">${[['app','kApp','kAppSub','kAppFiles'],['lte','kLte','kLteSub','kLteFiles'],['modem','kModem','kModemSub','kModemFiles']].map(([k,a,b,c])=>`<button class="kind ${k==='app'?'on':''}" role="radio" aria-checked="${k==='app'}"><span class="radio"></span><span><b>${t(a)}</b><span class="small muted">${t(b)}</span><span class="small muted mono">${t(c)}</span></span></button>`).join('')}</div></div>
+   <div class="card"><h2><span class="n">2</span>${t('source')}</h2>
+    <div class="drop"><span style="font-size:22px">⤓</span><span class="grow">${t('dropApp')}</span><button class="btn">${t('browse')}</button></div>
+    <div class="row" style="margin-top:12px"><span class="muted">${t('orId')}</span><div class="field mono" style="max-width:340px"><span class="ph">${t('eg')} 3f2a9c1b…</span></div><button class="btn">${t('download')}</button><a class="small" href="#" style="color:var(--accent)">${t('openCatalog')} ↗</a></div>
+    <div class="summary"><span class="ok">✓</span><b class="mono">chester-clime-v3.2.1.hex</b><span class="muted">${t('loaded')}</span><span class="grow"></span><button class="tb small">×</button></div>
+    <div class="small muted" style="margin-top:10px">${t('recent')}: <span class="tag mono">chester-clime-v3.2.1.hex</span> <span class="tag mono">catalog:9e01…c47a</span></div></div>
+   <div class="card"><h2><span class="n">3</span>${t('options')}</h2><span class="check"><span class="box"></span>${t('haltAfter')}</span></div>
+   <div class="card"><h2>${t('maint')} ▾</h2><div class="row"><button class="btn">${t('reset')}</button><button class="btn">${t('resetHalt')}</button><button class="btn">${t('eraseApp')}</button><span class="grow"></span><button class="btn" style="color:var(--error)">${t('eraseAll')}</button><button class="btn" style="color:var(--error)">${t('recover')}</button></div></div>
+  </div><div class="stickyfoot"><span class="ok">✓</span><span class="small muted">${t('sumApp')}</span><span class="grow"></span><span class="kbd">Ctrl+Enter</span><button class="btn primary" style="height:36px;padding:0 28px">${t('flashBtn')}</button></div></div>`}) },
+ flashModem: { label:'Flash: modem (nRF Util missing)', note:'Modem kind selected: only modem .zip accepted, no catalog ID; nRF Util missing is shown inline before the user picks a file. Flash stays disabled with the reason.',
+  render:() => frame({page:'flash', dev:'on', tabState:'ok', content:`<div class="scroll"><div class="cards">
+   <div class="card"><h2><span class="n">1</span>${t('whatFlash')}</h2><div class="kinds" role="radiogroup">${[['app','kApp','kAppSub','kAppFiles'],['lte','kLte','kLteSub','kLteFiles'],['modem','kModem','kModemSub','kModemFiles']].map(([k,a,b,c])=>`<button class="kind ${k==='modem'?'on':''}" role="radio" aria-checked="${k==='modem'}"><span class="radio"></span><span><b>${t(a)}</b><span class="small muted">${t(b)}</span><span class="small muted mono">${t(c)}</span></span></button>`).join('')}</div>
+    <div class="hint" style="background:var(--errorPanelBg)"><span style="color:var(--error)">⛔</span><span class="grow">${t('nrfMissing')}</span><button class="btn">${t('setPath')}</button><a class="small" href="#" style="color:var(--accent)">${t('install')} ↗</a></div></div>
+   <div class="card"><h2><span class="n">2</span>${t('source')}</h2>
+    <div class="drop" style="opacity:.55"><span style="font-size:22px">⤓</span><span class="grow">${t('dropModem')}</span><button class="btn" disabled>${t('browse')}</button></div>
+    <p class="small muted" style="margin:10px 0 0">ℹ ${t('modemNote')}</p></div>
+  </div><div class="stickyfoot"><span class="small muted">${t('nrfMissing')}</span><span class="grow"></span><button class="btn primary" disabled style="height:36px;padding:0 28px">${t('flashBtn')}</button></div></div>`}) },
+ progress: { label:'Flash: in progress', note:'Phase stepper from OperationProgress.plannedPhases, bytes, elapsed, Cancel. Console rail item shows busy badge; device bar “Flashing…”.',
+  render:() => frame({page:'flash', dev:'busy', busy:true, tabState:'busy', content:`<div class="scroll"><div class="cards"><div class="card">
+   <p class="big">${t('flashingTitle')}</p>
+   <div class="steps"><span class="step done"><span class="c">✓</span>${t('ph1')}</span><span class="step done"><span class="c">✓</span>${t('ph2')}</span><span class="step cur"><span class="c"></span>${t('ph3')}</span><span class="step"><span class="c">4</span>${t('ph4')}</span><span class="step"><span class="c">5</span>${t('ph5')}</span></div>
+   <div class="bar"><i style="width:51%"></i></div><div class="row" style="margin-top:8px"><span class="muted mono small">${t('progress')}</span><span class="grow"></span><button class="btn">${t('cancel')}</button></div>
+   <p class="muted small" style="margin-top:14px">ℹ ${t('consolePaused')}</p></div></div></div>`}) },
+ failed: { label:'Flash: failed', note:'Result card = ErrorPanel (firmware.verify_failed) with retry and other actions. Success instead shows a result card + toast.',
+  render:() => frame({page:'flash', dev:'on', tabState:'ok', content:`<div class="scroll"><div class="cards"><div class="errp" role="alert" style="margin:0"><span class="ico">⛔</span><div class="grow">
+   <h3>${t('failHead')}</h3><p class="muted">${t('failCause')}</p><p>${t('failTodo')}</p>
+   <div class="acts"><button class="btn primary">${t('tryAgain')}</button><button class="btn">${t('chooseOther')}</button><button class="btn" disabled title="${t('soon')}">${t('helpFix')}</button><button class="btn ghost">${t('details')} ▸</button></div></div></div></div></div>`,
+   overlay:`<div class="toast">✓ ${t('okToast')} <span class="muted">(${t('exToast')})</span></div>`}) },
+ confirm: { label:'Erase-all confirmation', note:'ADR-0038 dialog: names what is lost, Cancel is default (Esc), destructive button repeats the action.',
+  render:() => frame({page:'flash', dev:'on', tabState:'ok', content:`<div class="scroll"></div>`,
+   overlay:`<div class="scrim"><div class="dialog" role="alertdialog" aria-modal="true"><h3>${t('dlgTitle')}</h3><p>${t('dlgBody')}</p>
+   <ul><li>${t('dl1')}</li><li>${t('dl2')}</li><li><b>${t('dl3')}</b></li></ul><p><b>${t('dlgWarn')}</b></p>
+   <div class="acts"><button class="btn primary">${t('cancel')}</button><button class="btn danger">${t('dlgBtn')}</button></div></div></div>`}) },
+ advanced: { label:'Advanced popover', note:'Per-tab J-Link options (ADR-0052); defaults from Settings, remembered per probe SN.',
+  render:() => frame({page:'console', dev:'off', tabState:'', content:`${consoleToolbar()}<div class="content"><div class="split">${shellPane({empty:true, disabled:t('disconnected')})}${logPane()}</div>
+   <div class="popover"><b>${t('advanced')}</b>
+    <div class="srow"><span class="lab">${t('speed')}</span><span class="sel-box mono">2000 kHz ▾</span></div>
+    <div class="srow"><span class="lab">${t('latency')}</span><span class="sel-box mono">50 ms ▾</span></div>
+    <div class="srow"><span class="lab">${t('autoRec')}</span><span class="switch on"></span></div>
+    <div class="srow"><span class="lab">${t('resetOn')}</span><span class="switch"></span></div>
+    <div class="srow"><span class="lab">${t('logFiles')}</span><span class="switch on"></span></div>
+    <p class="muted small" style="margin:8px 0 0">${t('applyNote')}</p></div></div>`}) },
+ settings: { label:'Settings', note:'Global settings page (Ctrl+,). Changes apply immediately; invalid input shows inline errors.',
+  render:() => frame({page:'settings', content:`<div class="scroll"><div class="set">
+   <p class="big">${t('settings')}</p>
+   <h2>${t('general')}</h2>
+   <div class="srow"><span class="lab">${t('language')}</span><span class="segc"><span>${t('system')}</span><span class="${S.lang==='en'?'on':''}">English</span><span class="${S.lang==='cs'?'on':''}">Čeština</span></span></div>
+   <div class="srow"><span class="lab">${t('theme')}</span><span class="segc"><span class="on">${t('system')}</span><span>${t('light')}</span><span>${t('dark')}</span></span></div>
+   <div class="srow"><span class="lab">${t('reopen')}<span class="muted">${t('reopenSub')}</span></span><span class="switch on"></span></div>
+   <h2>${t('consoleSec')}</h2>
+   <div class="srow"><span class="lab">${t('fontSize')}</span><span class="sel-box">10 pt ▾</span><span class="kbd">Ctrl+= / Ctrl+-</span></div>
+   <div class="srow"><span class="lab">${t('timestamps')}</span><span class="switch on"></span></div>
+   <div class="srow"><span class="lab">${t('wrap')}</span><span class="switch"></span></div>
+   <div class="srow"><span class="lab">${t('logFiles')}<span class="muted">${t('retention')}</span></span><span class="switch on"></span></div>
+   <div class="srow"><span class="lab">${t('logFolder')}</span><span class="mono small muted grow">~/.local/share/HARDWARIO/Monitor/console</span><button class="btn">${t('open')}</button></div>
+   <h2>${t('jlinkSec')}</h2>
+   <div class="srow"><span class="lab">${t('library')}</span><span class="segc"><span class="on">${t('auto')}</span><span>…</span></span><span class="small muted mono">${t('detected')}: /opt/SEGGER/JLink/libjlinkarm.so · 8.10</span></div>
+   <div class="srow"><span class="lab">${t('speed')}</span><span class="sel-box mono">2000 kHz ▾</span></div>
+   <div class="srow"><span class="lab">${t('latency')}</span><span class="sel-box mono">50 ms ▾</span></div>
+   <div class="srow"><span class="lab">${t('autoRec')}</span><span class="switch on"></span></div>
+   <h2>${t('nrfSec')}</h2>
+   <div class="srow"><span class="lab">${t('library')}</span><span class="segc"><span class="on">${t('auto')}</span><span>…</span></span><span class="small" style="color:var(--warning)">${t('nrfNot')}</span></div>
+   <h2>${t('about')}</h2>
+   <div class="srow"><span class="lab">${t('version')}</span><span class="mono small">2.0.0 (a1b2c3d) · Qt 6.8.3 · JLinkARM 8.10</span><span class="grow"></span><button class="btn">${t('copy')}</button></div>
+   <div class="srow"><span class="lab">${t('licences')}</span><span class="small muted">Qt (LGPLv3), Inter, JetBrains Mono (OFL), Material Symbols (Apache 2.0), miniz (MIT) …</span></div>
+  </div></div>`}) },
+ shortcuts: { label:'F1 shortcuts', note:'Shortcut overlay (ADR-0051).',
+  render:() => frame({page:'console', dev:'on', tabState:'ok', content:`${consoleToolbar()}<div class="content"><div class="split">${shellPane()}${logPane()}</div></div>`,
+   overlay:`<div class="scrim"><div class="dialog" style="width:560px"><h3>${t('shortcuts')}</h3><div class="kbdlist small">
+   ${[['Ctrl+T / Ctrl+W','scTabs'],['Ctrl+Tab','scNextTab'],['Ctrl+1 / Ctrl+2','scPages'],['Ctrl+,','settings'],
+     ['Ctrl+Shift+D / F4','scConnect'],['Ctrl+F, N / Shift+N, Esc','scFind'],['Ctrl+L','scFilter'],
+     ['Ctrl+K / Ctrl+P / End','scClear'],['Ctrl+R, ↑ ↓','scHistory'],['Ctrl+B / Ctrl+S','scBatch'],
+     ['Ctrl+Enter','flashBtn'],['Ctrl+= / Ctrl+-','scFont'],['F1','shortcuts']].map(([k,v])=>`<span class="k">${k}</span><span>${t(v)}</span>`).join('')}
+   </div><div class="acts"><button class="btn primary">${t('close')}</button></div></div></div>`}) },
+};
+
+/* ---------- wiring ---------- */
+function seg(id, key) {
+  document.querySelectorAll(`#${id} button`).forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.v === S[key]));
+    b.onclick = () => { S[key] = b.dataset.v; render(); };
+  });
+}
+function render() {
+  document.documentElement.dataset.theme = S.theme;
+  document.documentElement.lang = S.lang;
+  if (!SCREENS[S.screen]) S.screen = 'console';
+  const sc = document.getElementById('screens');
+  sc.innerHTML = Object.entries(SCREENS).map(([k,v]) => `<button data-v="${k}" aria-pressed="${k===S.screen}">${v.label}</button>`).join('');
+  sc.querySelectorAll('button').forEach(b => b.onclick = () => { S.screen = b.dataset.v; render(); });
+  seg('themeSeg','theme'); seg('langSeg','lang'); seg('sizeSeg','size');
+  const win = document.getElementById('win');
+  win.className = 'win' + (S.size === 'narrow' ? ' narrow' : '');
+  win.innerHTML = SCREENS[S.screen].render();
+  document.getElementById('note').textContent = SCREENS[S.screen].note;
+  try { localStorage.setItem('hioMockup', JSON.stringify(S)); } catch (e) {}
+}
+render();
+</script>
+</body>
+</html>

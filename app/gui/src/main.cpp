@@ -1,23 +1,37 @@
-// `hio-monitor` - HARDWARIO Monitor desktop application (ADR-0003, ADR-0018).
+// `hio-monitor` - HARDWARIO Monitor desktop application (ADR-0003, ADR-0018;
+// plan/features/0004-m3-gui-shell.md).
 //
-// Startup: QGuiApplication -> application identity -> logging -> settings (an error is logged,
-// not fatal) -> LanguageManager applies ui/language -> QML module HardwarioMonitor, type Main.
+// Startup: QGuiApplication -> application identity -> logging -> Material style, bundled fonts ->
+// single instance (ADR-0058: a second launch activates the first window and exits; a hung first
+// instance -> "Quit / Start anyway") -> settings (an error is logged, not fatal) -> AppViewModel
+// (settings store, registries, probe scanner, restored tabs) -> LanguageManager applies
+// ui/language -> QML module HardwarioMonitor, type Main.
 // Exceptions never leave main(): the body is wrapped at this top boundary (ADR-0007).
 
+#include "fonts.h"
 #include "gui_log.h"
 #include "hio/core/app_identity.h"
 #include "hio/core/json.h"
 #include "hio/core/log.h"
 #include "hio/core/settings.h"
+#include "hio/device/session_registry.h"
 #include "language_manager.h"
+#include "pages/builtin_pages.h"
+#include "single_instance.h"
+#include "viewmodels/app_view_model.h"
+#include "workers/probe_scanner.h"
 
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <QGuiApplication>
 #include <QLoggingCategory>
 #include <QObject>
 #include <QQmlApplicationEngine>
+#include <QQuickStyle>
 #include <QString>
 #include <QStringLiteral>
+#include <QVariant>
+#include <QWindow>
 #include <QtCore/qnamespace.h>
 #include <QtQml/qqmlextensionplugin.h>
 
@@ -29,6 +43,28 @@
 Q_IMPORT_QML_PLUGIN(HardwarioMonitorPlugin)
 
 namespace {
+
+// "HARDWARIO Monitor is already running but does not respond." [Quit] [Start anyway].
+// True for "Start anyway".
+bool askStartAnyway() {
+    QQmlApplicationEngine engine;
+    engine.loadFromModule("HardwarioMonitor", "AlreadyRunningDialog");
+    if (engine.rootObjects().isEmpty()) {
+        return false;
+    }
+    auto* window = qobject_cast<QWindow*>(engine.rootObjects().constFirst());
+    if (window == nullptr) {
+        return false;
+    }
+    QEventLoop loop;
+    QObject::connect(window, &QWindow::visibleChanged, &loop, [&loop](bool visible) {
+        if (!visible) {
+            loop.quit();
+        }
+    });
+    loop.exec();
+    return window->property("startAnyway").toBool();
+}
 
 int run(int& argc, char** argv) {
     QGuiApplication app(argc, argv);
@@ -42,6 +78,24 @@ int run(int& argc, char** argv) {
         return 1;
     }
 
+    // ADR-0044: Material (Dense via :/qtquickcontrols2.conf), set before any QML is loaded.
+    QQuickStyle::setStyle(QStringLiteral("Material"));
+    hio::gui::loadBundledFonts();
+
+    hio::gui::SingleInstance instance;
+    switch (instance.start()) {
+    case hio::gui::SingleInstance::Result::Primary:
+        break;
+    case hio::gui::SingleInstance::Result::Activated:
+        return 0;
+    case hio::gui::SingleInstance::Result::NotResponding:
+        if (!askStartAnyway()) {
+            return 0;
+        }
+        instance.startWithoutLock();
+        break;
+    }
+
     std::optional<hio::Settings> settings;
     if (auto opened = hio::Settings::openDefault(); opened) {
         settings.emplace(std::move(*opened));
@@ -51,10 +105,19 @@ int run(int& argc, char** argv) {
             << hio::toQString(opened.error().message) << hio::toQString(opened.error().detail);
     }
 
-    // Ownership: a stack object; the application is its QObject parent only so that AppViewModel
-    // can find it (QObject::findChild). It is destroyed before `app`, which removes it from the
-    // parent's children, so the parent never deletes it.
-    hio::gui::LanguageManager languageManager(std::move(settings), &app);
+    // Ownership: stack objects. The application is AppViewModel's QObject parent only so that the
+    // QML singleton factory finds it (QObject::findChild); it is destroyed before `app`, which
+    // removes it from the parent's children. The language manager is destroyed first.
+    hio::gui::AppViewModel appViewModel(
+        hio::gui::AppOptions{.settings = std::move(settings),
+                             .registry = hio::device::RegistryOptions::defaults(),
+                             .scanInterval = hio::gui::ProbeScanner::defaultInterval,
+                             .registerExtensions = &hio::gui::registerBuiltInPages},
+        &app);
+    hio::gui::LanguageManager languageManager(appViewModel.settingsStore());
+    appViewModel.setLanguageManager(&languageManager);
+    QObject::connect(&instance, &hio::gui::SingleInstance::activationRequested, &appViewModel,
+                     &hio::gui::AppViewModel::activateWindow);
 
     QQmlApplicationEngine engine;
     languageManager.setEngine(&engine);
@@ -70,7 +133,10 @@ int run(int& argc, char** argv) {
         qCCritical(hio::gui::lcGui) << "The main window could not be created";
         return 1;
     }
-    return QGuiApplication::exec();
+    appViewModel.attachWindow(qobject_cast<QWindow*>(engine.rootObjects().constFirst()));
+    const int code = QGuiApplication::exec();
+    appViewModel.saveState();
+    return code;
 }
 
 } // namespace

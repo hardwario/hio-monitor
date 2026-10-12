@@ -5,7 +5,7 @@
 #include "hio/core/i18n.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
-#include "hio/core/settings.h"
+#include "settings_store.h"
 
 #include <QCoreApplication>
 #include <QLibraryInfo>
@@ -16,13 +16,12 @@
 #include <QString>
 #include <QStringList>
 #include <QTranslator>
+#include <QVariant>
 #include <QtContainerFwd>
 
 #include <algorithm>
 #include <expected>
 #include <memory>
-#include <optional>
-#include <string>
 #include <utility>
 
 namespace hio::gui {
@@ -31,16 +30,14 @@ namespace {
 
 const QString systemLanguage = QStringLiteral("system");
 
-SettingKey<std::string> languageKey() {
-    return SettingKey<std::string>{.path = "ui/language", .defaultValue = "system"};
-}
+const QString languageKey = QStringLiteral("ui/language");
 
 } // namespace
 
-LanguageManager::LanguageManager(std::optional<Settings> settings, QObject* parent)
-    : QObject(parent), m_settings(std::move(settings)), m_language(systemLanguage) {
+LanguageManager::LanguageManager(SettingsStore* settings, QObject* parent)
+    : QObject(parent), m_settings(settings), m_language(systemLanguage) {
     if (m_settings) {
-        const QString stored = toQString(m_settings->get(languageKey()));
+        const QString stored = m_settings->value(languageKey).toString();
         if (stored == systemLanguage || isSupported(stored)) {
             m_language = stored;
         } else {
@@ -79,11 +76,7 @@ Status LanguageManager::apply(const QString& code) {
     }
 
     if (m_settings) {
-        Status stored = m_settings->set(languageKey(), toStdString(code));
-        if (stored) {
-            stored = m_settings->sync();
-        }
-        if (!stored) {
+        if (const Status stored = m_settings->setValue(languageKey, code); !stored) {
             qCWarning(lcGui) << "The language choice could not be saved:"
                              << toQString(stored.error().message)
                              << toQString(stored.error().detail);

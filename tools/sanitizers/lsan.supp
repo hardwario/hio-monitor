@@ -1,0 +1,8 @@
+# LeakSanitizer suppressions (used by the ASan presets through LSAN_OPTIONS, CMakePresets.json).
+#
+# Only for uninstrumented third-party libraries; every entry needs a comment with the reason. Never
+# suppress our own code (libs/, app/).
+
+# fontconfig keeps parsed configuration data (allocated while QFontDatabase::addApplicationFont
+# registers the bundled fonts, ADR-0048) in caches that it never frees; seen in tst_gui.
+leak:libfontconfig.so

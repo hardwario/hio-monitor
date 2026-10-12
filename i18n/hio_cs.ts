@@ -2,26 +2,570 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="cs">
 <context>
-    <name>Main</name>
+    <name>AdvancedPopover</name>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="14"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="29"/>
+        <source>Advanced</source>
+        <translation>Pokročilé</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="42"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="56"/>
+        <source>J-Link speed (kHz)</source>
+        <translation>Rychlost J-Link (kHz)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="62"/>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="76"/>
+        <source>RTT latency (ms)</source>
+        <translation>Latence RTT (ms)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="84"/>
+        <source>Auto-reconnect</source>
+        <translation>Automaticky znovu připojit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="92"/>
+        <source>Reset on connect</source>
+        <translation>Reset při připojení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="100"/>
+        <source>Save console to log file</source>
+        <translation>Ukládat konzoli do souboru</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/AdvancedPopover.qml" line="107"/>
+        <source>Changes apply on the next connect.</source>
+        <translation>Změny se projeví při dalším připojení.</translation>
+    </message>
+</context>
+<context>
+    <name>AlreadyRunningDialog</name>
+    <message>
+        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="20"/>
         <source>HARDWARIO Monitor</source>
         <translation>HARDWARIO Monitor</translation>
     </message>
     <message>
+        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="35"/>
+        <source>HARDWARIO Monitor is already running but does not respond.</source>
+        <translation>HARDWARIO Monitor už běží, ale neodpovídá.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="46"/>
+        <source>Start anyway</source>
+        <translation>Přesto spustit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/AlreadyRunningDialog.qml" line="56"/>
+        <source>Quit</source>
+        <translation>Ukončit</translation>
+    </message>
+</context>
+<context>
+    <name>ChooseDevicePage</name>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="32"/>
+        <source>No J-Link probe found</source>
+        <translation>Nenalezen žádný programátor J-Link</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="33"/>
+        <source>Connect the J-Link to USB and to the device.</source>
+        <translation>Připojte J-Link do USB a k zařízení.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="34"/>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="168"/>
+        <source>Refresh</source>
+        <translation>Obnovit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="49"/>
+        <source>J-Link Software found (%1)</source>
+        <translation>Software J-Link nalezen (%1)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="50"/>
+        <source>J-Link Software not found</source>
+        <translation>Software J-Link nenalezen</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="65"/>
+        <source>Is the USB cable connected?</source>
+        <translation>Je připojen USB kabel?</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="81"/>
+        <source>Help me fix this</source>
+        <translation>Pomozte mi to vyřešit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="82"/>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="90"/>
+        <source>Coming soon</source>
+        <translation>Připravujeme</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="117"/>
+        <source>Choose a device to connect</source>
+        <translation>Vyberte zařízení k připojení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="125"/>
+        <source>J-Link probes connected to this computer. The list refreshes automatically.</source>
+        <translation>Programátory J-Link připojené k tomuto počítači. Seznam se obnovuje automaticky.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="160"/>
+        <source>Probe</source>
+        <translation>Programátor</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="184"/>
+        <source>Looking for J-Link probes…</source>
+        <translation>Hledání programátorů J-Link…</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="286"/>
+        <source>FW %1</source>
+        <translation>FW %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="300"/>
+        <source>In use by another program (%1)</source>
+        <translation>Používá jiný program (%1)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="301"/>
+        <source>In use (tab %1)</source>
+        <translation>Používá se (karta %1)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="339"/>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="357"/>
+        <source>Device</source>
+        <translation>Zařízení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="370"/>
+        <source>Target</source>
+        <translation>Cíl</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="396"/>
+        <source>Choose a free probe in the list above.</source>
+        <translation>Vyberte v seznamu výše volný programátor.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="409"/>
+        <source>Connect</source>
+        <translation>Připojit</translation>
+    </message>
+</context>
+<context>
+    <name>ConfirmDialog</name>
+    <message>
+        <location filename="../app/gui/qml/components/ConfirmDialog.qml" line="18"/>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ConfirmDialog.qml" line="19"/>
+        <source>Cancel</source>
+        <translation>Zrušit</translation>
+    </message>
+</context>
+<context>
+    <name>DeviceBar</name>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="38"/>
+        <source>Choose device</source>
+        <translation>Vyberte zařízení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="54"/>
+        <source>Probe %1</source>
+        <translation>Programátor %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="65"/>
+        <source>Probe</source>
+        <translation>Programátor</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="92"/>
+        <source>Target: %1</source>
+        <translation>Cíl: %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="93"/>
+        <source>Target</source>
+        <translation>Cíl</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="97"/>
+        <source>Disconnect to change the target</source>
+        <translation>Pro změnu cíle se odpojte</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="151"/>
+        <source>Choose another probe</source>
+        <translation>Vybrat jiný programátor</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="160"/>
+        <source>Connect</source>
+        <translation>Připojit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="161"/>
+        <source>Cancel</source>
+        <translation>Zrušit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="161"/>
+        <source>Disconnect</source>
+        <translation>Odpojit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceBar.qml" line="172"/>
+        <source>Advanced</source>
+        <translation>Pokročilé</translation>
+    </message>
+</context>
+<context>
+    <name>DeviceTabBar</name>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceTabBar.qml" line="16"/>
+        <source>Device tabs</source>
+        <translation>Karty zařízení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceTabBar.qml" line="120"/>
+        <source>Close tab</source>
+        <translation>Zavřít kartu</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceTabBar.qml" line="143"/>
+        <source>New device</source>
+        <translation>Nové zařízení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/DeviceTabBar.qml" line="159"/>
+        <source>At most %1 devices can be open.</source>
+        <translation>Otevřít lze nejvýše %1 zařízení.</translation>
+    </message>
+</context>
+<context>
+    <name>ErrorPanel</name>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="24"/>
+        <source>Reconnect</source>
+        <translation>Znovu připojit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="24"/>
+        <source>Choose another file</source>
+        <translation>Vybrat jiný soubor</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="25"/>
+        <source>Open Settings</source>
+        <translation>Otevřít nastavení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="25"/>
+        <source>Retry</source>
+        <translation>Zkusit znovu</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="25"/>
+        <source>Dismiss</source>
+        <translation>Zavřít</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="93"/>
+        <source>Show less</source>
+        <translation>Zobrazit méně</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="93"/>
+        <source>Show more</source>
+        <translation>Zobrazit více</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="103"/>
+        <source>Probably: %1</source>
+        <translation>Pravděpodobně: %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="112"/>
+        <source>What to do: %1</source>
+        <translation>Co dělat: %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="148"/>
+        <source>Help me fix this</source>
+        <translation>Pomozte mi to vyřešit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="149"/>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="157"/>
+        <source>Coming soon</source>
+        <translation>Připravujeme</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="163"/>
+        <source>Details</source>
+        <translation>Podrobnosti</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="165"/>
+        <source>Expanded</source>
+        <translation>Rozbaleno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="165"/>
+        <source>Collapsed</source>
+        <translation>Sbaleno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="194"/>
+        <source>Error details</source>
+        <translation>Podrobnosti chyby</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ErrorPanel.qml" line="200"/>
+        <source>Copy</source>
+        <translation>Kopírovat</translation>
+    </message>
+</context>
+<context>
+    <name>Main</name>
+    <message>
         <location filename="../app/gui/qml/Main.qml" line="23"/>
-        <source>HARDWARIO Monitor %1 — nothing to see yet</source>
-        <translation>HARDWARIO Monitor %1 — zatím tu nic není</translation>
+        <source>HARDWARIO Monitor</source>
+        <translation>HARDWARIO Monitor</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="40"/>
-        <source>Language:</source>
-        <translation>Jazyk:</translation>
+        <location filename="../app/gui/qml/Main.qml" line="131"/>
+        <source>Close the tab?</source>
+        <translation>Zavřít kartu?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="49"/>
+        <location filename="../app/gui/qml/Main.qml" line="132"/>
+        <source>Cancel and close</source>
+        <translation>Zrušit a zavřít</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/Main.qml" line="133"/>
+        <location filename="../app/gui/qml/Main.qml" line="143"/>
+        <source>Keep running</source>
+        <translation>Pokračovat</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/Main.qml" line="141"/>
+        <source>Quit HARDWARIO Monitor?</source>
+        <translation>Ukončit HARDWARIO Monitor?</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/Main.qml" line="142"/>
+        <source>Cancel and quit</source>
+        <translation>Zrušit a ukončit</translation>
+    </message>
+</context>
+<context>
+    <name>NavRail</name>
+    <message>
+        <location filename="../app/gui/qml/shell/NavRail.qml" line="20"/>
+        <source>Pages</source>
+        <translation>Stránky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/NavRail.qml" line="46"/>
+        <source>Busy</source>
+        <translation>Probíhá operace</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/NavRail.qml" line="144"/>
+        <source>Help</source>
+        <translation>Nápověda</translation>
+    </message>
+</context>
+<context>
+    <name>PageHost</name>
+    <message>
+        <location filename="../app/gui/qml/shell/PageHost.qml" line="28"/>
+        <source>Choose another probe</source>
+        <translation>Vybrat jiný programátor</translation>
+    </message>
+</context>
+<context>
+    <name>Pages</name>
+    <message>
+        <location filename="../app/gui/src/pages/builtin_pages.cpp" line="40"/>
+        <source>Console</source>
+        <translation>Konzole</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/builtin_pages.cpp" line="42"/>
+        <source>Flash</source>
+        <translation>Nahrát FW</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/builtin_pages.cpp" line="44"/>
+        <source>Settings</source>
+        <translation>Nastavení</translation>
+    </message>
+</context>
+<context>
+    <name>PhaseStepper</name>
+    <message>
+        <location filename="../app/gui/qml/components/PhaseStepper.qml" line="111"/>
+        <source>Cancel</source>
+        <translation>Zrušit</translation>
+    </message>
+</context>
+<context>
+    <name>PlaceholderPage</name>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="44"/>
+        <source>The complete settings page comes with a later update. Until then:</source>
+        <translation>Úplná stránka nastavení přibude v některé z dalších verzí. Do té doby:</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="45"/>
+        <source>This page comes with a later update of HARDWARIO Monitor.</source>
+        <translation>Tato stránka přibude v některé z dalších verzí HARDWARIO Monitoru.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="58"/>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="70"/>
+        <source>Language</source>
+        <translation>Jazyk</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="68"/>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="86"/>
         <source>System</source>
-        <translation>Systémový</translation>
+        <translation>Podle systému</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="75"/>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="90"/>
+        <source>Theme</source>
+        <translation>Vzhled</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="87"/>
+        <source>Light</source>
+        <translation>Světlý</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="88"/>
+        <source>Dark</source>
+        <translation>Tmavý</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="96"/>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="113"/>
+        <source>J-Link library</source>
+        <translation>Knihovna J-Link</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="107"/>
+        <source>Not found</source>
+        <translation>Nenalezeno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="118"/>
+        <source>Version %1</source>
+        <translation>Verze %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/PlaceholderPage.qml" line="125"/>
+        <source>Version</source>
+        <translation>Verze</translation>
+    </message>
+</context>
+<context>
+    <name>ShortcutOverlay</name>
+    <message>
+        <location filename="../app/gui/qml/components/ShortcutOverlay.qml" line="19"/>
+        <source>Keyboard shortcuts</source>
+        <translation>Klávesové zkratky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/ShortcutOverlay.qml" line="104"/>
+        <source>Close</source>
+        <translation>Zavřít</translation>
+    </message>
+</context>
+<context>
+    <name>Shortcuts</name>
+    <message>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="251"/>
+        <source>New device tab</source>
+        <translation>Nová karta zařízení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="254"/>
+        <source>Close the device tab</source>
+        <translation>Zavřít kartu zařízení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="257"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="260"/>
+        <source>Next tab</source>
+        <translation>Další karta</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="263"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="266"/>
+        <source>Previous tab</source>
+        <translation>Předchozí karta</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="269"/>
+        <source>Settings</source>
+        <translation>Nastavení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="272"/>
+        <source>Connect or disconnect</source>
+        <translation>Připojit nebo odpojit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="275"/>
+        <source>Reconnect</source>
+        <translation>Znovu připojit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="278"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="281"/>
+        <source>Keyboard shortcuts</source>
+        <translation>Klávesové zkratky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/shortcut_registry.cpp" line="134"/>
+        <source>Tabs</source>
+        <translation>Karty</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/shortcut_registry.cpp" line="135"/>
+        <source>General</source>
+        <translation>Obecné</translation>
+    </message>
+</context>
+<context>
+    <name>WarningBanner</name>
+    <message>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="62"/>
+        <source>Dismiss</source>
+        <translation>Zavřít</translation>
     </message>
 </context>
 <context>
@@ -1020,6 +1564,130 @@
         <location filename="../libs/firmware/src/lte_input.cpp" line="43"/>
         <source>The file is not a CHESTER LTE bundle, modem firmware or HEX file.</source>
         <translation>Soubor není balíček CHESTER LTE, firmware modemu ani soubor HEX.</translation>
+    </message>
+</context>
+<context>
+    <name>hio::gui::ConnectionViewModel</name>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="128"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="142"/>
+        <source>Disconnected — %1</source>
+        <translation>Odpojeno — %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="128"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="143"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="145"/>
+        <source>Disconnected</source>
+        <translation>Odpojeno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="132"/>
+        <source>Connecting…</source>
+        <translation>Připojování…</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="135"/>
+        <source>Connected</source>
+        <translation>Připojeno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="136"/>
+        <source>Connected · %1 V</source>
+        <translation>Připojeno · %1 V</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="139"/>
+        <source>Reconnecting… (%1)</source>
+        <translation>Opětovné připojování… (%1)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="140"/>
+        <source>Reconnecting…</source>
+        <translation>Opětovné připojování…</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="406"/>
+        <source>target not powered</source>
+        <translation>zařízení není napájené</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="408"/>
+        <source>J-Link not found</source>
+        <translation>J-Link nenalezen</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="410"/>
+        <source>J-Link used by another program</source>
+        <translation>J-Link používá jiný program</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="412"/>
+        <source>J-Link could not be opened</source>
+        <translation>J-Link nelze otevřít</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="414"/>
+        <source>target does not respond</source>
+        <translation>zařízení neodpovídá</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="417"/>
+        <source>no RTT console found</source>
+        <translation>konzole RTT nenalezena</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="421"/>
+        <source>connection lost</source>
+        <translation>spojení ztraceno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="425"/>
+        <source>J-Link Software missing</source>
+        <translation>chybí software J-Link</translation>
+    </message>
+</context>
+<context>
+    <name>hio::gui::DeviceTabViewModel</name>
+    <message>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="90"/>
+        <source>New device</source>
+        <translation>Nové zařízení</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="263"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="322"/>
+        <source>— disconnected: %1 —</source>
+        <translation>— odpojeno: %1 —</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="277"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="323"/>
+        <source>— disconnected —</source>
+        <translation>— odpojeno —</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="316"/>
+        <source>— connected —</source>
+        <translation>— připojeno —</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="350"/>
+        <source>— paused: %1 —</source>
+        <translation>— pozastaveno: %1 —</translation>
+    </message>
+</context>
+<context>
+    <name>hio::gui::ProbePickerViewModel</name>
+    <message>
+        <location filename="../app/gui/src/viewmodels/probe_picker_view_model.cpp" line="157"/>
+        <source>Application MCU (app)</source>
+        <translation>Aplikační MCU (app)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/probe_picker_view_model.cpp" line="160"/>
+        <source>LTE modem MCU (lte)</source>
+        <translation>MCU LTE modemu (lte)</translation>
     </message>
 </context>
 <context>

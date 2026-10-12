@@ -1,0 +1,26 @@
+# ThreadSanitizer suppressions for the Qt Quick tests only (tst_gui.*, app/gui/tests/CMakeLists.txt);
+# everything else uses tsan.supp. Keep the entries of tsan.supp in sync below.
+#
+# The Qt Quick tests render real windows (Material style, SVG icons, bundled fonts). QtGui and
+# QtCore (and QtQml, QtQuick) hand parts of that work (image conversion, scaling, glyph and icon rasterization) to
+# Qt's internal thread pools ('Thread (pooled)'): buffers are allocated and copied on one thread
+# and used or freed on another, synchronized by QMutex / QSemaphore inside the uninstrumented Qt
+# libraries, so TSan reports new/delete/memmove inside Qt as races. called_from_lib only ignores
+# the interceptors (malloc, free, new, delete, memcpy, memmove) called from these libraries. The
+# C++ view models and their worker thread are tested with the strict tsan.supp (hio_gui_tests).
+called_from_lib:libQt6Gui.so.6
+called_from_lib:libQt6Core.so.6
+# The QML type loader thread ('QQmlThread') and the Qt Quick render / pixmap reader threads.
+called_from_lib:libQt6Qml.so.6
+called_from_lib:libQt6Quick.so.6
+
+# ---- the entries of tsan.supp ----
+thread:QThread::start
+race:QObject::moveToThread
+race:QMetaObject::invokeMethod
+
+# The QML type loader thread registers the metatype converters of our value types
+# (QList<ErrorInfo>, ...) while the GUI thread reads the registry; QMetaType's registry is
+# guarded by a lock inside uninstrumented libQt6Core, the converter functors are inlined into
+# our binary, so the race is matched by the function name.
+race:QMetaType::registerConverter

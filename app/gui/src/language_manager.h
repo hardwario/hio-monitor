@@ -8,12 +8,13 @@
 // hio::i18n::supportedLanguages; "system" follows QLocale::system().uiLanguages() and falls back
 // to English. apply() switches live: translators, QLocale::setDefault, QQmlEngine::retranslate().
 //
-// Ownership: one instance per GUI process, created in main() on the stack with the application
-// object as QObject parent (so that AppViewModel can find it as a direct child of the
-// application). It lives on the GUI thread.
+// The setting is read and written through the SettingsStore (the GUI's only settings writer,
+// plan/features/0004); AppViewModel registers the key.
+//
+// Ownership: one instance per GUI process, created in main() on the stack after AppViewModel (it
+// keeps a non-owning pointer to AppViewModel's SettingsStore). It lives on the GUI thread.
 
 #include "hio/core/result.h"
-#include "hio/core/settings.h"
 
 #include <QObject>
 #include <QPointer>
@@ -22,19 +23,21 @@
 #include <QTranslator>
 
 #include <memory>
-#include <optional>
 #include <vector>
 
 class QQmlEngine;
 
 namespace hio::gui {
 
+class SettingsStore;
+
 class LanguageManager : public QObject {
     Q_OBJECT
 
 public:
-    // `settings` may be empty (settings could not be opened): the choice is then not persisted.
-    LanguageManager(std::optional<Settings> settings, QObject* parent);
+    // `settings` may be null (tests): the choice is then not persisted. Non-owning; must outlive
+    // this object.
+    explicit LanguageManager(SettingsStore* settings, QObject* parent = nullptr);
     ~LanguageManager() override;
     LanguageManager(const LanguageManager&) = delete;
     LanguageManager& operator=(const LanguageManager&) = delete;
@@ -64,7 +67,7 @@ private:
     void installTranslators(const QString& language);
     void removeTranslators();
 
-    std::optional<Settings> m_settings;
+    QPointer<SettingsStore> m_settings; // non-owning
     QPointer<QQmlEngine> m_engine;
     std::vector<std::unique_ptr<QTranslator>> m_translators; // installed, removed in order
     QString m_language;
