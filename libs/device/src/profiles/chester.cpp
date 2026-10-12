@@ -21,11 +21,19 @@ constexpr std::array ltePartsList{
     ChipPart{.part = 0x9160, .displayName = "nRF9160", .jlinkDevice = "NRF9160_xxAA"},
 };
 
-// FICR / CTRL-AP (nRF52840 and nRF91 product specifications; AP indexes to confirm in Phase 0).
-constexpr jlink::ChipFamily nrf52{
-    .name = "nRF52", .ficrPart = 0x10000100, .ficrVariant = 0x10000104, .ctrlApIndex = 1};
-constexpr jlink::ChipFamily nrf91{
-    .name = "nRF91", .ficrPart = 0x00FF0140, .ficrVariant = 0x00FF0144, .ctrlApIndex = 4};
+// FICR / CTRL-AP (nRF52840 and nRF91 product specifications; AP indexes and CTRL-AP IDR values to
+// confirm in Phase 0). The masked IDRs are equal (a Nordic CTRL-AP); the AP index (1 / 4) is the
+// family discriminator (review R15).
+constexpr jlink::ChipFamily nrf52{.name = "nRF52",
+                                  .ficrPart = 0x10000100,
+                                  .ficrVariant = 0x10000104,
+                                  .ctrlApIndex = 1,
+                                  .ctrlApIdr = 0x02880000};
+constexpr jlink::ChipFamily nrf91{.name = "nRF91",
+                                  .ficrPart = 0x00FF0140,
+                                  .ficrVariant = 0x00FF0144,
+                                  .ctrlApIndex = 4,
+                                  .ctrlApIdr = 0x12880000};
 
 constexpr std::array chesterTargets{
     // Application MCU: the RTT console of `hio chester app console` / `command`.

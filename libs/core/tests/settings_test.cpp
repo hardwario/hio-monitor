@@ -115,6 +115,48 @@ TEST(Settings, NewerSchemaIsReadOnlyAndNeverWritten) {
     EXPECT_EQ(readFile(file), before);
 }
 
+// ADR-0092: remove() deletes a group and every key under it.
+TEST(Settings, RemoveDeletesAGroupAndItsKeys) {
+    const QTemporaryDir dir;
+    const fs::path file = settingsFile(dir);
+    writeRaw(file, QStringLiteral("devices/801234567/name"), QStringLiteral("bench"));
+    writeRaw(file, QStringLiteral("devices/801234567/speed"), 4000);
+    writeRaw(file, QStringLiteral("devices/801000002/name"), QStringLiteral("other"));
+    {
+        auto settings = Settings::openFile(file);
+        ASSERT_TRUE(settings.has_value());
+        ASSERT_TRUE(settings->set(countKey, 3));
+        EXPECT_TRUE(settings->remove("devices/801234567"));
+        EXPECT_TRUE(settings->remove("devices/missing")); // no error
+        EXPECT_EQ(settings->remove("").error().code, hio::ErrorCode::UsageInvalidArgument);
+        EXPECT_EQ(settings->remove("meta").error().code, hio::ErrorCode::UsageInvalidArgument);
+        EXPECT_TRUE(settings->sync());
+    }
+    const std::string text = readFile(file);
+    EXPECT_EQ(text.find("801234567"), std::string::npos) << text;
+    EXPECT_NE(text.find("801000002"), std::string::npos);
+    EXPECT_NE(text.find("schemaVersion=1"), std::string::npos);
+    auto reopened = Settings::openFile(file);
+    ASSERT_TRUE(reopened.has_value());
+    EXPECT_EQ(reopened->get(countKey), 3);
+}
+
+TEST(Settings, RemoveIsRefusedWhenReadOnly) {
+    const QTemporaryDir dir;
+    const fs::path file = settingsFile(dir);
+    writeRaw(file, QStringLiteral("meta/schemaVersion"), 99);
+    writeRaw(file, QStringLiteral("devices/1/name"), QStringLiteral("x"));
+    const std::string before = readFile(file);
+    {
+        auto settings = Settings::openFile(file);
+        ASSERT_TRUE(settings.has_value());
+        const hio::Status status = settings->remove("devices");
+        ASSERT_FALSE(status.has_value());
+        EXPECT_EQ(status.error().code, hio::ErrorCode::SettingsNewerSchema);
+    }
+    EXPECT_EQ(readFile(file), before);
+}
+
 // ---- migration mechanism (test-only migration list via settings_internal.h) -----------------
 
 // Records the migrations run by the test migration functions (plain function pointers, so the

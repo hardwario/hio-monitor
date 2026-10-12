@@ -411,6 +411,12 @@ Phase 0 — hardware spike (go/no-go; originally before Phase A — run after A�
 - [ ] 0.6 Programming speed within 20 % of nrfjprog on the same image.
 - [ ] 0.7 `nrfutil device program` of a modem zip with our session suspended (library copy kept loaded, probe closed); JSON progress format captured; modem zip markers recorded; tested versions → ADR-0042.
 - [ ] 0.8 Go/no-go recorded; any failed criterion → stop, new ADR, update this plan, ask the user.
+- [ ] 0.9 Review R1: with the `JLINK_SetHookUnsecureDialog` hook (answers NO) a protected nRF52840 and nRF91
+  are never mass-erased by Open/Connect (PIB unchanged, connect fails → `target.protected`); record what the
+  library does. Also the CTRL-AP IDR values (R2, R15: record the full IDRs at AP 1 and AP 4 on both MCUs).
+- [ ] 0.10 Review R16: abandoned download (R3): on each MCU, read a flash range, `BeginDownload` + `WriteMem` of N
+  chunks with a different pattern, close the probe without `EndDownload`, reopen, read the range back — it must be
+  unchanged. Otherwise stop: new decision on how a download is abandoned.
 
 Phase A — `libs/firmware`
 - [x] A1 `FirmwareImage`, `parseIntelHex` + tests (corpus incl. CHESTER build outputs)
@@ -445,7 +451,7 @@ Phase F — CLI
 - [x] F5 CLI end-to-end tests (QProcess + fake library + fake nRF Util + local HTTP fixture)
 
 Phase G — hardware and docs
-- [ ] G1 HIL tests (opt-in `HIO_HIL=1`): flash by file and ID, verify, erase, erase --all, recover (app + lte), LTE bundle, PIB read — code written (`tests/integration/hil_flash_test.cpp`), not run yet
+- [ ] G1 HIL tests (opt-in `HIO_HIL=1`): flash by file and ID, verify, erase, erase --all, recover (app + lte), LTE bundle, PIB read — code written (`tests/integration/hil_flash_test.cpp`), not run yet. **Release gate (review R5):** `HilFlash.EraseCodeKeepsThePibAndPibDecodes` must pass on nRF52840 (and the LTE MCU) before `erase` ships.
 - [ ] G2 Manual checks on Linux, Windows, macOS (incl. nRF Util discovery on each)
 - [ ] G3 Update `plan/0006-cli.md` statuses, `plan/0002-legacy-inventory.md` parity rows, roadmap M2 → Done
 
@@ -475,8 +481,8 @@ plan / the ADRs / py-hardwario and must be confirmed on hardware; a failed confi
   RESET is toggled and the core is connected again. **(Phase 0)**
 - **Flash-loader progress**: the setter is `JLINK_SetFlashProgProgressCallback` (not `JLINKARM_…`; checked with
   `nm` on 9.84). The C callback has no user data, so it is routed to the running `endDownload()` through a
-  `thread_local` pointer, i.e. it must be called synchronously on the calling thread; actions containing "erase"
-  are reported as Erasing, everything else as Programming. A call from another thread is ignored. **(Phase 0)**
+  `thread_local` pointer, i.e. it must be called synchronously on the calling thread; Compare/Erase are reported
+  as Erasing, Program/Verify as Programming (review R6). A call from another thread is ignored. **(Phase 0)**
 - **`--allow-uicr`** (ADR-0036): the UICR page (4 KiB: nRF52840 `0x10001000–0x10002000`, nRF91
   `0x00FF8000–0x00FF9000`) is read, the image's UICR bytes merged in and the page programmed together with the
   code in one download; on the nRF91 the PIB range (UICR OTP, `pibErasableWithUicr = false`) is left out of the
@@ -489,6 +495,17 @@ plan / the ADRs / py-hardwario and must be confirmed on hardware; a failed confi
   **provisional minimums core 7.0.0 / device 2.0.0** (`nrfutil::minimumCoreVersion/minimumDeviceVersion`) replace
   ADR-0042's _tbd_ until the spike records the tested versions. **(Phase 0)**
 - **Erase-all timeout**: `JLINK_EraseChip` is one synchronous call; the 60 s bound is checked after it returns.
+- **Unsecure dialog hook** (review R1): `JLINK_SetHookUnsecureDialog` installed right after Open answers NO
+  (`DLG_BUTTON_NO` = 2); a probe whose library rejects the hook is not used. **(Phase 0, 0.9)**
+- **CTRL-AP IDR** (reviews R2, R15): nRF52840 `0x02880000`, nRF91 `0x12880000`, compared with the revision
+  bits masked (`0x0FFFFFFF`), read from bank 0xF register 0xFC before APPROTECTSTATUS is trusted or ERASEALL is
+  written. Under the mask both are the same Nordic CTRL-AP ID: the IDR only proves a Nordic CTRL-AP at that AP
+  index, and the AP index (1 vs 4) is the family discriminator. **(Phase 0)**
+- **Abandoned download** (review R3): closing the probe discards a buffered download (no `EndDownload`).
+  **(Phase 0, item 0.10)**
+- **Recover register values** (RESET/ERASEALL/ERASEALLSTATUS/APPROTECTSTATUS, ERASEALLSTATUS polling, RESET
+  toggle), the 12-digit nRF Util `--serial-number`, and the 4 KiB UICR read are hardware-unconfirmed (review
+  R10); no destructive command (erase --all, recover, --allow-uicr) ships before Phase 0 and G1 pass.
 
 **Local choices (inside the plan, recorded here)**
 - `jlink_abi.h` gets `JLINKARM_BeginDownload/WriteMem/EndDownload/ReadMemEx/ReadMemU32`, `JLINK_EraseChip`,
@@ -523,6 +540,9 @@ plan / the ADRs / py-hardwario and must be confirmed on hardware; a failed confi
   QFile callback), `MINIZ_NO_TIME`, `MINIZ_USE_UNALIGNED_LOADS_AND_STORES=0` (UBSan-clean).
 - The HEX parser was run on one real CHESTER build output (opt-in `HIO_TEST_HEX_CORPUS`; build outputs are not
   committed).
+- Added on this branch for feature 0004 (M3 GUI), approved 2026-10-12: ADR-0091 (`ConnectionEvent::targetMillivolts`)
+  and ADR-0092 (`Settings::remove`), and ADR-0093 (`jlink::ProbeEnumerator`, enumeration on a kept library
+  copy; amends ADR-0050).
 - TSan: the tests that use `QNetworkAccessManager` (10 catalog tests, 2 CLI catalog downloads) are filtered
   out in the TSan preset only: Qt's HTTP thread is uninstrumented Qt code whose posted events and implicitly
   shared buffers TSan reports as races (`ignore_noninstrumented_modules=1` crashes TSan's thread registry);
@@ -567,3 +587,80 @@ plan / the ADRs / py-hardwario and must be confirmed on hardware; a failed confi
   closed while it runs (Phase 0.7).
 - **Windows antivirus** scanning the library copy or extracted zips during long operations.
 - **Catalog browsing and Cloud token storage** postponed (open-questions #15); the GUI flash wizard (M4) needs a decision.
+
+## Open findings (independent review round 1, 2026-10-12)
+
+Review of 7f371c6 (debug 516/516; stress repeats clean). Decided 2026-10-12: fix R1–R10 (R10 = confirm in Phase 0, keep the destructive commands gated by G1), R11 keep the TSan skip + comment in `tsan.supp`. R1 is fixed on `v2/m2-flashing` only; M1 gets it when merged (M1 HIL must use the fixed code).
+
+| # | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| R1 | high (plausible) | No `JLINK_SetHookUnsecureDialog` hook (`jlink_probe.cpp`): on a protected chip the library's "unsecure (erase)?" dialog takes its default answer in batch mode, which may mass-erase the chip incl. the PIB without the ADR-0038 confirmation. pylink installs a hook answering NO by default. Since M1. | Declare/resolve the hook, install a `noexcept` C hook returning NO after Open; fake-library test; Phase 0/HIL check. |
+| R2 | medium | `identify()` checks APPROTECT on every family's CTRL-AP; an absent AP (e.g. AP4 on nRF52840) reads 0 → "protected, run recover" on an unprotected but unreadable chip, or on the wrong connector instead of `target.wrong_family`. `runRecover` proceeds without a family; `recover()` uses `families.front()`. | Check only the expected family's CTRL-AP, verify the CTRL-AP IDR first, return the family; map absent/mismatched IDR to `target.wrong_family` / `target.connect_failed`. |
+| R3 | medium | `download()` error paths: the deadline path returns without `EndDownload` (library left in download mode); the `WriteMem` failure path calls `EndDownload`, which programs the partial buffer. | Close download mode in a defined way (reset + reconnect), document, test both paths. |
+| R4 | medium | `waitForOperation` can hang: `runningOperation` is cleared only when `OperationFinishedEvent` is drained; a dying worker or `close()` during a wait leaves it set; Ctrl+C only cancels. | `close()` clears it with a synthesized `cancelled` result; the wait also ends on Stopped/`internal.unexpected` and after a bounded grace period after cancel. |
+| R5 | medium | Code-only erase writes 0xFF over all flash through the loader; if the loader turns that into a chip erase, UICR/PIB are lost. Unconfirmed (Phase 0.3). | Read the PIB before/after and fail loudly if it changed; keep G1 `EraseCodeKeepsThePibAndPibDecodes` as a release gate. |
+| R6 | low | Progress labels: any non-"erase" loader action switches to Programming for good; the real loader reports "Compare" first → no Erasing phase. | Map Compare/Erase/Program/Verify explicitly; test with Compare first. |
+| R7 | low | `pib read`, `uicr read`, `reset` skip the family check: wrong connector → `pib.invalid` or the other MCU is reset. Not recorded as a deviation. | Run `identifyTarget` first (or record the deviation). |
+| R8 | low | `HIO_CATALOG_URL` honoured in release builds (plan: test-only) and allows http redirects. | Compile it in only for test builds (or accept https only). |
+| R9 | low | Default `SessionOptions::nrfUtil` searches nothing; only the CLI fills it (the M3 GUI must call `defaultLocatorOptions()`). | Default to `defaultLocatorOptions()`. |
+| R10 | low | Recover/APPROTECT register values, 12-digit `--serial-number`, 4 KiB UICR read unconfirmed on hardware. | Phase 0 before any destructive command ships (already listed). |
+| R11 | note | TSan exclusion of the 12 QNetworkAccessManager tests judged acceptable (catalog has no threads of ours). | Keep; add a pointer comment in `tools/sanitizers/tsan.supp`. |
+
+**Fixes of review round 1 (2026-10-12, uncommitted on top of 7f371c6)**
+
+| # | Fix | Tests |
+|---|---|---|
+| R1 | `JLINK_SetHookUnsecureDialog` declared (`__stdcall` on Win32) and resolved; `JLinkProbe::open()` installs a `noexcept` hook answering `DLG_BUTTON_NO` right after Open in every open mode, and fails with `probe.open_failed` if the library rejects it. Fake library: a protected chip asks the hook on connect (no hook / YES = mass erase, NO = connect fails). Phase 0 item 0.9. | `Probe.InstallsTheUnsecureDialogHookAfterOpen`, `Probe.OpenFailsWithoutTheUnsecureDialogHook`, `FakeLibrary.UnsecureDialogHookAnswersNo`, `FakeLibrarySession.ProtectedChipIsNotErasedByConnecting` |
+| R2 | `identify()` trusts only a CTRL-AP whose IDR (bank 0xF, 0xFC) matches; APPROTECTSTATUS is read only on the expected family; `ChipInfo::family` names the family that answered; the workflow maps another family to `target.wrong_family` and an unreadable, unprotected chip to `target.connect_failed`. `recover()` checks the expected CTRL-AP IDR before ERASEALL (`target.wrong_family` / `target.connect_failed`); `runRecover` stops when the family is not confirmed. | `Programmer.AbsentCtrlApsReadZeroAndAreNotProtected`, `Programmer.OtherFamilysCtrlApNamesThatFamily`, `Programmer.UnreadableUnprotectedChipIsNotProtected`, `Programmer.RecoverChecksTheCtrlApIdentification`, `Workflow.UnreadableChipIsNotReportedAsProtected`, `Workflow.OtherFamilysCtrlApIsTheWrongConnector`, `Workflow.RecoverNeedsTheExpectedFamily` |
+| R3 | A download that fails (`WriteMem`) or exceeds its deadline before `EndDownload` is abandoned by closing the probe (no `EndDownload`, which would program the partial buffer); the session reopens and reconnects in its restore step. | `Programmer.WriteFailureAbandonsTheDownload`, `Programmer.DeadlineAbandonsTheDownload` |
+| R4 | `close()` ends a running operation with a synthesized `cancelled` result; a worker that dies (Stopped + `internal.unexpected`) ends it with that error (`operationFinished` emitted); `waitForOperation()` picks up results delivered before or after `close()` and gives up `cancelGrace` (default 90 s) after a cancel request. | `Operations.WaitEndsWhenTheWorkerDies`, `Operations.WaitEndsWhenTheSessionIsClosed`, `Operations.WaitGivesUpAfterTheCancelGrace` |
+| R5 | Code-only erase reads the PIB before and after; a change fails with `target.erase_failed` ("… also changed its Product Information Block") and an `@` log line. G1 `EraseCodeKeepsThePibAndPibDecodes` is a release gate. | `Workflow.CodeEraseThatChangesThePibFails` |
+| R6 | Loader actions mapped explicitly: Compare/Erase → Erasing, Program/Verify → Programming, others keep the phase. | `Programmer.LoaderActionsMapToPhases` |
+| R7 | Reset (protected allowed) and memory reads (`pib read`, `uicr read`) run the family check first. | `Workflow.ResetAndReadMemoryCheckTheFamily` |
+| R8 | `HIO_CATALOG_URL` is compiled in only with the CMake option `HIO_TEST_OVERRIDES` (default = `HIO_BUILD_TESTS`; shipped builds must set it OFF); redirects are followed only to https. | `Catalog.RedirectsOnlyToHttps`; the CLI catalog e2e tests skip without the option |
+| R9 | `SessionOptions::nrfUtil` is optional; nullopt = `nrfutil::defaultLocatorOptions()` with the user's settings (resolved in `open()`). | `NrfUtilLocatorDefault.UsesTheEnvironmentAndThePath` |
+| R10 | All hardware-unconfirmed values are listed under "To confirm in Phase 0" (unsecure hook, CTRL-AP IDR, abandoned download, recover registers, nRF Util serial format, 4 KiB UICR). | — |
+| R11 | TSan skip kept; pointer comment added to `tools/sanitizers/tsan.supp`. | — |
+
+## Open findings (independent review round 2, 2026-10-12)
+
+Review of 7f371c6 + the round-1 fixes (debug 535/535). No new high findings. Decided 2026-10-12: fix all R12–R17 (R12 incl. the packaging rule in plan 0005);
+finding n = R(11+n).
+
+| # | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| R12 | medium | R8 incomplete: `HIO_TEST_OVERRIDES` defaults to `HIO_BUILD_TESTS`, which the `base` preset turns ON for every `*-release` preset, so release builds honour `HIO_CATALOG_URL`; a stale cache keeps it ON after `-DHIO_BUILD_TESTS=OFF`. | Default OFF; enable explicitly in test/CI presets; `FATAL_ERROR` for Release without an explicit opt-in; packaging rule in plan 0005. |
+| R13 | medium | After `waitForOperation` gives up (`cancelGrace`), `close()` joins the worker (CLI exit not bounded) and discards the queued `OperationFinishedEvent`: a successful recover/flash or a serious error (e.g. R5 PIB changed) is reported as `cancelled`, exit 130. | `close()` drains remaining events after `join()` and uses a real `OperationFinishedEvent` before synthesizing Cancelled; `runOperation` prefers that result. |
+| R14 | low (plausible) | An operation started after the worker died is never finished (`internal.busy` forever, wait hangs); a full event queue can drop the death event. | Remember worker death; `startOperation` refuses with `internal.unexpected`. |
+| R15 | low | The masked CTRL-AP IDR check (`0x0FFFFFFF`) can't tell nRF52 from nRF91 (values differ only in bits 31:28); the AP index is the real discriminator; the fake library never models absent APs reading 0. | Document AP index as discriminator (or compare per-family IDR); fake scenario with absent APs reading 0; real IDRs in Phase 0. |
+| R16 | low | Abandoning a download by closing the probe (R3) is unverified: if `JLINKARM_Close` flushes the buffer, a partial image is programmed. | Explicit Phase 0 item: write N chunks, abandon, read back. |
+| R17 | low | R5: a failed PIB read after the erase yields a generic connect error; the user can't tell whether the PIB survived. | Wrap as `target.erase_failed` "PIB could not be checked after the erase"; log the before-bytes. |
+
+**Fixes of review round 2 (2026-10-12, uncommitted on top of 7f371c6)**
+
+| # | Fix | Tests |
+|---|---|---|
+| R12 | `HIO_TEST_OVERRIDES` defaults OFF; only the Debug presets (debug, asan, tsan, coverage, tidy; Linux, macOS, Windows - the ones CI runs ctest with) set it ON. Configure fails (`FATAL_ERROR`) for Release/RelWithDebInfo/MinSizeRel with it ON - also from a stale cache - unless `HIO_ALLOW_TEST_OVERRIDES_IN_RELEASE=ON`. Rule added to `plan/0005-build-ci-release.md`. The CLI catalog e2e tests run in the Debug presets and skip in release ones. | configure checks: `linux-release` → OFF; `linux-release -DHIO_TEST_OVERRIDES=ON` → FATAL_ERROR; with the opt-in → configures |
+| R13 | `close()` takes a real `OperationFinishedEvent` of the running operation from the queue after `join()` before synthesizing `cancelled`; `DeviceSession::finishedResult(id)` returns it; the CLI reports it after `close()` (real success / real error with its exit code). Documented: `cancelGrace` bounds only the wait, `close()` still joins the current step; a second Ctrl+C force-exits. | `Operations.CloseKeepsTheRealResultAfterTheWaitGaveUp` |
+| R14 | The worker sets `workerFailed` before pushing its death event (so a full queue cannot hide it); `startOperation` then refuses with `internal.unexpected`; `close()` ends a running operation with `internal.unexpected`. | `Operations.WaitEndsWhenTheWorkerDies` (extended) |
+| R15 | Code, profile and plan say that the masked IDR only proves a Nordic CTRL-AP and the AP index is the family discriminator; test renamed (`Programmer.CtrlApAtTheOtherFamilysIndexNamesThatFamily`); fake option `absentApsReadZero`; a connect failure is mapped through `identifyTarget` (protected or wrong family). | `FakeLibrarySession.AbsentApsReadingZeroAreTheWrongConnector` |
+| R16 | Phase 0 item 0.10 (write N chunks, close without `EndDownload`, reopen, read back unchanged). | — |
+| R17 | A PIB that cannot be read after the code erase → `target.erase_failed` "The Product Information Block of the %1 MCU could not be checked after the erase." (cs translated), the old PIB bytes in the log and `detail`. | `Workflow.PibUnreadableAfterTheCodeEraseFails` |
+
+## Open findings (independent review round 3, 2026-10-12)
+
+Review of 7f371c6 + the round-1/2 fixes: no new high or medium findings. Decided 2026-10-12: fix R18–R20, then commit M2; no further review round before Phase 0.
+
+| # | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| R18 | low | R12 guard bypassable by a manual configure: case-sensitive `MATCHES` (`-DCMAKE_BUILD_TYPE=release`), multi-config generators (empty `CMAKE_BUILD_TYPE`); `HIO_ALLOW_TEST_OVERRIDES_IN_RELEASE` stays in the cache. Presets/CI unaffected (all single-config Ninja). | `string(TOUPPER)`; per-config define `$<$<CONFIG:Debug>:…>` or refuse multi-config; non-sticky opt-in (or a warning on every configure). |
+| R19 | low | R17 error keeps the default suggestion "…try again": a second erase reads the already wiped PIB as "before" and reports success. | Own suggestion: do not erase again; run `pib read`, compare with the logged bytes, contact support. |
+| R20 | note | A flash cancelled late (after the wait's grace, session stopping) skips `reset(Go)` and leaves the CPU halted. | Do `reset(Go)` for a cancelled halted operation even when the session is stopping. |
+
+**Fixes of review round 3 (2026-10-12, uncommitted on top of 7f371c6)**
+
+| # | Fix | Tests |
+|---|---|---|
+| R18 | The build type is compared case-insensitively (`string(TOUPPER)`); the define is generated per configuration (`$<$<NOT:$<CONFIG:Release,RelWithDebInfo,MinSizeRel>>:HIO_TEST_OVERRIDES>`, used by the targets as `${HIO_TEST_OVERRIDES_DEFINE}`), so multi-config generators never put it into a release configuration (chosen over refusing multi-config: no generator is excluded); `HIO_ALLOW_TEST_OVERRIDES_IN_RELEASE` is read once, warned about and removed from the cache (not sticky). | configure checks: `linux-release` → OFF; `-DCMAKE_BUILD_TYPE=release -DHIO_TEST_OVERRIDES=ON` → FATAL_ERROR; opt-in works once and the next configure fails again; Ninja Multi-Config: no define in Release |
+| R19 | "PIB could not be checked after the erase" has its own suggestion: do not erase again, run `hio <profile> <target> pib read`, compare with the bytes in Details, contact HARDWARIO support if they differ (cs translated). | `Workflow.PibUnreadableAfterTheCodeEraseFails` (suggestion asserted) |
+| R20 | A cancelled operation that left the CPU halted is reset with go also when the session is stopping. | `Operations.CloseDuringVerifyResetsTheCpuWithGo` |

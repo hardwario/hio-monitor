@@ -22,7 +22,7 @@ target_link_libraries(hio_firmware_tests PRIVATE hio::firmware hio::miniz Qt6::N
 set(_hio_firmware_test_filter "")
 if("thread" IN_LIST HIO_SANITIZERS)
     set(_hio_firmware_test_filter
-        TEST_FILTER "-Catalog.DownloadsParsesAndCaches:Catalog.NotFound:Catalog.ServerError:Catalog.Timeout:Catalog.Oversize:Catalog.InvalidHexIsNotCached:Catalog.Cancel:Catalog.RedirectToHttpsOnlyFromHttps:Catalog.CorruptCacheEntryIsDeletedAndDownloadedAgain:Catalog.UnwritableCacheIsAWarning")
+        TEST_FILTER "-Catalog.DownloadsParsesAndCaches:Catalog.NotFound:Catalog.ServerError:Catalog.Timeout:Catalog.Oversize:Catalog.InvalidHexIsNotCached:Catalog.Cancel:Catalog.RedirectsOnlyToHttps:Catalog.CorruptCacheEntryIsDeletedAndDownloadedAgain:Catalog.UnwritableCacheIsAWarning")
 endif()
 gtest_discover_tests(hio_firmware_tests
     DISCOVERY_TIMEOUT 60

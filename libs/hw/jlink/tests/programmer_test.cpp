@@ -7,6 +7,7 @@
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_probe.h"
 #include "hio/hw/jlink/programmer.h"
+#include "hio/hw/jlink/types.h"
 #include "mock_jlink_api.h"
 
 #include <gmock/gmock.h>
@@ -17,6 +18,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <map>
+#include <optional>
 #include <span>
 #include <stop_token>
 #include <string>
@@ -44,10 +47,21 @@ using ::testing::InSequence;
 using ::testing::NiceMock;
 using ::testing::Return;
 
-constexpr ChipFamily nrf52{
-    .name = "nRF52", .ficrPart = 0x10000100, .ficrVariant = 0x10000104, .ctrlApIndex = 1};
-constexpr ChipFamily nrf91{
-    .name = "nRF91", .ficrPart = 0x00FF0140, .ficrVariant = 0x00FF0144, .ctrlApIndex = 4};
+constexpr ChipFamily nrf52{.name = "nRF52",
+                           .ficrPart = 0x10000100,
+                           .ficrVariant = 0x10000104,
+                           .ctrlApIndex = 1,
+                           .ctrlApIdr = 0x02880000};
+constexpr ChipFamily nrf91{.name = "nRF91",
+                           .ficrPart = 0x00FF0140,
+                           .ficrVariant = 0x00FF0144,
+                           .ctrlApIndex = 4,
+                           .ctrlApIdr = 0x12880000};
+
+// Key of an AP register in the CoreSight simulator below.
+constexpr std::uint32_t apKey(std::uint32_t ap, std::uint32_t bank, std::uint32_t index) {
+    return (ap << 16U) | (bank << 4U) | index;
+}
 
 FirmwareImage image(std::uint32_t address, std::size_t size, std::uint8_t value = 0xA5) {
     std::vector<Segment> segments;
@@ -66,7 +80,48 @@ protected:
             });
         ON_CALL(m_api, endDownload(_)).WillByDefault(Return(0));
         ON_CALL(m_api, coresightConfigure()).WillByDefault(Return(0));
-        ON_CALL(m_api, coresightWrite(_, _, _)).WillByDefault(Return(0));
+        // A small CoreSight model: DP SELECT picks AP and bank; an AP register nobody set reads
+        // 0 (like an AP that does not exist on the chip).
+        ON_CALL(m_api, coresightWrite(_, _, _))
+            .WillByDefault([this](std::uint8_t index, bool ap, std::uint32_t value) {
+                if (!ap && index == JLinkProgrammer::dpSelect) {
+                    m_select = value;
+                } else if (ap) {
+                    m_writes.push_back(apKey(m_select >> 24U, (m_select >> 4U) & 0xFU, index) |
+                                       (value << 28U));
+                }
+                return 0;
+            });
+        ON_CALL(m_api, coresightRead(_, _))
+            .WillByDefault(
+                [this](std::uint8_t index, bool ap) -> std::expected<std::uint32_t, int> {
+                    if (!ap) {
+                        return 0U;
+                    }
+                    const auto key = apKey(m_select >> 24U, (m_select >> 4U) & 0xFU, index);
+                    const auto it = m_apRegisters.find(key);
+                    return it == m_apRegisters.end() ? 0U : it->second;
+                });
+    }
+
+    // Makes the CTRL-AP of `family` answer (IDR) with APPROTECTSTATUS `status`.
+    void ctrlAp(const ChipFamily& family, std::uint32_t status) {
+        m_apRegisters[apKey(family.ctrlApIndex, 0xF, JLinkProgrammer::ctrlApIdr)] =
+            family.ctrlApIdr | 0x10000000U; // another revision: masked out
+        m_apRegisters[apKey(family.ctrlApIndex, 0, JLinkProgrammer::ctrlApApProtectStatus)] =
+            status;
+    }
+    // AP writes as apKey(ap, bank, index) | value << 28 (values 0/1).
+    [[nodiscard]] const std::vector<std::uint32_t>& apWrites() const { return m_writes; }
+    void openProbe() {
+        ON_CALL(m_api, listProbes(_))
+            .WillByDefault(Return(std::vector<hio::jlink::ProbeInfo>{
+                hio::jlink::ProbeInfo{.serialNumber = 1,
+                                      .product = {},
+                                      .connection = hio::jlink::Connection::Usb,
+                                      .firmware = {}}}));
+        ON_CALL(m_api, open()).WillByDefault(Return(std::nullopt));
+        ASSERT_TRUE(m_probe.open(1U));
     }
 
     NiceMock<MockJLinkApi>& api() { return m_api; }
@@ -77,6 +132,9 @@ protected:
     [[nodiscard]] const hio::firmware::ProgressFn& recorder() const { return m_recorder; }
 
 private:
+    std::uint32_t m_select = 0;
+    std::map<std::uint32_t, std::uint32_t> m_apRegisters;
+    std::vector<std::uint32_t> m_writes;
     std::vector<ProgramProgress> m_progress;
     hio::firmware::ProgressFn m_recorder = [this](const ProgramProgress& p) {
         m_progress.push_back(p);
@@ -108,21 +166,36 @@ TEST_F(Programmer, FallsBackToTheOtherFamily) {
 }
 
 TEST_F(Programmer, ProtectedChipIsReportedFromTheCtrlAp) {
-    // FICR unreadable; DP SELECT = CTRL-AP 1, APPROTECTSTATUS bit 0 = 0 (protected).
-    EXPECT_CALL(api(), coresightWrite(JLinkProgrammer::dpSelect, false, 1U << 24U))
-        .WillOnce(Return(0));
-    EXPECT_CALL(api(), coresightRead(JLinkProgrammer::ctrlApApProtectStatus, true))
-        .WillOnce(Return(0U));
+    // FICR unreadable; CTRL-AP 1 answers with the nRF52 IDR, APPROTECTSTATUS bit 0 = 0.
+    ctrlAp(nrf52, 0);
     const auto chip = programmer().identify();
-    ASSERT_TRUE(chip);
+    ASSERT_TRUE(chip) << chip.error().detail;
     EXPECT_TRUE(chip->protectedChip);
+    EXPECT_EQ(chip->family, "nRF52");
 }
 
-TEST_F(Programmer, UnreadableUnprotectedChipFails) {
-    ON_CALL(api(), coresightRead(_, _)).WillByDefault(Return(1U));
+TEST_F(Programmer, UnreadableUnprotectedChipIsNotProtected) {
+    ctrlAp(nrf52, 1);
+    const auto chip = programmer().identify();
+    ASSERT_TRUE(chip);
+    EXPECT_FALSE(chip->protectedChip);
+    EXPECT_EQ(chip->part, 0U);
+}
+
+// Review R2: an AP that does not exist reads 0 - without the IDR check that looked like
+// "APPROTECT enabled" on every family.
+TEST_F(Programmer, AbsentCtrlApsReadZeroAndAreNotProtected) {
     const auto chip = programmer().identify();
     ASSERT_FALSE(chip);
     EXPECT_EQ(chip.error().code, ErrorCode::TargetConnectFailed);
+}
+
+TEST_F(Programmer, CtrlApAtTheOtherFamilysIndexNamesThatFamily) {
+    ctrlAp(nrf91, 0); // even "protected" on the other family is not reported as protected
+    const auto chip = programmer().identify();
+    ASSERT_TRUE(chip);
+    EXPECT_EQ(chip->family, "nRF91");
+    EXPECT_FALSE(chip->protectedChip);
 }
 
 TEST_F(Programmer, ProgramDownloadsInChunks) {
@@ -265,42 +338,97 @@ TEST_F(Programmer, EraseAll) {
 }
 
 TEST_F(Programmer, RecoverRunsEraseAllOnTheCtrlAp) {
-    {
-        InSequence order;
-        EXPECT_CALL(api(), coresightConfigure()).WillOnce(Return(0));
-        EXPECT_CALL(api(), coresightWrite(JLinkProgrammer::dpSelect, false, 1U << 24U))
-            .WillOnce(Return(0));
-        EXPECT_CALL(api(), coresightWrite(JLinkProgrammer::ctrlApEraseAll, true, 1U))
-            .WillOnce(Return(0));
-        EXPECT_CALL(api(), coresightRead(JLinkProgrammer::ctrlApEraseAllStatus, true))
-            .WillOnce(Return(1U))
-            .WillOnce(Return(1U))
-            .WillOnce(Return(0U));
-        EXPECT_CALL(api(), coresightWrite(JLinkProgrammer::ctrlApReset, true, 1U))
-            .WillOnce(Return(0));
-        EXPECT_CALL(api(), coresightWrite(JLinkProgrammer::ctrlApReset, true, 0U))
-            .WillOnce(Return(0));
-        EXPECT_CALL(api(), coresightWrite(JLinkProgrammer::ctrlApEraseAll, true, 0U))
-            .WillOnce(Return(0));
-    }
+    ctrlAp(nrf52, 0);
+    EXPECT_CALL(api(), coresightRead(_, _)).Times(::testing::AnyNumber());
+    EXPECT_CALL(api(), coresightRead(JLinkProgrammer::ctrlApEraseAllStatus, true))
+        .WillOnce(Return(1U))
+        .WillOnce(Return(1U))
+        .WillOnce(Return(0U));
     ASSERT_TRUE(programmer().recover({}));
     EXPECT_EQ(clock().slept(), std::chrono::milliseconds(200));
+    const std::vector<std::uint32_t> expected{
+        apKey(1, 0, JLinkProgrammer::ctrlApEraseAll) | (1U << 28U),
+        apKey(1, 0, JLinkProgrammer::ctrlApReset) | (1U << 28U),
+        apKey(1, 0, JLinkProgrammer::ctrlApReset), apKey(1, 0, JLinkProgrammer::ctrlApEraseAll)};
+    EXPECT_EQ(apWrites(), expected);
 }
 
 TEST_F(Programmer, RecoverTimesOut) {
-    ON_CALL(api(), coresightRead(JLinkProgrammer::ctrlApEraseAllStatus, true))
-        .WillByDefault(Return(1U));
+    ctrlAp(nrf52, 0);
+    EXPECT_CALL(api(), coresightRead(_, _)).Times(::testing::AnyNumber());
+    EXPECT_CALL(api(), coresightRead(JLinkProgrammer::ctrlApEraseAllStatus, true))
+        .WillRepeatedly(Return(1U));
     const auto status = programmer().recover({});
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().code, ErrorCode::TargetRecoverFailed);
     EXPECT_GE(clock().slept(), std::chrono::seconds(60));
 }
 
-TEST_F(Programmer, RecoverFailsWithoutCtrlAp) {
-    EXPECT_CALL(api(), coresightConfigure()).WillOnce(Return(-1));
+// Review R2: ERASEALL is never written to an AP whose IDR does not match.
+TEST_F(Programmer, RecoverChecksTheCtrlApIdentification) {
+    const auto none = programmer().recover({});
+    ASSERT_FALSE(none);
+    EXPECT_EQ(none.error().code, ErrorCode::TargetConnectFailed);
+    ctrlAp(nrf91, 0);
+    const auto other = programmer().recover({});
+    ASSERT_FALSE(other);
+    EXPECT_EQ(other.error().code, ErrorCode::TargetWrongFamily);
+    EXPECT_TRUE(apWrites().empty());
+}
+
+TEST_F(Programmer, RecoverFailsWithoutCoreSight) {
+    EXPECT_CALL(api(), coresightConfigure()).WillRepeatedly(Return(-1));
     const auto status = programmer().recover({});
     ASSERT_FALSE(status);
-    EXPECT_EQ(status.error().code, ErrorCode::TargetRecoverFailed);
+    EXPECT_EQ(status.error().code, ErrorCode::TargetConnectFailed);
+}
+
+// Review R6: the loader's "Compare" comes first and stays Erasing.
+TEST_F(Programmer, LoaderActionsMapToPhases) {
+    EXPECT_CALL(api(), endDownload(_)).WillOnce([](const FlashProgressFn& loader) {
+        loader("Compare", 50);
+        loader("Erase", 100);
+        loader("Program", 40);
+        loader("Verify", 100);
+        loader("Compare", 100); // never back
+        return 0;
+    });
+    ASSERT_TRUE(programmer().program(image(0, 100), recorder(), {}));
+    std::vector<ProgramPhase> phases;
+    for (const ProgramProgress& p : progress()) {
+        if (phases.empty() || phases.back() != p.phase) {
+            phases.push_back(p.phase);
+        }
+    }
+    EXPECT_EQ(phases,
+              (std::vector<ProgramPhase>{ProgramPhase::Erasing, ProgramPhase::Programming}));
+    EXPECT_EQ(progress().at(1).phase, ProgramPhase::Erasing); // the Compare report
+}
+
+// Review R3: a download that cannot finish is abandoned by closing the probe; EndDownload, which
+// would program the partial buffer, is never called.
+TEST_F(Programmer, WriteFailureAbandonsTheDownload) {
+    openProbe();
+    EXPECT_CALL(api(), writeMemory(_, _)).WillOnce(Return(-1));
+    EXPECT_CALL(api(), endDownload(_)).Times(0);
+    EXPECT_CALL(api(), close());
+    const auto status = programmer().program(image(0, 10000), recorder(), {});
+    ASSERT_FALSE(status);
+    EXPECT_EQ(status.error().code, ErrorCode::TargetProgramFailed);
+}
+
+TEST_F(Programmer, DeadlineAbandonsTheDownload) {
+    openProbe();
+    EXPECT_CALL(api(), writeMemory(_, _))
+        .WillOnce([this](std::uint32_t, std::span<const std::byte> data) {
+            clock().advance(std::chrono::minutes(6));
+            return static_cast<int>(data.size());
+        });
+    EXPECT_CALL(api(), endDownload(_)).Times(0);
+    EXPECT_CALL(api(), close());
+    const auto status = programmer().program(image(0, 10000), recorder(), {});
+    ASSERT_FALSE(status);
+    EXPECT_EQ(status.error().code, ErrorCode::Timeout);
 }
 
 TEST_F(Programmer, ReadMemoryBounds) {

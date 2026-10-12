@@ -11,13 +11,19 @@
 //   eraseCode  0xFF over the flash range through the flash loader (sectors that differ are
 //            erased; UICR untouched). Erase method to confirm in Phase 0.
 //   eraseAll JLINK_EraseChip (flash + UICR)
-//   recover  CTRL-AP ERASEALL via CoreSight, poll ERASEALLSTATUS, CTRL-AP RESET toggle
-//   identify FICR INFO.PART / INFO.VARIANT; when FICR cannot be read, CTRL-AP APPROTECTSTATUS
+//   recover  checks the expected family's CTRL-AP IDR, then CTRL-AP ERASEALL via CoreSight, poll
+//            ERASEALLSTATUS, CTRL-AP RESET toggle
+//   identify FICR INFO.PART / INFO.VARIANT; when FICR cannot be read, the CTRL-AP of the expected
+//            family (a Nordic CTRL-AP IDR at its AP index first, then APPROTECTSTATUS); a Nordic
+//            CTRL-AP at another family's AP index only names that family (never "protected")
 //
 // Cancellation: `stop` is checked before a download starts and between verify chunks. The
 // buffering of one download, EndDownload, EraseChip and an ERASEALL are never interrupted (a
 // buffered download cannot be discarded through the library). Deadlines (timing below) are
-// checked between chunks; a single library call is synchronous.
+// checked between chunks; a single library call is synchronous. A download that fails or runs out
+// of time before EndDownload is abandoned by closing the probe (review R3): JLINKARM_EndDownload
+// would program the partial buffer and the library has no abort, so the probe is closed (which
+// ends the download mode and drops the buffer - to confirm in Phase 0); the session reopens it.
 //
 // Thread safety: none (the session worker).
 
@@ -51,17 +57,27 @@ struct ChipInfo {
     std::uint32_t variant = 0;  // FICR INFO.VARIANT (ASCII, e.g. "AAD0")
     bool protectedChip = false; // CTRL-AP reports APPROTECT enabled; FICR not readable
     std::string name;           // display name ("nRF52840"), filled by the device layer
+    // The family that answered (ChipFamily::name, e.g. "nRF52"): from FICR, or - when FICR cannot
+    // be read (part = 0) - the family whose CTRL-AP index holds a Nordic CTRL-AP.
+    std::string_view family;
 };
 
 // Where an MCU family keeps its FICR and its CTRL-AP (nRF52: FICR 0x10000100/0x10000104, CTRL-AP
 // index 1; nRF91: FICR 0x00FF0140/0x00FF0144, CTRL-AP index 4 - AP indexes to confirm in
-// Phase 0).
+// Phase 0). `ctrlApIdr`: the CTRL-AP identification register (bank 0xF, 0xFC) compared under
+// ctrlApIdrMask (revision bits 31:28 ignored): nRF52840 0x02880000, nRF91 0x12880000 (product
+// specifications; to confirm in Phase 0). Review R15: under the mask both values are the same
+// Nordic CTRL-AP ID, so the IDR only proves that a Nordic CTRL-AP sits at that AP index; the AP
+// index (1 vs 4) is what tells the families apart. An AP that does not exist reads 0 or fails.
 struct ChipFamily {
     std::string_view name; // "nRF52", "nRF91" (logs)
     std::uint32_t ficrPart = 0;
     std::uint32_t ficrVariant = 0;
     std::uint8_t ctrlApIndex = 0;
+    std::uint32_t ctrlApIdr = 0;
 };
+
+inline constexpr std::uint32_t ctrlApIdrMask = 0x0FFFFFFFU;
 
 struct ProgrammerTiming {
     std::chrono::milliseconds programTimeout{std::chrono::minutes(5)};
@@ -134,6 +150,8 @@ public:
                                    std::stop_token stop) override;
     [[nodiscard]] Status eraseAll() override;
     [[nodiscard]] Status recover(std::stop_token stop) override;
+    static constexpr std::uint8_t ctrlApIdr = 3;         // 0x0FC IDR (bank 0xF)
+    static constexpr std::uint32_t idrBank = 0xFU << 4U; // DP SELECT APBANKSEL = 0xF
     [[nodiscard]] Result<std::vector<std::byte>> readMemory(std::uint32_t address,
                                                             std::size_t size) override;
     [[nodiscard]] Status reset(ResetMode mode) override;
@@ -151,6 +169,12 @@ private:
     [[nodiscard]] int selectCtrlAp(const ChipFamily& family);
     // nullopt when the CTRL-AP cannot be read.
     [[nodiscard]] std::optional<bool> isProtected(const ChipFamily& family);
+    // The CTRL-AP of `family` answers with the expected IDR.
+    [[nodiscard]] bool ctrlApPresent(const ChipFamily& family, std::string& detail);
+    // The family whose CTRL-AP answers, starting with the expected one; nullptr when none.
+    [[nodiscard]] const ChipFamily* answeringFamily(std::string& detail);
+    // Closes the probe so the library drops a buffered download (review R3).
+    void abandonDownload(std::string_view reason);
     // One BeginDownload / WriteMem / EndDownload pass. `programsData`: the loader's non-erase
     // progress is reported as Programming (program), otherwise everything as Erasing (eraseCode).
     [[nodiscard]] Status download(const std::vector<firmware::Segment>& segments, bool programsData,

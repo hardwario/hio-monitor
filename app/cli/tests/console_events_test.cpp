@@ -50,14 +50,17 @@ TEST(ConsoleEvents, LineJson) {
 }
 
 TEST(ConsoleEvents, ConnectionJson) {
-    const QJsonObject connected = hio::cli::connectionEventJson(
-        ConnectionEvent{.state = ConnectionState::Connected, .error = std::nullopt});
+    const QJsonObject connected =
+        hio::cli::connectionEventJson(ConnectionEvent{.state = ConnectionState::Connected,
+                                                      .error = std::nullopt,
+                                                      .targetMillivolts = std::nullopt});
     EXPECT_EQ(connected.value(QStringLiteral("type")).toString(), QStringLiteral("connection"));
     EXPECT_EQ(connected.value(QStringLiteral("state")).toString(), QStringLiteral("connected"));
     EXPECT_TRUE(connected.value(QStringLiteral("error")).isNull());
     const QJsonObject disconnected = hio::cli::connectionEventJson(
         ConnectionEvent{.state = ConnectionState::Disconnected,
-                        .error = hio::makeError(hio::ErrorCode::TargetNoPower)});
+                        .error = hio::makeError(hio::ErrorCode::TargetNoPower),
+                        .targetMillivolts = std::nullopt});
     EXPECT_EQ(disconnected.value(QStringLiteral("state")).toString(),
               QStringLiteral("disconnected"));
     EXPECT_EQ(disconnected.value(QStringLiteral("error"))
@@ -90,12 +93,14 @@ TEST(ConsoleEvents, HumanTextAndColors) {
     shell.channel = Channel::Shell;
     EXPECT_EQ(hio::cli::humanLine(shell, true), shell.text);
 
-    EXPECT_EQ(hio::cli::humanConnection(
-                  ConnectionEvent{.state = ConnectionState::Connected, .error = std::nullopt}),
+    EXPECT_EQ(hio::cli::humanConnection(ConnectionEvent{.state = ConnectionState::Connected,
+                                                        .error = std::nullopt,
+                                                        .targetMillivolts = std::nullopt}),
               "-- connected --");
     EXPECT_EQ(hio::cli::humanConnection(
                   ConnectionEvent{.state = ConnectionState::Disconnected,
-                                  .error = hio::makeError(hio::ErrorCode::TargetNoPower)}),
+                                  .error = hio::makeError(hio::ErrorCode::TargetNoPower),
+                                  .targetMillivolts = std::nullopt}),
               "-- disconnected: The device has no power. --");
     EXPECT_EQ(hio::cli::humanWarning(hio::makeError(hio::ErrorCode::ProbeFirmwareOutdated)),
               "Warning: The J-Link firmware is outdated. Run `hio jlink update-firmware`.");

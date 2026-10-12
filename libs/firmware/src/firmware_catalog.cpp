@@ -56,8 +56,14 @@ Error downloadFailed(const FirmwareId& id, std::string detail) {
 } // namespace
 
 QUrl catalogBaseUrl(std::string_view profileDefault) {
+#ifdef HIO_TEST_OVERRIDES
+    // Test builds only (CMake option HIO_TEST_OVERRIDES; review R8).
     const QString override = qEnvironmentVariable("HIO_CATALOG_URL");
-    return {override.isEmpty() ? toQString(profileDefault) : override};
+    if (!override.isEmpty()) {
+        return {override};
+    }
+#endif
+    return {toQString(profileDefault)};
 }
 
 // ---- CatalogOperation ----------------------------------------------------------------------
@@ -92,9 +98,9 @@ void CatalogOperation::start(QNetworkAccessManager& network, const QUrl& url) {
                          QNetworkRequest::UserVerifiedRedirectPolicy);
     qCInfo(log::lcFirmware).noquote() << "Downloading" << url.toString();
     m_reply = network.get(request);
-    const QString baseScheme = m_catalog->options().baseUrl.scheme();
-    QObject::connect(m_reply, &QNetworkReply::redirected, this, [this, baseScheme](const QUrl& to) {
-        if (to.scheme() == QStringLiteral("https") || to.scheme() == baseScheme) {
+    // Redirects are followed only to https (review R8), also from an http test base URL.
+    QObject::connect(m_reply, &QNetworkReply::redirected, this, [this](const QUrl& to) {
+        if (to.scheme() == QStringLiteral("https")) {
             qCInfo(log::lcFirmware).noquote() << "Redirected to" << to.toString();
             emit m_reply->redirectAllowed();
         } else {

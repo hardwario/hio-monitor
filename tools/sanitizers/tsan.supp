@@ -31,3 +31,7 @@ race:QObject::moveToThread
 # reports with one access inside Qt's invokeMethod() are matched; our own cross-thread data goes
 # through hio::BoundedQueue (std::mutex, instrumented) and stays checked.
 race:QMetaObject::invokeMethod
+
+# Not a suppression: the tests that use QNetworkAccessManager (firmware catalog) are not run under
+# TSan at all - see libs/firmware/tests/CMakeLists.txt and app/cli/tests/CMakeLists.txt (Qt's HTTP
+# thread is uninstrumented; plan/features/0003, review R11).

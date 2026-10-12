@@ -223,6 +223,23 @@ Status Settings::setValue(std::string_view path, const QVariant& newValue) {
     return {};
 }
 
+Status Settings::remove(std::string_view group) {
+    const QString key = keyOf(group);
+    if (key.isEmpty() || key.startsWith(QLatin1Char('/')) || key.endsWith(QLatin1Char('/')) ||
+        key == QStringLiteral("meta") || key.startsWith(QStringLiteral("meta/"))) {
+        return std::unexpected(
+            makeError(ErrorCode::UsageInvalidArgument, "settings group: " + std::string(group)));
+    }
+    if (m_readOnly) {
+        return std::unexpected(makeError(ErrorCode::SettingsNewerSchema, fileOf(*m_settings)));
+    }
+    if (!m_settings->isWritable()) {
+        return std::unexpected(makeError(ErrorCode::IoWriteFailed, fileOf(*m_settings)));
+    }
+    m_settings->remove(key); // the key itself and every key under "key/"
+    return {};
+}
+
 // INI files store every value as text, so values read back are usually strings.
 std::optional<bool> Settings::toBool(const QVariant& raw) {
     if (raw.typeId() == QMetaType::Bool) {

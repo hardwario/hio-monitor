@@ -53,6 +53,15 @@
 //         "eraseChipFails": false,                  JLINK_EraseChip fails
 //         "eraseAllPolls": 2,                       CTRL-AP ERASEALLSTATUS reads "busy" N times
 //         "downloadDelayMs": 0, "readDelayMs": 0    JLINKARM_EndDownload / every ReadMemEx blocks
+//                                                   (CTRL-AP IDR in bank 0xF: nRF52 0x02880000,
+//                                                   nRF91 0x12880000; other APs do not answer)
+//         "absentApsReadZero": false                other AP indexes read 0 instead of failing
+//                                                   (like a real DAP with an absent AP)
+//                                                   JLINKARM_Connect on a protected chip asks the
+//                                                   JLINK_SetHookUnsecureDialog hook "unsecure?":
+//                                                   YES (or no hook: the batch-mode default, like
+//                                                   the real library may do) mass-erases the chip
+//                                                   incl. UICR and connects; NO fails the connect
 //       } } ] }
 // Memory: flash 0x0-0x100000 and the UICR page (nRF52: 0x10001000, nRF91: 0x00FF8000; 4 KiB) start
 // erased (0xFF). A download (BeginDownload, WriteMem, EndDownload) behaves like the J-Link flash
@@ -151,6 +160,7 @@ struct ChipScenario {
     bool eraseChipFails = false;
     int eraseAllPolls = 2;
     std::int64_t downloadDelayMs = 0;
+    bool absentApsReadZero = false;
     std::int64_t readDelayMs = 0;
     std::vector<std::uint8_t> flash = std::vector<std::uint8_t>(0x100000, 0xFF);
     std::vector<std::uint8_t> uicr = std::vector<std::uint8_t>(0x1000, 0xFF);
@@ -273,6 +283,7 @@ ChipScenario readChip(const QJsonObject& object) {
     chip.eraseChipFails = object.value(QStringLiteral("eraseChipFails")).toBool();
     chip.eraseAllPolls = object.value(QStringLiteral("eraseAllPolls")).toInt(2);
     chip.downloadDelayMs = object.value(QStringLiteral("downloadDelayMs")).toInteger();
+    chip.absentApsReadZero = object.value(QStringLiteral("absentApsReadZero")).toBool();
     chip.readDelayMs = object.value(QStringLiteral("readDelayMs")).toInteger();
     for (const QJsonValue item : object.value(QStringLiteral("memory")).toArray()) {
         const QJsonObject block = item.toObject();
@@ -382,6 +393,7 @@ struct State {
     abi::LogHandler warnHandler = nullptr;
     abi::LogHandler errorHandler = nullptr;
     abi::FlashProgressCallback flashProgress = nullptr;
+    abi::UnsecureDialogHook unsecureHook = nullptr;
     // Flash download (BeginDownload .. EndDownload): the buffered writes, bounded by the tests.
     bool downloading = false;
     std::vector<std::pair<std::uint32_t, std::vector<std::uint8_t>>> downloadData;
@@ -641,6 +653,17 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_Connect() {
         return -1;
     }
     ++s.connectCalls;
+    if (probe->chip.protectedChip && s.connectCalls > probe->connectFailures &&
+        s.vtref() >= probe->connectMinMillivolts) {
+        const int answer = s.unsecureHook != nullptr
+                               ? s.unsecureHook("J-Link V9 (fake)", "Unsecure the device?", 0x3U)
+                               : abi::dlgButtonYes;
+        if (answer == abi::dlgButtonYes) {
+            State::report(s.warnHandler, "Device unsecured (mass erase)");
+            probe->chip.eraseAll();
+            probe->chip.protectedChip = false;
+        }
+    }
     if (s.connectCalls <= probe->connectFailures || s.vtref() < probe->connectMinMillivolts ||
         probe->chip.protectedChip) {
         s.connected = false;
@@ -878,6 +901,14 @@ HIO_FAKE_JLINK_EXPORT void JLINK_SetFlashProgProgressCallback(abi::FlashProgress
     s.flashProgress = callback;
 }
 
+HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL
+JLINK_SetHookUnsecureDialog(abi::UnsecureDialogHook hook) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    s.unsecureHook = hook;
+    return 0;
+}
+
 HIO_FAKE_JLINK_EXPORT void JLINKARM_BeginDownload(std::uint32_t /*flags*/) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
@@ -1024,6 +1055,10 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_ReadAPDPReg(std::uint8_t index, std
     }
     ChipScenario& chip = probe->chip;
     if ((s.apSelect >> 24U) != chip.ctrlAp()) {
+        if (chip.absentApsReadZero) {
+            *data = 0;
+            return 0;
+        }
         return -1; // only the CTRL-AP is modelled
     }
     switch (index) {
@@ -1043,7 +1078,11 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_ReadAPDPReg(std::uint8_t index, std
         }
         *data = 0;
         return 0;
-    case 3: // APPROTECTSTATUS: bit 0 (and bit 1 on nRF91) = 0 when protected
+    case 3: // bank 0xF: IDR; bank 0: APPROTECTSTATUS (bit 0, and bit 1 on nRF91, = 0: protected)
+        if (((s.apSelect >> 4U) & 0xFU) == 0xFU) {
+            *data = chip.nrf91 ? 0x12880000U : 0x02880000U;
+            return 0;
+        }
         if (chip.protectedChip) {
             *data = 0U;
         } else {

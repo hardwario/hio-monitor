@@ -96,9 +96,11 @@ struct SessionOptions {
     // false: the session connects the target but never attaches RTT (flash-only sessions; the CLI
     // flash commands). A target without an RTT console needs attachRtt = false.
     bool attachRtt = true;
-    // nRF Util for updateModem / flashLteBundle (ADR-0016); the CLI's --nrfutil goes into
-    // `option`. Located on the worker when a modem update starts.
-    nrfutil::LocatorOptions nrfUtil;
+    // nRF Util for updateModem / flashLteBundle (ADR-0016), located on the worker when a modem
+    // update starts. nullopt (default) = nrfutil::defaultLocatorOptions() with the user's settings
+    // (HIO_NRFUTIL, nrfutil/path, PATH, install directories; review R9); the CLI passes its
+    // --nrfutil there.
+    std::optional<nrfutil::LocatorOptions> nrfUtil;
     // nullopt = default console file, empty path = no console file, otherwise this file.
     std::optional<std::filesystem::path> consoleFile;
     // ADR-0063: nullptr = the session creates its own log; a GUI tab passes one log for all its
@@ -167,6 +169,9 @@ public:
     [[nodiscard]] Status cancel(OperationId id);
     // The running operation (nullopt when none).
     [[nodiscard]] std::optional<OperationId> runningOperation() const;
+    // The result of `id` when it is the last finished operation - also after close(), which takes
+    // a result the worker delivered after a waiter gave up (review R13).
+    [[nodiscard]] std::optional<OperationResult> finishedResult(OperationId id) const;
 
     // Stops and joins the worker, releases the probe lock and the registry slot. Idempotent.
     void close();
@@ -229,11 +234,18 @@ private:
 
 // CLI helper: runs a local QEventLoop until operation `id` finished and returns its result.
 // `onProgress` gets every progress event. A stop request cancels the operation (DeviceSession::
-// cancel) and keeps waiting for its result (`cancelled`, or what it ended with).
+// cancel) and keeps waiting for its result (`cancelled`, or what it ended with) for at most
+// `cancelGrace` (one flash-loader download, erase-all or recover is not interrupted). The wait
+// also ends when the session is closed or its worker dies (the result is then `cancelled` /
+// `internal.unexpected`; review R4). The grace bounds only the wait: close() still joins the
+// worker, which finishes its current step (it cannot be interrupted mid-step), and the real
+// result is then available from finishedResult() (review R13). In the CLI a second Ctrl+C
+// force-exits.
 [[nodiscard]] OperationResult
 waitForOperation(DeviceSession& session, OperationId id,
                  const std::function<void(const OperationProgress&)>& onProgress = {},
-                 const std::stop_token& stop = {});
+                 const std::stop_token& stop = {},
+                 std::chrono::milliseconds cancelGrace = std::chrono::seconds(90));
 
 // The parts of the worst-case first connect that are not timings of the session (review R38;
 // plan/features/0002 Bounds).

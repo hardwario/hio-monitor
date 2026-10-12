@@ -846,59 +846,59 @@
 <context>
     <name>hio::device</name>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="72"/>
+        <location filename="../libs/device/src/device_session.cpp" line="73"/>
         <source>No device profile was given.</source>
         <translation>Nebyl zadán profil zařízení.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="77"/>
-        <location filename="../libs/device/src/device_session.cpp" line="308"/>
+        <location filename="../libs/device/src/device_session.cpp" line="78"/>
+        <location filename="../libs/device/src/device_session.cpp" line="357"/>
         <source>The device %1 has no target &quot;%2&quot;.</source>
         <translation>Zařízení %1 nemá cíl &quot;%2&quot;.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="83"/>
+        <location filename="../libs/device/src/device_session.cpp" line="84"/>
         <source>The %1 target of %2 has no console.</source>
         <translation>Cíl %1 zařízení %2 nemá konzoli.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="89"/>
+        <location filename="../libs/device/src/device_session.cpp" line="90"/>
         <source>The J-Link speed must be between %1 and %2 kHz.</source>
         <translation>Rychlost J-Linku musí být mezi %1 a %2 kHz.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="97"/>
+        <location filename="../libs/device/src/device_session.cpp" line="98"/>
         <source>The latency must be between %1 and %2 ms.</source>
         <translation>Latence musí být mezi %1 a %2 ms.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="339"/>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="145"/>
+        <location filename="../libs/device/src/device_session.cpp" line="394"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="156"/>
         <source>The firmware image is empty.</source>
         <translation>Obraz firmwaru je prázdný.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="353"/>
+        <location filename="../libs/device/src/device_session.cpp" line="408"/>
         <source>The LTE bundle is incomplete.</source>
         <translation>Balíček LTE je neúplný.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="378"/>
+        <location filename="../libs/device/src/device_session.cpp" line="433"/>
         <source>No modem firmware file was given.</source>
         <translation>Nebyl zadán soubor s firmwarem modemu.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="397"/>
+        <location filename="../libs/device/src/device_session.cpp" line="452"/>
         <source>A memory read must be between 1 and %1 bytes.</source>
         <translation>Čtení paměti musí mít 1 až %1 bajtů.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="412"/>
+        <location filename="../libs/device/src/device_session.cpp" line="467"/>
         <source>Operation %1 is not running.</source>
         <translation>Operace %1 neprobíhá.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="533"/>
+        <location filename="../libs/device/src/device_session.cpp" line="599"/>
         <source>The device did not connect in time.</source>
         <translation>Zařízení se nepřipojilo včas.</translation>
     </message>
@@ -914,22 +914,22 @@
         <translation>J-Link %1 už tato aplikace používá.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="315"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="316"/>
         <source>The J-Link firmware is newer than the J-Link library.</source>
         <translation>Firmware J-Linku je novější než knihovna J-Link.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="338"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="339"/>
         <source>RTT buffer &quot;%1&quot; not found; the device log is not shown.</source>
         <translation>Vyrovnávací paměť RTT &quot;%1&quot; nebyla nalezena; log zařízení se nezobrazí.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="531"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="545"/>
         <source>The device has no power (%1 mV).</source>
         <translation>Zařízení nemá napájení (%1 mV).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="549"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="563"/>
         <source>Wait for the console to reconnect.</source>
         <translation>Počkejte, až se konzole znovu připojí.</translation>
     </message>
@@ -939,54 +939,84 @@
         <translation>neznámý MCU (součástka %1)</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="110"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="121"/>
         <source>Programming the %1 MCU failed.</source>
         <translation>Programování MCU %1 selhalo.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="115"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="126"/>
         <source>Erasing the %1 MCU failed.</source>
         <translation>Mazání MCU %1 selhalo.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="120"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="131"/>
         <source>Recovering the %1 MCU failed.</source>
         <translation>Obnovení MCU %1 selhalo.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="126"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="137"/>
         <source>The %1 MCU is read-back protected.</source>
         <translation>MCU %1 je chráněn proti čtení.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="130"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="141"/>
         <source>Run `hio %1 %2 recover` (erases the MCU).</source>
         <translation>Spusťte `hio %1 %2 recover` (vymaže MCU).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="158"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="169"/>
         <source>The firmware writes into the Product Information Block (address %1).</source>
         <translation>Firmware zapisuje do bloku informací o produktu (PIB) (adresa %1).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="174"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="185"/>
         <source>The firmware does not fit the %1 MCU (address %2).</source>
         <translation>Firmware neodpovídá MCU %1 (adresa %2).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="178"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="189"/>
         <source>Check that the firmware is for the %1 MCU.</source>
         <translation>Zkontrolujte, že je firmware určen pro MCU %1.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="224"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="219"/>
         <source>Expected the %1 MCU (%2) but found %3.</source>
         <translation>Očekáván MCU %1 (%2), ale nalezen %3.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/flash_workflows.cpp" line="228"/>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="223"/>
         <source>Connect the J-Link to the %1 connector.</source>
         <translation>Připojte J-Link ke konektoru %1.</translation>
+    </message>
+    <message>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="237"/>
+        <source>an %1 MCU</source>
+        <translation>MCU %1</translation>
+    </message>
+    <message>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="254"/>
+        <source>The type of the %1 MCU could not be read.</source>
+        <translation>Typ MCU %1 nelze přečíst.</translation>
+    </message>
+    <message>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="378"/>
+        <source>The Product Information Block of the %1 MCU could not be checked after the erase.</source>
+        <translation>Blok informací o produktu (PIB) MCU %1 nelze po smazání zkontrolovat.</translation>
+    </message>
+    <message>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="385"/>
+        <source>Do not erase again. Run `hio %1 %2 pib read` and compare it with the bytes in the log (see Details); if they differ, contact HARDWARIO support.</source>
+        <translation>Nemažte znovu. Spusťte `hio %1 %2 pib read` a porovnejte výsledek s bajty v protokolu (viz Podrobnosti); pokud se liší, kontaktujte podporu HARDWARIO.</translation>
+    </message>
+    <message>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="400"/>
+        <source>Erasing the code flash of the %1 MCU also changed its Product Information Block.</source>
+        <translation>Mazání paměti programu MCU %1 změnilo také jeho blok informací o produktu (PIB).</translation>
+    </message>
+    <message>
+        <location filename="../libs/device/src/flash_workflows.cpp" line="406"/>
+        <source>Do not erase again; report this with the log file to HARDWARIO support.</source>
+        <translation>Nemažte znovu; nahlaste to podpoře HARDWARIO a přiložte soubor protokolu.</translation>
     </message>
     <message>
         <location filename="../libs/device/src/pib.cpp" line="68"/>
@@ -1007,7 +1037,7 @@
         <translation>Stažení firmwaru %1 selhalo.</translation>
     </message>
     <message>
-        <location filename="../libs/firmware/src/firmware_catalog.cpp" line="171"/>
+        <location filename="../libs/firmware/src/firmware_catalog.cpp" line="177"/>
         <source>Firmware %1 was not found in the catalog.</source>
         <translation>Firmware %1 nebyl v katalogu nalezen.</translation>
     </message>
@@ -1025,7 +1055,7 @@
 <context>
     <name>hio::jlink</name>
     <message>
-        <location filename="../libs/hw/jlink/src/jlink_library.cpp" line="283"/>
+        <location filename="../libs/hw/jlink/src/jlink_library.cpp" line="294"/>
         <source>J-Link Software %1 is too old.</source>
         <translation>J-Link Software %1 je příliš starý.</translation>
     </message>
@@ -1041,12 +1071,12 @@
         <translation>Sonda J-Link se sériovým číslem %1 nebyla nalezena.</translation>
     </message>
     <message>
-        <location filename="../libs/hw/jlink/src/jlink_probe.cpp" line="215"/>
+        <location filename="../libs/hw/jlink/src/jlink_probe.cpp" line="223"/>
         <source>The device has no power (%1 mV).</source>
         <translation>Zařízení nemá napájení (%1 mV).</translation>
     </message>
     <message>
-        <location filename="../libs/hw/jlink/src/jlink_probe.cpp" line="225"/>
+        <location filename="../libs/hw/jlink/src/jlink_probe.cpp" line="233"/>
         <source>Could not connect to the device&apos;s %1 MCU.</source>
         <translation>K MCU %1 zařízení se nepodařilo připojit.</translation>
     </message>
@@ -1056,12 +1086,12 @@
         <translation>Vyrovnávací paměť RTT &quot;%1&quot; nebyla nalezena.</translation>
     </message>
     <message>
-        <location filename="../libs/hw/jlink/src/programmer.cpp" line="120"/>
+        <location filename="../libs/hw/jlink/src/programmer.cpp" line="156"/>
         <source>The MCU type could not be read (FICR).</source>
         <translation>Typ MCU nelze přečíst (FICR).</translation>
     </message>
     <message>
-        <location filename="../libs/hw/jlink/src/programmer.cpp" line="230"/>
+        <location filename="../libs/hw/jlink/src/programmer.cpp" line="274"/>
         <source>Verification failed at address %1.</source>
         <translation>Ověření selhalo na adrese %1.</translation>
     </message>

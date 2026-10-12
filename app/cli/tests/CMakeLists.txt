@@ -24,6 +24,7 @@ target_compile_definitions(hio_cli_tests PRIVATE
     "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\""
     "HIO_FAKE_NRFUTIL=\"$<TARGET_FILE:hio_fake_nrfutil>\"")
 add_dependencies(hio_cli_tests hio hio_fake_jlink hio_fake_nrfutil)
+target_compile_definitions(hio_cli_tests PRIVATE ${HIO_TEST_OVERRIDES_DEFINE})
 
 # Under ThreadSanitizer the two catalog downloads are left out (QNetworkAccessManager's HTTP thread
 # is uninstrumented Qt code, see libs/firmware/tests/CMakeLists.txt).

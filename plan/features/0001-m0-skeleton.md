@@ -296,6 +296,7 @@ uses whatever is in the table.
       template <class T> [[nodiscard]] T get(const SettingKey<T>&) const;      // default on missing/invalid type
       template <class T> [[nodiscard]] Status set(const SettingKey<T>&, const T&);  // error if read-only
       [[nodiscard]] Status sync();
+      [[nodiscard]] Status remove(std::string_view group);   // ADR-0092 (2026-10-12): a group and its keys
       [[nodiscard]] bool isReadOnly() const noexcept;
       [[nodiscard]] int schemaVersion() const noexcept;
   };

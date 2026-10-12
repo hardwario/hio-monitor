@@ -19,6 +19,7 @@
 #include <mutex>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -146,6 +147,9 @@ public:
     bool eraseAllRunning = false;
     std::uint32_t apSelect = 0;
     int readMemoryCalls = 0;
+    int unsecureHooks = 0;          // installUnsecureDialogHook() calls
+    bool throwOnReadMemory = false; // readMemory() throws (a dying worker, review R4)
+    std::chrono::milliseconds eraseChipDelay{0};
 
     [[nodiscard]] ScriptedChip& chip() { return device.starts_with("NRF91") ? lte : app; }
 
@@ -355,6 +359,9 @@ public:
 
     int readMemory(std::uint32_t address, std::span<std::byte> buffer) override {
         std::this_thread::sleep_for(m_target->get([](ScriptedTarget& t) { return t.readDelay; }));
+        if (m_target->get([](ScriptedTarget& t) { return t.throwOnReadMemory; })) {
+            throw std::runtime_error("scripted failure");
+        }
         return m_target->get([&](ScriptedTarget& t) {
             ++t.readMemoryCalls;
             if (!t.connected || t.chip().protectedChip) {
@@ -388,7 +395,14 @@ public:
         });
     }
 
+    int installUnsecureDialogHook() override {
+        m_target->set([](ScriptedTarget& t) { ++t.unsecureHooks; });
+        return 0;
+    }
+
     int eraseChip() override {
+        std::this_thread::sleep_for(
+            m_target->get([](ScriptedTarget& t) { return t.eraseChipDelay; }));
         return m_target->get([](ScriptedTarget& t) {
             t.ops.emplace_back("eraseChip");
             if (!t.connected) {
@@ -401,6 +415,21 @@ public:
 
     int coresightConfigure() override { return 0; }
 
+    // CTRL-AP ERASEALLSTATUS: busy for eraseAllPolls reads, then the chip is erased.
+    static std::uint32_t eraseAllStatus(ScriptedTarget& t) {
+        if (t.eraseAllRunning && t.eraseAllLeft > 0) {
+            --t.eraseAllLeft;
+            return 1U;
+        }
+        if (t.eraseAllRunning) {
+            t.eraseAllRunning = false;
+            t.chip().eraseAll();
+            t.chip().protectedChip = false;
+            t.ops.emplace_back("eraseAll");
+        }
+        return 0U;
+    }
+
     std::expected<std::uint32_t, int> coresightRead(std::uint8_t index, bool ap) override {
         return m_target->get([&](ScriptedTarget& t) -> std::expected<std::uint32_t, int> {
             if (!ap) {
@@ -411,17 +440,10 @@ public:
                 return std::unexpected(-1);
             }
             if (index == 2) {
-                if (t.eraseAllRunning && t.eraseAllLeft > 0) {
-                    --t.eraseAllLeft;
-                    return 1U;
-                }
-                if (t.eraseAllRunning) {
-                    t.eraseAllRunning = false;
-                    chip.eraseAll();
-                    chip.protectedChip = false;
-                    t.ops.emplace_back("eraseAll");
-                }
-                return 0U;
+                return eraseAllStatus(t);
+            }
+            if (index == 3 && ((t.apSelect >> 4U) & 0xFU) == 0xFU) {
+                return chip.nrf91 ? 0x12880000U : 0x02880000U; // CTRL-AP IDR (bank 0xF)
             }
             if (index == 3) {
                 return chip.protectedChip ? 0U : 1U;

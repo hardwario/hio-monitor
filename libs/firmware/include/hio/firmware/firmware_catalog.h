@@ -3,11 +3,11 @@
 // Firmware download from the HARDWARIO catalog by ID (ADR-0037, plan/features/0003).
 //
 // URL: <base>/<id>/hex (base from the device profile, e.g. https://firmware.hardwario.com/chester;
-// the environment variable HIO_CATALOG_URL replaces it - test-only override). QtNetwork on the
+// in builds with the CMake option HIO_TEST_OVERRIDES only, the environment variable
+// HIO_CATALOG_URL replaces it - test-only override, review R8). QtNetwork on the
 // owner thread (GUI main thread / CLI QCoreApplication thread), asynchronous and cancellable:
 //   - transfer timeout (no data for transferTimeout) -> network.download_failed
-//   - redirects are followed only to https (or, for an http base used by tests, to the base's
-//     scheme)
+//   - redirects are followed only to https
 //   - HTTP 404 -> firmware.not_found_in_catalog; other non-2xx and network errors ->
 //     network.download_failed (HTTP status and the Qt error in `detail`)
 //   - the body is capped at maxBodyBytes (network.download_failed)
@@ -49,7 +49,7 @@ struct CatalogOptions {
     std::uint64_t maxBodyBytes = 32ULL * 1024 * 1024;
 };
 
-// `profileDefault` unless HIO_CATALOG_URL is set (test-only override).
+// `profileDefault`, or HIO_CATALOG_URL in HIO_TEST_OVERRIDES builds (test-only override).
 [[nodiscard]] QUrl catalogBaseUrl(std::string_view profileDefault);
 
 struct DownloadOptions {

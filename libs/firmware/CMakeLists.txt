@@ -26,6 +26,8 @@ target_include_directories(hio_firmware PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(hio_firmware
     PUBLIC hio::core Qt6::Core Qt6::Network
     PRIVATE hio::miniz)
+# HIO_CATALOG_URL is honoured only in builds with HIO_TEST_OVERRIDES (review R8).
+target_compile_definitions(hio_firmware PRIVATE ${HIO_TEST_OVERRIDES_DEFINE})
 # CatalogOperation / FirmwareCatalog are QObjects.
 set_target_properties(hio_firmware PROPERTIES AUTOMOC ON)
 

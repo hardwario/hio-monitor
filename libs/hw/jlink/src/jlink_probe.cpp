@@ -132,6 +132,14 @@ Result<ProbeInfo> JLinkProbe::open(std::optional<std::uint32_t> serialNumber, Op
             libraryDetail(std::format("J-Link {}: {}", chosen->serialNumber, *openError))));
     }
     m_open = true;
+    // Review R1: in every open mode, right after Open (pylink installs it there, too).
+    // Without the hook a protected chip could be mass-erased by the library: do not continue.
+    if (const int hooked = m_api.installUnsecureDialogHook(); hooked < 0) {
+        close();
+        return std::unexpected(makeError(
+            ErrorCode::ProbeOpenFailed,
+            libraryDetail(std::format("JLINK_SetHookUnsecureDialog returned {}", hooked))));
+    }
     execCommands(mode == OpenMode::Normal ? std::span<const std::string_view>(afterOpenCommands)
                                           : std::span<const std::string_view>(updateOpenCommands));
     m_info = *chosen;

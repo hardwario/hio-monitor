@@ -415,3 +415,30 @@ TEST_F(Probe, CloseOnlyWhenOpen) {
 }
 
 } // namespace
+
+namespace {
+
+// Review R1: the "unsecure (mass-erase)?" hook is installed right after Open in every mode, and
+// the probe is not used without it.
+TEST_F(Probe, InstallsTheUnsecureDialogHookAfterOpen) {
+    {
+        InSequence order;
+        EXPECT_CALL(api(), open()).WillOnce(Return(std::nullopt));
+        EXPECT_CALL(api(), installUnsecureDialogHook()).WillOnce(Return(0));
+    }
+    ASSERT_TRUE(probe().open(111U, hio::jlink::OpenMode::Normal));
+    EXPECT_CALL(api(), open()).WillOnce(Return(std::nullopt));
+    EXPECT_CALL(api(), installUnsecureDialogHook()).WillOnce(Return(0));
+    ASSERT_TRUE(probe().open(111U, hio::jlink::OpenMode::FirmwareUpdate));
+}
+
+TEST_F(Probe, OpenFailsWithoutTheUnsecureDialogHook) {
+    EXPECT_CALL(api(), installUnsecureDialogHook()).WillOnce(Return(-1));
+    EXPECT_CALL(api(), close());
+    const auto info = probe().open(111U);
+    ASSERT_FALSE(info);
+    EXPECT_EQ(info.error().code, ErrorCode::ProbeOpenFailed);
+    EXPECT_FALSE(probe().isOpen());
+}
+
+} // namespace

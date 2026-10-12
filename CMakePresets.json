@@ -27,7 +27,7 @@
       "name": "linux-debug",
       "displayName": "Linux Debug",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON" }
     },
     {
       "name": "linux-release",
@@ -39,25 +39,25 @@
       "name": "linux-asan",
       "displayName": "Linux Debug + ASan/UBSan",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_SANITIZERS": "address;undefined" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "HIO_SANITIZERS": "address;undefined" }
     },
     {
       "name": "linux-tsan",
       "displayName": "Linux Debug + TSan",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_SANITIZERS": "thread" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "HIO_SANITIZERS": "thread" }
     },
     {
       "name": "linux-coverage",
       "displayName": "Linux Debug + source-based coverage",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_COVERAGE": "ON" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "HIO_COVERAGE": "ON" }
     },
     {
       "name": "linux-tidy",
       "displayName": "Linux Debug + clang-tidy",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "CMAKE_CXX_CLANG_TIDY": "clang-tidy-21" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "CMAKE_CXX_CLANG_TIDY": "clang-tidy-21" }
     },
     {
       "name": "macos-base",
@@ -74,13 +74,13 @@
       "name": "macos-debug",
       "displayName": "macOS Debug",
       "inherits": "macos-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON" }
     },
     {
       "name": "macos-asan",
       "displayName": "macOS Debug + ASan/UBSan",
       "inherits": "macos-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_SANITIZERS": "address;undefined" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "HIO_SANITIZERS": "address;undefined" }
     },
     {
       "name": "macos-release",
@@ -105,7 +105,7 @@
       "name": "windows-debug",
       "displayName": "Windows Debug (clang-cl)",
       "inherits": "windows-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON" }
     },
     {
       "name": "windows-release",

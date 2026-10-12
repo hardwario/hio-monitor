@@ -24,6 +24,10 @@ enum class ConnectionState : std::uint8_t {
 struct ConnectionEvent {
     ConnectionState state = ConnectionState::Connecting;
     std::optional<Error> error;
+    // ADR-0091: the target voltage (VTref, mV) the session's last power reading measured when the
+    // event was emitted (set at least on Connected); nullopt when not measured or unavailable
+    // (no reading yet, the probe does not answer, or a probe that cannot measure VTref reads 0).
+    std::optional<int> targetMillivolts;
 };
 
 // Events were lost because the event queue was full (it drops the oldest, ADR-0031).

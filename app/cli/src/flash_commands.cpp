@@ -113,7 +113,7 @@ Result<OperationOutcome> runOperation(const Context& context, const GlobalOption
     options.autoReconnect = false;
     options.attachRtt = false;
     if (nrfUtil) {
-        options.nrfUtil.option = std::move(nrfUtil);
+        options.nrfUtil = nrfutil::defaultLocatorOptions(std::move(nrfUtil), nullptr);
     }
     device::SessionRegistry registry;
     auto session = device::DeviceSession::open(registry, *location, std::move(options));
@@ -147,7 +147,12 @@ Result<OperationOutcome> runOperation(const Context& context, const GlobalOption
     announce();
     ui.finish();
     const std::uint32_t serial = device.probe().serialNumber;
-    device.close(); // releases the probe (and its lock) now
+    device.close(); // releases the probe (and its lock) now; joins the worker's current step
+    // Review R13: when the wait gave up after Ctrl+C, the worker may still have finished the
+    // operation (a recover, an erase-all, or a real error such as a changed PIB): report that.
+    if (auto real = device.finishedResult(*id)) {
+        result = std::move(*real);
+    }
     if (!result.status) {
         return std::unexpected(result.status.error());
     }

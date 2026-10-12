@@ -93,6 +93,7 @@ plan/
 ## Data and persistence
 
 - Settings: `QSettings` INI format on all OSes (versioned schema, migrations; ADR-0025).
+  `Settings::remove(group)` removes a whole group (ADR-0092).
 - Logs, history, downloaded firmware: under `QStandardPaths::AppDataLocation`, size-bounded
   with rotation; an application diagnostic log (for support, QLoggingCategory + own bounded sink, ADR-0020) separate from device logs.
 - Line storage for the console views: bounded ring buffer in the backend, model exposed to QML.

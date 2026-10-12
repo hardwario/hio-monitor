@@ -22,7 +22,6 @@
 #include "hio/firmware/lte_input.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/programmer.h"
-#include "hio/hw/nrfutil/nrfutil.h"
 
 #include <QString>
 #include <QtEnvironmentVariables>
@@ -80,7 +79,6 @@ protected:
         options.latencyMs = 50;
         options.attachRtt = false;
         options.consoleFile = std::filesystem::path();
-        options.nrfUtil = hio::nrfutil::defaultLocatorOptions(std::nullopt, nullptr);
         auto session = DeviceSession::open(m_registry, m_location, std::move(options));
         EXPECT_TRUE(session) << session.error().message;
         return session ? std::move(*session) : nullptr;

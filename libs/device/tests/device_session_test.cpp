@@ -1397,4 +1397,27 @@ TEST_F(ConnectTimeout, MarginCoversOtherDelays) {
     EXPECT_GT(attempt.elapsed, timeout - budget.margin);
 }
 
+// ---- ADR-0091: the target voltage in connection events ---------------------------------------
+
+TEST_F(Session, ConnectedEventCarriesTheTargetVoltage) {
+    target().set([](ScriptedTarget& t) { t.vtref = 3280; });
+    Recorder* events = nullptr;
+    auto session = openConnected(options(), events);
+    ASSERT_TRUE(session);
+    EXPECT_EQ(events->connections.back().targetMillivolts, 3280);
+    EXPECT_FALSE(events->connections.front().targetMillivolts.has_value()); // Connecting
+    // A power loss is reported with the voltage that was measured.
+    target().set([](ScriptedTarget& t) { t.reportedVtref = 400; });
+    ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
+    EXPECT_EQ(events->connections.back().targetMillivolts, 400);
+}
+
+TEST_F(Session, ProbeThatCannotMeasureReportsNoVoltage) {
+    target().set([](ScriptedTarget& t) { t.reportedVtref = 0; }); // always 0 mV
+    Recorder* events = nullptr;
+    auto session = openConnected(options(), events);
+    ASSERT_TRUE(session);
+    EXPECT_FALSE(events->connections.back().targetMillivolts.has_value());
+}
+
 } // namespace
