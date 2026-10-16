@@ -11,7 +11,7 @@
 // rtt/resetOnOpen; 0 = the profile's value) and are remembered per probe serial number
 // (probes/<sn>/..., the 32 most recently changed probes, probes/recent).
 //
-// J-Link speed (ADR-0096): "Automatic speed" (autoSpeed, on by default, ADR-0090) or the fixed
+// J-Link speed (ADR-0111): "Automatic speed" (autoSpeed, on by default, ADR-0090) or the fixed
 // value speedKhz (kept while automatic; 4000 kHz when none was stored). The speed keys store 0 for
 // automatic; 0, a missing key or a value outside minSpeedKhz..maxSpeedKhz means automatic (for
 // jlink/speedKhz: the profile's default, automatic for every profile since ADR-0090).
@@ -46,7 +46,7 @@ class SettingsStore;
 struct ConnectionOptions {
     static constexpr int defaultFixedSpeedKhz = 4000;
 
-    bool autoSpeed = true;               // ADR-0096
+    bool autoSpeed = true;               // ADR-0111
     int speedKhz = defaultFixedSpeedKhz; // the fixed speed, used when !autoSpeed
     int latencyMs = 0;
     bool autoReconnect = true;
@@ -83,7 +83,7 @@ class ConnectionViewModel : public QObject {
 
     Q_PROPERTY(bool autoSpeed READ autoSpeed WRITE setAutoSpeed NOTIFY optionsChanged)
     Q_PROPERTY(int speedKhz READ speedKhz WRITE setSpeedKhz NOTIFY optionsChanged)
-    // ADR-0095: the warning for a fixed speed below 125 kHz (translated); empty otherwise.
+    // ADR-0110: the warning for a fixed speed below 125 kHz (translated); empty otherwise.
     Q_PROPERTY(QString speedWarning READ speedWarning NOTIFY optionsChanged)
     Q_PROPERTY(int latencyMs READ latencyMs WRITE setLatencyMs NOTIFY optionsChanged)
     Q_PROPERTY(bool autoReconnect READ autoReconnect WRITE setAutoReconnect NOTIFY optionsChanged)

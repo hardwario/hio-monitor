@@ -90,7 +90,7 @@ TestCase {
         save("06-settings");
         AppViewModel.closeGlobalPage();
 
-        // The ⋯ Advanced popover (ADR-0096): automatic speed, then a slow fixed speed (ADR-0095).
+        // The ⋯ Advanced popover (ADR-0111): automatic speed, then a slow fixed speed (ADR-0110).
         AppViewModel.currentTab = 0;
         const connection = AppViewModel.currentTabViewModel.connection;
         connection.autoSpeed = true;

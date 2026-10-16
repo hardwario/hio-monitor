@@ -183,7 +183,7 @@ TEST_F(ConnectionTest, OptionsComeFromTheProfileAndTheSettings) {
 }
 
 TEST_F(ConnectionTest, AutomaticSpeedByDefault) {
-    // ADR-0096: on by default; turning it off uses the spin box value (4000 kHz).
+    // ADR-0111: on by default; turning it off uses the spin box value (4000 kHz).
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
     EXPECT_TRUE(connection().autoSpeed());
     EXPECT_EQ(connection().options().sessionSpeedKhz(), std::nullopt);
@@ -213,7 +213,7 @@ TEST_F(ConnectionTest, StoredSpeedZeroIsAutomatic) {
 }
 
 TEST_F(ConnectionTest, StoredFixedSpeedStaysFixed) {
-    // The old explicit 2000 kHz default is not migrated (ADR-0096).
+    // The old explicit 2000 kHz default is not migrated (ADR-0111).
     ASSERT_TRUE(app().settingsStore()->setValue(QStringLiteral("jlink/speedKhz"), 2000));
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
     EXPECT_FALSE(connection().autoSpeed());
@@ -250,7 +250,7 @@ TEST_F(ConnectionTest, PerProbeSpeedWinsOverTheGlobalOne) {
 }
 
 TEST_F(ConnectionTest, SlowSpeedWarningBelow125Khz) {
-    // ADR-0095: only for a fixed speed below 125 kHz.
+    // ADR-0110: only for a fixed speed below 125 kHz.
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
     connection().setSpeedKhz(100);
     EXPECT_TRUE(connection().speedWarning().isEmpty()); // automatic

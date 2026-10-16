@@ -48,7 +48,7 @@ QStringList recentProbes(const SettingsStore* settings) {
     return settings->value(recentKey).toString().split(QLatin1Char(','), Qt::SkipEmptyParts);
 }
 
-// A stored speed (ADR-0096): a value in minSpeedKhz..maxSpeedKhz is fixed; 0, a missing key or any
+// A stored speed (ADR-0111): a value in minSpeedKhz..maxSpeedKhz is fixed; 0, a missing key or any
 // other value means automatic (nullopt).
 std::optional<int> storedSpeed(const QVariant& value) {
     bool ok = false;
@@ -321,7 +321,7 @@ void ConnectionViewModel::loadOptions(std::optional<std::uint32_t> serial,
     applySpeed(options, target.defaultSpeedKhz);
     options.latencyMs = target.defaultLatencyMs;
     if (m_settings != nullptr) {
-        // ADR-0096: 0 / missing / out of range = the profile's default (automatic).
+        // ADR-0111: 0 / missing / out of range = the profile's default (automatic).
         if (const std::optional<int> speed =
                 storedSpeed(m_settings->value(QStringLiteral("jlink/speedKhz")))) {
             applySpeed(options, speed);
@@ -338,7 +338,7 @@ void ConnectionViewModel::loadOptions(std::optional<std::uint32_t> serial,
 
         m_remembered = m_serial && recentProbes(m_settings).contains(QString::number(*m_serial));
         if (m_remembered) {
-            // ADR-0096: 0 (stored for automatic), missing or out of range = automatic.
+            // ADR-0111: 0 (stored for automatic), missing or out of range = automatic.
             applySpeed(options, storedSpeed(m_settings->value(probeKey(*m_serial, "speedKhz"))));
             options.latencyMs = m_settings->value(probeKey(*m_serial, "latencyMs")).toInt();
             options.autoReconnect =
@@ -361,7 +361,7 @@ void ConnectionViewModel::rememberOptions() {
         return;
     }
     const std::uint32_t serial = *m_serial;
-    // ADR-0096: 0 = automatic.
+    // ADR-0111: 0 = automatic.
     logFailure("speedKhz", m_settings->setValue(probeKey(serial, "speedKhz"),
                                                 m_options.autoSpeed ? 0 : m_options.speedKhz));
     logFailure("latencyMs",
