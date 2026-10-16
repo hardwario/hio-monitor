@@ -9,6 +9,14 @@
   M1 lands, the shell runs against the fake J-Link library.
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M4 ([0007](0007-m4-wizard-framework-diagnostics.md), [0009](0009-m4-connect-and-troubleshooting.md),
+> [0010](0010-m4-flash-wizard.md); applied when they are approved — then this plan needs re-approval):** components
+> WizardDialog, WizardStepList, CheckList, CommandBlock, Illustration, HelpMenu (ADR-0066); the ErrorPanel's
+> "Help me fix this" is shown only for registered wizards and opens them; the rail's Help item opens the Help menu
+> (F1 still opens the overlay); `DeviceTabViewModel::openWizard(id)` and
+> `ensureSession(targetId, attachRtt, connectTarget = true)`; the Choose-device empty state's disabled button
+> becomes [Guide me] (Connect wizard) plus the link "Flash firmware with a guide".
+
 ## Context
 
 M0–M2 deliver the backend (J-Link sessions, RTT console, flashing, catalog download) and the CLI. The GUI is still

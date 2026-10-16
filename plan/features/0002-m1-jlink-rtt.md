@@ -11,6 +11,12 @@
 > `probe.in_use_by_other_process`). Command-history saves are merged under a file lock. The `ConsoleLog` can be
 > provided by the session's owner, and marker lines exist.
 
+> **Pending amendment from M4 (ADR-0069, specified in [0007](0007-m4-wizard-framework-diagnostics.md) § Amendment;
+> applied to this text when 0007 is approved — then this plan needs re-approval):** `SessionOptions::connectTarget`
+> (probe-only sessions) and the `ProbeOpen` state; `DeviceSession::diagnose(targetId)` and `startConnection(attachRtt)`;
+> on Linux an open failure checks USB access and reports `usb.access_denied` (ADR-0072);
+> `probe.in_use_by_other_process` gets the Troubleshooting wizard.
+
 ## Context
 
 The J-Link RTT console (interactive shell + device log) is the core feature of HARDWARIO Monitor. The old

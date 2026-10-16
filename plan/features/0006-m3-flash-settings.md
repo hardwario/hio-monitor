@@ -17,6 +17,12 @@
 - **Can run in parallel with:** [0005](0005-m3-console.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M4 ([0008](0008-m4-first-run-setup.md), [0010](0010-m4-flash-wizard.md); applied when
+> they are approved — then this plan needs re-approval):** the source part of `FlashViewModel` moves into a reusable
+> `FirmwareSourceViewModel` (also used by the flash wizard); the Flash page header gets "Guide me"; the J-Link and
+> nRF Util settings sections get the link "Run the setup wizard". In the error table, `FirstRunSetup` is the C++
+> enumerator name; QML/JSON use the kebab id `first-run-setup` (ADR-0067).
+
 ## Context
 
 Flashing by catalog ID or by a local `.hex` is the second core workflow of the old app. Its problems:
