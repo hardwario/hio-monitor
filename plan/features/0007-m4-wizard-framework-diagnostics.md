@@ -684,6 +684,8 @@ sources are still only reviewed by eye (they compile on those systems for the fi
 
 ### Fixes (round 1, 2026-10-16; the user decided to fix all of V1–V13 and add the missing GUI tests)
 
+Decisions made during these fixes and confirmed by the user afterwards (2026-10-16): the V10 overall-budget rules (Skipped steps with `diag.check_timeout`, the budget grows with a fixed speed below 1000 kHz, the restore after Diagnose outside the budget); the V8 Warning "Could not be checked: …"; V5 a second `startConnection()` before the session leaves ProbeOpen is a successful no-op; V3 `probe-firmware` depends on `probes`; V2 `WizardViewModel::tabClosing()`; V13 the sibling-folder rule for the home path.
+
 | ID | Status | Change | Tests |
 |---|---|---|---|
 | V1 | Fixed | `process_source_windows.cpp`: `<windows.h>` first, ended by a comment so that clang-format (`IncludeBlocks: Regroup`) keeps it before `<tlhelp32.h>` (as `probe_lock.cpp`); also `static_cast<DWORD>(sizeof(entry))`, `<expected>`, `<utility>`, `<QtTypes>` | review by eye (Win32: `CreateToolhelp32Snapshot`, `PROCESSENTRY32W`, `Process32FirstW/NextW`, `CloseHandle`) |
