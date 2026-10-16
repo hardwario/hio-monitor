@@ -1,4 +1,4 @@
-# ADR-0095 — RTT attach deadline scales with a fixed low J-Link speed
+# ADR-0110 — RTT attach deadline scales with a fixed low J-Link speed
 
 - **Status:** Accepted
 - **Date:** 2026-10-16

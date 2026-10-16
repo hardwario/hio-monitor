@@ -68,7 +68,7 @@
 // loader: only the written bytes change, the rest of every touched 4 KiB sector is kept; bytes
 // outside flash and UICR make EndDownload fail. EndDownload reports "Erase" and "Program" progress
 // to the JLINK_SetFlashProgProgressCallback callback. Like J-Link 9.84 on hardware (Phase 0 item
-// 0.10, ADR-0094), JLINKARM_Close during a download programs the buffered bytes; and (HIL H3)
+// 0.10, ADR-0109), JLINKARM_Close during a download programs the buffered bytes; and (HIL H3)
 // JLINKARM_EMU_SelectByUSBSN fails while a flash progress callback is registered. JLINK_EraseChip
 // and CTRL-AP ERASEALL erase
 // flash and UICR; ERASEALL also clears "protected". The CTRL-AP is AP 1 (nRF52) / AP 4 (nRF91)
@@ -629,7 +629,7 @@ HIO_FAKE_JLINK_EXPORT const char* JLINKARM_Open() {
 HIO_FAKE_JLINK_EXPORT void JLINKARM_Close() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
-    if (s.downloading) { // Phase 0 item 0.10 (ADR-0094): the close programs the buffer
+    if (s.downloading) { // Phase 0 item 0.10 (ADR-0109): the close programs the buffer
         s.downloading = false;
         if (ProbeScenario* probe = s.probe(); probe != nullptr) {
             s.programBuffered(probe->chip);

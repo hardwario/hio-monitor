@@ -275,7 +275,7 @@ connectTimeoutFor(const jlink::ProbeTiming& probe, const jlink::RttTiming& rtt,
 }
 
 // The timeout the CLI passes to the waits above for a session at J-Link speed `speedKhz`
-// (nullopt = auto), with the attach deadline of that speed (ADR-0095), as DeviceSession::open()
+// (nullopt = auto), with the attach deadline of that speed (ADR-0110), as DeviceSession::open()
 // uses it.
 [[nodiscard]] constexpr std::chrono::milliseconds
 connectTimeoutForSpeed(std::optional<int> speedKhz) {
@@ -292,7 +292,7 @@ static_assert(defaultConnectTimeout == std::chrono::milliseconds(35500));
 static_assert(connectTimeoutForSpeed(std::nullopt) == defaultConnectTimeout);
 static_assert(connectTimeoutForSpeed(minSpeedKhz) == std::chrono::milliseconds(80500));
 
-// ADR-0095: the warning for a fixed J-Link speed below jlink::rttSlowSpeedKhz (translated), shown
+// ADR-0110: the warning for a fixed J-Link speed below jlink::rttSlowSpeedKhz (translated), shown
 // before connecting; nullopt at auto and at faster speeds.
 [[nodiscard]] std::optional<std::string> slowSpeedWarning(std::optional<int> speedKhz);
 
