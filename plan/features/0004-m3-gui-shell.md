@@ -17,6 +17,11 @@
 > `ensureSession(targetId, attachRtt, connectTarget = true)`; the Choose-device empty state's disabled button
 > becomes [Guide me] (Connect wizard) plus the link "Flash firmware with a guide".
 
+> **Pending amendment from M5 ([0012](0012-m5-ble-gui-pairing.md), ADR-0081, ADR-0083; applied when 0012 is approved
+> — then this plan needs re-approval):** the Choose-device page gets a J-Link | Bluetooth switch and a BLE device
+> list; `DeviceTabViewModel` gains `transport`, `consoleSession()`, `openBle()`, `bleSession()`; BLE tabs have a BLE
+> device bar and title; `ui/tabs` entries gain `transport`; settings `ui/lastTransport`, `ble/*`.
+
 ## Context
 
 M0–M2 deliver the backend (J-Link sessions, RTT console, flashing, catalog download) and the CLI. The GUI is still

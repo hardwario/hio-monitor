@@ -11,7 +11,7 @@ before the plan that depends on it is approved.
 | 4 | ~~Localization~~ — **resolved**: English + Czech via Qt Linguist, extensible; CLI English only (ADR-0027) | — |
 | 5 | ~~Product name, executable names, app ids~~ — **resolved**: "HARDWARIO Monitor", `hio-monitor`, CLI `hio`, `com.hardwario.monitor` (ADR-0018) | — |
 | 6 | Code-signing certificates (macOS Developer ID, Windows) — owner and CI secret handling | M7 |
-| 7 | Flatpak: how to grant USB (J-Link) and BLE access; is Flatpak viable with runtime-loaded vendor libs? | M7 |
+| 7 | Flatpak: how to grant USB (J-Link) and BLE access (BLE needs D-Bus `--system-talk-name=org.bluez`, 0011); is Flatpak viable with runtime-loaded vendor libs? | M7 |
 | 8 | Windows installer format: Qt Installer Framework (as before) vs. MSI (WiX) vs. MSIX | M7 |
 | 9 | MCP: existing C++ MCP SDK vs. own implementation; MCP protocol revision | M6 |
 | 10 | ~~JSON library~~ — **resolved**: Qt `QJsonDocument` (ADR-0019) | — |
@@ -27,3 +27,5 @@ before the plan that depends on it is approved.
 | 20 | Documentation links per error code / wizard step (docs.hardwario.com URL table) — not in M4 | later |
 | 21 | PIB / UICR read of the connected device in the diagnostic report and the GUI — not in M4 | later |
 | 22 | CHESTER connection guide content: exact connector names, cable type, pin-1 marking, power wording, and the real illustrations for the wizard slots (ADR-0076, ADR-0077) — HARDWARIO content task | before 0009 is Done |
+| 23 | CHESTER Bluetooth facts used by M5 (taken from the old app and py-hardwario only): advertised name format, whether NUS is in the advertisement, shell prompt `bt_nus:~$ `, passkey default 123456 and how bonds are cleared on the device; also BLE illustrations (ADR-0089) — confirm with the CHESTER firmware team | before 0011 is Done |
+| 24 | Windows: does `QBluetoothLocalDevice::requestPairing` show a passkey dialog for CHESTER? If not, `hio ble pair` on Windows falls back to instructions (ADR-0084) | 0011 HIL |

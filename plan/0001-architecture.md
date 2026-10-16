@@ -59,8 +59,10 @@ plan/
   J-Link flash download with our own Intel HEX parser (ADR-0015, ADR-0035). Modem firmware:
   `IModemUpdater` implemented by the nRF Util wrapper (ADR-0016, ADR-0042). Workflows (UICR rules ADR-0036,
   recover ADR-0039) live in `libs/device` and run as `DeviceSession` operations (features/0003).
-- `IConsoleTransport` — byte/line channels (shell, log) with open/close/reconnect;
-  implementations: J-Link RTT, BLE NUS (and serial in the future).
+- `ConsoleSession` (ADR-0079, replaces the earlier `IConsoleTransport` idea) — abstract `QObject` for a console
+  connection: `sendLine`, `reconnect`, `close`, `log`, `connection`, `identity`, `capabilities` and the line /
+  connection signals. Implementations: `DeviceSession` (J-Link RTT) and `BleSession` (BLE NUS, features/0011);
+  serial in the future. CLI console, GUI console page and MCP use only this interface.
 - `DeviceProfile` — compiled-in C++ data (ADR-0032) describing a device: MCU(s) and J-Link device names, expected family,
   RTT buffer names (`Terminal`, `Logger`), UICR/PIB layout, wizard illustrations,
   firmware catalog endpoints.
@@ -73,6 +75,8 @@ plan/
 - Each `DeviceSession` runs on its own owned `std::jthread`; all vendor-DLL calls for that probe happen
   there. Commands and events travel through bounded queues; a `QObject` façade on the owner thread emits
   batched queued signals (ADR-0031). GUI thread never blocks on hardware.
+- Bluetooth (ADR-0080): QtBluetooth needs an event loop, so one application-owned `BleHost` `QThread` hosts the
+  scanner and every BLE link; `BleSession` façades talk to it through the same bounded queues and coalesced wake-ups.
 - Results/events travel to the UI via queued Qt signals; MCP and CLI use the same events.
 - Every long operation takes a `std::stop_token` and has a timeout.
 - Threads are owned (`std::jthread` / owned `QThread`) and joined on shutdown.

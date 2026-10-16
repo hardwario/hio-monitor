@@ -17,6 +17,12 @@
 > on Linux an open failure checks USB access and reports `usb.access_denied` (ADR-0072);
 > `probe.in_use_by_other_process` gets the Troubleshooting wizard.
 
+> **Pending amendment from M5 (ADR-0079, ADR-0083, specified in [0011](0011-m5-ble-backend-cli.md); applied to this
+> text when 0011 is approved — then this plan needs re-approval):** `DeviceSession` derives from the new abstract
+> `ConsoleSession` (identity, capabilities, `consoleFilePath`, `promptSeen`); `waitUntilConnected` /
+> `waitForFirstAttempt` and the CLI console take `ConsoleSession&`; `SessionRegistry` is keyed by `SessionKey =
+> std::variant<ProbeKey, BleKey>` (J-Link and BLE share the 8-session limit).
+
 ## Context
 
 The J-Link RTT console (interactive shell + device log) is the core feature of HARDWARIO Monitor. The old

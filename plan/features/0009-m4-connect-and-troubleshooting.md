@@ -10,6 +10,10 @@
 - **Can run in parallel with:** [0008](0008-m4-first-run-setup.md), [0010](0010-m4-flash-wizard.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M5 ([0012](0012-m5-ble-gui-pairing.md), ADR-0084; applied when 0012 is approved):** the
+> coverage test also accepts error codes whose wizard is BlePairing when the BlePairing wizard maps them to a start
+> step; the Connect wizard stays J-Link only.
+
 ## Context
 
 Most support cases are physical: the J-Link is not plugged in, the flat cable is on the other MCU's connector,

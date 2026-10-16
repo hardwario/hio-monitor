@@ -10,6 +10,11 @@
 - **Can run in parallel with:** [0009](0009-m4-connect-and-troubleshooting.md), [0010](0010-m4-flash-wizard.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M5 ([0012](0012-m5-ble-gui-pairing.md), ADR-0088; applied when 0012 is approved — then
+> this plan needs re-approval):** optional **Bluetooth** step after nRF Util (adapter, macOS permission prompt);
+> `ble.permission_denied` starts the wizard at that step; the Done summary lists Bluetooth. This replaces the "macOS
+> Bluetooth permission: M5" non-goal.
+
 ## Context
 
 The app needs SEGGER J-Link Software ≥ 8.00 (ADR-0029), loaded from the user's installation (ADR-0006), and

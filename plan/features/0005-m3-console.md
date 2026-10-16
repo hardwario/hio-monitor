@@ -11,6 +11,11 @@
 - **Can run in parallel with:** [0006](0006-m3-flash-settings.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M5 ([0012](0012-m5-ble-gui-pairing.md), ADR-0079; applied when 0012 is approved — then
+> this plan needs re-approval):** `ConsoleViewModel` binds to `DeviceTabViewModel::consoleSession()` (J-Link or
+> BLE); Reset is hidden without the `Reset` capability; the log pane is hidden while the Log channel is empty for
+> BLE tabs.
+
 ## Context
 
 The console is the screen users spend most of their time on. The old app's workflows must be kept:

@@ -12,6 +12,11 @@
   0004.
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M5 ([0011](0011-m5-ble-backend-cli.md), [0012](0012-m5-ble-gui-pairing.md), ADR-0088;
+> applied when they are approved — then this plan needs re-approval):** environment check `bluetooth` (after
+> `app-dirs`, Warning only, 5 s) with `EnvironmentContext::ble`; `WizardStep::embedded` gains `ble-picker`;
+> illustration slots `ble-enable`, `ble-pair-os`; Help menu item "Pair a Bluetooth device…".
+
 ## Context
 
 Every `hio::Error` already names a wizard (`WizardId`, M0) and the M1/M2 error tables map about 25 error codes to

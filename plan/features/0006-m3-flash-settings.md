@@ -16,6 +16,10 @@
 > nRF Util settings sections get the link "Run the setup wizard". In the error table, `FirstRunSetup` is the C++
 > enumerator name; QML/JSON use the kebab id `first-run-setup` (ADR-0067).
 
+> **Pending amendment from M5 ([0012](0012-m5-ble-gui-pairing.md), ADR-0081; applied when 0012 is approved):** the
+> Flash rail item is disabled on Bluetooth tabs with the tooltip "Flashing needs a J-Link. Open a J-Link tab to
+> flash this device."
+
 ## Context
 
 Flashing by catalog ID or by a local `.hex` is the second core workflow of the old app. Its problems:
