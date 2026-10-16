@@ -1,4 +1,4 @@
-# ADR-0096 — GUI: automatic J-Link speed switch in the Advanced connection popover
+# ADR-0111 — GUI: automatic J-Link speed switch in the Advanced connection popover
 
 - **Status:** Accepted
 - **Date:** 2026-10-16
@@ -7,7 +7,7 @@
 ## Context
 
 ADR-0090 made the J-Link speed automatic by default (`SessionOptions::speedKhz` = `std::nullopt`,
-`TargetProfile::defaultSpeedKhz` = `std::nullopt`); a fixed kHz value is still possible. ADR-0095 scales the RTT
+`TargetProfile::defaultSpeedKhz` = `std::nullopt`); a fixed kHz value is still possible. ADR-0110 scales the RTT
 attach deadline for fixed speeds below 1000 kHz and warns below 125 kHz. The M3 GUI shell (plan 0004) offered
 only a kHz spin box (5–50000) in the ⋯ Advanced popover of the connection bar, stored in the settings
 `jlink/speedKhz` (global default) and per probe.
@@ -23,7 +23,7 @@ only a kHz spin box (5–50000) in the ⋯ Advanced popover of the connection ba
 - The Advanced popover shows an **Automatic speed** switch, **on by default**. While it is on, the kHz spin box
   is disabled (it keeps the last fixed value for when the switch is turned off). Turning it off uses the spin
   box value, which starts at 4000 kHz if no fixed value was stored before.
-- For a fixed speed below 125 kHz, the popover shows the ADR-0095 warning (`device::slowSpeedWarning`, the
+- For a fixed speed below 125 kHz, the popover shows the ADR-0110 warning (`device::slowSpeedWarning`, the
   same translated backend text the CLI prints).
 - Settings: `jlink/speedKhz` and the per-probe speed store **0 for automatic**. A missing key also means
   automatic. Values outside 5–50000 are treated as automatic. Existing stored fixed values stay fixed,

@@ -207,7 +207,7 @@ TEST_F(Rtt, NoControlBlockWithin15sIsRttNotFound) {
     EXPECT_FALSE(rtt().isAttached());
 }
 
-// ADR-0095: the attach deadline scales with a fixed speed below 1000 kHz, capped at 60 s.
+// ADR-0110: the attach deadline scales with a fixed speed below 1000 kHz, capped at 60 s.
 TEST(RttAttachDeadline, ScalesWithAFixedLowSpeed) {
     using hio::jlink::rttAttachDeadline;
     using std::chrono::milliseconds;
@@ -234,7 +234,7 @@ TEST(RttAttachDeadline, SlowSpeedIsAFixedSpeedBelow125kHz) {
     EXPECT_TRUE(isSlowRttSpeed(5));
 }
 
-// ADR-0095: the target.rtt_not_found detail names the deadline and the speed.
+// ADR-0110: the target.rtt_not_found detail names the deadline and the speed.
 TEST_F(Rtt, RttNotFoundDetailNamesTheSpeed) {
     target().found = false;
     const auto autoSpeed = rtt().attach(chesterNames, {});

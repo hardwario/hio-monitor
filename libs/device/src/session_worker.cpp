@@ -455,7 +455,7 @@ private:
     // whatever its outcome (review R31): an attempt that fails like the previous one is not
     // reported again (report() de-duplicates and does not move the timer), and an attempt can
     // take longer than the interval (RTT attach deadline 15 s, up to 60 s at a fixed low speed,
-    // ADR-0095), so a timer set before the attempt
+    // ADR-0110), so a timer set before the attempt
     // would let the retries run back to back.
     void reconnect(const std::stop_token& stop, bool automatic = false) {
         detach();
@@ -1404,7 +1404,7 @@ private:
         Clock::TimePoint started = clock().now();
         jlink::RttLayout layout;
         jlink::RttTiming timing = m_config.timing.rtt;
-        // ADR-0110 (was ADR-0095): the budget scales with a fixed low speed like the session's
+        // ADR-0110: the budget scales with a fixed low speed like the session's
         // attach deadline.
         timing.attachDeadline =
             jlink::rttAttachDeadline(m_config.speedKhz, m_config.timing.diagnoseRttBudget);

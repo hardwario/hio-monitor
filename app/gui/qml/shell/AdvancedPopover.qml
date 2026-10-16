@@ -1,4 +1,4 @@
-// ⋯ Advanced popover of the device bar (ADR-0052): J-Link speed (automatic or fixed, ADR-0096),
+// ⋯ Advanced popover of the device bar (ADR-0052): J-Link speed (automatic or fixed, ADR-0111),
 // RTT latency, auto-reconnect, reset on open and "Save console to log file", per tab and
 // remembered per probe. The values apply on the next connect.
 import QtQuick
@@ -56,7 +56,7 @@ Popup {
                 id: speedBox
 
                 objectName: "speedBox"
-                // While automatic, the box keeps the last fixed value (ADR-0096).
+                // While automatic, the box keeps the last fixed value (ADR-0111).
                 enabled: !popover.connection.autoSpeed
                 from: popover.connection.minSpeedKhz
                 to: popover.connection.maxSpeedKhz

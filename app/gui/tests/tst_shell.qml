@@ -225,8 +225,8 @@ TestCase {
     }
 
     function test_advancedPopoverSpeed() {
-        // ADR-0096: automatic speed by default, the kHz box disabled while automatic, the
-        // ADR-0095 warning for a fixed speed below 125 kHz.
+        // ADR-0111: automatic speed by default, the kHz box disabled while automatic, the
+        // ADR-0110 warning for a fixed speed below 125 kHz.
         verify(testSupport.configureTab(0, "app", 801000077, ""));
         const connection = AppViewModel.currentTabViewModel.connection;
         const popover = popoverOf(currentBar("advancedButton"));

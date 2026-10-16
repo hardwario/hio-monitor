@@ -239,7 +239,7 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
     config.usbDevRoot = std::move(hooks.usbDevRoot);
     config.lockDirectory = registry.options().lockDirectory;
     config.timing = hooks.timing;
-    // ADR-0095: the attach deadline scales with a fixed low speed (the base is the hooks' value,
+    // ADR-0110: the attach deadline scales with a fixed low speed (the base is the hooks' value,
     // 15 s in production).
     config.timing.rtt.attachDeadline =
         jlink::rttAttachDeadline(options.speedKhz, hooks.timing.rtt.attachDeadline);

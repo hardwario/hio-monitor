@@ -1,4 +1,4 @@
-# Normalize text files
+# Git LFS - every binary file (and generated text > 100 KB, e.g. firmware .hex) MUST be tracked here (CLAUDE.md, ADR-0112)
 * text=auto eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
