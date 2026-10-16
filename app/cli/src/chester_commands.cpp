@@ -136,7 +136,7 @@ std::vector<std::string> splitLines(const std::string& text) {
     return lines;
 }
 
-// ADR-0095: before connecting at a fixed speed below 125 kHz, where the console may not be found
+// ADR-0110: before connecting at a fixed speed below 125 kHz, where the console may not be found
 // within the (capped) attach deadline. Logged; on stderr in human mode (like the other warnings
 // outside a console event stream).
 void warnAboutSlowSpeed(const Context& context, std::optional<int> speedKhz) {

@@ -170,7 +170,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   against the network J-Links only on its first failed open per `JLinkProbe` (once per session or tool run,
   review R22).
 - **`RttChannel`** — implements ADR-0034 exactly: `attach(names, stop_token)` (15 s deadline at auto speed and at
-  1000 kHz or more; at a fixed lower speed `rttAttachDeadline()` = 15 s × 1000 / kHz, at most 60 s, ADR-0095; 100 ms polls,
+  1000 kHz or more; at a fixed lower speed `rttAttachDeadline()` = 15 s × 1000 / kHz, at most 60 s, ADR-0110; 100 ms polls,
   name resolution, zero-size retry with RTT stop + 200 ms, logger wait 3 s), `read(index, span)`,
   `write(index, bytes, stop_token)` (down-buffer chunks, 5 ms retries, 2 s timeout), `stop()`.
 
@@ -239,8 +239,8 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   `probe()` returns the SN once known (`connectionChanged` is emitted after it is set). The CLI calls
   `waitUntilConnected()` (timeout `connectTimeoutForSpeed(speed)` = `connectTimeoutFor(ProbeTiming, RttTiming)` with
   the attach deadline of the session speed: 35.5 s at auto and at 1000 kHz or more, up to 80.5 s at 250 kHz and
-  below, ADR-0095; see Bounds; review R38) and ends with that error if it fails. Below 125 kHz the CLI warns before
-  connecting (ADR-0095).
+  below, ADR-0110; see Bounds; review R38) and ends with that error if it fails. Below 125 kHz the CLI warns before
+  connecting (ADR-0110).
   Amendment (decided 2026-10-09; our rule, not rttt's, R50): `console --auto-reconnect` waits with `waitForFirstAttempt()`
   instead, which also accepts a first attempt that ends Disconnected; the console UI then starts and shows the state
   while the session retries. ADR-0053's "the CLI waits with waitUntilConnected" therefore holds for `command` and
@@ -372,16 +372,16 @@ partial line 4 KiB · ConsoleLog 100 000 lines/channel · history 1000 × 4 KiB 
 2 × 100 MiB, then not written; R26) · 8 sessions/process · lock waits: probe 0 ms, history 2 s · `waitUntilConnected` / `waitForFirstAttempt`
 `defaultConnectTimeout` = library load 5 s + connect attempts (3) × (one connect 3 s + retry delay 0.5 s) + attach
 deadline 15 s + logger wait 3 s + margin 2 s = **35.5 s** (`connectTimeoutFor()` in `device_session.h`, R38); with a
-fixed speed below 1000 kHz the attach deadline and this timeout scale (`connectTimeoutForSpeed()`, ADR-0095): 50.5 s at
+fixed speed below 1000 kHz the attach deadline and this timeout scale (`connectTimeoutForSpeed()`, ADR-0110): 50.5 s at
 500 kHz, at most **80.5 s** (attach deadline 60 s) · RTT read per cycle ≤ up-buffer
-size (capped at 64 KiB) · timeouts: attach 15 s (fixed speed < 1000 kHz: 15 s × 1000 / kHz, at most 60 s; ADR-0095), logger wait 3 s, write 2 s, connect 3 × 500 ms,
+size (capped at 64 KiB) · timeouts: attach 15 s (fixed speed < 1000 kHz: 15 s × 1000 / kHz, at most 60 s; ADR-0110), logger wait 3 s, write 2 s, connect 3 × 500 ms,
 power check 1 s, auto-reconnect 3 s (counted from the end of the previous attempt, R31), `command` default 1 s,
 `command` echo wait one write timeout per line counted as the lines are written (line n + 1 until start + (n + 1) ×
 write timeout + 500 ms), at most lines × write timeout + 500 ms (R23, R39); `command` lines beyond the command queue
 wait in the CLI and are queued as the worker takes them (R39) · `command` response 10 000 lines (output + log) and
 4 MiB of text, then truncated (`"truncated": true`, R42) · console-file retention may exceed 50 files / 200 MiB by at
 most one live file per live session (R45, R48) · the attach deadline and the connect timeout scale with a fixed
-`--jlink-speed` below 1000 kHz (ADR-0095, replacing the R47 caveat after HIL G1); below 125 kHz a search of the whole
+`--jlink-speed` below 1000 kHz (ADR-0110, replacing the R47 caveat after HIL G1); below 125 kHz a search of the whole
 RAM can exceed the 60 s cap: the CLI warns before connecting and `target.rtt_not_found` names the speed; the default
 automatic speed (ADR-0090) is not concerned.
 
@@ -425,7 +425,7 @@ automatic speed (ADR-0090) is not concerned.
 | Differences from rttt (round-4 review) | follow rttt / keep and document | keep ours, documented (decided 2026-10-11; list in Design → `libs/device`) | — |
 | Round-5 findings | fix all / partial | fix all 7 (decided 2026-10-11; R41–R47) | — |
 | Connect speed | auto / fixed | auto like pylink; explicit kHz forces fixed (decided 2026-10-11) | ADR-0090 |
-| RTT attach deadline at a low fixed speed (HIL G1, H2) | scale / keep 15 s and warn / document | scale: 15 s × 1000 / kHz below 1000 kHz, at most 60 s; connect timeout follows; CLI warning and speed in the error detail below 125 kHz (decided 2026-10-16) | ADR-0095 |
+| RTT attach deadline at a low fixed speed (HIL G1, H2) | scale / keep 15 s and warn / document | scale: 15 s × 1000 / kHz below 1000 kHz, at most 60 s; connect timeout follows; CLI warning and speed in the error detail below 125 kHz (decided 2026-10-16) | ADR-0110 |
 | Round-6 findings | fix all / partial | fix all 9 + correct the rttt list (decided 2026-10-11; R48–R56) | — |
 | Sanitizer presets DEBUGINFOD_URLS | set empty / local env | set empty in CMakePresets.json (decided 2026-10-11; T1) | — |
 | Reference sources location | scratchpad / ../refs | /home/hardwario/src/monitor/refs, outside repositories (decided 2026-10-11) | — |
@@ -511,12 +511,12 @@ Phase G — hardware and docs
     with `JLINKARM_EnableLog` (A1 function list).
   - Timing: connect about 0.3 s at every speed. RTT attach: auto < 2 s (whole command 2.3 s); 1000 kHz 2.9 s
     command; 100 kHz 12.8 s RTT search (14.5 s command); 5 kHz `target.rtt_not_found` after 15 s → H2, fixed by
-    ADR-0095 (attach deadline and connect timeout scale with a fixed low speed; warning below 125 kHz).
+    ADR-0110 (attach deadline and connect timeout scale with a fixed low speed; warning below 125 kHz).
   - `hio jlink list`, `hio jlink info`, `hio chester app command help` work; target voltage read 2983 mV. The probe
     firmware status is "unknown" on this probe (`JLINKARM_GetEmbeddedFWString` returned -1), so the
     outdated-firmware check could not be tested with it.
   - Not testable with this setup: two probes in one process, the outdated-firmware warning.
-  - Open: re-run G1 after the ADR-0095 fix (5 and 100 kHz) and the two-probe test with a second probe and board.
+  - Open: re-run G1 after the ADR-0110 fix (5 and 100 kHz) and the two-probe test with a second probe and board.
 - [ ] G2 Manual checks on Linux, Windows, macOS; record the lowest tested J-Link version (ADR-0029); on Windows
   also: `hio chester app console --json` reading from the console (not a pipe) ends promptly on Ctrl+C / when the
   session ends (review R17, `CancelSynchronousIo`); `hio jlink list` shows "in use" for a probe held by another
@@ -862,7 +862,7 @@ test presets (T1). Each test below fails on the code before its fix, except wher
   budget assumes about 1000 kHz or more and very low speeds may end with `timeout`; G1 measures connect and attach at
   5, 100 and 1000 kHz. Documentation only. Since ADR-0090 (R49) the caveat applies only to an explicit low kHz value;
   the default is the automatic speed.
-  Superseded 2026-10-16 by ADR-0095 (HIL G1, H2): `rttAttachDeadline()` (`rtt_channel.h`) scales the attach deadline
+  Superseded 2026-10-16 by ADR-0110 (HIL G1, H2): `rttAttachDeadline()` (`rtt_channel.h`) scales the attach deadline
   with a fixed speed below 1000 kHz (at most 60 s); `DeviceSession::open()` applies it and the CLI waits
   `connectTimeoutForSpeed()`; below 125 kHz the CLI warns (`slowSpeedWarning()`) and the `target.rtt_not_found`
   detail names the speed. Tests `RttAttachDeadline.*`, `Rtt.RttNotFoundDetailNamesTheSpeed`,
@@ -1037,7 +1037,7 @@ and Git LFS clean.
 - **Vendor library internal threads** vs. TSan: suppressions documented one by one (HIL only; the fake library is ours).
 - **macOS/Linux USB permissions** (udev rules) surface as `probe.open_failed`; the setup wizard is M4.
 - **Very low explicit SWD speeds** (R47): HIL G1 measured 12.8 s for the RTT search at 100 kHz and no control block
-  within 15 s at 5 kHz (H2). Since ADR-0095 the attach deadline (15 s × 1000 / kHz, at most 60 s) and the connect
+  within 15 s at 5 kHz (H2). Since ADR-0110 the attach deadline (15 s × 1000 / kHz, at most 60 s) and the connect
   timeout scale with a fixed speed below 1000 kHz; below 125 kHz a full-RAM search can still exceed 60 s, so the CLI
   warns before connecting and `target.rtt_not_found` names the speed. The default automatic speed (ADR-0090) is not
   concerned.

@@ -621,7 +621,7 @@ TEST_F(Session, RttNotFoundIsStopped) {
               ErrorCode::TargetRttNotFound);
 }
 
-// ADR-0095: the session scales the attach deadline with its fixed low speed (base 400 ms here:
+// ADR-0110: the session scales the attach deadline with its fixed low speed (base 400 ms here:
 // 800 ms at 500 kHz) and the detail names the speed.
 TEST_F(Session, AttachDeadlineScalesWithAFixedLowSpeed) {
     useShortAttachDeadline();
@@ -1388,7 +1388,7 @@ TEST_F(ConnectTimeout, HandComputedValues) {
     EXPECT_EQ(hio::device::connectTimeoutFor(hio::jlink::ProbeTiming{}, hio::jlink::RttTiming{}),
               milliseconds(35500));
     EXPECT_EQ(hio::device::defaultConnectTimeout, milliseconds(35500));
-    // ADR-0095: the attach deadline of the speed; 30 s at 500 kHz, capped at 60 s.
+    // ADR-0110: the attach deadline of the speed; 30 s at 500 kHz, capped at 60 s.
     EXPECT_EQ(hio::device::connectTimeoutForSpeed(std::nullopt), milliseconds(35500));
     EXPECT_EQ(hio::device::connectTimeoutForSpeed(1000), milliseconds(35500));
     EXPECT_EQ(hio::device::connectTimeoutForSpeed(500), milliseconds(50500));
@@ -1406,7 +1406,7 @@ TEST_F(ConnectTimeout, HandComputedValues) {
     EXPECT_EQ(hio::device::connectTimeoutFor(probe, rtt, budget), milliseconds(111331));
 }
 
-// ADR-0095: the CLI warning before connecting at a fixed speed below 125 kHz.
+// ADR-0110: the CLI warning before connecting at a fixed speed below 125 kHz.
 TEST(SlowSpeedWarning, OnlyBelow125kHz) {
     EXPECT_FALSE(hio::device::slowSpeedWarning(std::nullopt));
     EXPECT_FALSE(hio::device::slowSpeedWarning(125));
