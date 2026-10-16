@@ -11,6 +11,7 @@ add_executable(hio_device_tests
     line_assembler_test.cpp
     lock_holder.h
     main.cpp
+    diagnose_session_test.cpp
     operation_session_test.cpp
     pib_test.cpp
     probe_lock_test.cpp

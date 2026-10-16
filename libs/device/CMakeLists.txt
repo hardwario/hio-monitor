@@ -41,7 +41,9 @@ hio_add_backend_library(hio_device
 add_library(hio::device ALIAS hio_device)
 
 target_include_directories(hio_device PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(hio_device PUBLIC hio::core hio::firmware hio::hw_jlink hio::hw_nrfutil Qt6::Core)
+target_link_libraries(hio_device PUBLIC hio::core hio::firmware hio::hw_jlink hio::hw_nrfutil Qt6::Core
+    # M4 (plan/features/0007): CheckStatus of DiagnoseStep; usb.access_denied after a failed open.
+    hio::diag_types hio::diag_usb)
 # ADR-0039: the nRF91 disable-AP-protect image (copied verbatim from py-hardwario, see
 # resources/nrf91_disable_ap_protect.NOTICE.txt), compiled in as :/hio/device/....
 qt_add_resources(hio_device "hio_device_resources"

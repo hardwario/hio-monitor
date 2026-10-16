@@ -80,7 +80,7 @@ Result<const TargetProfile*> validate(const SessionOptions& options) {
                 .arg(toQString(options.profile->displayName), toQString(options.targetId)),
             {}));
     }
-    if (target->rttTerminal.empty() && options.attachRtt) {
+    if (target->rttTerminal.empty() && options.attachRtt && options.connectTarget) {
         return std::unexpected(invalidOption(
             QCoreApplication::translate("hio::device", "The %1 target of %2 has no console.")
                 .arg(toQString(target->id), toQString(options.profile->displayName)),
@@ -123,6 +123,8 @@ std::string_view connectionStateId(ConnectionState state) noexcept {
     switch (state) {
     case ConnectionState::Connecting:
         return "connecting";
+    case ConnectionState::ProbeOpen:
+        return "probeOpen";
     case ConnectionState::Connected:
         return "connected";
     case ConnectionState::Disconnected:
@@ -153,7 +155,8 @@ SessionInternals::abandonRunning(Error error) {
                                                  .status = std::unexpected(std::move(error)),
                                                  .duration = {},
                                                  .chip = std::nullopt,
-                                                 .data = {}});
+                                                 .data = {},
+                                                 .checks = {}});
     return lastFinished;
 }
 
@@ -231,6 +234,9 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
     config.autoReconnect = options.autoReconnect;
     config.resetOnOpen = options.resetOnOpen;
     config.attachRtt = options.attachRtt;
+    config.connectTarget = options.connectTarget;
+    config.usbSysfsRoot = std::move(hooks.usbSysfsRoot);
+    config.usbDevRoot = std::move(hooks.usbDevRoot);
     config.lockDirectory = registry.options().lockDirectory;
     config.timing = hooks.timing;
     // ADR-0095: the attach deadline scales with a fixed low speed (the base is the hooks' value,
@@ -479,6 +485,45 @@ Result<OperationId> DeviceSession::readMemory(std::string_view targetId, std::ui
     return startOperation(std::move(command), targetId);
 }
 
+Result<OperationId> DeviceSession::diagnose(std::string_view targetId) {
+    detail::OperationCommand command;
+    command.kind = OperationKind::Diagnose;
+    return startOperation(std::move(command), targetId);
+}
+
+Status DeviceSession::startConnection(bool attachRtt) {
+    if (m_closed) {
+        return fail(ErrorCode::Cancelled);
+    }
+    if (m_internals->startConnectionPending) {
+        return {}; // already being promoted (review V5): idempotent
+    }
+    if (m_connection.state != ConnectionState::ProbeOpen) {
+        return std::unexpected(
+            invalidOption(QCoreApplication::translate(
+                              "hio::device", "Only a session with an open probe can be connected."),
+                          std::format("state {}", connectionStateId(m_connection.state))));
+    }
+    if (attachRtt && m_internals->target->rttTerminal.empty()) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hio::device", "The %1 target of %2 has no console.")
+                .arg(toQString(m_internals->target->id),
+                     toQString(m_internals->profile->displayName)),
+            {}));
+    }
+    if (m_internals->runningOperation) {
+        return std::unexpected(
+            makeError(ErrorCode::InternalBusy,
+                      std::format("operation {} is running", *m_internals->runningOperation)));
+    }
+    Status posted =
+        post(*m_internals, m_closed, detail::StartConnectionCommand{.attachRtt = attachRtt});
+    if (posted) {
+        m_internals->startConnectionPending = true;
+    }
+    return posted;
+}
+
 Status DeviceSession::cancel(OperationId id) {
     if (!m_internals->runningOperation || *m_internals->runningOperation != id) {
         return std::unexpected(invalidOption(
@@ -547,6 +592,9 @@ void DeviceSession::drainEvents() {
                 },
                 [&](ConnectionEvent& connection) {
                     flushBatch();
+                    if (connection.state != ConnectionState::ProbeOpen) {
+                        m_internals->startConnectionPending = false;
+                    }
                     m_connection = connection;
                     emit connectionChanged(m_connection);
                     // Review R4: the worker died (exception) - its operation never finishes.
@@ -565,6 +613,10 @@ void DeviceSession::drainEvents() {
                 [&](const detail::OperationProgressEvent& item) {
                     flushBatch();
                     emit operationProgress(item.id, item.progress);
+                },
+                [&](const detail::DiagnoseStepEvent& item) {
+                    flushBatch();
+                    emit diagnoseStep(item.id, item.step);
                 },
                 [&](const detail::OperationFinishedEvent& item) {
                     flushBatch();
@@ -722,7 +774,8 @@ OperationResult waitForOperation(DeviceSession& session, OperationId id,
                                  : std::format("operation {} ended without a result", id))),
             .duration = {},
             .chip = std::nullopt,
-            .data = {}};
+            .data = {},
+            .checks = {}};
     }
     return std::move(*result);
 }

@@ -97,6 +97,7 @@ add_subdirectory(libs/firmware)
 add_subdirectory(libs/hw/jlink)
 add_subdirectory(libs/hw/nrfutil)
 add_subdirectory(libs/device)
+add_subdirectory(libs/diag)
 add_subdirectory(app/cli)
 add_subdirectory(app/gui)
 

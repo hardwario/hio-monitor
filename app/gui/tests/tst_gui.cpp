@@ -14,6 +14,7 @@
 #include "pages/builtin_pages.h"
 #include "support/fake_jlink_scenario.h"
 #include "support/test_page_view_model.h"
+#include "support/test_wizard.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/connection_view_model.h"
 #include "viewmodels/device_tab_list_model.h"
@@ -102,6 +103,16 @@ public:
         return QVariant::fromValue(hio::gui::ErrorInfo(error));
     }
 
+    // An error with its default texts and wizard (e.g. probe.open_failed -> troubleshooting).
+    Q_INVOKABLE [[nodiscard]] static QVariant defaultError(const QString& code) {
+        return QVariant::fromValue(
+            hio::gui::ErrorInfo(hio::makeError(hio::errorCodeFromId(code.toStdString())
+                                                   .value_or(hio::ErrorCode::InternalUnexpected))));
+    }
+
+    // The open test wizard (its test hooks: goTo, startOperation, finishOperation), or null.
+    Q_INVOKABLE [[nodiscard]] QObject* openWizard() const { return m_app->wizard()->wizard(); }
+
     // Shows a connection error in the tab's ErrorPanel (as a failed open() would).
     Q_INVOKABLE void setConnectionError(int index, const QString& code) {
         if (hio::gui::DeviceTabViewModel* tab = m_app->tabs()->at(index); tab != nullptr) {
@@ -151,6 +162,10 @@ public slots:
                         hio::gui::test::registerTestPage(
                             app, QUrl::fromLocalFile(
                                      QStringLiteral(QUICK_TEST_SOURCE_DIR "/qml/TestPage.qml")));
+                        // M4 (plan/features/0007): the test wizard as "connect-device".
+                        hio::gui::test::registerTestWizard(
+                            app, QUrl::fromLocalFile(QStringLiteral(QUICK_TEST_SOURCE_DIR
+                                                                    "/qml/TestEmbedded.qml")));
                     }},
             QCoreApplication::instance());
         m_languageManager.emplace(m_app->settingsStore());

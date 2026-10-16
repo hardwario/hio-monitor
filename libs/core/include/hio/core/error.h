@@ -78,6 +78,11 @@ enum class ErrorCode : std::uint8_t {
     DependencyNrfUtilTooOld,
     InternalBusy,
     ProbeIoFailed, // review R52, 2026-10-11
+    // M4 (plan/features/0007-m4-wizard-framework-diagnostics.md)
+    UsbAccessDenied,
+    ProbeHeldByProgram,
+    DiagReportWriteFailed,
+    DiagCheckTimeout,
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -229,6 +234,18 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::ProbeIoFailed,
               .id = "probe.io_failed",
               .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::UsbAccessDenied,
+              .id = "usb.access_denied",
+              .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::ProbeHeldByProgram,
+              .id = "probe.held_by_program",
+              .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::DiagReportWriteFailed,
+              .id = "diag.report_write_failed",
+              .category = ErrorCategory::Io},
+    ErrorInfo{.code = ErrorCode::DiagCheckTimeout,
+              .id = "diag.check_timeout",
+              .category = ErrorCategory::Timeout},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every

@@ -37,6 +37,17 @@ enum class EraseScope : std::uint8_t {
     All,  // flash and UICR (the PIB is lost)
 };
 
+// One step of the cabling guide of a target (ADR-0077), shown by the Connect and Flash wizards
+// (plan/features/0009, 0010). Texts are English source texts in context "hio::device"
+// (QT_TRANSLATE_NOOP), translated by the GUI; the illustration is a slot id of
+// app/gui/assets/wizard (ADR-0076), never an image (libs/device has no QtGui).
+struct ConnectionGuideStep {
+    std::string_view id;               // kebab-case, unique within the target ("cable")
+    std::string_view illustrationSlot; // e.g. "chester-app-cable"
+    const char* titleSourceText = "";  // short step title ("Cable")
+    const char* bodySourceText = "";   // one or two sentences
+};
+
 struct TargetProfile {
     std::string_view id; // "app", "lte" (CLI, logs, file names)
     // In user-visible text ("the %1 MCU", "the %1 connector"): English source text, marked with
@@ -60,6 +71,9 @@ struct TargetProfile {
     bool pibErasableWithUicr;        // a UICR erase also erases the PIB (nRF52: yes)
     RecoverImage recoverImage;
     EraseScope defaultErase; // `erase` without --all (app: Code, lte: All)
+
+    // ---- wizards (M4, ADR-0077) ----
+    std::span<const ConnectionGuideStep> connectionGuide; // cabling steps, in order
 };
 
 struct DeviceProfile {
@@ -67,6 +81,9 @@ struct DeviceProfile {
     std::string_view displayName; // product name, not translated ("CHESTER")
     std::span<const TargetProfile> targets;
     std::string_view firmwareCatalogUrl; // ADR-0037: <url>/<id>/hex ("" = no catalog)
+    // ADR-0077: how to power the device; English source text in context "hio::device"
+    // (QT_TRANSLATE_NOOP), translated by the GUI ("" = no hint).
+    std::string_view powerHintSourceText;
 };
 
 // Size of the Product Information Block.
@@ -88,6 +105,12 @@ public:
 
 // The translated display name of `target` (ADR-0027), e.g. "application".
 [[nodiscard]] QString targetDisplayName(const TargetProfile& target);
+
+// The translated title / body of a connection guide step and the translated power hint of a
+// profile (ADR-0077).
+[[nodiscard]] QString guideStepTitle(const ConnectionGuideStep& step);
+[[nodiscard]] QString guideStepBody(const ConnectionGuideStep& step);
+[[nodiscard]] QString powerHint(const DeviceProfile& profile);
 
 // The PIB address range of `target`.
 [[nodiscard]] firmware::AddressRange pibRange(const TargetProfile& target) noexcept;

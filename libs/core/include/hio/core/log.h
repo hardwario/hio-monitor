@@ -37,6 +37,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcDevice) // "hio.device" (libs/device)
 Q_DECLARE_LOGGING_CATEGORY(
     lcFirmware)                     // "hio.firmware" (libs/firmware: images, zips, catalog, cache)
 Q_DECLARE_LOGGING_CATEGORY(lcFlash) // "hio.flash" (programming workflows, nRF Util; plan 0003)
+Q_DECLARE_LOGGING_CATEGORY(lcDiag)  // "hio.diag" (libs/diag: checks, report; plan 0007)
 
 enum class AppKind : std::uint8_t {
     Gui,
@@ -74,6 +75,10 @@ inline constexpr RetentionLimits cliRetention{.maxFiles = 20, .maxTotalBytes = 5
 }
 
 class Sink;
+
+// The default log directory (<AppLocalData>/logs; requires initApplicationIdentity()), empty when
+// the platform has none. Used by Logging::init and the diagnostic report (plan/features/0007).
+[[nodiscard]] std::filesystem::path defaultLogDirectory();
 
 // RAII: installs the message handler and a std::terminate handler; the destructor flushes and
 // restores the previous handlers. Only one instance may exist at a time (process-wide handler).

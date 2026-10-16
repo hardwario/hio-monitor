@@ -1,5 +1,6 @@
 // The rail (ADR-0043, ADR-0061): the per-tab pages (Console, Flash, ...) with icon and label, a
-// busy badge on the page that runs an operation; Settings (global pages) and Help at the bottom.
+// busy badge on the page that runs an operation; Settings (global pages) and Help (the Help menu,
+// plan/features/0007) at the bottom.
 // Below 1100 px window width it shows icons only, with the labels as tooltips.
 pragma ComponentBehavior: Bound
 
@@ -147,11 +148,19 @@ Rectangle {
         }
 
         RailItem {
+            id: helpItem
+
             objectName: "railHelp"
             text: qsTr("Help")
             iconName: "help"
             shortcutId: "help.shortcuts"
-            onClicked: AppViewModel.shortcutOverlayVisible = true
+            Accessible.role: Accessible.ButtonMenu
+            // M4 (plan/features/0007): the Help menu; F1 / Ctrl+/ still open the overlay.
+            onClicked: helpMenu.popup(helpItem, helpItem.width, 0)
+
+            HelpMenu {
+                id: helpMenu
+            }
         }
     }
 }

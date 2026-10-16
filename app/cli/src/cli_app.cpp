@@ -1,6 +1,7 @@
 #include "cli_app.h"
 
 #include "chester_commands.h"
+#include "diag_commands.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/log.h"
@@ -82,6 +83,7 @@ CliApp::CliApp()
     registerSelftestCommands(app, m_slot);
     registerJLinkCommands(app, m_slot, m_options);
     registerChesterCommands(app, m_slot, m_options);
+    registerDiagCommands(app, m_slot, m_options);
 }
 
 CliApp::~CliApp() = default;

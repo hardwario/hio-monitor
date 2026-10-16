@@ -38,6 +38,29 @@ constexpr jlink::ChipFamily nrf91{.name = "nRF91",
                                   .ctrlApIndex = 4,
                                   .ctrlApIdr = 0x12880000};
 
+// Connection guides (ADR-0077). Neutral wording until HARDWARIO provides the connector names, the
+// cable type and the pin-1 marking (open question 22, before 0009 is Done).
+constexpr std::array appGuide{
+    ConnectionGuideStep{
+        .id = "cable",
+        .illustrationSlot = "chester-app-cable",
+        .titleSourceText = QT_TRANSLATE_NOOP("hio::device", "Cable"),
+        .bodySourceText = QT_TRANSLATE_NOOP(
+            "hio::device",
+            "Connect the J-Link flat cable to the programming connector of the application MCU."),
+    },
+};
+constexpr std::array lteGuide{
+    ConnectionGuideStep{
+        .id = "cable",
+        .illustrationSlot = "chester-lte-cable",
+        .titleSourceText = QT_TRANSLATE_NOOP("hio::device", "Cable"),
+        .bodySourceText = QT_TRANSLATE_NOOP(
+            "hio::device",
+            "Connect the J-Link flat cable to the programming connector of the LTE MCU."),
+    },
+};
+
 constexpr std::array chesterTargets{
     // Application MCU: the RTT console of `hio chester app console` / `command`.
     TargetProfile{.id = "app",
@@ -56,7 +79,8 @@ constexpr std::array chesterTargets{
                   .pibOffset = 0x80,
                   .pibErasableWithUicr = true,
                   .recoverImage = RecoverImage::None,
-                  .defaultErase = EraseScope::Code},
+                  .defaultErase = EraseScope::Code,
+                  .connectionGuide = appGuide},
     // LTE modem MCU (nRF9151 or nRF9160). Programming only; no RTT console. Connected with the
     // first part's J-Link name, then with the exact part's name (to confirm in Phase 0). The PIB
     // lies in the UICR OTP area, which a UICR erase does not touch.
@@ -76,15 +100,18 @@ constexpr std::array chesterTargets{
                   .pibOffset = 0x108,
                   .pibErasableWithUicr = false,
                   .recoverImage = RecoverImage::Nrf91DisableApProtect,
-                  .defaultErase = EraseScope::All},
+                  .defaultErase = EraseScope::All,
+                  .connectionGuide = lteGuide},
 };
 
 } // namespace
 
-constinit const DeviceProfile chester{.id = "chester",
-                                      .displayName = "CHESTER",
-                                      .targets = chesterTargets,
-                                      .firmwareCatalogUrl =
-                                          "https://firmware.hardwario.com/chester"};
+constinit const DeviceProfile chester{
+    .id = "chester",
+    .displayName = "CHESTER",
+    .targets = chesterTargets,
+    .firmwareCatalogUrl = "https://firmware.hardwario.com/chester",
+    .powerHintSourceText =
+        QT_TRANSLATE_NOOP("hio::device", "Power CHESTER with batteries or the USB-C power input.")};
 
 } // namespace hio::device::profiles

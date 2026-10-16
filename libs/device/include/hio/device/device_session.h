@@ -98,6 +98,11 @@ struct SessionOptions {
     // false: the session connects the target but never attaches RTT (flash-only sessions; the CLI
     // flash commands). A target without an RTT console needs attachRtt = false.
     bool attachRtt = true;
+    // M4 (ADR-0069): false = a probe-only session: the worker loads the library, opens the probe,
+    // takes its ProbeLock and reports ProbeOpen; no target connect, no RTT, no power polling, no
+    // auto-reconnect. Only operations (Diagnose, flash, ...) touch the target, and afterwards the
+    // session stays ProbeOpen. startConnection() promotes it to a normal session.
+    bool connectTarget = true;
     // nRF Util for updateModem / flashLteBundle (ADR-0016), located on the worker when a modem
     // update starts. nullopt (default) = nrfutil::defaultLocatorOptions() with the user's settings
     // (HIO_NRFUTIL, nrfutil/path, PATH, install directories; review R9); the CLI passes its
@@ -168,6 +173,20 @@ public:
     // 1..maxReadMemoryBytes bytes.
     [[nodiscard]] Result<OperationId> readMemory(std::string_view targetId, std::uint32_t address,
                                                  std::size_t size);
+    // M4 (ADR-0069): the live connection check of `targetId`: probe, power, connect, identify,
+    // rtt, rtt-buffers. Each step is reported by diagnoseStep() as it finishes; the result's
+    // `checks` holds all steps. Never resets, halts or writes the target. On the console target of
+    // an attached session the RTT steps check the running attachment; another target is switched
+    // to and back (TargetSwitch). Total about diagnoseBudget (a blocking vendor call may exceed
+    // it; the step is then a Warning diag.check_timeout).
+    [[nodiscard]] Result<OperationId> diagnose(std::string_view targetId);
+    // M4 (ADR-0069): promotes a probe-only session (state ProbeOpen) to a normal one: connects the
+    // target, attaches RTT when `attachRtt`, then power polling and auto-reconnect per
+    // SessionOptions. The probe and its ProbeLock stay held. A second call before the session has
+    // left ProbeOpen is a no-op (success; the first call's `attachRtt` applies). Errors:
+    // usage.invalid_argument (not ProbeOpen, or attachRtt on a target without a console),
+    // internal.busy (an operation runs), internal.queue_full, cancelled (closed).
+    [[nodiscard]] Status startConnection(bool attachRtt);
     // Errors: usage.invalid_argument when `id` is not the running operation.
     [[nodiscard]] Status cancel(OperationId id);
     // The running operation (nullopt when none).
@@ -197,6 +216,8 @@ signals:
     void operationProgress(hio::device::OperationId id,
                            const hio::device::OperationProgress& progress);
     void operationFinished(hio::device::OperationId id, const hio::device::OperationResult& result);
+    // M4: one per finished Diagnose step, in order, before operationFinished (queued; ADR-0069).
+    void diagnoseStep(hio::device::OperationId id, const hio::device::DiagnoseStep& step);
 
 private:
     friend struct detail::SessionInternals;

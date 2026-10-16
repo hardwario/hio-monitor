@@ -183,19 +183,36 @@ bool DeviceTabViewModel::sessionFailed() const {
            m_session->connection().error.has_value();
 }
 
-Status DeviceTabViewModel::ensureSession() {
+Status DeviceTabViewModel::ensureSession(bool connectTarget) {
     if (m_busy) {
         return std::unexpected(makeError(ErrorCode::InternalBusy, "the tab is busy"));
     }
     if (m_session && !sessionFailed()) {
+        // M4 (ADR-0069): a probe-only session is promoted when a page needs the target.
+        if (connectTarget && m_session->connection().state == device::ConnectionState::ProbeOpen) {
+            return promoteSession();
+        }
         return {};
     }
     // A stopped session (fatal error) is replaced by a new one (S1).
     releaseSession();
-    return openSession();
+    return openSession(connectTarget);
 }
 
-Status DeviceTabViewModel::openSession() {
+Status DeviceTabViewModel::promoteSession() {
+    const device::TargetProfile* target =
+        m_profile != nullptr ? device::findTarget(*m_profile, toStdString(m_targetId)) : nullptr;
+    const bool attachRtt = target != nullptr && !target->rttTerminal.empty();
+    return m_session->startConnection(attachRtt);
+}
+
+void DeviceTabViewModel::openWizard(const QString& wizardId) {
+    if (m_context.openWizard) {
+        m_context.openWizard(wizardId, this);
+    }
+}
+
+Status DeviceTabViewModel::openSession(bool connectTarget) {
     if (m_choosing || !m_serial || m_profile == nullptr) {
         return std::unexpected(makeError(ErrorCode::UsageInvalidArgument, "no probe chosen"));
     }
@@ -226,6 +243,7 @@ Status DeviceTabViewModel::openSession() {
     sessionOptions.resetOnOpen = options.resetOnOpen;
     // A target without an RTT console (CHESTER lte) connects without RTT.
     sessionOptions.attachRtt = !target->rttTerminal.empty();
+    sessionOptions.connectTarget = connectTarget; // false: a wizard's probe-only session
     // nullopt = the default console file; an empty path = none.
     if (!options.logToFile) {
         sessionOptions.consoleFile = std::filesystem::path();
@@ -275,6 +293,21 @@ void DeviceTabViewModel::connectDevice() {
         if (current == device::ConnectionState::Connected ||
             current == device::ConnectionState::Connecting) {
             return;
+        }
+        if (current == device::ConnectionState::ProbeOpen) {
+            // M4 (ADR-0069): promote the probe-only session; the probe lock stays held.
+            Status promoted = promoteSession();
+            if (promoted) {
+                return;
+            }
+            if (promoted.error().code == ErrorCode::InternalBusy) {
+                // An operation (a wizard's Diagnose) runs on the session (review V4): keep it and
+                // show why; Connect works again when the operation has finished.
+                qCInfo(lcGui) << "Connect refused:" << toQString(promoted.error().detail);
+                m_connection->setOpenError(std::move(promoted).error());
+                updateState();
+                return;
+            }
         }
         // A stopped or failed session is replaced by a fresh one (new options apply).
         releaseSession();
@@ -345,6 +378,7 @@ void DeviceTabViewModel::onConnectionChanged(const device::ConnectionEvent& even
                 : tr("— disconnected —"));
         break;
     case device::ConnectionState::Connecting:
+    case device::ConnectionState::ProbeOpen: // a wizard's probe-only session (ADR-0069)
         break;
     }
     updateState();
@@ -467,6 +501,7 @@ void DeviceTabViewModel::updateState() {
         case device::ConnectionState::Connected:
             state = Connected;
             break;
+        case device::ConnectionState::ProbeOpen: // the target is not connected (ADR-0069)
         case device::ConnectionState::Stopped:
             state = Disconnected;
             break;

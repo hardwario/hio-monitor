@@ -1,21 +1,23 @@
 # 0004 — M3 GUI shell: theme, components, device tabs, probe picker, device bar
 
-- **Status:** In progress (implementation started 2026-10-12; approved by Matej Strnad, 2026-10-12, without the pending M4/M5 amendments; implemented on `v2/m3-gui`, based on the M2 WIP commit 7f371c6)
+- **Status:** In progress (implementation started 2026-10-12; approved by Matej Strnad, 2026-10-12, without the pending M4/M5 amendments; implemented on `v2/m3-gui`, based on the M2 WIP commit 7f371c6); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010)
 - **Milestone:** M3 (plan 1 of 3, ADR-0059; followed by [0005](0005-m3-console.md) and [0006](0006-m3-flash-settings.md))
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0002, ADR-0003, ADR-0004, ADR-0018, ADR-0025, ADR-0027, ADR-0031, ADR-0043, ADR-0044,
-  ADR-0047, ADR-0048, ADR-0050, ADR-0051, ADR-0052, ADR-0053, ADR-0058, ADR-0059, ADR-0060, ADR-0061, ADR-0063, ADR-0096
+  ADR-0047, ADR-0048, ADR-0050, ADR-0051, ADR-0052, ADR-0053, ADR-0058, ADR-0059, ADR-0060, ADR-0061, ADR-0063, ADR-0066, ADR-0067, ADR-0069, ADR-0096
 - **Depends on:** 0001 (M0). 0002 (M1, with the ADR-0053 / ADR-0058 amendments applied) for real sessions; until
   M1 lands, the shell runs against the fake J-Link library.
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
-> **Pending amendment from M4 ([0007](0007-m4-wizard-framework-diagnostics.md), [0009](0009-m4-connect-and-troubleshooting.md),
-> [0010](0010-m4-flash-wizard.md); applied when they are approved — then this plan needs re-approval):** components
-> WizardDialog, WizardStepList, CheckList, CommandBlock, Illustration, HelpMenu (ADR-0066); the ErrorPanel's
-> "Help me fix this" is shown only for registered wizards and opens them; the rail's Help item opens the Help menu
-> (F1 still opens the overlay); `DeviceTabViewModel::openWizard(id)` and
-> `ensureSession(targetId, attachRtt, connectTarget = true)`; the Choose-device empty state's disabled button
-> becomes [Guide me] (Connect wizard) plus the link "Flash firmware with a guide".
+> **Amended by 0007–0010 (approved 2026-10-16; ADR-0066, ADR-0067, ADR-0069; applied in this text):** the component
+> set gains WizardDialog, WizardStepList, CheckList, CommandBlock, Illustration and HelpMenu (built by 0007). The
+> ErrorPanel's "Help me fix this" is enabled and shown only when the error's wizard is registered; it opens that
+> wizard through the `WizardLauncher` with the error and the tab. The rail's Help item opens the Help menu (F1 /
+> Ctrl+/ still open the shortcut overlay). `DeviceTabViewModel` gains `openWizard(id)` and
+> `ensureSession(bool connectTarget = true)` for probe-only sessions (reconciled with S2; confirmed by the
+> user 2026-10-16, see 0007 Implementation notes). The Choose-device empty state gets [Guide me] (Connect wizard, 0009)
+> and the page gets the links "Not sure how to connect? Guide me" and "Flash firmware with a guide" (0010).
+> `probe.in_use_by_other_process` opens Troubleshooting. The work is done in 0007 (C2, C5), 0009 (T4) and 0010 (W4).
 
 ## Context
 
@@ -46,7 +48,8 @@ the flash and settings pages (0006) plug into:
   - bundled fonts (ADR-0048);
   - Material Symbols icon subset (ADR-0060);
   - base components (HButton, HToolButton, ErrorPanel, WarningBanner, Toast, ConfirmDialog, EmptyState,
-    ShortcutOverlay, PhaseStepper).
+    ShortcutOverlay, PhaseStepper). *Amended by 0007 (2026-10-16):* the set also contains WizardDialog,
+    WizardStepList, CheckList, CommandBlock, Illustration and HelpMenu (ADR-0066), built by 0007.
 - `ErrorInfo` gadget: every `hio::Error` is shown inline in an `ErrorPanel` with the category's primary action.
   Toasts are only for success and info.
 - Application shell (ADR-0043, ADR-0061):
@@ -67,7 +70,8 @@ the flash and settings pages (0006) plug into:
 - Console page (0005), Flash and Settings pages (0006). Until 0006 lands, "Open Settings" opens a placeholder page
   that shows the J-Link library path read-only.
 - Wizards and the working "Help me fix this" button (M4). In M3 the button is shown disabled with "Coming soon"
-  whenever an error has a `wizard`.
+  whenever an error has a `wizard`. *Amended by 0007 (2026-10-16):* from 0007 on the button is enabled and shown
+  only when the error's wizard is registered (hidden, not disabled, otherwise); "Coming soon" is removed.
 - J-Link firmware update button (M4), BLE page (M5), MCP server and consent UI (M6), update check (M7).
 - Detaching tabs into separate windows, user-remappable shortcuts, several GUI instances.
 
@@ -98,7 +102,10 @@ Screens are drawn in the mockups (`plan/gui/mockups/`, with light/dark and EN/CS
 - **Quitting** while an operation runs asks the same question.
 - **Rail:** the pages registered for a tab (Console, Flash), each with an icon and a label. Below 1100 px window width
   it shows icons only, with the labels as tooltips. A page can show a busy badge. Settings (Ctrl+,) and Help (F1)
-  sit at the bottom of the rail and are global.
+  sit at the bottom of the rail and are global. *Amended by 0007 (2026-10-16):* the Help item opens the Help menu
+  (Keyboard shortcuts (F1), Setup wizard…, Connect a device…, Troubleshoot connection…, Flash firmware (guided)…,
+  Create diagnostic report…, Documentation ↗; items whose wizard is not registered are hidden); F1 / Ctrl+/ still
+  open the shortcut overlay directly.
 
 ### Choose device (new tab)
 
@@ -113,7 +120,13 @@ Screens are drawn in the mockups (`plan/gui/mockups/`, with light/dark and EN/CS
   followed by a check list:
   - ✓/✗ J-Link Software found (version).
   - "Is the USB cable connected?"
+
+  *Amended by 0009 (2026-10-16):* the empty state's button is **[Guide me]** → Connect wizard (`connect-device`)
+  on this tab; the page also shows the ghost link "Not sure how to connect? Guide me".
+- *Amended by 0010 (2026-10-16):* below Connect, the link "Flash firmware with a guide" opens the flash wizard
+  (`flash-firmware`) on this tab.
 - **J-Link library missing:** an ErrorPanel shows `dependency.jlink_not_found` with "Open Settings" (path override).
+  *Amended by 0008 (2026-10-16):* the panel also offers "Help me fix this" → setup wizard (`first-run-setup`).
 
 ### Device bar
 
@@ -146,6 +159,10 @@ Screens are drawn in the mockups (`plan/gui/mockups/`, with light/dark and EN/CS
   - Dependency → Open Settings;
   - others → Retry or Dismiss.
 - A page can override the primary action.
+- *Amended by 0007 (2026-10-16):* "Help me fix this" is shown in an ErrorPanel when `ErrorInfo.wizard` is non-empty
+  **and** registered (`AppViewModel.launcher.canOpen(error.wizard)`). It calls `WizardLauncher::open(wizardId,
+  errorInfo, tab)`; the wizard starts with the error as its context. An already open wizard is brought to the front
+  (one at a time, ADR-0066).
 
 ### Texts
 
@@ -186,6 +203,9 @@ app/gui/
     pages/  ChooseDevicePage.qml PlaceholderPage.qml
     components/ HButton.qml HToolButton.qml ErrorPanel.qml WarningBanner.qml Toast.qml ConfirmDialog.qml
                 EmptyState.qml ShortcutOverlay.qml PhaseStepper.qml (used by 0006, owned here)
+                WizardDialog.qml WizardStepList.qml CheckList.qml CommandBlock.qml Illustration.qml
+                (amended by 0007, 2026-10-16; built by 0007 C2)
+    shell/HelpMenu.qml              (amended by 0007, 2026-10-16; built by 0007 C2)
   assets/fonts/ (LFS)  assets/icons/*.svg + README.md (ADR-0060)  qtquickcontrols2.conf
   tests/ tst_*.qml (Qt Quick Test)  viewmodels/*_test.cpp (GTest)
 ```
@@ -235,7 +255,14 @@ public:
     // RTT console. Operations carry their own target (ADR-0057; amended after review S2: no target/attachRtt
     // parameters). No-op when a working session exists; a stopped one (fatal error) is replaced (S1).
     // Errors: those of DeviceSession::open, dependency.*, usage.invalid_argument (no probe), internal.busy.
-    [[nodiscard]] Status ensureSession();
+    // Amended by 0007 (2026-10-16; reconciled with S2; confirmed by the user 2026-10-16, see 0007 Implementation notes):
+    // connectTarget = false opens a probe-only session (SessionOptions::connectTarget = false, state ProbeOpen,
+    // 0002) on the console target without RTT. The target does not matter there, because diagnose(targetId) and
+    // every operation carry their own target; DeviceSession::startConnection(attachRtt) promotes the session later.
+    // This replaces the ensureSession(target, attachRtt = false, connectTarget = false) written in 0007 and 0009.
+    [[nodiscard]] Status ensureSession(bool connectTarget = true);
+    // Amended by 0007 (2026-10-16): opens the wizard `id` (kebab id) for this tab through the WizardLauncher.
+    Q_INVOKABLE void openWizard(const QString& id);
     [[nodiscard]] const hio::device::DeviceProfile& profile() const;
     [[nodiscard]] QString consoleTargetId() const;
     // One log for all sessions of this tab (ADR-0063); passed as SessionOptions::consoleLog on every open.
@@ -279,6 +306,8 @@ public:
   `sessionChanged`. Disconnect = `session_->close()` and release; the log stays.
 - **Amendments after review round 1 (S2, S3, S5; 2026-10-12):**
   - `ensureSession()` opens the console target with RTT; operations carry their target (ADR-0057).
+    *Amended by 0007 (2026-10-16):* `ensureSession(false)` opens a probe-only session on the console target
+    (reconciled with S2; confirmed by the user 2026-10-16, see 0007 Implementation notes).
   - `sessionChanged` is also emitted by `shutdown()`; pages hold the session only as `QPointer` or re-read it.
   - The shell owns **all** console markers: "— connected —", "— disconnected —", "— disconnected: <cause> —",
     "— paused: <busy text> —" and "— resumed —" (after the busy page clears). Pages never append them.
@@ -322,6 +351,8 @@ class ProbePickerViewModel : public QAbstractListModel {
 struct ErrorInfo {                             // Q_GADGET, value type `errorInfo`
     Q_PROPERTY(bool valid ...) Q_PROPERTY(QString code ...) Q_PROPERTY(QString message ...) Q_PROPERTY(QString cause ...)
     Q_PROPERTY(QString suggestion ...) Q_PROPERTY(QString detail ...) Q_PROPERTY(QString wizard ...)   // kebab id or ""
+    // Amended by 0007 (2026-10-16): `wizard` is always the kebab id (ADR-0067); the ErrorPanel's wizard button binds
+    // visible: AppViewModel.launcher.canOpen(error.wizard).
     Q_PROPERTY(int primaryAction ...)          // Reconnect, ChooseFile, OpenSettings, Retry, Dismiss
 };
 ```
@@ -353,7 +384,7 @@ Disconnect / Cancel and the ⋯ popover.
 | Situation | Code | Message / cause / suggestion | Wizard |
 |---|---|---|---|
 | 9th tab | `internal.session_limit` (existing) | prevented by disabling "+" | — |
-| Probe used by another process | `probe.in_use_by_other_process` (0002) | shown in the picker row and, on connect, in the ErrorPanel | — |
+| Probe used by another process | `probe.in_use_by_other_process` (0002) | shown in the picker row and, on connect, in the ErrorPanel | Troubleshooting (*amended by 0007, 2026-10-16*; was —) |
 | Restored tab list invalid | (no error) | logged; start with one Choose device tab | — |
 | Settings value invalid | `usage.invalid_argument` | inline at the control, not saved | — |
 
@@ -438,7 +469,8 @@ Phase B — shell
   - single instance: a second instance activates the first; a hung first instance → dialog.
 - **Qt Quick Tests:**
   - every component in light and dark;
-  - ErrorPanel rendering of all fields and the disabled wizard button;
+  - ErrorPanel rendering of all fields and the disabled wizard button (*amended by 0007, 2026-10-16:* from 0007 on
+    the button is shown only for a registered wizard; tested in 0007);
   - the shortcut map has no duplicates;
   - layout at 960 × 600 and at 1099 px width in Czech has no overlapping or clipped buttons (geometry assertions).
 - **`qmllint`** (`all_qmllint`) is clean; no logic in QML (review checklist: no JS beyond bindings / one-line
@@ -487,6 +519,7 @@ end need a decision by the user.
   registered by the shell for the per-tab pages in rail order. The Settings placeholder also offers Language (moved
   from the M0 window) and Theme and shows the build info next to the read-only J-Link library path.
 - **Help** (rail, F1, Ctrl+/) opens the shortcut overlay; there is no Help menu (M4/M5 amendments not applied).
+  *Amended by 0007 (2026-10-16):* the Help menu replaces this when 0007 C2 is implemented.
 - **Close / quit confirmation:** the contract carries the busy text and the confirmation text only, so the buttons
   are generic: [Keep running] [Cancel and close] / [Cancel and quit].
 - **ErrorInfo:** primary action per category: Probe, Target → Reconnect; Firmware → Choose another file;

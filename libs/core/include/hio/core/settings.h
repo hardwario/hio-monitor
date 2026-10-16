@@ -42,6 +42,9 @@ class Settings {
 public:
     // The user's settings file (requires initApplicationIdentity()).
     [[nodiscard]] static Result<Settings> openDefault();
+    // The path of the user's settings file (requires initApplicationIdentity(); it may not exist
+    // yet). Used by the diagnostic report (plan/features/0007).
+    [[nodiscard]] static std::filesystem::path defaultFilePath();
     // An explicit INI file (tests, diagnostics).
     [[nodiscard]] static Result<Settings> openFile(const std::filesystem::path& file);
 

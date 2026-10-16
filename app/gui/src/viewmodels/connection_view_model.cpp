@@ -132,6 +132,8 @@ QString ConnectionViewModel::stateKind() const {
     switch (m_connection->state) {
     case device::ConnectionState::Connecting:
         return QStringLiteral("connecting");
+    case device::ConnectionState::ProbeOpen: // a wizard's probe-only session (ADR-0069)
+        return QStringLiteral("idle");
     case device::ConnectionState::Connected:
         return QStringLiteral("connected");
     case device::ConnectionState::Disconnected:
@@ -153,6 +155,8 @@ QString ConnectionViewModel::stateText() const {
     switch (m_connection->state) {
     case device::ConnectionState::Connecting:
         return tr("Connecting…");
+    case device::ConnectionState::ProbeOpen:
+        return tr("J-Link open, device not connected");
     case device::ConnectionState::Connected: {
         const double volts = targetVolts();
         return std::isnan(volts) ? tr("Connected")
@@ -168,7 +172,8 @@ QString ConnectionViewModel::stateText() const {
 }
 
 QString ConnectionViewModel::action() const {
-    if (!m_connection || m_connection->state == device::ConnectionState::Stopped) {
+    if (!m_connection || m_connection->state == device::ConnectionState::Stopped ||
+        m_connection->state == device::ConnectionState::ProbeOpen) {
         return QStringLiteral("connect");
     }
     if (m_connection->state == device::ConnectionState::Connecting) {

@@ -1,8 +1,14 @@
 #include "hio/device/operation.h"
 
+#include "hio/device/profile.h"
+
+#include <QCoreApplication>
+#include <QString>
+
 #include <array>
 #include <span>
 #include <string_view>
+#include <vector>
 
 namespace hio::device {
 
@@ -22,6 +28,7 @@ constexpr std::array bundlePhases{P::Modem,       P::Connecting, P::Erasing,
                                   P::Programming, P::Verifying,  P::Resetting};
 constexpr std::array resetPhases{P::Connecting, P::Resetting};
 constexpr std::array readPhases{P::Connecting};
+constexpr std::array diagnosePhases{P::Connecting};
 
 // Cross-target (ADR-0057): SwitchingTarget first, Restoring last.
 constexpr std::array flashCross{P::SwitchingTarget, P::Connecting, P::Erasing,  P::Programming,
@@ -37,6 +44,7 @@ constexpr std::array bundleCross{P::SwitchingTarget, P::Modem,     P::Connecting
                                  P::Programming,     P::Verifying, P::Resetting,  P::Restoring};
 constexpr std::array resetCross{P::SwitchingTarget, P::Connecting, P::Resetting, P::Restoring};
 constexpr std::array readCross{P::SwitchingTarget, P::Connecting, P::Restoring};
+constexpr std::array diagnoseCross{P::SwitchingTarget, P::Connecting, P::Restoring};
 
 } // namespace
 
@@ -62,8 +70,29 @@ std::span<const ProgramPhase> plannedPhases(OperationKind kind, bool crossTarget
         return crossTarget ? std::span<const P>(resetCross) : std::span<const P>(resetPhases);
     case OperationKind::ReadMemory:
         return crossTarget ? std::span<const P>(readCross) : std::span<const P>(readPhases);
+    case OperationKind::Diagnose:
+        return crossTarget ? std::span<const P>(diagnoseCross) : std::span<const P>(diagnosePhases);
     }
     return {};
+}
+
+std::vector<DiagnoseStepInfo> diagnoseSteps(const TargetProfile& target) {
+    return {
+        {.id = "probe",
+         .title = QCoreApplication::translate("hio::device", "J-Link probe").toStdString()},
+        {.id = "power",
+         .title = QCoreApplication::translate("hio::device", "Device power").toStdString()},
+        {.id = "connect",
+         .title = QCoreApplication::translate("hio::device", "Connection to the %1 MCU")
+                      .arg(targetDisplayName(target))
+                      .toStdString()},
+        {.id = "identify",
+         .title = QCoreApplication::translate("hio::device", "MCU type").toStdString()},
+        {.id = "rtt",
+         .title = QCoreApplication::translate("hio::device", "Device console (RTT)").toStdString()},
+        {.id = "rtt-buffers",
+         .title = QCoreApplication::translate("hio::device", "Console channels").toStdString()},
+    };
 }
 
 std::string_view operationKindId(OperationKind kind) noexcept {
@@ -84,6 +113,8 @@ std::string_view operationKindId(OperationKind kind) noexcept {
         return "reset";
     case OperationKind::ReadMemory:
         return "readMemory";
+    case OperationKind::Diagnose:
+        return "diagnose";
     }
     return "flash";
 }

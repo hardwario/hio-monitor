@@ -66,6 +66,18 @@ void Output::printError(const Error& error) {
     m_err.get().flush();
 }
 
+void Output::printFailure(const Error& error, const QJsonValue& data, std::string_view humanText) {
+    if (m_mode == OutputMode::Json) {
+        m_out.get() << toCompactUtf8(errorEnvelope(error, data)) << '\n';
+        m_out.get().flush();
+        return;
+    }
+    if (!humanText.empty()) {
+        m_out.get() << humanText << (humanText.ends_with('\n') ? "" : "\n");
+    }
+    m_out.get().flush();
+}
+
 void Output::printEvent(const QJsonValue& event, std::string_view humanText) {
     printResult(event, humanText);
 }

@@ -49,6 +49,10 @@ struct SendLineCommand {
 struct ReconnectCommand {};
 struct SuspendCommand {};
 struct ResumeCommand {};
+// M4 (ADR-0069): promote a probe-only session.
+struct StartConnectionCommand {
+    bool attachRtt = true;
+};
 
 // One session operation (plan/features/0003, ADR-0057, ADR-0062). The images are immutable and
 // shared with the owner thread; `stop` is the operation's cancel token (DeviceSession::cancel).
@@ -67,7 +71,7 @@ struct OperationCommand {
 };
 
 using Command = std::variant<SendLineCommand, ReconnectCommand, SuspendCommand, ResumeCommand,
-                             OperationCommand>;
+                             OperationCommand, StartConnectionCommand>;
 
 // ---- events (worker -> owner thread) ----------------------------------------------------------
 
@@ -84,9 +88,13 @@ struct OperationFinishedEvent {
     OperationId id = 0;
     OperationResult result;
 };
+struct DiagnoseStepEvent {
+    OperationId id = 0;
+    DiagnoseStep step;
+};
 
 using WorkerEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified,
-                                 OperationProgressEvent, OperationFinishedEvent>;
+                                 OperationProgressEvent, OperationFinishedEvent, DiagnoseStepEvent>;
 
 // The events the event queue may drop when it is full: shell and log output (Direction::Out).
 // Echoes of written commands (Direction::In) are kept, so a caller that counts the written lines
@@ -111,6 +119,9 @@ struct SessionTiming {
     // Operation progress events: at most one per interval per operation (plus phase changes and
     // the final one).
     std::chrono::milliseconds progressInterval{100};
+    // Diagnose (ADR-0069): the overall budget and the RTT search budget of the `rtt` step.
+    std::chrono::milliseconds diagnoseBudget = device::diagnoseBudget;
+    std::chrono::milliseconds diagnoseRttBudget = device::diagnoseRttBudget;
 };
 
 struct WorkerConfig {
@@ -122,12 +133,16 @@ struct WorkerConfig {
     bool autoReconnect = false;
     bool resetOnOpen = false;
     bool attachRtt = true;
+    bool connectTarget = true;                    // M4: false = probe-only session (ADR-0069)
     std::optional<ConsoleFileConfig> consoleFile; // nullopt = no console file
     std::filesystem::path lockDirectory;
     SessionTiming timing;
     // Test hook (review R40): incremented once per worker loop iteration, so a test can wait for
     // a number of cycles instead of a fixed time. nullptr = not counted (production).
     std::shared_ptr<std::atomic<std::uint64_t>> cycles;
+    // M4 (ADR-0072): the trees checkUsbAccess() reads after a failed probe open (Linux).
+    std::filesystem::path usbSysfsRoot = "/sys";
+    std::filesystem::path usbDevRoot = "/dev";
 };
 
 // Test hooks of openSession(); DeviceSession::open() uses the defaults (the real library copy).
@@ -137,6 +152,8 @@ struct OpenHooks {
     ModemUpdaterFactory modemUpdaterFactory;
     SessionTiming timing;
     std::shared_ptr<std::atomic<std::uint64_t>> cycles; // WorkerConfig::cycles
+    std::filesystem::path usbSysfsRoot = "/sys";        // WorkerConfig::usbSysfsRoot
+    std::filesystem::path usbDevRoot = "/dev";
 };
 
 // The facade's private state. Owner thread, except the two queues (thread-safe) and the worker.
@@ -153,6 +170,9 @@ struct SessionInternals {
     // Operations (owner thread): the running one and its cancel source (ADR-0062).
     OperationId nextOperation = 1;
     std::optional<OperationId> runningOperation;
+    // startConnection() was posted and the worker has not reported leaving ProbeOpen yet: a second
+    // call is a no-op (review V5; the worker also ignores it on a session that is not probe-only).
+    bool startConnectionPending = false;
     OperationKind runningKind = OperationKind::Reset;
     // Set by the worker thread when it died (review R14); read on the owner thread.
     std::atomic<bool> workerFailed{false};

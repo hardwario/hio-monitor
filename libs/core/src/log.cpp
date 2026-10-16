@@ -40,6 +40,7 @@ Q_LOGGING_CATEGORY(lcJLink, "hio.jlink")
 Q_LOGGING_CATEGORY(lcDevice, "hio.device")
 Q_LOGGING_CATEGORY(lcFirmware, "hio.firmware")
 Q_LOGGING_CATEGORY(lcFlash, "hio.flash")
+Q_LOGGING_CATEGORY(lcDiag, "hio.diag")
 
 namespace {
 
@@ -328,6 +329,8 @@ fs::path defaultLogDir() {
 }
 
 } // namespace
+
+fs::path defaultLogDirectory() { return defaultLogDir(); }
 
 Result<std::unique_ptr<Logging>> Logging::init(AppKind kind, const Options& options) {
     std::unique_ptr<Logging> logging;

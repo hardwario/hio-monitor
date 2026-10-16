@@ -75,8 +75,10 @@ public:
     // or VTref = 0 when `healthyVoltageSeen`: a reading >= minTargetMillivolts was seen on this
     // probe in this session; a probe that cannot measure VTref reports 0), target.connect_failed,
     // cancelled (stop requested).
+    // `attempts` overrides connectAttempts (M4 Diagnose: one attempt, to report quickly).
     [[nodiscard]] Status connect(std::string_view deviceName, int minTargetMillivolts,
-                                 bool healthyVoltageSeen, const std::stop_token& stop);
+                                 bool healthyVoltageSeen, const std::stop_token& stop,
+                                 std::optional<int> attempts = std::nullopt);
 
     // Target voltage. Errors: probe.io_failed (the open probe does not answer: a USB glitch or
     // an unplugged probe; review R52).

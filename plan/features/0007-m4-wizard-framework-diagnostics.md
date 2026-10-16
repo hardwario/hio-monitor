@@ -1,6 +1,7 @@
 # 0007 — M4 wizard framework and diagnostics: `libs/diag`, `Diagnose`, `doctor`, report, wizard dialog
 
-- **Status:** Approved (2026-10-16, by Matej Strnad; without the pending M5 amendments)
+- **Status:** In progress (implementation started 2026-10-16 on `v2/m4-wizards`; approved 2026-10-16 by Matej Strnad,
+  without the pending M5 amendments; Done needs the HIL and manual checks below)
 - **Milestone:** M4 (plan 1 of 4, ADR-0065; followed by [0008](0008-m4-first-run-setup.md),
   [0009](0009-m4-connect-and-troubleshooting.md), [0010](0010-m4-flash-wizard.md))
 - **Author:** Matej Strnad (with Claude)
@@ -179,7 +180,7 @@ Writes the zip (default `./hio-diagnostics-YYYYMMDD-HHMMSS.zip`), prints the pat
 `--json`: `{"ok":true,"data":{"path":"…","bytes":123456}}`. Errors: `diag.report_write_failed` (exit 3).
 `-o -` is rejected (`usage.invalid_argument`): binary output to a terminal is not supported.
 
-### `hio chester app|lte check [-n SN] [--speed KHZ] [--json]`
+### `hio chester app|lte check [-n SN] [--jlink-speed auto|KHZ] [--json]`
 
 Opens a probe-only session (`connectTarget = false`), runs `Diagnose`, prints one line per step as it finishes
 (NDJSON `{"type":"check",…}` lines with `--json`, then the final envelope). Exit code per ADR-0070. Ctrl+C → exit
@@ -464,7 +465,8 @@ slots shared by 0008–0010 (0008 adds `setup-welcome`).
 | Checks per run | 16 |
 | Per-check timeout | 15 s (`nrfutil` 10 s, process scan 2 s, others 5 s) |
 | Processes inspected | 4096 |
-| Diagnose steps / total time | 6 / 15 s |
+| Diagnose steps / total time | 6 / 15 s, plus what a fixed J-Link speed < 1000 kHz adds to the `rtt` step's search (ADR-0110); enforced: a step that would start after it is Skipped with `diag.check_timeout` (review V10) |
+| Restore after Diagnose (another target, or a paused console) | not part of the 15 s: the session's own connect (one call with its retries) and RTT attach deadline (15 s, up to 60 s at a fixed low speed, ADR-0110) |
 | Report: per log file / zip / summary | last 2 MiB / 16 MiB / 256 KiB |
 | Log files in report | 4 (current + previous of GUI and CLI) |
 | DiagWorker queue | 4 |
@@ -490,35 +492,37 @@ slots shared by 0008–0010 (0008 adds `setup-welcome`).
 ## Implementation steps
 
 Phase A — backend checks (after M1, M2)
-- [ ] A0 Prerequisite check: 0002 and 0003 implemented; this plan's amendment applied to their text and approved
-- [ ] A1 `libs/diag` skeleton (CMake target, `hio::diag_types` interface target), `Check`, `CheckRunner` + tests
-- [ ] A2 Environment checks `jlink-software`, `nrfutil`, `probes`, `probe-firmware`, `app-dirs` + tests (fake
+- [x] A0 Prerequisite check: 0002 and 0003 implemented; this plan's amendment applied to their text and approved
+- [x] A1 `libs/diag` skeleton (CMake target, `hio::diag_types` interface target), `Check`, `CheckRunner` + tests
+- [x] A2 Environment checks `jlink-software`, `nrfutil`, `probes`, `probe-firmware`, `app-dirs` + tests (fake
   J-Link, fake nRF Util)
-- [ ] A3 `checkUsbAccess` (Linux; temp sysfs/dev tree in tests) + `usb-access` check
-- [ ] A4 `IProcessSource` + three platform sources + `findProbeHolders` + `probe-holders` check + tests (fake
+- [x] A3 `checkUsbAccess` (Linux; temp sysfs/dev tree in tests) + `usb-access` check
+- [x] A4 `IProcessSource` + three platform sources + `findProbeHolders` + `probe-holders` check + tests (fake
   source; one real-source smoke test per OS)
-- [ ] A5 `redact`, `ReportBuilder` (summary text/JSON, zip via miniz, log tails) + tests (golden summary, zip
+- [x] A5 `redact`, `ReportBuilder` (summary text/JSON, zip via miniz, log tails) + tests (golden summary, zip
   contents, bounds, redaction cases incl. Windows case-insensitivity)
-- [ ] A6 Error codes + EN texts in `libs/core`
-- [ ] A7 Connection guide in the device profile (ADR-0077): `ConnectionGuideStep`, `connectionGuide` per target,
+- [x] A6 Error codes + EN texts in `libs/core`
+- [x] A7 Connection guide in the device profile (ADR-0077): `ConnectionGuideStep`, `connectionGuide` per target,
   `powerHintSourceText`; CHESTER guide with neutral texts (open question 22) + test that every slot exists
 
 Phase B — Diagnose and CLI
-- [ ] B1 `connectTarget = false`, `ProbeOpen` state, `startConnection` in `DeviceSession` + tests (lock kept)
-- [ ] B2 `Diagnose` operation (all six steps, skip rules, cross-target via `TargetSwitch`) + tests with the fake
+- [x] B1 `connectTarget = false`, `ProbeOpen` state, `startConnection` in `DeviceSession` + tests (lock kept)
+- [x] B2 `Diagnose` operation (all six steps, skip rules, cross-target via `TargetSwitch`) + tests with the fake
   library (no power, wrong family, protected, no RTT, missing buffer, cancel)
-- [ ] B3 CLI `hio doctor`, `hio diag report`, `hio chester app|lte check` + end-to-end tests (human + JSON, exit
+- [x] B3 CLI `hio doctor`, `hio diag report`, `hio chester app|lte check` + end-to-end tests (human + JSON, exit
   codes)
 
 Phase C — GUI framework (after 0004)
-- [ ] C1 `Wizard`, `WizardRegistry`, `WizardViewModel`, `WizardLauncher`, `CheckListModel` + test wizard + GTest
-- [ ] C2 QML: `WizardDialog`, `WizardStepList`, `CheckList`, `CommandBlock`, `Illustration`; ErrorPanel wizard
+- [x] C1 `Wizard`, `WizardRegistry`, `WizardViewModel`, `WizardLauncher`, `CheckListModel` + test wizard + GTest
+- [x] C2 QML: `WizardDialog`, `WizardStepList`, `CheckList`, `CommandBlock`, `Illustration`; ErrorPanel wizard
   button wiring; Help menu; `DeviceTabViewModel::openWizard`, `ensureSession(…, connectTarget)`
-- [ ] C3 `DiagWorker`, `ReportViewModel` + `ReportDialog`
-- [ ] C4 Asset slots + placeholders (Git LFS pattern added first) + README slot table
-- [ ] C5 Amend 0004's component list and design-system § Components (done in the plan text with this plan's approval);
+- [x] C3 `DiagWorker`, `ReportViewModel` + `ReportDialog`
+- [x] C4 Asset slots + placeholders (Git LFS pattern added first) + README slot table
+- [x] C5 Amend 0004's component list and design-system § Components (done in the plan text with this plan's approval);
   accessibility; Czech translation; `.ts` fresh; screenshots (light/dark, EN/CS) of the dialog, check list and
   report dialog
+
+- [ ] HIL (CHESTER + J-Link) and manual checks on Linux, Windows, macOS (by the user, see below)
 
 ## Tests and verification
 
@@ -556,3 +560,143 @@ Phase C — GUI framework (after 0004)
   verified in M7 (open question 7).
 - **Report contents** may still contain personal data inside log messages (e.g. file names chosen by the user).
   The dialog shows the summary only; the logs are not previewed. Accepted with ADR-0075.
+
+## Implementation notes (2026-10-16, phases A–C on `v2/m4-wizards`)
+
+Implemented as specified unless listed here. Later ADR renumbering (coordinator, 2026-10-16): ADR-0094 → ADR-0109,
+ADR-0095 → ADR-0110, ADR-0096 → ADR-0111; ADR-0112 (Git LFS only for binary files and generated text > 100 KB). New
+text in this branch uses the new numbers; older text keeps the old ones until the merge.
+
+**A0.** The pending M4 notes in 0002, 0003, 0004 and 0006 were applied to their body text ("Amended by 0007 … (approved
+2026-10-16)"). 0002/0003/0004 keep their status (In progress) with the amendment noted; 0006 stays Draft.
+
+**Reconciliations with facts that postdate this plan (confirmed by the user 2026-10-16):**
+1. **`DeviceTabViewModel::ensureSession`** — this plan and 0009 write `ensureSession(target, attachRtt = false,
+   connectTarget = false)`, but 0004's review fix S2 made `ensureSession()` parameterless (always the console target;
+   operations carry their target, ADR-0057). Implemented: `ensureSession(bool connectTarget = true)`; `false` opens a
+   probe-only session on the console target (the target does not matter: `diagnose(targetId)` and every operation
+   carry their own); `true` on a `ProbeOpen` session promotes it (`startConnection`, RTT when the target has a
+   console). `connectDevice()` (device bar) also promotes a probe-only session. **Decided by the user (2026-10-16): keep `ensureSession(bool connectTarget = true)`; the CLI check commands use `-n/--jlink-sn` and `--jlink-speed`.** Former open question
+   (options: keep this / restore the three-parameter form of the sketch).
+2. **J-Link speed (ADR-0090, ADR-0110):** the Diagnose `connect` step uses the session's speed; automatic speed is
+   reported as "Connected (SWD, automatic speed)" (the library does not report the negotiated speed). The `rtt` step's
+   3 s budget scales with a fixed low speed like the session's attach deadline (`rttAttachDeadline(speed, 3 s)`, ≤ 12 s),
+   so at a fixed speed < 1000 kHz Diagnose can exceed 15 s.
+3. **Probe firmware "unknown"** (HIL 2026-10-16: `JLINKARM_GetEmbeddedFWString` returns -1) is never a failure: the
+   `probe` step is Ok, the `probe-firmware` check is Ok "Not known".
+4. **USB access check placement:** `checkUsbAccess` is in its own small target `hio::diag_usb` (libs/core only) next
+   to the interface target `hio::diag_types` (`check.h`), so that `libs/device` (session worker: `probe.open_failed` →
+   `usb.access_denied` on Linux, also when the probe is reopened after an operation) does not depend on `hio::diag`,
+   which uses `libs/device` (`inspectProbe`, `ProbeLock`). No cycle.
+
+**Additions / small deviations in the interfaces (no behaviour change for 0008–0010; all accepted by the user 2026-10-16):**
+- `Check::requires` is named `dependsOn` (`requires` is a C++20 keyword). `Check::titleSourceText` is translated in
+  context `hio::diag` by the runner. `CheckRunner::run` takes the callback by const reference (default empty); more than
+  16 checks: the rest are Skipped with `internal.unexpected`. A check that runs over its timeout and did not fail
+  becomes Warning `diag.check_timeout`; the watchdog is one owned `std::jthread` per `run()` call.
+- `diag::checkStatusId`, `checkStatusSymbol`, `formatCheckLines`, `okResult` / `skippedResult` / `problemResult`
+  helpers; `environmentCheckIds()`; `EnvironmentContext` gained `instanceRoot`, `lockDirectory`, `usbSysfsRoot`,
+  `usbDevRoot` (tests) and `facts` (`EnvironmentFacts`: library, nRF Util, probes, for the report);
+  `defaultEnvironment(jlinkOption, nrfUtilOption)`.
+- `probe-firmware` uses the M1 `inspectProbe` (own library copy, the probe lock) for every free USB probe; a probe
+  locked by a session is not opened ("Not checked: the J-Link is in use"). `probes` uses `ProbeEnumerator` on the
+  library copy loaded by `jlink-software`, which is unloaded at `probe-firmware`.
+- Check titles follow the CLI example (`nRF Util`, `USB access to J-Link`); "only for LTE modem firmware" is in the
+  result text ("Not found — needed only for LTE modem firmware").
+- `ReportBuilder::writeZip` returns `Result<std::size_t>` (the size, for `diag report --json`); it writes through
+  `QSaveFile` (temporary file + rename). `ReportInput` gained `tools`, `createdUtc`, `redaction`; helpers
+  `appInfoJson`, `recentLogFiles`, `defaultReportFileName`, `tailAtLineStart`, `currentRedaction`. Redaction replaces
+  the user name also inside host names such as `docs.<user>.com` (whole word = not next to a letter, digit, `_`, `-`).
+- `libs/device`: `diagnoseStepIds`, `diagnoseSteps(target)` (translated titles for the CLI and check lists),
+  `maxDiagnoseSteps`, `diagnoseBudget`, `diagnoseRttBudget`; `ConnectionGuideStep`, `guideStepTitle/Body`, `powerHint`.
+  `connectionStateId(ProbeOpen)` = `"probeOpen"`. `JLinkProbe::connect` gained an optional `attempts` (Diagnose: 1).
+- Diagnose details: Diagnose is a success (`status` ok) whenever its steps ran; failures are in `checks`. 0 mV before a
+  healthy reading may be a probe that cannot measure VTref (review R21/R33): the `power` step then waits for the
+  connect and reports "Not measured by this J-Link" when it connects. A failed connect asks the CTRL-AP: protected or
+  wrong family → `connect` Warning ("Only the debug port answers") and `identify` reports it. A missing logger buffer
+  is a Warning (the console works without logs), a missing terminal buffer Failed. Step budgets: probe 4 s, power 1 s,
+  connect 4 s, identify 2 s, rtt = its deadline + 0.5 s, rtt-buffers 0.5 s (0009 has no table). A suspended session
+  answers `target.not_connected` like other operations; a Stopped session may run Diagnose (its `probe` step retries).
+- CLI: `hio chester app|lte check` uses the group's existing `-n/--jlink-sn` and `--jlink-speed` options (consistency with
+  every other `chester` command) instead of `--speed`. `CommandResult::failure` + `Output::printFailure` +
+  `errorEnvelope(error, data)` implement the ADR-0070 envelope; in human mode the failed check's message, cause and
+  suggestion are printed below the lines on stdout. Logging category `hio.diag` added.
+- `libs/core`: `wizardIdString` / `wizardIdFromString` (kebab ids), `log::defaultLogDirectory()`,
+  `Settings::defaultFilePath()`.
+- GUI contract additions: `WizardStep::linkText/linkUrl` (Info link), `WizardStep::actions` ([{id, text}] buttons, e.g.
+  the Done step's hand-offs) with `Wizard::action(id)` (default: `handOff(id)`); `WizardRegistry::addEmbedded(name, qml)`
+  — the plan that owns an Embedded control registers its QML (loaded with `vm` = `Wizard::embeddedViewModel()`);
+  `WizardViewModel` properties `wizardId`, `stepLabel`, `stepAnnouncement`, `embeddedSource`, `closing`, signals
+  `cancelConfirmationNeeded`, `raiseRequested`, `handOff(action, tab)`, and `illustrationUrl(slot, dark)`;
+  `WizardLauncher::start(id, tab)` (no error) and `openForTab`; `TabContext::openWizard`. `StepKind` is a `Q_NAMESPACE`
+  enum (`wizard_step::Kind`, QML `StepKind.Info`) because QML needs it. A per-tab wizard is closed (its operation
+  cancelled) when its tab closes. AppViewModel properties `wizard`, `launcher`, `report`, `documentationUrl`,
+  `openDocumentation()`, `wizardRegistry()`, `diagWorker()`, `diagEnvironment()`. Copy in a CommandBlock shows the
+  toast "Copied.".
+- The compact step list ("Step 2 of 4 · Cable") is also used when the titles do not fit in one row: the window minimum
+  is 960 px, so "below 800 px window width" alone never happens (design system updated).
+- The report dialog's toast has no [Show in folder] button (Toast has no actions, 0004); after saving, the dialog shows
+  "Saved to …" with [Show in folder] instead.
+- Illustrations: placeholder SVGs reuse the Material Symbols paths of `assets/icons` (probe, device, flash, placeholder);
+  `.gitattributes` tracks `app/gui/assets/wizard/*.svg` with Git LFS (added before the files; ADR-0076). With ADR-0112
+  this rule may be reconsidered (SVG is text) — left as ADR-0076 says.
+- Test wizard: `app/gui/tests/support/test_wizard.*`, registered by the tests as `connect-device` (every step kind,
+  busy cancel, hand-off).
+
+**Verification on 2026-10-16 (this machine):** ctest linux-debug 742 tests (730 passed, 12 HIL/corpus skipped),
+linux-asan 742 (730 passed, 12 skipped), linux-tsan 730 (718 passed, 12 skipped); `linux-tidy` zero findings;
+`all_qmllint` clean; `.ts` up to date, 0 unfinished Czech entries; clang-format-21 clean; `tools/check-lfs.sh
+--untracked` passes. Screenshots (light/dark, EN/CS) of the wizard dialog (Info, Checks, Commands, Done, 960 × 600) and
+the report dialog were taken offscreen (not in the repository). The read-only hardware
+tries (`hio doctor`, `hio chester app check`, `hio chester lte check`, `hio diag report`) behaved as expected: the LTE
+check through the application connector reports `target.wrong_family` (exit 6), firmware status "Not known", nRF Util
+not found (Warning).
+
+**Remaining for Done:** HIL with CHESTER (power off, cable on the wrong connector, firmware without RTT, J-Link Commander
+running); manual checks on Linux (without udev rule), Windows and macOS (process sources compiled there for the first
+time), report redaction review; confirmation of the open question above.
+
+## Open findings (independent review round 1, 2026-10-16)
+
+Verified state before the review: debug and ASan 742 tests (730 passed, 12 HIL/corpus skipped), TSan 730, tidy 0,
+qmllint clean, 0 unfinished Czech entries; read-only `hio doctor` and `hio chester app check` on the CHESTER OK.
+
+| ID | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| V1 | high | `libs/diag/src/platform/process_source_windows.cpp` | `<tlhelp32.h>` is included before `<windows.h>` (sorted by clang-format); the Windows build fails | `<windows.h>` first in its own include block with a comment, as `probe_lock.cpp` |
+| V2 | medium | `wizard_view_model.cpp` (tab `destroyed`), `AppViewModel::removeTab` | The wizard learns about a closed tab only after `~DeviceTabViewModel`; `start()` hands a raw `DeviceTabViewModel*`, and between `shutdown()` and `deleteLater()` the wizard stays open on a dead tab → use after free in 0009/0010 wizards | `AppViewModel` closes the wizard (`tabClosing(tab)`) before `tab->shutdown()`; document that wizards hold the tab as `QPointer` |
+| V3 | medium | `diag_worker.cpp` | A `ChecksRequest` with a subset of ids drops their dependencies (`probes`, `probe-firmware` need `jlink-software`) → always Skipped | Add the transitive `dependsOn` closure to the requested ids |
+| V4 | medium (plausible) | `DeviceTabViewModel::connectDevice()` | A failed promotion of a `ProbeOpen` session (`internal.busy` during a wizard's Diagnose) falls through to `releaseSession()` → closes the session mid-Diagnose | Return and show the error on `InternalBusy`; release only on a real session failure |
+| V5 | low/medium | `session_worker.cpp`, `DeviceSession::startConnection` | Promotion is not idempotent: two `startConnection` posts run a second connect + RTT restart on a live session (lost partial line, console flicker) | The worker ignores `StartConnectionCommand` when not probe-only; optional pending flag in the facade |
+| V6 | low/medium | `runDiagnose` | Diagnose on a Stopped (fatal) session can restore it to Connected but never clears `m_fatal` → auto-reconnect stays off for the rest of the session | Clear `m_fatal` when restore reaches Connected; add a test |
+| V7 | low (plausible) | `session_worker.cpp` `usbAccessOr` | Only `probe.open_failed` is mapped; without permission the library may not list the probe → `probe.not_found` instead of `usb.access_denied` | Also map `ProbeNotFound` when `checkUsbAccess` finds an inaccessible SEGGER device |
+| V8 | low | `environment.cpp` `probe-firmware` | An `inspectProbe` failure is counted as "in use" → "Not checked: the J-Link is in use" when nothing holds it | Separate "Could not be checked" with the error detail |
+| V9 | low | `session_worker.cpp` Diagnose timeout | `diag.check_timeout` message shows the raw step id (`rtt-buffers`) in EN and CS | Use the translated step title |
+| V10 | low | `session_internal.h` `diagnoseBudget` | Never read: the 15 s total is only the sum of step budgets; the restore after Diagnose is outside any budget (Bounds row not enforced) | Enforce it or remove it, and document the restore time |
+| V11 | low | `process_source_macos.cpp` | `std::min`, `std::uint32_t` without `<algorithm>` / `<cstdint>` (macOS/Windows sources are never seen by Linux tidy) | Add the includes |
+| V12 | low | `session_worker.cpp` `openProbe` → `openSink()` | A probe-only (wizard) session creates/rotates a console log file with only a header | Open the sink at the first target connect |
+| V13 | low | `redact.cpp` | macOS host name without `.local` not redacted; `/home/jane_old` survives (`_` is a word character) | Also redact the short host name; treat `_` as a boundary for the home path |
+
+Ticked but incomplete: A4 (Windows source does not compile — V1; macOS never compiled), C2 (no GUI tests for
+`ensureSession(false)`, promotion via `ensureSession(true)`, `connectDevice()` on a `ProbeOpen` session), Bounds
+"Diagnose total ≤ 15 s" (V10). All three are resolved by the fixes below, except that the macOS and Windows process
+sources are still only reviewed by eye (they compile on those systems for the first time in CI / the manual checks).
+
+### Fixes (round 1, 2026-10-16; the user decided to fix all of V1–V13 and add the missing GUI tests)
+
+| ID | Status | Change | Tests |
+|---|---|---|---|
+| V1 | Fixed | `process_source_windows.cpp`: `<windows.h>` first, ended by a comment so that clang-format (`IncludeBlocks: Regroup`) keeps it before `<tlhelp32.h>` (as `probe_lock.cpp`); also `static_cast<DWORD>(sizeof(entry))`, `<expected>`, `<utility>`, `<QtTypes>` | review by eye (Win32: `CreateToolhelp32Snapshot`, `PROCESSENTRY32W`, `Process32FirstW/NextW`, `CloseHandle`) |
+| V2 | Fixed | `WizardViewModel::tabClosing(tab)`, called by `AppViewModel::removeTab` before `tab->shutdown()`: the wizard's operation is cancelled and the dialog closes while the tab and its session exist; `destroyed` stays as a fallback. `wizard.h` documents that a wizard keeps the tab only as `QPointer<DeviceTabViewModel>`, checks it before every use and starts nothing after `cancelOperation()`; the test wizard shows it | `WizardTest.ClosingTheTabClosesItsWizard` (closed at once, the tab's session still there at `cancelOperation`), `WizardTest.ClosingAnotherTabKeepsTheWizard` |
+| V3 | Fixed | `DiagWorker`: a `ChecksRequest` subset runs with the transitive `dependsOn` closure, in run order (their results are reported too). `probe-firmware` now also depends on `probes` (it inspects the probes that `probes` listed; no change for a full run) | `WizardTest.DiagWorkerAddsTheDependenciesOfRequestedChecks` |
+| V4 | Fixed | `DeviceTabViewModel::connectDevice()` on a `ProbeOpen` session: `internal.busy` from the promotion keeps the session and shows the error in the device bar (cleared by the next connection change); only other failures release it and open a new session | `DeviceTabTest.ConnectDuringDiagnoseKeepsTheProbeOnlySession` |
+| V5 | Fixed | The worker ignores `StartConnectionCommand` on a session that is not probe-only; the facade keeps a pending flag (set on post, cleared by the first connection event other than `ProbeOpen`), so a second `startConnection()` before that is a no-op success (documented in `device_session.h`) | `Diagnose.StartConnectionTwiceConnectsOnce` |
+| V6 | Fixed | `restoreAfterOperation` clears `m_fatal` whenever it reaches Connected (Diagnose on a Stopped session; other operations already cleared it in `prepareProbe`) | `Diagnose.DiagnoseOnAStoppedSessionRestoresAutoReconnect` |
+| V7 | Fixed | `usbAccessOr` also maps `probe.not_found` (also from choosing the first free probe) to `usb.access_denied` when `checkUsbAccess` finds an inaccessible SEGGER device; the original error stays in the detail | `Diagnose.NotFoundWithoutUsbAccessIsUsbAccessDenied`, `Diagnose.NotFoundWithUsbAccessStaysNotFound` |
+| V8 | Fixed | `probe-firmware`: an `inspectProbe` failure other than `probe.in_use_by_other_process` is Warning "Could not be checked: <message>" with the error (detail names the J-Link); translated | `Environment.ProbeThatCannotBeOpenedIsNotInUse` |
+| V9 | Fixed | Diagnose's `diag.check_timeout` names the step by its translated title (`diagnoseSteps(target)`, e.g. "Connection to the application MCU") | `Diagnose.OverallBudgetSkipsTheRemainingSteps` (message checks) |
+| V10 | Fixed | The overall budget is enforced: `diagnoseBudget` (15 s) plus what a fixed low speed adds to the `rtt` search. A step that would start after the deadline is Skipped with result "Not checked: the time for the checks ran out" and error `diag.check_timeout` (like the runner's "more than 16 checks", a Skipped row may carry an error), and so are the rest; a step that is already running finishes (vendor calls cannot be interrupted) and keeps its own per-step budget rule. Diagnose stays a success. The restore after Diagnose is outside the budget (Bounds) | `Diagnose.OverallBudgetSkipsTheRemainingSteps` |
+| V11 | Fixed | `process_source_macos.cpp`: `<algorithm>`, `<cstdint>`, `<expected>`, `<utility>`, `<sys/param.h>` (`MAXCOMLEN`), `<sys/types.h>` (`pid_t`), `<QtTypes>`. Re-read against libproc (`proc_listallpids(void*, int)`, `proc_pidpath` / `proc_name(int, void*, uint32_t)`): no other problem found | review by eye |
+| V12 | Fixed | A probe-only session opens its console file only when promoted (`connect()`) or when it runs an operation other than Diagnose (`runOperation`); Diagnose alone writes no file and rotates nothing | `Diagnose.ProbeOnlySessionOpensTheConsoleFileOnlyWhenPromoted` |
+| V13 | Fixed | Redaction: the short host name (before the first `.`) is replaced too when it has ≥ 3 characters. The home path is replaced only as the folder itself: followed by a separator, another non-name character or the end, not by a letter, digit, `_`, `-` or `.`. Choice: `/home/jane_old` is another folder, not the home; its name then follows the existing user-name rule (whole words, `_` and `-` are word characters), so "jane_old" stays — as it does anywhere else in a log — while `/home/jane.bak/x` becomes `/home/<user>.bak/x` (formerly `~.bak/x`, a wrong path) | `Redact.OnlyTheHomeFolderItselfIsTheHomePath`, `Redact.ShortHostNameIsReplacedToo` |
+

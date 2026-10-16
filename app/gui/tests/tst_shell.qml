@@ -275,7 +275,19 @@ TestCase {
     }
 
     function test_shortcutOverlayFromRail() {
+        // M4 (plan 0007): the rail's Help item opens the Help menu; its first item the overlay.
         click(find("railHelp"));
+        const menu = findChild(window, "helpMenu");
+        tryVerify(() => menu.opened);
+        // Only registered wizards are offered (the test wizard is "connect-device").
+        verify(findChild(menu, "helpConnect").visible);
+        verify(!findChild(menu, "helpSetup").visible);
+        verify(!findChild(menu, "helpTroubleshoot").visible);
+        verify(!findChild(menu, "helpFlash").visible);
+        verify(findChild(menu, "helpReport").visible);
+        verify(findChild(menu, "helpDocumentation").visible);
+        findChild(menu, "helpShortcuts").triggered();
+        menu.close();
         compare(AppViewModel.shortcutOverlayVisible, true);
         const overlay = findChild(window, "shortcutOverlay");
         tryVerify(() => overlay.opened);

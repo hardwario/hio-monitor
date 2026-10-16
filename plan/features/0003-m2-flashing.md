@@ -1,18 +1,19 @@
 # 0003 — M2 Flashing: J-Link programmer, firmware images and catalog, nRF Util modem update, CLI
 
-- **Status:** In progress (implementation started 2026-10-11; approved by Matej Strnad, 2026-10-11, in the text amended by ADR-0057 and ADR-0062; ADR-0069 is not part of this implementation)
+- **Status:** In progress (implementation started 2026-10-11; approved by Matej Strnad, 2026-10-11, in the text amended by ADR-0057 and ADR-0062; ADR-0069 is not part of this implementation); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010)
 - **Milestone:** M2
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062, 0094
+- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062, 0069, 0094
 - **Depends on:** 0001 (M0 skeleton), 0002 (M1 J-Link & RTT: library loading, `JLinkProbe`, `DeviceSession`, fake library)
 
 > **Amended by ADR-0057 and ADR-0062 (M3 planning, applied in this text):** every operation carries its
 > target MCU. The `Operation*` types are concrete, an LTE bundle is one operation, and reset is an operation.
 > Cancel reports the M0 code `cancelled`. Operations also work on sessions opened with `attachRtt = false`.
 
-> **Pending amendment from M4 (ADR-0069, specified in [0007](0007-m4-wizard-framework-diagnostics.md) § Amendment;
-> applied when 0007 is approved — then this plan needs re-approval):** `OperationKind::Diagnose`, `DiagnoseStep`,
-> `OperationResult::checks`, the `diagnoseStep` signal.
+> **Amended by 0007 (approved 2026-10-16; ADR-0069; applied in this text):** `OperationKind::Diagnose` with
+> `DeviceSession::diagnose(targetId)`, the `DiagnoseStep` result type, `OperationResult::checks` and the
+> `diagnoseStep` signal; operations also run on probe-only sessions (`connectTarget = false`, 0002). Diagnose never
+> resets, halts or writes. The implementation is tracked in 0007 (step B2), not in this plan's checklist.
 
 ## Context
 
@@ -296,7 +297,8 @@ New libraries are created with `hio_add_backend_library` (static, ADR-0022; no Q
   re-attached after, unless the result leaves the CPU halted). Every operation names its **target**, which must be
   a target of the session's profile (else `usage.invalid_argument`):
   ```cpp
-  enum class OperationKind { Flash, EraseCode, EraseAll, Recover, Modem, LteBundle, Reset, ReadMemory };
+  enum class OperationKind { Flash, EraseCode, EraseAll, Recover, Modem, LteBundle, Reset, ReadMemory,
+                             Diagnose /* amended by 0007, ADR-0069 */ };
   enum class ProgramPhase { Connecting, SwitchingTarget, Erasing, Programming, Verifying, Modem, Recovering,
                             Resetting, Restoring };
   struct OperationProgress {
@@ -307,12 +309,15 @@ New libraries are created with `hio_add_backend_library` (static, ADR-0022; no Q
       std::uint64_t done = 0, total = 0;             // total 0 = indeterminate
       std::chrono::milliseconds elapsed{};
   };
+  // Amended by 0007 (ADR-0069); DiagnoseStep reuses diag::CheckStatus (header-only target hio::diag_types, 0007)
+  struct DiagnoseStep { std::string id; diag::CheckStatus status; std::string result; std::optional<hio::Error> error; };
   struct OperationResult {
       OperationKind kind;
       Status status;                                 // error incl. code/wizard; cancel → M0 code `cancelled`
       std::chrono::milliseconds duration{};
       std::optional<ChipInfo> chip;                  // identified part (shown by GUI/CLI)
       std::vector<std::byte> data;                   // ReadMemory only (≤ 64 KiB)
+      std::vector<DiagnoseStep> checks;              // Diagnose only, ≤ 16 (amended by 0007, ADR-0069)
   };
   struct FlashOptions { bool halt = false; bool allowUicr = false; };
 
@@ -323,10 +328,12 @@ New libraries are created with `hio_add_backend_library` (static, ADR-0022; no Q
   [[nodiscard]] Result<OperationId> updateModem(std::string_view targetId, std::filesystem::path modemZip);  // suspend → nRF Util → resume
   [[nodiscard]] Result<OperationId> reset(std::string_view targetId, ResetMode);   // replaces M1 `Status reset(bool)`
   [[nodiscard]] Result<OperationId> readMemory(std::string_view targetId, std::uint32_t address, std::size_t size);  // ≤ 64 KiB
+  [[nodiscard]] Result<OperationId> diagnose(std::string_view targetId);          // amended by 0007 (ADR-0069)
   [[nodiscard]] Status cancel(OperationId);
   signals:
       void operationProgress(hio::device::OperationId, const hio::device::OperationProgress&);
       void operationFinished(hio::device::OperationId, const hio::device::OperationResult&);
+      void diagnoseStep(hio::device::OperationId, const hio::device::DiagnoseStep&);  // queued, one per step (0007)
   ```
   - One operation at a time per session; a second → `internal.busy` "Another operation is running".
   - `SessionOptions` gains `bool attachRtt` (false for CLI flash/erase/reset/recover/pib/uicr, so the CLI never
@@ -338,6 +345,22 @@ New libraries are created with `hio_add_backend_library` (static, ADR-0022; no Q
     the operation ends.
   - Progress events are coalesced to at most one per 100 ms per operation (plus the final one).
   - Cancel ends with `status` = error `cancelled` (category Cancelled, CLI exit 130; already defined in M0).
+  - *Amended by 0007 (2026-10-16, ADR-0069):* operations also run on a probe-only session (`ProbeOpen`, 0002).
+    **`Diagnose`** runs six steps in this order, each reported by `diagnoseStep` and collected in
+    `OperationResult::checks`; a failed step marks the remaining ones Skipped:
+    1. `probe` — probe open, product, SN, firmware status (`probe.firmware_outdated` → Warning);
+    2. `power` — `hwStatus()` VTref against the profile's `minTargetMillivolts` (`target.no_power`);
+    3. `connect` — connect to the target's J-Link device with the session's speed (automatic when
+       `SessionOptions::speedKhz` is `nullopt`, ADR-0090), one attempt (no 3 × 500 ms retry) (`target.connect_failed`);
+    4. `identify` — FICR part and family and the protection state as `identify` above (`target.wrong_family`;
+       `target.protected` → Warning);
+    5. `rtt` — RTT control block search with a 3 s budget (`target.rtt_not_found`); Skipped when protected;
+    6. `rtt-buffers` — the profile's buffer names present (`target.rtt_buffer_not_found`).
+
+    It never resets, halts or writes the target. On the console target of a connected session the RTT steps check
+    the running attachment instead of re-attaching; for another target `TargetSwitch` applies. `OperationProgress`:
+    `phase = Connecting`, `step` = index of the current check (1-based), `steps = 6`. Total ≤ 15 s (a blocking
+    vendor call can exceed it; the step then reports `diag.check_timeout`, 0007).
 
 ### Error codes added (texts translatable, ADR-0027)
 
@@ -375,7 +398,7 @@ stall the UI). Images cross threads as `std::shared_ptr<const FirmwareImage>` (i
 
 HEX file 64 MiB, image data 16 MiB · zip 64 entries, 128 MiB/entry, ratio ≤ 200 · download 32 MiB, transfer timeout
 60 s · cache 100 files / 500 MiB · write chunk 4 KiB, verify chunk 16 KiB, `readMemory` ≤ 64 KiB · program/verify
-5 min, erase-all 60 s, recover 60 s, memory op 5 s · nRF Util output 1 MiB per stream, version probe 10 s,
+5 min, erase-all 60 s, recover 60 s, memory op 5 s · Diagnose 6 steps / 15 s, `checks` ≤ 16 (amended by 0007) · nRF Util output 1 MiB per stream, version probe 10 s,
 modem update 10 min, terminate→kill 5 s · progress events ≤ 10/s per operation · one operation per session.
 
 ## Decisions requiring user confirmation
@@ -397,6 +420,7 @@ modem update 10 min, terminate→kill 5 s · progress events ≤ 10/s per operat
 | New dependency miniz (MIT) | approve / reject | approve (decided 2026-10-11) | ADR-0041 |
 | Operations on another MCU than the console's (M3 review) | operation carries target / retarget tab / second session | operation carries target | ADR-0057 |
 | Operation types, LTE bundle, reset (M3 review) | one bundle operation / caller sequences; reset as operation / keep both | concrete types; bundle = one operation; reset = operation; cancel = `cancelled` | ADR-0062 |
+| Live connection checks (M4 planning) | session operation `Diagnose` / standalone checker / interpret `open()` | `Diagnose` operation (approved with 0007 on 2026-10-16) | ADR-0069 |
 | Minor defaults: flashing as a session operation with RTT paused and re-attached; nRF Util only while suspended; progress phases; FICR family check and LTE device-name selection; full read-back verify; group/subcommand `-n` handling; existing path wins over ID; `pib`/`uicr read` app-only; flash log in the console file + `hio.flash`; all bounds and timeouts above; `internal.busy` | accept / change | accept (decided 2026-10-11) | — |
 | Phase 0 order (no CHESTER available on 2026-10-11) | spike first / A–F first on fakes | A–F first against the fake J-Link library and fake nRF Util; Phase 0 and G1 with the CHESTER afterwards (decided 2026-10-11). Values Phase 0 decides use the defaults in this plan, marked "to confirm in Phase 0". Risk: a failed spike criterion (e.g. ADR-0035 UICR behaviour) means a new ADR and rework | — |
 

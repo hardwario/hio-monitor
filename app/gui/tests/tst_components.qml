@@ -145,11 +145,17 @@ TestCase {
         compare(findChild(panel, "errorSuggestion").text, "What to do: connect power, then reconnect.");
         compare(findChild(panel, "errorPrimary").text, "Reconnect");
         compare(panel.primaryAction, ErrorAction.Reconnect);
-        // The wizard button is shown but disabled ("Coming soon", M4).
+        // M4 (plan 0007): the wizard is registered (the test wizard), so the button is shown and
+        // enabled; it opens the wizard with the error as context.
         const wizard = findChild(panel, "errorWizard");
         verify(wizard.visible);
-        compare(wizard.children[0].enabled, false);
-        compare(wizard.ToolTip.text, "Coming soon");
+        verify(wizard.enabled);
+        compare(wizard.text, "Help me fix this");
+        mouseClick(wizard);
+        tryVerify(() => AppViewModel.wizard.open);
+        compare(AppViewModel.wizard.wizardId, "connect-device");
+        AppViewModel.wizard.cancel(false);
+        tryVerify(() => !AppViewModel.wizard.open);
         // Details: code and detail, collapsed at first.
         verify(!findChild(panel, "errorDetails").visible);
         mouseClick(findChild(panel, "errorDetailsToggle"));
@@ -174,6 +180,11 @@ TestCase {
                                             { error: testSupport.error("io.read_failed", false) });
         verify(!findChild(panel, "errorWizard").visible);
         compare(findChild(panel, "errorPrimary").text, "Retry");
+        // A wizard that is not registered (troubleshooting, plan 0009): the button is hidden.
+        const unregistered = createTemporaryObject(errorPanelComponent, testCase,
+                                                   { error: testSupport.defaultError("probe.open_failed") });
+        compare(unregistered.error.wizard, "troubleshooting");
+        verify(!findChild(unregistered, "errorWizard").visible);
         const empty = createTemporaryObject(errorPanelComponent, testCase);
         verify(!empty.visible);
     }

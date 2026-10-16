@@ -37,6 +37,9 @@ public:
     // Final result of a command: `humanText` (Human) or {"schema":1,"ok":true,"data":...} (Json).
     void printResult(const QJsonValue& data, std::string_view humanText);
     void printError(const Error& error);
+    // ADR-0070: a failed check command - the error envelope with "data" (Json), or `humanText` on
+    // stdout (Human).
+    void printFailure(const Error& error, const QJsonValue& data, std::string_view humanText);
     // One event of a streaming command (NDJSON line in Json mode).
     void printEvent(const QJsonValue& event, std::string_view humanText);
     // A write to the result stream (stdout) failed, e.g. the reading end of a pipe was closed

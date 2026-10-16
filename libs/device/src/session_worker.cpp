@@ -20,6 +20,8 @@
 #include "hio/device/probe_lock.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
+#include "hio/diag/check.h"
+#include "hio/diag/usb_access.h"
 #include "hio/firmware/firmware_image.h"
 #include "hio/firmware/program_progress.h"
 #include "hio/hw/jlink/clock.h"
@@ -35,6 +37,8 @@
 #include <QCoreApplication>
 #include <QLoggingCategory>
 #include <QString>
+#include <QStringList>
+#include <QtContainerFwd>
 #include <QtLogging>
 
 #include <algorithm>
@@ -97,6 +101,7 @@ public:
         if (m_config.probeSn) {
             m_serial = m_config.probeSn;
         }
+        m_probeOnly = !m_config.connectTarget;
     }
 
     void run(const std::stop_token& stop) {
@@ -295,12 +300,12 @@ private:
     [[nodiscard]] Status openProbe(const std::stop_token& stop) {
         if (!m_serial) {
             if (auto chosen = chooseProbe(stop); !chosen) {
-                return chosen;
+                return std::unexpected(usbAccessOr(std::move(chosen).error()));
             }
         }
         auto info = m_probe->open(m_serial);
         if (!info) {
-            return std::unexpected(std::move(info).error());
+            return std::unexpected(usbAccessOr(std::move(info).error()));
         }
         emitEvent(ProbeIdentified{.probe = *info});
         if (!m_firmwareChecked) {
@@ -321,8 +326,30 @@ private:
                 warn(std::move(error));
             }
         }
-        openSink();
+        if (!m_probeOnly) {
+            // A probe-only session (a wizard's Diagnose) opens the console file only when it is
+            // promoted or runs another operation (review V12): no header-only file, no rotation.
+            openSink();
+        }
         return {};
+    }
+
+    // ADR-0072 (Linux): a probe that cannot be opened because this user has no access to its USB
+    // device node is reported as usb.access_denied instead of probe.open_failed, and instead of
+    // probe.not_found (review V7): without access the library may not list the probe at all.
+    [[nodiscard]] Error usbAccessOr(Error error) const {
+        if (error.code != ErrorCode::ProbeOpenFailed && error.code != ErrorCode::ProbeNotFound) {
+            return error;
+        }
+        const auto devices = diag::checkUsbAccess(m_config.usbSysfsRoot, m_config.usbDevRoot);
+        if (!devices) {
+            return error;
+        }
+        if (auto denied = diag::usbAccessDeniedError(*devices)) {
+            denied->detail += "; " + error.detail;
+            return std::move(*denied);
+        }
+        return error;
     }
 
     [[nodiscard]] Status attachRtt(const std::stop_token& stop) {
@@ -369,6 +396,12 @@ private:
         if (!m_probe->isOpen() && !step(openProbe(stop))) {
             return;
         }
+        if (m_probeOnly) {
+            // ADR-0069: a probe-only session never connects the target by itself.
+            report(ConnectionState::ProbeOpen);
+            return;
+        }
+        openSink(); // a promoted probe-only session (review V12); no-op when open
         // Automatic unless a kHz value was given; connect() sets it again after `Device =`, as
         // pylink's JLink.connect() (ADR-0090).
         m_probe->setSpeed(m_config.speedKhz);
@@ -393,10 +426,11 @@ private:
 
     // Connects the probe to `target` with the J-Link device name `device`.
     [[nodiscard]] Status connectDevice(const TargetProfile& target, std::string_view device,
-                                       const std::stop_token& stop) {
+                                       const std::stop_token& stop,
+                                       std::optional<int> attempts = std::nullopt) {
         m_probeTarget = nullptr;
         if (Status connected =
-                m_probe->connect(device, target.minTargetMillivolts, m_seenPower, stop);
+                m_probe->connect(device, target.minTargetMillivolts, m_seenPower, stop, attempts);
             !connected) {
             return connected;
         }
@@ -430,7 +464,7 @@ private:
     }
 
     [[nodiscard]] bool shouldAutoReconnect() {
-        if (!m_config.autoReconnect || m_suspended || m_halted || m_fatal ||
+        if (!m_config.autoReconnect || m_probeOnly || m_suspended || m_halted || m_fatal ||
             m_reported != ConnectionState::Disconnected || clock().now() < m_nextReconnect) {
             return false;
         }
@@ -675,7 +709,7 @@ private:
         }
         auto info = m_probe->open(m_serial);
         if (!info) {
-            return std::unexpected(std::move(info).error());
+            return std::unexpected(usbAccessOr(std::move(info).error()));
         }
         (void)stop;
         return {};
@@ -723,6 +757,21 @@ private:
         const auto restoreFailed = [this](Error error) {
             report(ConnectionState::Disconnected, std::move(error));
         };
+        // Connected again: a session that had stopped fatally (e.g. Diagnose on a Stopped session)
+        // works again, so auto-reconnect applies again (review V6).
+        const auto restored = [this] {
+            m_fatal = false;
+            report(ConnectionState::Connected);
+        };
+        if (m_probeOnly) {
+            // ADR-0069: a probe-only session keeps the probe open and the target as it is.
+            if (Status reopened = reopenProbe(stop); !reopened) {
+                report(ConnectionState::Stopped, std::move(reopened).error(), true);
+                return;
+            }
+            report(ConnectionState::ProbeOpen);
+            return;
+        }
         if (crossTarget) {
             reporter.phase(ProgramPhase::Restoring);
         }
@@ -754,7 +803,7 @@ private:
         }
         m_halted = false;
         if (!m_config.attachRtt) {
-            report(ConnectionState::Connected);
+            restored();
             return;
         }
         if (Status attached = attachRtt(stop); !attached) {
@@ -763,7 +812,7 @@ private:
             }
             return;
         }
-        report(ConnectionState::Connected);
+        restored();
     }
 
     // The state of one running operation (runOperation()).
@@ -882,6 +931,8 @@ private:
             run.reporter.step(2, 2);
             return runFlashStep(run, command.bundle->application, result);
         }
+        case OperationKind::Diagnose: // runDiagnose()
+            break;
         }
         return std::unexpected(makeError(ErrorCode::InternalUnexpected, "unknown operation"));
     }
@@ -905,10 +956,15 @@ private:
         if (command.kind == OperationKind::LteBundle) {
             reporter.step(1, 2);
         }
+        openSink(); // the first operation of a probe-only session (review V12); no-op when open
         flashLog(
             std::format("Operation {} on {} started", operationKindId(command.kind), target.id));
-        OperationResult result{
-            .kind = command.kind, .status = {}, .duration = {}, .chip = std::nullopt, .data = {}};
+        OperationResult result{.kind = command.kind,
+                               .status = {},
+                               .duration = {},
+                               .chip = std::nullopt,
+                               .data = {},
+                               .checks = {}};
         if (m_suspended) {
             result.status = std::unexpected(notConnected("operation not run (suspended)"));
             finishOperation(command, reporter, std::move(result));
@@ -950,6 +1006,552 @@ private:
         finishOperation(command, reporter, std::move(result));
     }
 
+    // ---- Diagnose (M4, plan/features/0007, ADR-0069) -------------------------------------------
+
+    // The state of one Diagnose run (runDiagnose()).
+    struct DiagnoseRun {
+        OperationId id = 0;
+        const TargetProfile* target = nullptr;
+        std::stop_token stop;
+        OperationResult* result = nullptr;
+        OperationReporter* reporter = nullptr;
+        bool failed = false;    // a step failed: the rest are Skipped
+        bool cancelled = false; // stop requested: the rest are Skipped
+        // The overall budget (review V10): a step that would start after `deadline` is Skipped
+        // with diag.check_timeout, and so are the rest.
+        Clock::TimePoint deadline;
+        std::chrono::milliseconds budget{0};
+        bool timedOut = false;
+    };
+
+    // Reports one finished step (event + result list), in order.
+    void finishStep(DiagnoseRun& run, DiagnoseStep step) {
+        if (step.status == diag::CheckStatus::Failed) {
+            run.failed = true;
+        }
+        const int index = static_cast<int>(run.result->checks.size()) + 1;
+        run.reporter->step(std::min(index + 1, static_cast<int>(diagnoseStepIds.size())),
+                           static_cast<int>(diagnoseStepIds.size()));
+        flashLog(std::format("Diagnose {}: {} {}", step.id, diag::checkStatusId(step.status),
+                             step.error ? step.error->detail : std::string()));
+        if (run.result->checks.size() < maxDiagnoseSteps) {
+            run.result->checks.push_back(step);
+        }
+        emitEvent(DiagnoseStepEvent{.id = run.id, .step = std::move(step)});
+    }
+
+    static DiagnoseStep okStep(std::string_view id, const QString& text) {
+        return DiagnoseStep{.id = std::string(id),
+                            .status = diag::CheckStatus::Ok,
+                            .result = text.toStdString(),
+                            .error = std::nullopt};
+    }
+
+    static DiagnoseStep problemStep(std::string_view id, diag::CheckStatus status, Error error,
+                                    std::string text = {}) {
+        if (text.empty()) {
+            text = error.message;
+        }
+        return DiagnoseStep{.id = std::string(id),
+                            .status = status,
+                            .result = std::move(text),
+                            .error = std::move(error)};
+    }
+
+    static DiagnoseStep skippedStep(std::string_view id, const QString& text) {
+        return DiagnoseStep{.id = std::string(id),
+                            .status = diag::CheckStatus::Skipped,
+                            .result = text.toStdString(),
+                            .error = std::nullopt};
+    }
+
+    // Skips the step when an earlier one failed or a stop was requested. True = skipped.
+    bool skipIfDone(DiagnoseRun& run, std::string_view id) {
+        if (!run.cancelled && run.stop.stop_requested()) {
+            run.cancelled = true;
+        }
+        if (run.cancelled) {
+            finishStep(run,
+                       skippedStep(id, QCoreApplication::translate("hio::device", "Cancelled")));
+            return true;
+        }
+        if (run.failed) {
+            finishStep(run,
+                       skippedStep(id, QCoreApplication::translate("hio::device", "Not checked")));
+            return true;
+        }
+        if (!run.timedOut && clock().now() > run.deadline) {
+            run.timedOut = true;
+        }
+        if (run.timedOut) {
+            finishStep(
+                run, problemStep(id, diag::CheckStatus::Skipped,
+                                 checkTimeoutError(*run.target, id,
+                                                   std::format("not started: the Diagnose budget "
+                                                               "of {} ms was used up",
+                                                               run.budget.count())),
+                                 QCoreApplication::translate(
+                                     "hio::device", "Not checked: the time for the checks ran out")
+                                     .toStdString()));
+            return true;
+        }
+        return false;
+    }
+
+    // The translated title of step `id` of `target` ("Connection to the application MCU").
+    [[nodiscard]] static std::string stepTitle(const TargetProfile& target, std::string_view id) {
+        for (DiagnoseStepInfo& info : diagnoseSteps(target)) {
+            if (info.id == id) {
+                return std::move(info.title);
+            }
+        }
+        return std::string(id);
+    }
+
+    // diag.check_timeout naming the step by its translated title (review V9).
+    [[nodiscard]] static Error checkTimeoutError(const TargetProfile& target, std::string_view id,
+                                                 std::string detail) {
+        Error error =
+            makeError(ErrorCode::DiagCheckTimeout, std::format("{}: {}", id, std::move(detail)));
+        error.message =
+            QCoreApplication::translate("hio::diag", "The check \"%1\" did not finish in time.")
+                .arg(toQString(stepTitle(target, id)))
+                .toStdString();
+        return error;
+    }
+
+    // A step that ran longer than its budget and did not fail becomes a Warning (plan 0007, Risks:
+    // a blocking vendor call cannot be interrupted).
+    void finishTimed(DiagnoseRun& run, DiagnoseStep step, Clock::TimePoint started,
+                     std::chrono::milliseconds budget) {
+        const auto elapsed =
+            std::chrono::duration_cast<std::chrono::milliseconds>(clock().now() - started);
+        if (elapsed > budget && step.status == diag::CheckStatus::Ok) {
+            Error error =
+                checkTimeoutError(*run.target, step.id,
+                                  std::format("{} ms > {} ms", elapsed.count(), budget.count()));
+            step = problemStep(step.id, diag::CheckStatus::Warning, std::move(error), step.result);
+        }
+        finishStep(run, std::move(step));
+    }
+
+    // Step budgets (sum = diagnoseBudget; the rtt step uses its own deadline + 500 ms).
+    static constexpr std::chrono::milliseconds probeStepBudget{4000};
+    static constexpr std::chrono::milliseconds powerStepBudget{1000};
+    static constexpr std::chrono::milliseconds connectStepBudget{4000};
+    static constexpr std::chrono::milliseconds identifyStepBudget{2000};
+    static constexpr std::chrono::milliseconds buffersStepBudget{500};
+
+    // Step 1: the library, the probe and its firmware.
+    void diagnoseProbe(DiagnoseRun& run) {
+        const Clock::TimePoint started = clock().now();
+        Status opened = ensureApi();
+        if (opened && !m_probe->isOpen()) {
+            opened = openProbe(run.stop);
+        }
+        if (!opened) {
+            if (opened.error().code == ErrorCode::Cancelled) {
+                run.cancelled = true;
+                finishStep(run, skippedStep("probe", QCoreApplication::translate("hio::device",
+                                                                                 "Cancelled")));
+                return;
+            }
+            finishStep(run,
+                       problemStep("probe", diag::CheckStatus::Failed, std::move(opened).error()));
+            return;
+        }
+        const jlink::ProbeInfo& info = m_probe->info();
+        const QString text =
+            info.product.empty()
+                ? QString::number(info.serialNumber)
+                : QStringLiteral("%1 · %2").arg(toQString(info.product)).arg(info.serialNumber);
+        // Unknown is not a failure: nothing is known to be wrong (review R11; HIL 2026-10-16).
+        const jlink::FirmwareStatus firmware = m_probe->firmwareStatus();
+        if (firmware == jlink::FirmwareStatus::Outdated ||
+            firmware == jlink::FirmwareStatus::Newer) {
+            Error error =
+                makeError(ErrorCode::ProbeFirmwareOutdated,
+                          std::format("J-Link {} firmware: {}", info.serialNumber, info.firmware));
+            if (firmware == jlink::FirmwareStatus::Newer) {
+                error.message =
+                    QCoreApplication::translate(
+                        "hio::device", "The J-Link firmware is newer than the J-Link library.")
+                        .toStdString();
+            }
+            finishTimed(run,
+                        problemStep("probe", diag::CheckStatus::Warning, std::move(error),
+                                    text.toStdString()),
+                        started, probeStepBudget);
+            return;
+        }
+        finishTimed(run, okStep("probe", text), started, probeStepBudget);
+    }
+
+    [[nodiscard]] static QString voltsText(int millivolts) {
+        return QStringLiteral("%1 V").arg(static_cast<double>(millivolts) / 1000.0, 0, 'f', 2);
+    }
+
+    [[nodiscard]] static Error noPowerError(int millivolts) {
+        Error error = makeError(ErrorCode::TargetNoPower, std::format("VTref {} mV", millivolts));
+        error.message =
+            QCoreApplication::translate("hio::device", "The device has no power (%1 mV).")
+                .arg(millivolts)
+                .toStdString();
+        return error;
+    }
+
+    // Steps 2 and 3: the target voltage, then one connect attempt. 0 mV before any healthy reading
+    // may be a probe that cannot measure VTref (review R21/R33): the power step then waits for the
+    // connect: a target that connects is powered.
+    void diagnosePowerAndConnect(DiagnoseRun& run) {
+        const TargetProfile& target = *run.target;
+        if (skipIfDone(run, "power")) {
+            (void)skipIfDone(run, "connect");
+            return;
+        }
+        Clock::TimePoint started = clock().now();
+        const auto status = m_probe->hardwareStatus();
+        if (!status) {
+            finishStep(run, problemStep("power", diag::CheckStatus::Failed, status.error()));
+            (void)skipIfDone(run, "connect");
+            return;
+        }
+        const int millivolts = status->targetMillivolts;
+        rememberVoltage(*status);
+        bool powerDeferred = false;
+        if (millivolts >= target.minTargetMillivolts) {
+            m_seenPower = true;
+            finishTimed(run, okStep("power", voltsText(millivolts)), started, powerStepBudget);
+        } else if (millivolts > 0 || m_seenPower) {
+            finishStep(run,
+                       problemStep("power", diag::CheckStatus::Failed, noPowerError(millivolts)));
+        } else {
+            powerDeferred = true;
+        }
+
+        if (!powerDeferred && skipIfDone(run, "connect")) {
+            return;
+        }
+        started = clock().now();
+        Status connected;
+        bool already = m_probeTarget == &target && m_api->isConnected();
+        if (!already) {
+            m_probe->setSpeed(m_config.speedKhz);
+            connected = m_probe->selectSwd();
+            if (connected) {
+                connected = connectDevice(target, target.jlinkDevice, run.stop, 1);
+            }
+        }
+        finishConnect(run, std::move(connected), powerDeferred, started);
+    }
+
+    // Step 3 after the connect attempt (and step 2 when its result waited for the connect).
+    void finishConnect(DiagnoseRun& run, Status connected, bool powerDeferred,
+                       Clock::TimePoint started) {
+        if (connected && powerDeferred) {
+            finishStep(run, okStep("power", QCoreApplication::translate(
+                                                "hio::device", "Not measured by this J-Link")));
+        }
+        if (!connected && connected.error().code == ErrorCode::Cancelled) {
+            run.cancelled = true;
+            if (powerDeferred) {
+                finishStep(run, skippedStep("power", QCoreApplication::translate("hio::device",
+                                                                                 "Cancelled")));
+            }
+            finishStep(run, skippedStep("connect",
+                                        QCoreApplication::translate("hio::device", "Cancelled")));
+            return;
+        }
+        if (!connected && powerDeferred) {
+            finishStep(run, problemStep("power", diag::CheckStatus::Failed, noPowerError(0)));
+            (void)skipIfDone(run, "connect");
+            return;
+        }
+        if (!connected) {
+            // A target that does not connect may be read-back protected, or the cable may be on the
+            // other MCU's connector: its CTRL-AP may still answer (reviews R2, R15). The identify
+            // step then reports what was found.
+            Error error = std::move(connected).error();
+            m_diagnoseIdentity = identifyByCtrlAp(run);
+            if (m_diagnoseIdentity && (m_diagnoseIdentity->code == ErrorCode::TargetProtected ||
+                                       m_diagnoseIdentity->code == ErrorCode::TargetWrongFamily)) {
+                finishStep(run, problemStep("connect", diag::CheckStatus::Warning, std::move(error),
+                                            QCoreApplication::translate(
+                                                "hio::device", "Only the debug port answers")
+                                                .toStdString()));
+                return;
+            }
+            m_diagnoseIdentity.reset();
+            finishStep(run, problemStep("connect", diag::CheckStatus::Failed, std::move(error)));
+            return;
+        }
+        const QString text =
+            m_config.speedKhz
+                ? QCoreApplication::translate("hio::device", "Connected (SWD %1 kHz)")
+                      .arg(*m_config.speedKhz)
+                : QCoreApplication::translate("hio::device", "Connected (SWD, automatic speed)");
+        finishTimed(run, okStep("connect", text), started, connectStepBudget);
+    }
+
+    // The CTRL-AP answer for a target that did not connect: target.protected or
+    // target.wrong_family, nullopt otherwise.
+    [[nodiscard]] std::optional<Error> identifyByCtrlAp(DiagnoseRun& run) {
+        jlink::JLinkProgrammer programmer(*m_api, *m_probe, clock(),
+                                          programmerConfigFor(*run.target));
+        WorkflowContext context = diagnoseContext(run, programmer);
+        auto chip = identifyTarget(context, false);
+        if (chip) {
+            return std::nullopt;
+        }
+        return std::move(chip).error();
+    }
+
+    [[nodiscard]] WorkflowContext diagnoseContext(DiagnoseRun& run,
+                                                  jlink::IProgrammer& programmer) {
+        OperationReporter& reporter = *run.reporter;
+        return WorkflowContext{
+            .profile = m_config.profile,
+            .target = run.target,
+            .programmer = &programmer,
+            .progress = [&reporter](const firmware::ProgramProgress& p) { reporter.update(p); },
+            .stop = run.stop,
+            .log = [this](const std::string& text) { flashLog(text); },
+            .connectAs =
+                [this, &run](std::string_view device) {
+                    return connectDevice(*run.target, device, run.stop, 1);
+                },
+            .connectedDevice = m_connectedDevice,
+            .cpuHalted = false};
+    }
+
+    // Step 4: FICR part and family, protection. Returns true when the MCU is protected.
+    bool diagnoseIdentify(DiagnoseRun& run) {
+        if (m_diagnoseIdentity) {
+            // From the CTRL-AP after a failed connect.
+            Error error = std::move(*m_diagnoseIdentity);
+            m_diagnoseIdentity.reset();
+            const bool isProtected = error.code == ErrorCode::TargetProtected;
+            if (skipIfDone(run, "identify")) {
+                return isProtected;
+            }
+            finishStep(run, problemStep("identify",
+                                        isProtected ? diag::CheckStatus::Warning
+                                                    : diag::CheckStatus::Failed,
+                                        std::move(error)));
+            return isProtected;
+        }
+        if (skipIfDone(run, "identify")) {
+            return false;
+        }
+        const Clock::TimePoint started = clock().now();
+        jlink::JLinkProgrammer programmer(*m_api, *m_probe, clock(),
+                                          programmerConfigFor(*run.target));
+        WorkflowContext context = diagnoseContext(run, programmer);
+        auto chip = identifyTarget(context, false);
+        m_connectedDevice = context.connectedDevice;
+        if (!chip) {
+            Error error = std::move(chip).error();
+            if (error.code == ErrorCode::Cancelled) {
+                run.cancelled = true;
+                finishStep(run, skippedStep("identify", QCoreApplication::translate("hio::device",
+                                                                                    "Cancelled")));
+                return false;
+            }
+            const bool isProtected = error.code == ErrorCode::TargetProtected;
+            finishStep(run, problemStep("identify",
+                                        isProtected ? diag::CheckStatus::Warning
+                                                    : diag::CheckStatus::Failed,
+                                        std::move(error)));
+            return isProtected;
+        }
+        run.result->chip = *chip;
+        finishTimed(
+            run,
+            okStep("identify", QCoreApplication::translate("hio::device", "%1, not protected")
+                                   .arg(toQString(chip->name))),
+            started, identifyStepBudget);
+        return false;
+    }
+
+    // Both RTT steps Skipped with `text` (or Cancelled / Not checked after a stop or a failure).
+    void skipRttSteps(DiagnoseRun& run, const QString& text) {
+        for (const std::string_view id :
+             {std::string_view("rtt"), std::string_view("rtt-buffers")}) {
+            if (!skipIfDone(run, id)) {
+                finishStep(run, skippedStep(id, text));
+            }
+        }
+    }
+
+    // Steps 5 and 6: the RTT control block and the profile's buffer names. On the console target
+    // of an attached session the running attachment is checked (no re-attach).
+    void diagnoseRtt(DiagnoseRun& run, bool isProtected, bool keepRtt) {
+        const TargetProfile& target = *run.target;
+        if (target.rttTerminal.empty()) {
+            skipRttSteps(run,
+                         QCoreApplication::translate("hio::device", "This MCU has no console"));
+            return;
+        }
+        if (isProtected) {
+            skipRttSteps(run, QCoreApplication::translate("hio::device",
+                                                          "Not checked: the MCU is protected"));
+            return;
+        }
+        if (skipIfDone(run, "rtt")) {
+            (void)skipIfDone(run, "rtt-buffers");
+            return;
+        }
+        Clock::TimePoint started = clock().now();
+        jlink::RttLayout layout;
+        jlink::RttTiming timing = m_config.timing.rtt;
+        // ADR-0110 (was ADR-0095): the budget scales with a fixed low speed like the session's
+        // attach deadline.
+        timing.attachDeadline =
+            jlink::rttAttachDeadline(m_config.speedKhz, m_config.timing.diagnoseRttBudget);
+        timing.loggerWait = std::min(timing.loggerWait, m_config.timing.diagnoseRttBudget / 3);
+        const std::chrono::milliseconds rttBudget =
+            timing.attachDeadline + timing.loggerWait + std::chrono::milliseconds(500);
+        std::optional<Error> buffersError;
+        if (keepRtt) {
+            layout = m_rtt->layout();
+        } else {
+            jlink::RttChannel channel(*m_api, clock(), timing, m_config.speedKhz);
+            const jlink::RttNames names{.terminal = std::string(target.rttTerminal),
+                                        .logger = std::string(target.rttLogger)};
+            auto attached = channel.attach(names, run.stop);
+            channel.stop();
+            if (!attached) {
+                Error error = std::move(attached).error();
+                if (error.code == ErrorCode::Cancelled) {
+                    run.cancelled = true;
+                    finishStep(run, skippedStep("rtt", QCoreApplication::translate("hio::device",
+                                                                                   "Cancelled")));
+                    (void)skipIfDone(run, "rtt-buffers");
+                    return;
+                }
+                if (error.code != ErrorCode::TargetRttBufferNotFound) {
+                    finishStep(run,
+                               problemStep("rtt", diag::CheckStatus::Failed, std::move(error)));
+                    (void)skipIfDone(run, "rtt-buffers");
+                    return;
+                }
+                buffersError = std::move(error); // the control block is there
+            } else {
+                layout = *attached;
+            }
+        }
+        finishTimed(run, okStep("rtt", QCoreApplication::translate("hio::device", "Found")),
+                    started, rttBudget);
+
+        if (skipIfDone(run, "rtt-buffers")) {
+            return;
+        }
+        started = clock().now();
+        if (buffersError) {
+            finishStep(run, problemStep("rtt-buffers", diag::CheckStatus::Failed,
+                                        std::move(*buffersError)));
+            return;
+        }
+        QStringList found{toQString(target.rttTerminal)};
+        if (!target.rttLogger.empty()) {
+            if (!layout.loggerUp) {
+                Error error = makeError(ErrorCode::TargetRttBufferNotFound,
+                                        std::format("logger buffer \"{}\"", target.rttLogger));
+                error.message =
+                    QCoreApplication::translate(
+                        "hio::device", "RTT buffer \"%1\" not found; the device log is not shown.")
+                        .arg(toQString(target.rttLogger))
+                        .toStdString();
+                finishStep(run,
+                           problemStep("rtt-buffers", diag::CheckStatus::Warning, std::move(error),
+                                       found.join(QStringLiteral(", ")).toStdString()));
+                return;
+            }
+            found.push_back(toQString(target.rttLogger));
+        }
+        finishTimed(run, okStep("rtt-buffers", found.join(QStringLiteral(", "))), started,
+                    buffersStepBudget);
+    }
+
+    void runDiagnose(const OperationCommand& command, const std::stop_token& sessionStop) {
+        std::stop_source operationStop;
+        const std::stop_callback fromSession(sessionStop,
+                                             [&operationStop] { operationStop.request_stop(); });
+        const std::stop_callback fromCancel(command.stop,
+                                            [&operationStop] { operationStop.request_stop(); });
+        const TargetProfile& target = *command.target;
+        const bool consoleTarget = &target == m_config.target;
+        // The console target of an attached session: RTT keeps running (ADR-0069).
+        const bool keepRtt = consoleTarget && m_attached;
+        // Another target of a normal session: switch and restore (ADR-0057). A probe-only session
+        // has no target to restore.
+        const bool crossTarget = !consoleTarget && !m_probeOnly;
+        OperationReporter reporter(command.kind, plannedPhases(command.kind, crossTarget), clock(),
+                                   m_config.timing.progressInterval,
+                                   [this, id = command.id](const OperationProgress& progress) {
+                                       emitProgress(id, progress);
+                                   });
+        reporter.step(1, static_cast<int>(diagnoseStepIds.size()));
+        flashLog(std::format("Operation diagnose on {} started", target.id));
+        OperationResult result{.kind = command.kind,
+                               .status = {},
+                               .duration = {},
+                               .chip = std::nullopt,
+                               .data = {},
+                               .checks = {}};
+        if (m_suspended) {
+            result.status = std::unexpected(notConnected("diagnose not run (suspended)"));
+            finishOperation(command, reporter, std::move(result));
+            return;
+        }
+        if (m_attached && !keepRtt) {
+            m_rtt->stop(); // pause RTT without reporting a disconnect (ADR-0034)
+            m_attached = false;
+        }
+        if (crossTarget) {
+            reporter.phase(ProgramPhase::SwitchingTarget);
+        }
+        reporter.phase(ProgramPhase::Connecting);
+        // The overall budget (review V10): diagnoseBudget plus what a fixed low speed adds to the
+        // rtt step's search (ADR-0110), so that the rtt step's own budget always fits.
+        const std::chrono::milliseconds budget =
+            m_config.timing.diagnoseBudget +
+            (jlink::rttAttachDeadline(m_config.speedKhz, m_config.timing.diagnoseRttBudget) -
+             m_config.timing.diagnoseRttBudget);
+        DiagnoseRun run{.id = command.id,
+                        .target = &target,
+                        .stop = operationStop.get_token(),
+                        .result = &result,
+                        .reporter = &reporter,
+                        .deadline = clock().now() + budget,
+                        .budget = budget};
+        m_diagnoseIdentity.reset();
+        diagnoseProbe(run);
+        if (!run.failed && !run.cancelled) {
+            diagnosePowerAndConnect(run);
+        } else {
+            for (const std::string_view id : {"power", "connect"}) {
+                (void)skipIfDone(run, id);
+            }
+        }
+        const bool isProtected = diagnoseIdentify(run);
+        diagnoseRtt(run, isProtected, keepRtt);
+        m_diagnoseIdentity.reset();
+        if (run.cancelled) {
+            result.status = fail(ErrorCode::Cancelled);
+        }
+        if (!sessionStop.stop_requested() && !keepRtt) {
+            if (m_probeOnly) {
+                if (m_probe && m_probe->isOpen()) {
+                    report(ConnectionState::ProbeOpen);
+                }
+            } else {
+                restoreAfterOperation(crossTarget, false, reporter, sessionStop);
+            }
+        }
+        finishOperation(command, reporter, std::move(result));
+    }
+
     void finishOperation(const OperationCommand& command, OperationReporter& reporter,
                          OperationResult result) {
         reporter.flush();
@@ -968,7 +1570,27 @@ private:
     void handle(Command command, const std::stop_token& stop) {
         std::visit(Overloaded{
                        [&](SendLineCommand& send) { sendLine(std::move(send.line), stop); },
-                       [&](const OperationCommand& operation) { runOperation(operation, stop); },
+                       [&](const OperationCommand& operation) {
+                           if (operation.kind == OperationKind::Diagnose) {
+                               runDiagnose(operation, stop);
+                           } else {
+                               runOperation(operation, stop);
+                           }
+                       },
+                       [&](const StartConnectionCommand& start) {
+                           // ADR-0069: promote the probe-only session; the probe and its lock
+                           // stay held. Only once (review V5): a promoted session ignores it.
+                           if (!m_probeOnly) {
+                               qCInfo(log::lcDevice) << "Start connection ignored: not probe-only";
+                               return;
+                           }
+                           m_probeOnly = false;
+                           m_config.attachRtt = start.attachRtt;
+                           m_fatal = false;
+                           m_suspended = false;
+                           m_halted = false;
+                           connect(stop, true);
+                       },
                        [&](const ReconnectCommand&) {
                            m_suspended = false;
                            m_halted = false;
@@ -1041,6 +1663,9 @@ private:
     bool m_loggerWarned = false;
     bool m_resetDone = false;
     bool m_sinkOpened = false;
+    bool m_probeOnly = false; // ADR-0069: connectTarget = false until startConnection()
+    // Diagnose: what the CTRL-AP said after a failed connect (consumed by the identify step).
+    std::optional<Error> m_diagnoseIdentity;
 };
 
 } // namespace

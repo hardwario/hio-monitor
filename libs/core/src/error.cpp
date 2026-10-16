@@ -102,6 +102,10 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::DependencyNrfUtilTooOld:
     case ErrorCode::InternalBusy:
     case ErrorCode::ProbeIoFailed:
+    case ErrorCode::UsbAccessDenied:
+    case ErrorCode::ProbeHeldByProgram:
+    case ErrorCode::DiagReportWriteFailed:
+    case ErrorCode::DiagCheckTimeout:
         return true;
     }
     return false;
@@ -285,6 +289,7 @@ constexpr std::array defaultTexts{
         .suggestion =
             QT_TRANSLATE_NOOP3("hio::core", "Close the other program, or choose another J-Link.",
                                "probe.in_use_by_other_process suggestion"),
+        .wizard = WizardId::Troubleshooting, // M4 (plan/features/0007)
     },
     DefaultTexts{
         .code = ErrorCode::ProbeOpenFailed,
@@ -657,6 +662,50 @@ constexpr std::array defaultTexts{
             "automatically if enabled.",
             "probe.io_failed suggestion"),
         .wizard = WizardId::Troubleshooting,
+    },
+    // M4 (plan/features/0007-m4-wizard-framework-diagnostics.md, ADR-0072, ADR-0073, ADR-0075)
+    DefaultTexts{
+        .code = ErrorCode::UsbAccessDenied,
+        .message = QT_TRANSLATE_NOOP3(
+            "hio::core", "This computer does not allow access to the J-Link (USB permissions).",
+            "usb.access_denied message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The udev rule for SEGGER devices is missing.",
+                                    "usb.access_denied cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Install the udev rule shown in the setup wizard, then reconnect the J-Link.",
+            "usb.access_denied suggestion"),
+        .wizard = WizardId::FirstRunSetup,
+    },
+    DefaultTexts{
+        .code = ErrorCode::ProbeHeldByProgram,
+        .message = QT_TRANSLATE_NOOP3("hio::core",
+                                      "Another program is running and may be using the J-Link.",
+                                      "probe.held_by_program message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "Another debugging or programming tool keeps the probe open.",
+                                    "probe.held_by_program cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Close the other program and try again.",
+                                         "probe.held_by_program suggestion"),
+        .wizard = WizardId::Troubleshooting,
+    },
+    DefaultTexts{
+        .code = ErrorCode::DiagReportWriteFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The diagnostic report could not be saved.",
+                                      "diag.report_write_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The folder is not writable or the disk is full.",
+                                    "diag.report_write_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Choose another folder.",
+                                         "diag.report_write_failed suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::DiagCheckTimeout,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "A check did not finish in time.",
+                                      "diag.check_timeout message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The system is slow or a tool does not answer.",
+                                    "diag.check_timeout cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Run the checks again.",
+                                         "diag.check_timeout suggestion"),
     },
 };
 

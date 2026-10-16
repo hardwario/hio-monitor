@@ -192,7 +192,9 @@ Status JLinkProbe::selectSwd() {
 }
 
 Status JLinkProbe::connect(std::string_view deviceName, int minTargetMillivolts,
-                           bool healthyVoltageSeen, const std::stop_token& stop) {
+                           bool healthyVoltageSeen, const std::stop_token& stop,
+                           std::optional<int> attempts) {
+    const int maxAttempts = std::max(1, attempts.value_or(m_timing.connectAttempts));
     const std::string deviceError = m_api.execCommand(std::format("Device = {}", deviceName));
     // pylink JLink.connect(chip, speed): the speed is set again right after `Device =` and before
     // JLINKARM_Connect, by default 'auto' (JLINKARM_SetSpeed(0)), which overrides the speed rttt
@@ -200,7 +202,7 @@ Status JLinkProbe::connect(std::string_view deviceName, int minTargetMillivolts,
     // (ADR-0090).
     applySpeed();
     std::string lastFailure = deviceError.empty() ? std::string() : "Device: " + deviceError;
-    for (int attempt = 1; attempt <= m_timing.connectAttempts; ++attempt) {
+    for (int attempt = 1; attempt <= maxAttempts; ++attempt) {
         if (stop.stop_requested()) {
             return fail(ErrorCode::Cancelled);
         }
@@ -212,10 +214,9 @@ Status JLinkProbe::connect(std::string_view deviceName, int minTargetMillivolts,
             return {};
         }
         lastFailure = std::format("JLINKARM_Connect returned {} (attempt {} of {})", result,
-                                  attempt, m_timing.connectAttempts);
+                                  attempt, maxAttempts);
         qCInfo(log::lcJLink).noquote() << toQString(lastFailure);
-        if (attempt < m_timing.connectAttempts &&
-            !m_clock.sleepFor(m_timing.connectRetryDelay, stop)) {
+        if (attempt < maxAttempts && !m_clock.sleepFor(m_timing.connectRetryDelay, stop)) {
             return fail(ErrorCode::Cancelled);
         }
     }

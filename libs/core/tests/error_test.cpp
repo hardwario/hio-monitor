@@ -83,7 +83,9 @@ TEST(MakeError, JLinkCodesHaveCategoriesAndWizards) {
     EXPECT_EQ(hio::makeError(ErrorCode::TargetNoPower).wizard, hio::WizardId::ConnectDevice);
     EXPECT_EQ(hio::makeError(ErrorCode::TargetRttReadFailed).wizard,
               hio::WizardId::Troubleshooting);
-    EXPECT_FALSE(hio::makeError(ErrorCode::ProbeInUseByOtherProcess).wizard.has_value());
+    // M4 (plan/features/0007): the troubleshooting topic explains how to close the other program.
+    EXPECT_EQ(hio::makeError(ErrorCode::ProbeInUseByOtherProcess).wizard,
+              hio::WizardId::Troubleshooting);
 }
 
 // Review fix 5 (2026-10-09): RTT write failures have their own code.
@@ -130,6 +132,43 @@ TEST(MakeError, ProbeIoFailedCode) {
 
 // Review R44: a closed stdout ends with `cancelled` and its own message; the cause, suggestion
 // and the detail of the call site stay.
+// M4 codes (plan/features/0007-m4-wizard-framework-diagnostics.md): ids, categories, wizards.
+TEST(MakeError, M4Codes) {
+    struct Row {
+        ErrorCode code;
+        std::string_view id;
+        hio::ErrorCategory category;
+        std::optional<hio::WizardId> wizard;
+    };
+    for (const Row& row : {
+             Row{.code = ErrorCode::UsbAccessDenied,
+                 .id = "usb.access_denied",
+                 .category = hio::ErrorCategory::Probe,
+                 .wizard = hio::WizardId::FirstRunSetup},
+             Row{.code = ErrorCode::ProbeHeldByProgram,
+                 .id = "probe.held_by_program",
+                 .category = hio::ErrorCategory::Probe,
+                 .wizard = hio::WizardId::Troubleshooting},
+             Row{.code = ErrorCode::DiagReportWriteFailed,
+                 .id = "diag.report_write_failed",
+                 .category = hio::ErrorCategory::Io,
+                 .wizard = std::nullopt},
+             Row{.code = ErrorCode::DiagCheckTimeout,
+                 .id = "diag.check_timeout",
+                 .category = hio::ErrorCategory::Timeout,
+                 .wizard = std::nullopt},
+         }) {
+        const hio::Error error = hio::makeError(row.code);
+        EXPECT_EQ(hio::idOf(row.code), row.id);
+        EXPECT_EQ(hio::categoryOf(row.code), row.category);
+        EXPECT_EQ(hio::errorCodeFromId(row.id), row.code);
+        EXPECT_EQ(error.wizard, row.wizard) << row.id;
+        EXPECT_FALSE(error.message.empty());
+        EXPECT_FALSE(error.cause.empty());
+        EXPECT_FALSE(error.suggestion.empty());
+    }
+}
+
 TEST(MakeError, OutputClosedIsCancelledWithItsOwnMessage) {
     const hio::Error error = hio::outputClosedError("the standard output was closed");
     const hio::Error cancelled = hio::makeError(ErrorCode::Cancelled);

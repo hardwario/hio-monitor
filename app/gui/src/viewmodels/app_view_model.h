@@ -22,8 +22,14 @@
 #include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
+#include "wizard/report_view_model.h"
+#include "wizard/wizard_launcher.h"
+#include "wizard/wizard_registry.h"
+#include "wizard/wizard_view_model.h"
+#include "workers/diag_worker.h"
 #include "workers/probe_scanner.h"
 
+#include <QJsonArray>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -87,6 +93,11 @@ class AppViewModel : public QObject {
     Q_PROPERTY(QStringList toasts READ toasts NOTIFY toastsChanged)
     Q_PROPERTY(QString jlinkLibraryPath READ jlinkLibraryPath NOTIFY jlinkLibraryChanged)
     Q_PROPERTY(QString jlinkLibraryVersion READ jlinkLibraryVersion NOTIFY jlinkLibraryChanged)
+    // M4 (plan/features/0007): the open wizard, the launcher and the diagnostic report dialog.
+    Q_PROPERTY(hio::gui::WizardViewModel* wizard READ wizard CONSTANT)
+    Q_PROPERTY(hio::gui::WizardLauncher* launcher READ launcher CONSTANT)
+    Q_PROPERTY(hio::gui::ReportViewModel* report READ report CONSTANT)
+    Q_PROPERTY(QString documentationUrl READ documentationUrl CONSTANT)
 
 public:
     static constexpr int railBreakpoint = 1100; // ADR-0061
@@ -141,11 +152,20 @@ public:
     [[nodiscard]] QStringList toasts() const;
     [[nodiscard]] QString jlinkLibraryPath() const { return m_jlinkLibraryPath; }
     [[nodiscard]] QString jlinkLibraryVersion() const { return m_jlinkLibraryVersion; }
+    [[nodiscard]] WizardViewModel* wizard() const { return m_wizard; }
+    [[nodiscard]] WizardLauncher* launcher() const { return m_launcher; }
+    [[nodiscard]] ReportViewModel* report() const { return m_report; }
+    [[nodiscard]] static QString documentationUrl();
 
     // --- registries (extension registration and tests) ---
     [[nodiscard]] PageRegistry& pageRegistry() { return m_pages; }
     [[nodiscard]] device::SessionRegistry& sessionRegistry() { return *m_registry; }
     [[nodiscard]] ProbeScanner& probeScanner() { return *m_scanner; }
+    // M4: the wizard plans (0008-0010) register their wizards here (registerExtensions).
+    [[nodiscard]] WizardRegistry& wizardRegistry() { return m_wizardRegistry; }
+    [[nodiscard]] DiagWorker& diagWorker() { return *m_diagWorker; }
+    // The environment of the checks (settings, overrides; GUI thread).
+    [[nodiscard]] diag::EnvironmentContext diagEnvironment() const;
     // Environment, the jlink/libraryPath setting and the search paths of this OS.
     [[nodiscard]] jlink::LocatorOptions locatorOptions() const;
 
@@ -181,6 +201,8 @@ public:
     // --- misc ---
     Q_INVOKABLE void showToast(const QString& text);
     Q_INVOKABLE void copyToClipboard(const QString& text);
+    // Help → Documentation (opens the browser).
+    Q_INVOKABLE static void openDocumentation();
     // One spin-box step on the grid of `step` (review S15): up from 1 → 10, from 10 → 20; down
     // from 15 → 10; clamped to [minimum, maximum]. direction: +1 / -1.
     Q_INVOKABLE [[nodiscard]] static int stepValue(int value, int step, int direction, int minimum,
@@ -219,6 +241,10 @@ private:
     void expireToast(std::uint64_t id);
     void checkQuit();
     [[nodiscard]] int tabUsingProbe(std::uint32_t serial, const DeviceTabViewModel* self) const;
+    // A wizard's hand-off (plan/features/0007): "open-console", "open-flash-page",
+    // "open-settings[:<section>]".
+    void onHandOff(const QString& action, DeviceTabViewModel* tab);
+    [[nodiscard]] QJsonArray tabsJson() const;
 
     AppOptions m_options;
     SettingsStore* m_settings = nullptr;     // child
@@ -229,7 +255,13 @@ private:
     // worker is joined before the registry goes away.
     std::unique_ptr<device::SessionRegistry> m_registry;
     std::unique_ptr<ProbeScanner> m_scanner;
-    DeviceTabListModel* m_tabs = nullptr;                         // child
+    // M4: filled by registerExtensions; the worker is joined before the registry goes away.
+    WizardRegistry m_wizardRegistry;
+    std::unique_ptr<DiagWorker> m_diagWorker;
+    WizardViewModel* m_wizard = nullptr;  // child; deleted first by the destructor
+    WizardLauncher* m_launcher = nullptr; // child
+    ReportViewModel* m_report = nullptr;  // child
+    DeviceTabListModel* m_tabs = nullptr; // child
     std::vector<std::pair<QString, QObject*>> m_globalViewModels; // children
     QPointer<LanguageManager> m_languageManager;                  // non-owning, owned by main()
     QPointer<QWindow> m_window; // non-owning, owned by the QML engine

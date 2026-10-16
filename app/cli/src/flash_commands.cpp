@@ -3,6 +3,7 @@
 #include "cli_app.h"
 #include "cli_log.h"
 #include "confirm.h"
+#include "diag_commands.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
@@ -692,6 +693,8 @@ void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
     lte->require_subcommand(1);
     auto group = std::make_shared<ProbeOptions>();
     addProbeOptions(*lte, *group);
+    // M4 (plan/features/0007): the live connection check.
+    registerCheckCommand(*lte, group, slot, globals, "lte");
 
     struct FlashOptions {
         ProbeOptions probe;

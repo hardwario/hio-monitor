@@ -119,6 +119,11 @@ ApplicationWindow {
 
     ShortcutOverlay {}
 
+    // M4 (plan/features/0007): the one wizard dialog and the diagnostic report dialog.
+    WizardDialog {}
+
+    ReportDialog {}
+
     Shortcuts {}
 
     ConfirmDialog {

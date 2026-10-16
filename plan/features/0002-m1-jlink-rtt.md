@@ -1,9 +1,9 @@
 # 0002 — M1 J-Link & RTT: runtime J-Link library, probes, DeviceSession, RTT console, CLI
 
-- **Status:** In progress (implementation started 2026-10-09; approved by Matej Strnad, 2026-10-09; re-approved 2026-10-09 with the ADR-0053/0058/0063 amendments)
+- **Status:** In progress (implementation started 2026-10-09; approved by Matej Strnad, 2026-10-09; re-approved 2026-10-09 with the ADR-0053/0058/0063 amendments); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010)
 - **Milestone:** M1
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063, 0064, 0090, 0095
+- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063, 0064, 0069, 0072, 0090, 0095
 - **Depends on:** 0001 (M0 skeleton, incl. the translation infrastructure)
 
 > **Amended by ADR-0053, ADR-0058 and ADR-0063 (M3 planning, applied in this text):** `DeviceSession::open()` is
@@ -11,11 +11,12 @@
 > `probe.in_use_by_other_process`). Command-history saves are merged under a file lock. The `ConsoleLog` can be
 > provided by the session's owner, and marker lines exist.
 
-> **Pending amendment from M4 (ADR-0069, specified in [0007](0007-m4-wizard-framework-diagnostics.md) § Amendment;
-> applied to this text when 0007 is approved — then this plan needs re-approval):** `SessionOptions::connectTarget`
-> (probe-only sessions) and the `ProbeOpen` state; `DeviceSession::diagnose(targetId)` and `startConnection(attachRtt)`;
-> on Linux an open failure checks USB access and reports `usb.access_denied` (ADR-0072);
-> `probe.in_use_by_other_process` gets the Troubleshooting wizard.
+> **Amended by 0007 (approved 2026-10-16; ADR-0069, ADR-0072, ADR-0067; applied in this text):** probe-only
+> sessions (`SessionOptions::connectTarget = false`) with the new state `ProbeOpen`, and
+> `DeviceSession::startConnection(attachRtt)`, which promotes such a session to a normal connection while the probe
+> and its `ProbeLock` stay held; the `Diagnose` operation itself is part of 0003. On Linux a failed probe open checks
+> USB access and reports `usb.access_denied` (ADR-0072) when that is the cause. `probe.in_use_by_other_process` gets
+> the Troubleshooting wizard. The implementation is tracked in 0007 (steps A3, B1, B2).
 
 ## Context
 
@@ -201,6 +202,9 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   changes; the CLI and `--json` never produce them); used by `command` now and MCP later. Owner thread only.
 - **`SessionEvent`** = `std::variant<ConsoleLine, ConnectionEvent, LinesDropped, Warning>`;
   `ConnectionEvent { ConnectionState state /*Connecting, Connected, Disconnected, Stopped*/; std::optional<Error> error; }`.
+  *Amended by 0007 (2026-10-16):* `ConnectionState` gains `ProbeOpen` (between `Connecting` and `Connected`): the
+  library is loaded, the probe is open and locked, the target is not connected. It is the terminal state of a
+  probe-only session (`connectTarget = false`) until `startConnection()`; the CLI console never reports it.
   *Amended by ADR-0091 (2026-10-12):* `ConnectionEvent` also carries `std::optional<int> targetMillivolts`, the
   VTref of the worker's last power reading (set at least on Connected; empty when not measured).
   *Amended by ADR-0093 (2026-10-12):* `libs/hw/jlink` also offers `ProbeEnumerator`, a kept library copy for repeated
@@ -211,7 +215,8 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
       std::optional<std::uint32_t> probeSn; std::optional<int> speedKhz /* nullopt = auto, ADR-0090 */; int latencyMs; bool autoReconnect; bool resetOnOpen;
       std::optional<std::filesystem::path> consoleFile; /* nullopt = default, empty = disabled */
       std::shared_ptr<ConsoleLog> consoleLog; /* ADR-0063: nullptr = the session creates its own; a GUI tab passes
-                                                 one log for all its sessions. Accessed on the owner thread only. */ };
+                                                 one log for all its sessions. Accessed on the owner thread only. */
+      bool connectTarget = true; /* amended by 0007 (ADR-0069): false = probe-only session (ProbeOpen), see below */ };
   class DeviceSession : public QObject {
       Q_OBJECT
   public:
@@ -222,6 +227,10 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
       [[nodiscard]] Status reconnect();
       [[nodiscard]] Status suspend();                       // detach + release probe (M2 / nRF Util)
       [[nodiscard]] Status resume();
+      // Amended by 0007 (ADR-0069): promotes a probe-only session (ProbeOpen) to a normal one — connect the target,
+      // attach RTT when asked, start power polling and auto-reconnect per SessionOptions. The probe and its
+      // ProbeLock stay held. Any other state → usage.invalid_argument.
+      [[nodiscard]] Status startConnection(bool attachRtt);
       void close();                                          // stop + join, idempotent
       [[nodiscard]] const ConsoleLog& log() const;           // owner thread only; the provided or own log
       [[nodiscard]] ProbeInfo probe() const;
@@ -246,7 +255,14 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   reported as `Connecting` → `Connected`, or as `Disconnected` (auto-reconnect on) / `Stopped` (fatal: library,
   lock or probe errors, or any error with auto-reconnect off), with the `hio::Error`. Every step checks the stop
   token, so `close()` during connect returns within one step (≤ 1 s, apart from a single blocking vendor call).
-  `probe()` returns the SN once known (`connectionChanged` is emitted after it is set). The CLI calls
+  `probe()` returns the SN once known (`connectionChanged` is emitted after it is set).
+  *Amended by 0007 (2026-10-16, ADR-0069):* with `connectTarget = false` the worker stops after the probe open and
+  the `ProbeLock` and reports `ProbeOpen`: no target connect, no RTT, no power polling, no auto-reconnect; only
+  operations (0003, incl. `Diagnose`) touch the target. The `Diagnose` `connect` step uses the session's `speedKhz`
+  (automatic when `nullopt`, ADR-0090), one attempt. `startConnection(attachRtt)` then continues with the target
+  connect and the RTT attach as above. *Amended by 0007 (2026-10-16, ADR-0072):* on Linux a failed probe open runs
+  the USB access check (`checkUsbAccess`, 0007) on the worker and reports `usb.access_denied` instead of
+  `probe.open_failed` when a SEGGER USB device is not accessible. The CLI calls
   `waitUntilConnected()` (timeout `connectTimeoutForSpeed(speed)` = `connectTimeoutFor(ProbeTiming, RttTiming)` with
   the attach deadline of the session speed: 35.5 s at auto and at 1000 kHz or more, up to 80.5 s at 250 kHz and
   below, ADR-0095; see Bounds; review R38) and ends with that error if it fails. Below 125 kHz the CLI warns before
@@ -348,8 +364,8 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
 | `dependency.jlink_load_failed` | Dependency | "The J-Link library could not be loaded." / damaged install, wrong architecture, missing symbol / "Reinstall J-Link Software." | FirstRunSetup |
 | `dependency.jlink_too_old` | Dependency | "J-Link Software %1 is too old." / minimum is 8.00 / "Install the current J-Link Software." | FirstRunSetup |
 | `probe.not_found` | Probe | "No J-Link probe found." (or "…with serial number %1") / USB cable, probe not powered / "Check the USB cable between the J-Link and the computer." | ConnectDevice |
-| `probe.in_use_by_other_process` | Probe | "The J-Link %1 is used by another program (%2, PID %3)." / another HARDWARIO Monitor window or `hio` command / "Close the other program, or choose another J-Link." | — |
-| `probe.open_failed` | Probe | "The J-Link probe could not be opened." / used by another program or session, USB permissions (Linux udev) / "Close other programs using the J-Link and try again." | Troubleshooting |
+| `probe.in_use_by_other_process` | Probe | "The J-Link %1 is used by another program (%2, PID %3)." / another HARDWARIO Monitor window or `hio` command / "Close the other program, or choose another J-Link." | Troubleshooting (*amended by 0007, 2026-10-16*; was —) |
+| `probe.open_failed` | Probe | "The J-Link probe could not be opened." / used by another program or session, USB permissions (Linux udev) / "Close other programs using the J-Link and try again." *Amended by 0007 (2026-10-16, ADR-0072):* on Linux the cause "USB permissions" is named only when `usb.access_denied` (0007) was not detected separately; when it is, that error is reported instead. | Troubleshooting |
 | `probe.firmware_outdated` | Probe (warning) | "The J-Link firmware is outdated." (or "newer than the library") / — / "Run `hio jlink update-firmware`." | Troubleshooting |
 | `target.no_power` | Target | "The device has no power (%1 mV)." / not powered or flat cable disconnected / "Power the device and check the flat cable." | ConnectDevice |
 | `target.connect_failed` | Target | "Could not connect to the device's %1 MCU." / flat cable, wrong connector, MCU in low-power or protected state / "Check the flat cable between the J-Link and the device." | ConnectDevice |
@@ -418,6 +434,8 @@ automatic speed (ADR-0090) is not concerned.
 | `open()` blocking (M3 review) | non-blocking + `waitUntilConnected` / GUI opener thread | non-blocking | ADR-0053 |
 | Console log ownership (M3 review) | provided by owner / GUI copy / clear on new session | provided by the owner (`SessionOptions::consoleLog`), marker lines | ADR-0063 |
 | Several processes (M3 review) | probe locks + history merge / no coordination | cross-process probe locks in the backend; history merged under a file lock | ADR-0058 |
+| Probe-only sessions and live connection checks (M4 planning) | `Diagnose` operation + `connectTarget = false` / standalone checker / interpret `open()` | `Diagnose` operation and probe-only sessions with `startConnection` (approved with 0007 on 2026-10-16) | ADR-0069 |
+| Linux USB permissions (M4 planning) | detect + show commands / pkexec / docs link | detect after a failed open → `usb.access_denied` (approved with 0007 on 2026-10-16) | ADR-0072 |
 | Probe firmware auto-update on open | before Open / before+after / keep SilentUpdateFW | before and after Open; SilentUpdateFW removed (decided 2026-10-10) | — |
 | HIL with a single probe | one probe now / wait for two | one probe now; two-probe and outdated-firmware HIL checks deferred, still required before Done | — |
 | RTT write error code (implementation review) | own code / reuse `target.rtt_read_failed` | own code `target.rtt_write_failed` (review fix R5; decided 2026-10-09) | — |
@@ -605,6 +623,8 @@ The six review rounds (R1–R56, 2026-10-09 to 2026-10-11) are in
 - **replxx** with clang-cl and sanitizers; terminal handling on Windows consoles.
 - **Vendor library internal threads** vs. TSan: suppressions documented one by one (HIL only; the fake library is ours).
 - **macOS/Linux USB permissions** (udev rules) surface as `probe.open_failed`; the setup wizard is M4.
+  *Amended by 0007 (2026-10-16):* on Linux they are detected after a failed open and reported as
+  `usb.access_denied` (ADR-0072), handled by the setup wizard (0008).
 - **Very low explicit SWD speeds** (R47): HIL G1 measured 12.8 s for the RTT search at 100 kHz and no control block
   within 15 s at 5 kHz (H2). Since ADR-0095 the attach deadline (15 s × 1000 / kHz, at most 60 s) and the connect
   timeout scale with a fixed speed below 1000 kHz; below 125 kHz a full-RAM search can still exceed 60 s, so the CLI

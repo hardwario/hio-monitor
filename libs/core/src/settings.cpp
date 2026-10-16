@@ -198,6 +198,13 @@ Result<Settings> Settings::openDefault() {
                                         builtInMigrations);
 }
 
+std::filesystem::path Settings::defaultFilePath() {
+    const QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                             QCoreApplication::organizationName(),
+                             QCoreApplication::applicationName());
+    return {settings.fileName().toStdU16String()};
+}
+
 Result<Settings> Settings::openFile(const std::filesystem::path& file) {
     return detail::openSettingsFile(file, currentSettingsSchema, builtInMigrations);
 }

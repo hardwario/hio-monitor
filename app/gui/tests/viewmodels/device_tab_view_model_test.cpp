@@ -200,6 +200,74 @@ TEST_F(DeviceTabTest, EnsureSessionOpensTheConsoleTarget) {
     testPage()->finishWork();
 }
 
+// M4 (plan 0007, ADR-0069): a wizard's probe-only session: the probe is open and locked, the
+// target is not connected.
+TEST_F(DeviceTabTest, EnsureSessionWithoutTargetOpensAProbeOnlySession) {
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
+    ASSERT_TRUE(tab().ensureSession(false));
+    hio::device::DeviceSession* session = tab().session();
+    ASSERT_NE(session, nullptr);
+    EXPECT_EQ(session->target().id, "app");
+    ASSERT_TRUE(waitFor([&] { return session->connection().state == ConnectionState::ProbeOpen; }));
+    spin(std::chrono::milliseconds(100));
+    EXPECT_EQ(session->connection().state, ConnectionState::ProbeOpen); // never connects
+    EXPECT_EQ(tab().state(), DeviceTabViewModel::Disconnected);
+    EXPECT_FALSE(tab().hasError());
+    EXPECT_TRUE(hio::device::ProbeLock::owner(801000001, root() / "locks").has_value());
+    ASSERT_TRUE(tab().ensureSession(false)); // no-op
+    EXPECT_EQ(tab().session(), session);
+    EXPECT_TRUE(markers(*tab().consoleLog()).empty()); // no "connected" marker
+}
+
+TEST_F(DeviceTabTest, EnsureSessionPromotesAProbeOnlySession) {
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
+    ASSERT_TRUE(tab().ensureSession(false));
+    hio::device::DeviceSession* session = tab().session();
+    ASSERT_NE(session, nullptr);
+    ASSERT_TRUE(waitFor([&] { return session->connection().state == ConnectionState::ProbeOpen; }));
+    ASSERT_TRUE(tab().ensureSession(true));
+    EXPECT_EQ(tab().session(), session); // the same session, the probe lock stays held
+    ASSERT_TRUE(waitFor([&] { return tab().state() == DeviceTabViewModel::Connected; }));
+    // RTT is attached: the console shows the device's output.
+    ASSERT_TRUE(waitFor([&] { return tab().consoleLog()->size(Channel::Shell) >= 2; }));
+    EXPECT_EQ(markers(*tab().consoleLog()).front(), "— connected —");
+}
+
+TEST_F(DeviceTabTest, ConnectPromotesAProbeOnlySession) {
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
+    ASSERT_TRUE(tab().ensureSession(false));
+    hio::device::DeviceSession* session = tab().session();
+    ASSERT_NE(session, nullptr);
+    ASSERT_TRUE(waitFor([&] { return session->connection().state == ConnectionState::ProbeOpen; }));
+    EXPECT_EQ(tab().connection()->action(), QStringLiteral("connect"));
+    ASSERT_TRUE(connectAndWait(tab()));
+    EXPECT_EQ(tab().session(), session);
+    EXPECT_EQ(app().sessionRegistry().sessionCount(), 1U);
+}
+
+// Review V4: Connect while an operation (a wizard's Diagnose) runs on the probe-only session keeps
+// the session and shows internal.busy; it works once the operation has finished.
+TEST_F(DeviceTabTest, ConnectDuringDiagnoseKeepsTheProbeOnlySession) {
+    useScenario(R"({"probes": [{"serialNumber": 9, "connectDelayMs": 800}]})");
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 9));
+    ASSERT_TRUE(tab().ensureSession(false));
+    hio::device::DeviceSession* session = tab().session();
+    ASSERT_NE(session, nullptr);
+    ASSERT_TRUE(waitFor([&] { return session->connection().state == ConnectionState::ProbeOpen; }));
+    const auto diagnose = session->diagnose("app");
+    ASSERT_TRUE(diagnose);
+    tab().connectDevice();
+    EXPECT_EQ(tab().session(), session); // not released mid-Diagnose
+    ASSERT_TRUE(tab().connection()->error().valid());
+    EXPECT_EQ(tab().connection()->error().code(), QStringLiteral("internal.busy"));
+    EXPECT_EQ(tab().state(), DeviceTabViewModel::Disconnected);
+    ASSERT_TRUE(waitFor([&] { return !session->runningOperation().has_value(); }));
+    EXPECT_EQ(tab().session(), session);
+    ASSERT_TRUE(connectAndWait(tab()));
+    EXPECT_EQ(tab().session(), session);
+    EXPECT_FALSE(tab().connection()->error().valid());
+}
+
 TEST_F(DeviceTabTest, AFatallyStoppedSessionIsReleased) {
     // Review S1, S18: a fatal connect failure (missing probe) releases the session on the next
     // event-loop turn; its error stays shown, the target can be changed, Connect opens a new one.

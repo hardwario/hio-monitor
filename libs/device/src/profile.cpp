@@ -47,6 +47,22 @@ QString targetDisplayName(const TargetProfile& target) {
     return QCoreApplication::translate("hio::device", source.c_str());
 }
 
+QString guideStepTitle(const ConnectionGuideStep& step) {
+    return QCoreApplication::translate("hio::device", step.titleSourceText);
+}
+
+QString guideStepBody(const ConnectionGuideStep& step) {
+    return QCoreApplication::translate("hio::device", step.bodySourceText);
+}
+
+QString powerHint(const DeviceProfile& profile) {
+    if (profile.powerHintSourceText.empty()) {
+        return {};
+    }
+    const std::string source(profile.powerHintSourceText);
+    return QCoreApplication::translate("hio::device", source.c_str());
+}
+
 firmware::AddressRange pibRange(const TargetProfile& target) noexcept {
     const std::uint64_t start = target.uicr.start + target.pibOffset;
     return firmware::AddressRange{.start = start, .end = start + pibSize};

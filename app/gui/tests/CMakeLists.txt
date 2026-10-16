@@ -7,7 +7,9 @@
 set(HIO_GUI_TEST_SUPPORT
     support/fake_jlink_scenario.h
     support/test_page_view_model.cpp
-    support/test_page_view_model.h)
+    support/test_page_view_model.h
+    support/test_wizard.cpp
+    support/test_wizard.h)
 
 qt_add_executable(tst_gui tst_gui.cpp ${HIO_GUI_TEST_SUPPORT})
 hio_apply_target_defaults(tst_gui)
@@ -50,6 +52,7 @@ add_executable(hio_gui_tests
     viewmodels/shortcut_registry_test.cpp
     viewmodels/single_instance_helper.h
     viewmodels/single_instance_test.cpp
+    viewmodels/wizard_test.cpp
     ${HIO_GUI_TEST_SUPPORT})
 hio_apply_target_defaults(hio_gui_tests)
 target_include_directories(hio_gui_tests PRIVATE

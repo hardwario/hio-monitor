@@ -55,8 +55,8 @@ Step list: Device · Probe · Cable · Power · Check · Done.
 4. **Power** [Info] — "Power CHESTER with batteries or the USB-C power input." (`DeviceProfile::powerHintSourceText`,
    final wording in open question 22). Slot `chester-power`. [Next].
 5. **Check** [Checks: the six `Diagnose` steps, ADR-0069]
-   - The wizard opens a probe-only session for the chosen probe and target (`ensureSession(target,
-     attachRtt = false, connectTarget = false)`) and runs `diagnose(target)`. Rows tick as steps finish.
+   - The wizard opens a probe-only session for the chosen probe and target (`ensureSession(connectTarget =
+     false)`, 0007 Implementation notes; the target is carried by `diagnose(target)`) and runs `diagnose(target)`. Rows tick as steps finish.
    - All Ok → [Connect] (default).
    - A step fails → the row expands with cause and "What to do", and the wizard offers [Show me how] which jumps back
      to the matching step (no power → Power, `target.connect_failed` / `target.wrong_family` → Cable with the

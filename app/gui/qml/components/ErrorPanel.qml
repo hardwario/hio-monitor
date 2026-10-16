@@ -1,7 +1,8 @@
 // Inline error card for every hio::Error (UX 0003, design system § 5): headline (message),
 // "Probably:" cause, "What to do:" suggestion, the primary action of the error category (a page
-// may override `primaryAction`), an optional secondary action, "Help me fix this" when the error
-// has a wizard (disabled, "Coming soon", until M4) and a Details expander (code, detail, Copy).
+// may override `primaryAction`), an optional secondary action, "Help me fix this" when the error's
+// wizard is registered (plan/features/0007: it opens the wizard with the error as context) and a
+// Details expander (code, detail, Copy).
 // `compact` (window height < 700 px) collapses it to the headline, the primary action and an
 // expand chevron.
 pragma ComponentBehavior: Bound
@@ -18,6 +19,8 @@ Rectangle {
     property int primaryAction: panel.error.primaryAction
     property string secondaryActionText: ""
     property bool compact: false
+    // The tab whose wizard "Help me fix this" opens (-1 = the current tab).
+    property int tabIndex: -1
     property bool detailsExpanded: false
     property bool userExpanded: false
     readonly property bool collapsed: panel.compact && !panel.userExpanded
@@ -134,27 +137,12 @@ Rectangle {
                     onClicked: panel.secondaryActionTriggered()
                 }
 
-                // Disabled until the M4 wizards exist; the tooltip says why.
-                Item {
+                // M4 (plan/features/0007): shown only when the error's wizard is registered.
+                HButton {
                     objectName: "errorWizard"
-                    visible: panel.error.wizard !== ""
-                    implicitWidth: wizardButton.implicitWidth
-                    implicitHeight: wizardButton.implicitHeight
-
-                    HButton {
-                        id: wizardButton
-
-                        enabled: false
-                        text: qsTr("Help me fix this")
-                        Accessible.description: qsTr("Coming soon")
-                    }
-
-                    HoverHandler {
-                        id: wizardHover
-                    }
-
-                    ToolTip.visible: wizardHover.hovered
-                    ToolTip.text: qsTr("Coming soon")
+                    visible: AppViewModel.launcher.canOpen(panel.error.wizard)
+                    text: qsTr("Help me fix this")
+                    onClicked: AppViewModel.launcher.open(panel.error.wizard, panel.error, panel.tabIndex)
                 }
 
                 HButton {

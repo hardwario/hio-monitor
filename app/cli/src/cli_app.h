@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <stop_token>
 #include <string>
 #include <vector>
@@ -37,6 +38,10 @@ struct CommandResult {
     // A streaming command (e.g. console) printed its own envelopes (NDJSON): main() then prints
     // only humanText in human mode and no final envelope with --json.
     bool streamed = false;
+    // ADR-0070 (check commands): the command ran but a check failed. main() exits with this
+    // error's category; --json prints the error envelope with "data"; human mode prints only
+    // humanText (which already explains the failure).
+    std::optional<Error> failure = std::nullopt;
 };
 
 using Command = std::function<Result<CommandResult>(const Context&)>;

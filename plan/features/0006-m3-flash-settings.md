@@ -11,17 +11,17 @@
 - **Milestone:** M3 (plan 3 of 3, ADR-0059)
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0016, ADR-0025, ADR-0027, ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0047, ADR-0049,
-  ADR-0054, ADR-0055, ADR-0057, ADR-0059, ADR-0060, ADR-0062
+  ADR-0054, ADR-0055, ADR-0057, ADR-0059, ADR-0060, ADR-0062, ADR-0067
 - **Depends on:** [0004](0004-m3-gui-shell.md) (shell, page-extension contract, `SettingsStore`), 0003 (M2 with the
   ADR-0057 / ADR-0062 amendments applied: operations with a target, `flashLteBundle`, `reset` as an operation)
 - **Can run in parallel with:** [0005](0005-m3-console.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
-> **Pending amendment from M4 ([0008](0008-m4-first-run-setup.md), [0010](0010-m4-flash-wizard.md); applied when
-> they are approved — then this plan needs re-approval):** the source part of `FlashViewModel` moves into a reusable
-> `FirmwareSourceViewModel` (also used by the flash wizard); the Flash page header gets "Guide me"; the J-Link and
-> nRF Util settings sections get the link "Run the setup wizard". In the error table, `FirstRunSetup` is the C++
-> enumerator name; QML/JSON use the kebab id `first-run-setup` (ADR-0067).
+> **Amended by 0007, 0008 and 0010 (approved 2026-10-16; applied in this text; this plan stays Draft):** the source
+> part of `FlashViewModel` moves into a reusable child `FirmwareSourceViewModel` (also used by the flash wizard,
+> 0010); the Flash page header gets the ghost button "Guide me" (flash wizard, 0010); the J-Link and nRF Util
+> settings sections get the link "Run the setup wizard" (0008). In the error table, `FirstRunSetup` is the C++
+> enumerator name; QML/JSON use the kebab id `first-run-setup` (ADR-0067, 0007).
 
 ## Context
 
@@ -55,14 +55,17 @@ The old app also had no settings page at all. M2 delivers the backend and the CL
 
 **Non-goals**
 - Catalog browsing (open question 15); the GUI uses the ID field only (ADR-0054).
-- Flash wizard and "Help me fix this" (M4), J-Link firmware update button (M4).
+- Flash wizard and "Help me fix this" (M4), J-Link firmware update button (M4). *Amended by 0010 (2026-10-16):*
+  this plan only adds the entry points ("Guide me", "Run the setup wizard"); the wizards are 0008 and 0010.
 - PIB / UICR read in the GUI (CLI only in M2; candidate for M4 diagnostics).
 
 ## User experience
 
 ### Flash page
 
-Per ADR-0055 (kind first) and ADR-0049 (progress, result, maintenance). The cards are:
+Per ADR-0055 (kind first) and ADR-0049 (progress, result, maintenance). *Amended by 0010 (2026-10-16):* the page
+header has a small ghost button **"Guide me"** that opens the flash wizard (`tab.openWizard("flash-firmware")`, 0004).
+The cards are:
 
 1. **What do you want to flash?** — three radio cards. The default comes from the tab's target.
 
@@ -121,9 +124,12 @@ Changes apply immediately (no OK/Cancel). Invalid input shows an inline error an
 |---|---|---|
 | General | Language: System / English / Čeština (live) · Theme: System / Light / Dark (live) · Reopen tabs at start | 0006 |
 | Console | Font size (8–24) · Show timestamps · Wrap long lines · Save console to log files (default on) · Log folder [Open] · Retention info "Last 50 files, max. 200 MB" | 0005 (section component) |
-| J-Link | Library: Automatic (detected: `/opt/SEGGER/JLink/libjlinkarm.so` 8.10) / Custom path [Browse…] · Default speed (kHz) · RTT latency (ms) · Auto-reconnect · Reset on connect | 0006 |
-| nRF Util | Path: Automatic (detected 7.x / "not found — needed only for LTE modem firmware") / Custom [Browse…] | 0006 |
+| J-Link | Library: Automatic (detected: `/opt/SEGGER/JLink/libjlinkarm.so` 8.10) / Custom path [Browse…] · Default speed (kHz) · RTT latency (ms) · Auto-reconnect · Reset on connect · link "Run the setup wizard" (*amended by 0008, 2026-10-16*) | 0006 |
+| nRF Util | Path: Automatic (detected 7.x / "not found — needed only for LTE modem firmware") / Custom [Browse…] · link "Run the setup wizard" (*amended by 0008, 2026-10-16*) | 0006 |
 | About | Version, build info, Qt, J-Link and nRF Util versions [Copy] · Licences (Qt LGPL, fonts OFL, Material Symbols Apache 2.0, miniz, replxx, …) · Links: documentation, firmware catalog, source | 0006 |
+
+*Amended by 0008 (2026-10-16):* "Run the setup wizard" opens `first-run-setup` (0008), text link only. Saving a path in
+the setup wizard invalidates the cached `dependency_status` so this page updates.
 
 Read-only settings file (`settings.newer_schema`): a banner says "Settings were created by a newer version and are
 read-only." and all controls are disabled.
@@ -149,6 +155,7 @@ through the INI file (ADR-0025); the CLI reads `jlink/libraryPath` and `nrfutil/
 app/gui/
   src/viewmodels/
     flash_view_model.*              registered as page "flash"; parent = DeviceTabViewModel
+    firmware_source_view_model.*    source part of the Flash page, also used by the flash wizard (amended by 0010)
     recent_sources_model.*          QAbstractListModel over `flash/recent`
     settings_view_model.*           registered as global page "settings"
     dependency_status.*             J-Link / nRF Util detection for Settings, About and flash prerequisites
@@ -163,8 +170,23 @@ app/gui/
 
 ### ViewModel interfaces (sketch, `hio::gui`)
 
+*Amended by 0010 (2026-10-16):* `FlashViewModel` keeps its API, but its source part (kind-filtered loading, catalog
+download, recent list, summary, kind hint, `hasUicr`, `allowUicr`) lives in a child `FirmwareSourceViewModel`
+(parent = the `FlashViewModel`; the flash wizard creates its own instance). All instances share the app's
+`FirmwareLoader` worker and the `flash/recent` key. `SourceCard.qml` binds to `FirmwareSourceViewModel`.
+
 ```cpp
-class FlashViewModel : public QObject {
+class FirmwareSourceViewModel : public QObject {   // amended by 0010; child of FlashViewModel or of the flash wizard
+    Q_PROPERTY(Kind kind ...)                       // set by the owner; filters loading and the recent list
+    Q_PROPERTY(SourceState sourceState ...) Q_PROPERTY(QString sourceSummary ...) Q_PROPERTY(qreal downloadProgress ...)
+    Q_PROPERTY(bool hasUicr ...) Q_PROPERTY(bool allowUicr ...)
+    Q_PROPERTY(QString kindHint ...) Q_PROPERTY(int suggestedKind ...)
+    Q_PROPERTY(QAbstractListModel* recent ...)
+    Q_INVOKABLE void loadFile(const QUrl&); Q_INVOKABLE void loadCatalogId(const QString&); Q_INVOKABLE void loadRecent(int row);
+};
+
+class FlashViewModel : public QObject {             // source properties and invokables forward to `source`
+    Q_PROPERTY(FirmwareSourceViewModel* source READ source CONSTANT)   // amended by 0010
     Q_PROPERTY(Kind kind READ kind WRITE setKind NOTIFY kindChanged)   // AppFirmware, LteFirmware, ModemFirmware
     Q_PROPERTY(QString targetId ...)                                   // derived from kind: "app" | "lte"
     Q_PROPERTY(SourceState sourceState ...)  // None, Loading, Downloading, Ready, Invalid
@@ -234,7 +256,7 @@ Operation mapping (ADR-0057, ADR-0062; all on the tab's session, `targetId` from
 | Invalid catalog ID | (inline validator, not an error) | "The ID has 32 characters 0–9 a–f." | — |
 | File of another kind | (hint, not an error) | "This is LTE modem firmware — switch to LTE modem firmware?" | — |
 | Settings path not writable / invalid | `io.write_failed` / `usage.invalid_argument` | inline at the control | — |
-| Custom J-Link path invalid | `dependency.jlink_load_failed` (existing) | shown inline in Settings | FirstRunSetup |
+| Custom J-Link path invalid | `dependency.jlink_load_failed` (existing) | shown inline in Settings | FirstRunSetup (C++ enumerator; QML/JSON `first-run-setup`, ADR-0067; *amended by 0007, 2026-10-16*) |
 | Flash while another operation runs | `internal.busy` (existing) | Flash disabled, the bar says "Another operation is running" | — |
 
 All backend errors from 0003 are shown through `ErrorPanel` with their texts. The Firmware category's primary
@@ -273,16 +295,17 @@ action is "Choose another file".
 Phase D — flash
 - [ ] D0 Prerequisite check: 0004 is Done; 0003 implemented with the ADR-0057 / ADR-0062 amendments (otherwise stop
   and report)
-- [ ] D1 `FirmwareLoader` worker + catalog download integration + `RecentSourcesModel`
+- [ ] D1 `FirmwareLoader` worker + catalog download integration + `RecentSourcesModel`; `FirmwareSourceViewModel`
+  (amended by 0010; if this plan is implemented first, 0010 W1 does the extraction as a refactoring)
 - [ ] D2 `FlashViewModel` + kind cards, prerequisites, source card filtered by kind, kind-mismatch hints, options,
-  sticky Flash bar
+  sticky Flash bar; header "Guide me" (amended by 0010; wired to the wizard by 0010 W4)
 - [ ] D3 PhaseStepper wiring (`plannedPhases`, step/steps), cancel, result card, busy integration (`setBusy` /
   `clearBusy`, toast)
 - [ ] D4 Maintenance section + ConfirmDialogs (ADR-0038)
 
 Phase E — settings
 - [ ] E1 `SettingsViewModel` + SettingsPage (General, J-Link, nRF Util, About, contributed sections; live language
-  and theme; read-only mode) + dependency detection
+  and theme; read-only mode) + dependency detection; "Run the setup wizard" links (amended by 0008; wired by 0008 S4)
 - [ ] E2 Accessibility; Czech translation, `.ts` fresh; screenshots of the Flash and Settings pages in both themes and
   both languages
 

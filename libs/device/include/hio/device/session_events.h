@@ -15,7 +15,10 @@
 namespace hio::device {
 
 enum class ConnectionState : std::uint8_t {
-    Connecting,   // the worker loads the library, opens the probe, connects and attaches RTT
+    Connecting, // the worker loads the library, opens the probe, connects and attaches RTT
+    // M4 (ADR-0069): probe open and locked, the target not connected (connectTarget = false);
+    // the terminal state of a probe-only session until startConnection().
+    ProbeOpen,
     Connected,    // RTT attached and the link works
     Disconnected, // the link failed (error says why); auto-reconnect or reconnect() may recover
     Stopped,      // fatal error, or suspended on purpose (no error); only reconnect() recovers
@@ -41,7 +44,7 @@ struct Warning {
 
 using SessionEvent = std::variant<ConsoleLine, ConnectionEvent, LinesDropped, Warning>;
 
-// "connecting", "connected", "disconnected", "stopped" (JSON).
+// "connecting", "probeOpen", "connected", "disconnected", "stopped" (JSON).
 [[nodiscard]] std::string_view connectionStateId(ConnectionState state) noexcept;
 
 } // namespace hio::device

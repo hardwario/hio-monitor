@@ -15,6 +15,8 @@ set(HIO_GUI_QML_FILES
     qml/Main.qml
     qml/Shortcuts.qml
     qml/Theme.qml
+    qml/components/CheckList.qml
+    qml/components/CommandBlock.qml
     qml/components/ConfirmDialog.qml
     qml/components/EmptyState.qml
     qml/components/ErrorPanel.qml
@@ -22,17 +24,22 @@ set(HIO_GUI_QML_FILES
     qml/components/HButton.qml
     qml/components/HToolButton.qml
     qml/components/Icon.qml
+    qml/components/Illustration.qml
     qml/components/PhaseStepper.qml
     qml/components/ShortcutOverlay.qml
     qml/components/StateDot.qml
     qml/components/StepSpinBox.qml
     qml/components/Toast.qml
     qml/components/WarningBanner.qml
+    qml/components/WizardDialog.qml
+    qml/components/WizardStepList.qml
+    qml/dialogs/ReportDialog.qml
     qml/pages/ChooseDevicePage.qml
     qml/pages/PlaceholderPage.qml
     qml/shell/AdvancedPopover.qml
     qml/shell/DeviceBar.qml
     qml/shell/DeviceTabBar.qml
+    qml/shell/HelpMenu.qml
     qml/shell/NavRail.qml
     qml/shell/PageHost.qml
     qml/shell/TabView.qml)
@@ -40,6 +47,10 @@ set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 file(GLOB HIO_GUI_ICONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/*.svg")
+# Wizard illustration slots (ADR-0076, Git LFS): <slot>[-dark].svg / .png.
+file(GLOB HIO_GUI_ILLUSTRATIONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/wizard/*.svg"
+    "${CMAKE_CURRENT_SOURCE_DIR}/assets/wizard/*.png")
 
 qt_add_library(hio_gui STATIC)
 hio_apply_target_defaults(hio_gui)
@@ -49,7 +60,7 @@ qt_add_qml_module(hio_gui
     VERSION 1.0
     OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/qml/HardwarioMonitor"
     QML_FILES ${HIO_GUI_QML_FILES}
-    RESOURCES ${HIO_GUI_ICONS}
+    RESOURCES ${HIO_GUI_ICONS} ${HIO_GUI_ILLUSTRATIONS}
     SOURCES
         src/fonts.cpp
         src/fonts.h
@@ -85,16 +96,32 @@ qt_add_qml_module(hio_gui
         src/viewmodels/probe_picker_view_model.h
         src/viewmodels/shortcut_registry.cpp
         src/viewmodels/shortcut_registry.h
+        src/wizard/check_list_model.cpp
+        src/wizard/check_list_model.h
+        src/wizard/report_view_model.cpp
+        src/wizard/report_view_model.h
+        src/wizard/wizard.cpp
+        src/wizard/wizard.h
+        src/wizard/wizard_launcher.cpp
+        src/wizard/wizard_launcher.h
+        src/wizard/wizard_registry.cpp
+        src/wizard/wizard_registry.h
+        src/wizard/wizard_view_model.cpp
+        src/wizard/wizard_view_model.h
+        src/workers/diag_worker.cpp
+        src/workers/diag_worker.h
         src/workers/probe_scanner.cpp
         src/workers/probe_scanner.h)
 target_include_directories(hio_gui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # The generated QML type registration includes the view model headers by file name.
 target_include_directories(hio_gui PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/pages"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels")
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/wizard")
 target_link_libraries(hio_gui PUBLIC
     hio::core
     hio::device
+    hio::diag
     Qt6::Core
     Qt6::Gui
     Qt6::Network

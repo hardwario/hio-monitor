@@ -110,6 +110,10 @@ int run(int& argc, char** argv) {
         }
         return hio::cli::exitSuccess;
     }
+    if (result->failure) {
+        output.printFailure(*result->failure, result->data, result->humanText);
+        return hio::cli::exitCodeFor(hio::categoryOf(result->failure->code));
+    }
     output.printResult(result->data, result->humanText);
     return hio::cli::exitSuccess;
 }

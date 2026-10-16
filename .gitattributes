@@ -20,6 +20,8 @@
 *.zip filter=lfs diff=lfs merge=lfs -text
 *.tar.gz filter=lfs diff=lfs merge=lfs -text
 *.7z filter=lfs diff=lfs merge=lfs -text
+# Wizard illustrations (ADR-0076): the whole slot directory, SVG included (README.md stays text)
+app/gui/assets/wizard/*.svg filter=lfs diff=lfs merge=lfs -text
 # Images, video, documents (wizard illustrations etc.)
 *.png filter=lfs diff=lfs merge=lfs -text
 *.jpg filter=lfs diff=lfs merge=lfs -text

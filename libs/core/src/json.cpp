@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -27,7 +28,9 @@ QString latin1(std::string_view text) {
     return QLatin1StringView(text.data(), static_cast<qsizetype>(text.size())).toString();
 }
 
-std::string_view wizardId(WizardId wizard) {
+} // namespace
+
+std::string_view wizardIdString(WizardId wizard) noexcept {
     switch (wizard) {
     case WizardId::FirstRunSetup:
         return "first-run-setup";
@@ -43,7 +46,16 @@ std::string_view wizardId(WizardId wizard) {
     return "troubleshooting";
 }
 
-} // namespace
+std::optional<WizardId> wizardIdFromString(std::string_view id) noexcept {
+    for (const WizardId wizard :
+         {WizardId::FirstRunSetup, WizardId::ConnectDevice, WizardId::FlashFirmware,
+          WizardId::Troubleshooting, WizardId::BlePairing}) {
+        if (wizardIdString(wizard) == id) {
+            return wizard;
+        }
+    }
+    return std::nullopt;
+}
 
 QJsonObject toJson(const Error& error) {
     QJsonObject object;
@@ -54,7 +66,7 @@ QJsonObject toJson(const Error& error) {
     object.insert(QStringLiteral("suggestion"), toQString(error.suggestion));
     object.insert(QStringLiteral("detail"), toQString(error.detail));
     object.insert(QStringLiteral("wizard"), error.wizard.has_value()
-                                                ? QJsonValue(latin1(wizardId(*error.wizard)))
+                                                ? QJsonValue(latin1(wizardIdString(*error.wizard)))
                                                 : QJsonValue(QJsonValue::Null));
     return object;
 }
@@ -72,6 +84,12 @@ QJsonObject errorEnvelope(const Error& error) {
     object.insert(QStringLiteral("schema"), envelopeSchema);
     object.insert(QStringLiteral("ok"), false);
     object.insert(QStringLiteral("error"), toJson(error));
+    return object;
+}
+
+QJsonObject errorEnvelope(const Error& error, const QJsonValue& data) {
+    QJsonObject object = errorEnvelope(error);
+    object.insert(QStringLiteral("data"), data);
     return object;
 }
 

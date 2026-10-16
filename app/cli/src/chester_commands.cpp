@@ -5,6 +5,7 @@
 #include "command_response.h"
 #include "console_events.h"
 #include "console_ui.h"
+#include "diag_commands.h"
 #include "flash_commands.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
@@ -562,6 +563,8 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
 
     // M2: flash, erase, reset, recover, pib read, uicr read; the `chester lte` group.
     registerAppFlashCommands(*appGroup, group, slot, globals);
+    // M4 (plan/features/0007): the live connection check.
+    registerCheckCommand(*appGroup, group, slot, globals, "app");
     registerLteCommands(*chester, slot, globals);
 }
 

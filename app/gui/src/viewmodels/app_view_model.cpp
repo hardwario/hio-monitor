@@ -3,13 +3,18 @@
 #include "gui_log.h"
 #include "hio/core/i18n.h"
 #include "hio/core/json.h"
+#include "hio/core/log.h"
 #include "hio/core/result.h"
+#include "hio/core/settings.h"
 #include "hio/core/version.h"
 #include "hio/device/device_session.h"
 #include "hio/device/session_registry.h"
+#include "hio/diag/environment.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/types.h"
+#include "hio/hw/nrfutil/nrfutil.h"
 #include "language_manager.h"
+#include "report_view_model.h"
 #include "settings_store.h"
 #include "system_preferences.h"
 #include "viewmodels/device_tab_list_model.h"
@@ -17,11 +22,15 @@
 #include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
+#include "wizard_launcher.h"
+#include "wizard_view_model.h"
+#include "workers/diag_worker.h"
 #include "workers/probe_scanner.h"
 
 #include <QByteArray>
 #include <QClipboard>
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QGuiApplication>
 #include <QJSEngine>
 #include <QJsonArray>
@@ -40,6 +49,7 @@
 #include <QString>
 #include <QStringList>
 #include <QTimer>
+#include <QUrl>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
@@ -47,6 +57,7 @@
 #include <QtContainerFwd>
 #include <QtCore/qnamespace.h>
 #include <QtCore/qttranslation.h>
+#include <QtTypes>
 
 #include <algorithm>
 #include <array>
@@ -98,6 +109,21 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
       m_scanner(std::make_unique<ProbeScanner>(m_options.registry.instanceRoot,
                                                m_options.registry.lockDirectory,
                                                m_options.scanInterval)),
+      m_diagWorker(std::make_unique<DiagWorker>()),
+      m_wizard(new WizardViewModel( // NOLINT(cppcoreguidelines-owning-memory)
+          m_wizardRegistry, this)),
+      m_launcher(new WizardLauncher( // NOLINT(cppcoreguidelines-owning-memory)
+          m_wizardRegistry, *m_wizard,
+          [this](int index) { return index < 0 ? currentTabViewModel() : m_tabs->at(index); },
+          this)),
+      m_report(new ReportViewModel( // NOLINT(cppcoreguidelines-owning-memory)
+          *m_diagWorker,
+          ReportViewModel::Hooks{.environment = [this] { return diagEnvironment(); },
+                                 .tabs = [this] { return tabsJson(); },
+                                 .language = [this] { return language(); },
+                                 .toast = [this](const QString& text) { showToast(text); },
+                                 .openFolder = {}},
+          this)),
       m_tabs(new DeviceTabListModel(this)), // NOLINT(cppcoreguidelines-owning-memory)
       m_reducedMotion(reducedMotionRequested()) {
     m_availableLanguages.append(QVariantMap{{QStringLiteral("code"), QStringLiteral("system")},
@@ -130,6 +156,8 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
     createGlobalPages();
 
     connect(m_scanner.get(), &ProbeScanner::scanned, this, &AppViewModel::onScan);
+    connect(m_wizard, &WizardViewModel::handOff, this, &AppViewModel::onHandOff);
+    connect(m_wizard, &WizardViewModel::copied, this, [this] { showToast(tr("Copied.")); });
     connect(m_settings, &SettingsStore::valueChanged, this, [this](const QString& key) {
         if (key == QStringLiteral("jlink/libraryPath")) {
             updateLocatorOptions();
@@ -147,6 +175,12 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
 }
 
 AppViewModel::~AppViewModel() {
+    // The open wizard first (it may use a tab's session): its operation is cancelled.
+    if (m_wizard != nullptr) {
+        m_wizard->setParent(nullptr);
+        const std::unique_ptr<WizardViewModel> owned(m_wizard);
+        m_wizard = nullptr;
+    }
     // Tabs first: their sessions use the registry, their pickers the scanner.
     while (m_tabs->count() > 0) {
         std::unique_ptr<DeviceTabViewModel> tab = m_tabs->take(m_tabs->count() - 1);
@@ -430,6 +464,9 @@ std::unique_ptr<DeviceTabViewModel> AppViewModel::makeTab() {
         return tabUsingProbe(serial, self);
     };
     context.showToast = [this](const QString& text) { showToast(text); };
+    context.openWizard = [this](const QString& wizardId, DeviceTabViewModel* tab) {
+        (void)m_launcher->openForTab(wizardId, tab);
+    };
     return std::make_unique<DeviceTabViewModel>(std::move(context), nullptr);
 }
 
@@ -494,6 +531,9 @@ void AppViewModel::removeTab(int index) {
         return;
     }
     tab->disconnect(this);
+    // The wizard working on this tab closes first, while the tab and its session still exist
+    // (review V2): the wizard holds the tab as QPointer, but its operation runs on the session.
+    m_wizard->tabClosing(tab.get());
     tab->shutdown();
     // Deleted later, after QML has destroyed its delegates (they were scheduled for deletion by
     // the row removal, before this). The call may also come from the tab's own signal or from a
@@ -843,6 +883,64 @@ void AppViewModel::onScan(const ProbeScan& scan) {
         m_jlinkLibraryPath = path;
         m_jlinkLibraryVersion = version;
         jlinkLibraryChanged(); // signal
+    }
+}
+
+diag::EnvironmentContext AppViewModel::diagEnvironment() const {
+    diag::EnvironmentContext context;
+    context.jlink = locatorOptions();
+    context.nrfutil = nrfutil::defaultLocatorOptions(std::nullopt, m_settings->settings());
+    context.settingsDir = Settings::defaultFilePath().parent_path();
+    context.logDir = log::defaultLogDirectory();
+    context.instanceRoot = m_options.registry.instanceRoot;
+    context.lockDirectory = m_options.registry.lockDirectory;
+    return context;
+}
+
+QString AppViewModel::documentationUrl() {
+    return QStringLiteral("https://docs.hardwario.com/chester/platform-connectivity/"
+                          "hardwario-monitor/");
+}
+
+void AppViewModel::openDocumentation() { QDesktopServices::openUrl(QUrl(documentationUrl())); }
+
+QJsonArray AppViewModel::tabsJson() const {
+    QJsonArray tabs;
+    for (int i = 0; i < m_tabs->count(); ++i) {
+        const DeviceTabViewModel* tab = m_tabs->at(i);
+        if (tab == nullptr || tab->choosing()) {
+            continue;
+        }
+        QJsonObject json;
+        json.insert(QStringLiteral("profile"), tab->profileId());
+        json.insert(QStringLiteral("target"), tab->consoleTargetId());
+        json.insert(QStringLiteral("serialNumber"),
+                    static_cast<qint64>(tab->probeSerial().value_or(0)));
+        json.insert(QStringLiteral("state"), tab->connection()->stateKind());
+        tabs.append(json);
+    }
+    return tabs;
+}
+
+void AppViewModel::onHandOff(const QString& action, DeviceTabViewModel* tab) {
+    qCInfo(lcGui).noquote() << "Wizard hand-off:" << action;
+    if (action.startsWith(QStringLiteral("open-settings"))) {
+        openGlobalPage(QStringLiteral("settings"));
+        return;
+    }
+    if (tab == nullptr) {
+        return;
+    }
+    if (const int index = m_tabs->indexOf(tab); index >= 0) {
+        setCurrentTab(index);
+    }
+    if (action == QStringLiteral("open-console")) {
+        if (tab->state() == DeviceTabViewModel::Disconnected) {
+            tab->connectDevice(); // also promotes a wizard's probe-only session
+        }
+        showPage(QStringLiteral("console"));
+    } else if (action == QStringLiteral("open-flash-page")) {
+        showPage(QStringLiteral("flash"));
     }
 }
 

@@ -71,6 +71,9 @@ struct TabContext {
     std::function<int(std::uint32_t serial, const DeviceTabViewModel* self)> tabUsingProbe;
     // Shows a toast (AppViewModel, ≤ 3 visible); may be empty.
     std::function<void(QString)> showToast;
+    // M4 (plan/features/0007): opens a wizard for this tab (AppViewModel's WizardLauncher); may be
+    // empty.
+    std::function<void(const QString& wizardId, DeviceTabViewModel* tab)> openWizard;
 };
 
 class DeviceTabViewModel : public QObject {
@@ -128,7 +131,14 @@ public:
     // opens a session on another target (review S2). No-op when a working session exists; a
     // stopped one (fatal error) is replaced. Errors: those of DeviceSession::open,
     // dependency.jlink_not_found, usage.invalid_argument (no probe chosen), internal.busy.
-    [[nodiscard]] Status ensureSession();
+    // M4 (plan/features/0007, ADR-0069; reconciled with S2, awaiting user confirmation):
+    // `connectTarget` = false opens a probe-only session (ProbeOpen: probe open and locked, the
+    // target not connected) on the console target, for a wizard's Diagnose; operations and
+    // diagnose() carry their own target. With true, an existing probe-only session is promoted
+    // (DeviceSession::startConnection, RTT when the target has a console).
+    [[nodiscard]] Status ensureSession(bool connectTarget = true);
+    // M4 (plan/features/0007): opens the wizard `wizardId` for this tab (WizardLauncher).
+    Q_INVOKABLE void openWizard(const QString& wizardId);
     [[nodiscard]] const device::DeviceProfile& profile() const;
     [[nodiscard]] QString consoleTargetId() const;
     // One log for all sessions of this tab (ADR-0063); passed as SessionOptions::consoleLog.
@@ -188,7 +198,8 @@ private:
         bool cancelled = false;
     };
 
-    [[nodiscard]] Status openSession();
+    [[nodiscard]] Status openSession(bool connectTarget = true);
+    [[nodiscard]] Status promoteSession();
     // The session stopped with an error (fatal); see sessionFailed() in the .cpp (S18).
     [[nodiscard]] bool sessionFailed() const;
     void releaseSession();
