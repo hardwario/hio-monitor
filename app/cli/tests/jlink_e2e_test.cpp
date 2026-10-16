@@ -293,11 +293,14 @@ TEST_F(FakeJLinkCli, NoPowerIsTargetError) {
               QStringLiteral("stopped"));
 }
 
+// ADR-0090: --jlink-speed is `auto` or 5-50 000 kHz (review R49).
 TEST_F(FakeJLinkCli, InvalidSpeedIsUsageError) {
-    const RunResult result =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
-             QStringLiteral("--jlink-speed"), QStringLiteral("1"), QStringLiteral("version")});
-    EXPECT_EQ(result.exitCode, 2);
+    for (const QString& speed : {QStringLiteral("1"), QStringLiteral("fast")}) {
+        const RunResult result =
+            hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
+                 QStringLiteral("--jlink-speed"), speed, QStringLiteral("version")});
+        EXPECT_EQ(result.exitCode, 2) << speed.toStdString();
+    }
 }
 
 // Review fix 7: the collection window starts when the command was written, not when it was

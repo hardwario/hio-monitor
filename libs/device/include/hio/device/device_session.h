@@ -70,8 +70,10 @@ struct SessionOptions {
     const DeviceProfile* profile = nullptr;
     std::string_view targetId;
     std::optional<std::uint32_t> probeSn; // nullopt = the first probe that is not locked
-    int speedKhz = 0;                     // J-Link speed (minSpeedKhz..maxSpeedKhz)
-    int latencyMs = 0;                    // RTT poll interval (minLatencyMs..maxLatencyMs)
+    // J-Link speed: nullopt = automatic (the default, as pylink; ADR-0090), otherwise this fixed
+    // speed in kHz (minSpeedKhz..maxSpeedKhz) for the connect and the session.
+    std::optional<int> speedKhz;
+    int latencyMs = 0; // RTT poll interval (minLatencyMs..maxLatencyMs)
     bool autoReconnect = false;
     bool resetOnOpen = false; // reset the target (no halt) before attaching
     // nullopt = default console file, empty path = no console file, otherwise this file.
@@ -81,7 +83,8 @@ struct SessionOptions {
     std::shared_ptr<ConsoleLog> consoleLog;
 };
 
-// Option ranges checked by open() (usage.invalid_argument).
+// Option ranges checked by open() (usage.invalid_argument). The speed range is pylink's
+// (MIN_JTAG_SPEED, MAX_JTAG_SPEED); it applies to a fixed speed only.
 inline constexpr int minSpeedKhz = 5;
 inline constexpr int maxSpeedKhz = 50000;
 inline constexpr int minLatencyMs = 1;

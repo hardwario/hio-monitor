@@ -80,13 +80,13 @@ Result<const TargetProfile*> validate(const SessionOptions& options) {
                 .arg(toQString(target->id), toQString(options.profile->displayName)),
             {}));
     }
-    if (options.speedKhz < minSpeedKhz || options.speedKhz > maxSpeedKhz) {
+    if (options.speedKhz && (*options.speedKhz < minSpeedKhz || *options.speedKhz > maxSpeedKhz)) {
         return std::unexpected(
             invalidOption(QCoreApplication::translate(
                               "hio::device", "The J-Link speed must be between %1 and %2 kHz.")
                               .arg(minSpeedKhz)
                               .arg(maxSpeedKhz),
-                          std::to_string(options.speedKhz)));
+                          std::to_string(*options.speedKhz)));
     }
     if (options.latencyMs < minLatencyMs || options.latencyMs > maxLatencyMs) {
         return std::unexpected(invalidOption(

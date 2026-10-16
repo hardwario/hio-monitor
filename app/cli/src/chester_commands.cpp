@@ -30,6 +30,7 @@
 
 #include <CLI/CLI.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -66,7 +67,7 @@ const char* const powerCycleTip =
 // a subcommand value wins).
 struct ProbeOptions {
     std::optional<std::uint32_t> serialNumber;
-    std::optional<int> speedKhz;
+    std::optional<std::string> speed; // --jlink-speed as given: "auto" or kHz (checked when parsed)
 };
 
 struct ConsoleOptions {
@@ -95,14 +96,24 @@ const device::TargetProfile& chesterApp() {
     return *device::findTarget(*profile, targetId);
 }
 
-device::SessionOptions sessionOptions(const ProbeOptions& group, const ProbeOptions& own,
-                                      int latencyMs, bool autoReconnect, bool reset,
-                                      const std::string& consoleFile, bool consoleFileGiven) {
+Result<device::SessionOptions> sessionOptions(const ProbeOptions& group, const ProbeOptions& own,
+                                              int latencyMs, bool autoReconnect, bool reset,
+                                              const std::string& consoleFile,
+                                              bool consoleFileGiven) {
     device::SessionOptions options;
     options.profile = device::ProfileRegistry::find(profileId);
     options.targetId = targetId;
     options.probeSn = own.serialNumber ? own.serialNumber : group.serialNumber;
-    options.speedKhz = own.speedKhz.value_or(group.speedKhz.value_or(chesterApp().defaultSpeedKhz));
+    // The subcommand's value wins; without any, the profile's default (automatic, ADR-0090).
+    if (const auto& given = own.speed ? own.speed : group.speed) {
+        auto speed = parseJLinkSpeed(*given);
+        if (!speed) {
+            return std::unexpected(std::move(speed).error());
+        }
+        options.speedKhz = *speed;
+    } else {
+        options.speedKhz = chesterApp().defaultSpeedKhz;
+    }
     options.latencyMs = latencyMs;
     options.autoReconnect = autoReconnect;
     options.resetOnOpen = reset;
@@ -125,11 +136,25 @@ std::vector<std::string> splitLines(const std::string& text) {
     return lines;
 }
 
+std::string speedText(std::optional<int> speedKhz) {
+    return speedKhz ? std::format("{} kHz", *speedKhz) : std::string("auto speed");
+}
+
 void addProbeOptions(CLI::App& command, ProbeOptions& options) {
     command.add_option("-n,--jlink-sn", options.serialNumber, "J-Link serial number")
         ->option_text("SERIAL_NUMBER");
-    command.add_option("--jlink-speed", options.speedKhz, "J-Link clock speed in kHz [2000]")
-        ->option_text("SPEED");
+    command
+        .add_option("--jlink-speed", options.speed,
+                    std::format("J-Link clock speed: auto (automatic, as pylink) or a fixed speed "
+                                "in kHz ({}-{}) [auto]",
+                                device::minSpeedKhz, device::maxSpeedKhz))
+        ->check(CLI::Validator(
+            [](const std::string& value) {
+                auto speed = parseJLinkSpeed(value);
+                return speed ? std::string() : std::move(speed).error().message;
+            },
+            "auto|KHZ"))
+        ->option_text("auto|KHZ");
 }
 
 // ---- console --------------------------------------------------------------------------------
@@ -144,12 +169,15 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
         return std::unexpected(std::move(location).error());
     }
     device::SessionRegistry registry;
-    device::SessionOptions sessionOpts =
+    auto sessionOpts =
         sessionOptions(group, options.probe, options.latencyMs, options.autoReconnect,
                        options.reset, options.consoleFile, options.consoleFileGiven);
-    const bool announceProbe = !sessionOpts.probeSn;
-    const int speed = sessionOpts.speedKhz;
-    auto session = device::DeviceSession::open(registry, *location, std::move(sessionOpts));
+    if (!sessionOpts) {
+        return std::unexpected(std::move(sessionOpts).error());
+    }
+    const bool announceProbe = !sessionOpts->probeSn;
+    const std::optional<int> speed = sessionOpts->speedKhz;
+    auto session = device::DeviceSession::open(registry, *location, std::move(*sessionOpts));
     if (!session) {
         return std::unexpected(std::move(session).error());
     }
@@ -173,7 +201,8 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
         }
         return error;
     };
-    view.printStatus(std::format("Connecting to {} at {} kHz...", chesterApp().jlinkDevice, speed));
+    view.printStatus(
+        std::format("Connecting to {} at {}...", chesterApp().jlinkDevice, speedText(speed)));
     if (const Status connected = waitForConsoleConnection(
             consoleContext, **session, view, options.autoReconnect, device::defaultConnectTimeout);
         !connected) {
@@ -359,11 +388,13 @@ Result<CommandResult> command(const Context& context, const GlobalOptions& globa
         return std::unexpected(std::move(location).error());
     }
     device::SessionRegistry registry;
-    device::SessionOptions sessionOpts =
-        sessionOptions(group, options.probe, chesterApp().defaultLatencyMs, false, options.reset,
-                       options.consoleFile, options.consoleFileGiven);
-    const bool announceProbe = !sessionOpts.probeSn;
-    auto session = device::DeviceSession::open(registry, *location, std::move(sessionOpts));
+    auto sessionOpts = sessionOptions(group, options.probe, chesterApp().defaultLatencyMs, false,
+                                      options.reset, options.consoleFile, options.consoleFileGiven);
+    if (!sessionOpts) {
+        return std::unexpected(std::move(sessionOpts).error());
+    }
+    const bool announceProbe = !sessionOpts->probeSn;
+    auto session = device::DeviceSession::open(registry, *location, std::move(*sessionOpts));
     if (!session) {
         return std::unexpected(std::move(session).error());
     }
@@ -442,6 +473,27 @@ Result<CommandResult> command(const Context& context, const GlobalOptions& globa
 }
 
 } // namespace
+
+Result<std::optional<int>> parseJLinkSpeed(std::string_view text) {
+    if (text == "auto") {
+        return std::optional<int>();
+    }
+    // Decimal digits only (no sign, spaces or suffix); at most 5 digits, so no overflow.
+    constexpr std::size_t maxDigits = 5;
+    const bool digits = !text.empty() && text.size() <= maxDigits &&
+                        std::ranges::all_of(text, [](char c) { return c >= '0' && c <= '9'; });
+    int kiloHertz = 0;
+    for (const char c : digits ? text : std::string_view()) {
+        kiloHertz = (kiloHertz * 10) + (c - '0');
+    }
+    if (!digits || kiloHertz < device::minSpeedKhz || kiloHertz > device::maxSpeedKhz) {
+        Error invalid = makeError(ErrorCode::UsageInvalidArgument, std::string(text));
+        invalid.message = std::format("The J-Link speed must be auto or between {} and {} kHz.",
+                                      device::minSpeedKhz, device::maxSpeedKhz);
+        return std::unexpected(std::move(invalid));
+    }
+    return std::optional<int>(kiloHertz);
+}
 
 void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptions& globals) {
     CLI::App* chester = app.add_subcommand("chester", "HARDWARIO CHESTER");

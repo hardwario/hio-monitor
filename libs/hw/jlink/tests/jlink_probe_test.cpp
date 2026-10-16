@@ -202,11 +202,52 @@ TEST_F(Probe, ConnectHonoursStop) {
     EXPECT_EQ(status.error().code, ErrorCode::Cancelled);
 }
 
-TEST_F(Probe, HardwareStatusFailureMeansTheProbeIsGone) {
+// Review R52: the open probe not answering (a USB glitch or an unplugged probe) is
+// probe.io_failed, not probe.not_found ("No J-Link probe found").
+TEST_F(Probe, HardwareStatusFailureIsProbeIoFailed) {
     ON_CALL(api(), hardwareStatus()).WillByDefault(Return(std::nullopt));
     const auto status = probe().hardwareStatus();
     ASSERT_FALSE(status);
-    EXPECT_EQ(status.error().code, ErrorCode::ProbeNotFound);
+    EXPECT_EQ(status.error().code, ErrorCode::ProbeIoFailed);
+    EXPECT_EQ(status.error().message, "Communication with the J-Link failed.");
+    EXPECT_NE(status.error().detail.find("JLINKARM_GetHWStatus"), std::string::npos);
+}
+
+// ADR-0090 / review R49: the automatic speed as pylink's JLink.connect(chip, speed='auto') -
+// `Device = <chip>`, then JLINKARM_SetSpeed(0), then JLINKARM_Connect. Automatic is the default.
+TEST_F(Probe, ConnectSetsTheAutomaticSpeedAfterTheDeviceAsPylink) {
+    using ::testing::StrEq;
+    {
+        InSequence order;
+        EXPECT_CALL(api(), execCommand(StrEq("Device = NRF52840_xxAA")));
+        EXPECT_CALL(api(), setSpeed(hio::jlink::autoSpeed));
+        EXPECT_CALL(api(), connect()).WillOnce(Return(0));
+    }
+    EXPECT_EQ(hio::jlink::autoSpeed, 0U);
+    const auto status = probe().connect("NRF52840_xxAA", 1000, false, {});
+    ASSERT_TRUE(status) << status.error().detail;
+}
+
+TEST_F(Probe, AutomaticSpeedIsSetAsZero) {
+    EXPECT_CALL(api(), setSpeed(0U));
+    probe().setSpeed(std::nullopt);
+}
+
+// ADR-0090: an explicit kHz value is a fixed speed, set at once and again after `Device =`, so
+// the connect and the session run at it (never the automatic speed).
+TEST_F(Probe, ExplicitSpeedIsFixedForTheConnect) {
+    using ::testing::StrEq;
+    EXPECT_CALL(api(), setSpeed(0U)).Times(0);
+    {
+        InSequence order;
+        EXPECT_CALL(api(), setSpeed(4000U));
+        EXPECT_CALL(api(), execCommand(StrEq("Device = NRF52840_xxAA")));
+        EXPECT_CALL(api(), setSpeed(4000U));
+        EXPECT_CALL(api(), connect()).WillOnce(Return(0));
+    }
+    probe().setSpeed(4000);
+    const auto status = probe().connect("NRF52840_xxAA", 1000, false, {});
+    ASSERT_TRUE(status) << status.error().detail;
 }
 
 TEST_F(Probe, FirmwareStatus) {

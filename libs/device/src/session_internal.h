@@ -59,9 +59,12 @@ struct ProbeIdentified {
 
 using WorkerEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified>;
 
-// The events the event queue may drop when it is full.
-[[nodiscard]] inline bool isConsoleLine(const WorkerEvent& event) {
-    return std::holds_alternative<ConsoleLine>(event);
+// The events the event queue may drop when it is full: shell and log output (Direction::Out).
+// Echoes of written commands (Direction::In) are kept, so a caller that counts the written lines
+// (`chester app command`) never misses one (review R54); they are bounded by the command queue.
+[[nodiscard]] inline bool isDroppableEvent(const WorkerEvent& event) {
+    const auto* line = std::get_if<ConsoleLine>(&event);
+    return line != nullptr && line->dir == Direction::Out;
 }
 
 // ---- configuration ----------------------------------------------------------------------------
@@ -79,7 +82,7 @@ struct WorkerConfig {
     const DeviceProfile* profile = nullptr;
     const TargetProfile* target = nullptr;
     std::optional<std::uint32_t> probeSn;
-    int speedKhz = 0;
+    std::optional<int> speedKhz; // nullopt = automatic (ADR-0090)
     int latencyMs = 0;
     bool autoReconnect = false;
     bool resetOnOpen = false;
@@ -105,9 +108,10 @@ struct SessionInternals {
     std::optional<std::uint32_t> requestedSn; // options.probeSn (registry uniqueness check)
     std::shared_ptr<ConsoleLog> log;
     BoundedQueue<Command> commands{DeviceSession::commandQueueCapacity, OverflowPolicy::Reject};
-    // When full, only console lines are dropped (oldest first) so state changes, warnings and the
-    // probe identity always arrive in order (review R10, decided 2026-10-10).
-    BoundedQueue<WorkerEvent> events{DeviceSession::eventQueueCapacity, &isConsoleLine};
+    // When full, only console output lines are dropped (oldest first) so state changes, warnings,
+    // the probe identity and the echoes of written commands always arrive in order (review R10,
+    // decided 2026-10-10; R54).
+    BoundedQueue<WorkerEvent> events{DeviceSession::eventQueueCapacity, &isDroppableEvent};
     std::jthread worker; // joined by DeviceSession::close(); declared last, destroyed first
 
     [[nodiscard]] static std::optional<std::uint32_t> requestedSerial(const DeviceSession& session);

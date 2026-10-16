@@ -3,7 +3,7 @@
 - **Status:** In progress (implementation started 2026-10-09; approved by Matej Strnad, 2026-10-09; re-approved 2026-10-09 with the ADR-0053/0058/0063 amendments)
 - **Milestone:** M1
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063, 0064
+- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063, 0064, 0090
 - **Depends on:** 0001 (M0 skeleton, incl. the translation infrastructure)
 
 > **Amended by ADR-0053, ADR-0058 and ADR-0063 (M3 planning, applied in this text):** `DeviceSession::open()` is
@@ -55,7 +55,7 @@ No GUI changes in M1. The CLI console:
 ```
 $ hio chester app console
 Using J-Link 801234567 (firmware 2024-10-01), library 8.10a
-Connecting to NRF52840_xxAA at 2000 kHz…
+Connecting to NRF52840_xxAA at auto speed…
 -- connected (RTT: Terminal, Logger) --
 [00:00:01.234,000] <inf> app: Build version: v3.1.0          ← colored by level, log channel
 uart:~$ version                                               ← replxx prompt at the bottom
@@ -77,14 +77,16 @@ The CLI is English only (ADR-0027).
 
 | Command | Behaviour |
 |---|---|
-| `hio chester app console [--reset] [--latency MS=50] [--history-file P] [--console-file P] [-n/--jlink-sn SN] [--jlink-speed KHZ=2000] [--auto-reconnect] [--coredump-file P] [--linger S=1.0]` | Interactive console (ADR-0033). `--reset` resets the target (no halt) before attaching. Without `--auto-reconnect` a dropped link stays down until F4, and any first-attempt error ends the console. With `--auto-reconnect` (rttt, decided 2026-10-09) Target-category errors of the first attempt do not: the console starts, shows Disconnected with the error and keeps retrying (library, probe, lock and I/O errors stay fatal). `--linger S` (0–60 s, default 1.0; non-interactive and `--json` mode only, ignored interactively): after the end of stdin the console waits until the sent commands were written (≤ 3 s), then collects output for S seconds and exits 0. `--coredump-file` is accepted for py-hardwario compatibility, has no effect and logs a warning. `--console-file ''` disables the console log file. Exit 0 on user quit; an attach error is an `hio::Error` with its exit code; a closed stdout (`… --json \| head`) ends it like Ctrl+C: exit 130 `cancelled` with the message "The output was closed." (R44), the session closes and the console file is flushed (SIGPIPE ignored, R32); it is detected on the next write to stdout after the reader went away. |
-| `hio chester app command CMD [--reset] [-t/--timeout S=1.0] [--console-file P] [-n SN] [--jlink-speed KHZ]` | py-hardwario semantics: attach, send each line of `CMD`, collect terminal output until the **absolute** timeout (counted from sending), detach. Human: output lines on stdout. `--json`: `data = {"command": "…", "output": ["…"], "log": ["…"], "truncated": false}`. The response is bounded (R42): at most 10 000 lines (output + log) and 4 MiB of text; beyond that the first lines are kept, the collection ends, `truncated` is `true` and human mode prints "Output truncated after N lines" on stderr. |
+| `hio chester app console [--reset] [--latency MS=50] [--history-file P] [--console-file P] [-n/--jlink-sn SN] [--jlink-speed auto\|KHZ=auto] [--auto-reconnect] [--coredump-file P] [--linger S=1.0]` | Interactive console (ADR-0033). `--reset` resets the target (no halt) before attaching. Without `--auto-reconnect` a dropped link stays down until F4, and any first-attempt error ends the console. With `--auto-reconnect` Target-category errors of the first attempt do not: the console starts, shows Disconnected with the error and keeps retrying (library, probe, lock and I/O errors stay fatal). This is our own rule (decided 2026-10-09; R50), not rttt's: rttt and py-hardwario end on a probe-open or target-connect failure even with `--auto-reconnect`, and only their RTT attach is retried. `--linger S` (0–60 s, default 1.0; non-interactive and `--json` mode only, ignored interactively): after the end of stdin the console waits until the sent commands were written (≤ 3 s), then collects output for S seconds and exits 0. `--coredump-file` is accepted for py-hardwario compatibility, has no effect and logs a warning. `--console-file ''` disables the console log file. Exit 0 on user quit; an attach error is an `hio::Error` with its exit code; a closed stdout (`… --json \| head`) ends it like Ctrl+C: exit 130 `cancelled` with the message "The output was closed." (R44), the session closes and the console file is flushed (SIGPIPE ignored, R32); it is detected on the next write to stdout after the reader went away. |
+| `hio chester app command CMD [--reset] [-t/--timeout S=1.0] [--console-file P] [-n SN] [--jlink-speed auto\|KHZ=auto]` | py-hardwario semantics: attach, send each line of `CMD`, collect terminal output for the timeout, detach. The timeout is counted from the last echo, i.e. from when the last line was written; the lines are written before that within at most lines × RTT write timeout (2 s) + 500 ms (R7, R23, R39, R55). Human: output lines on stdout. `--json`: `data = {"command": "…", "output": ["…"], "log": ["…"], "truncated": false}`. The response is bounded (R42): at most 10 000 lines (output + log) and 4 MiB of text; beyond that the first lines are kept, the collection ends, `truncated` is `true` and human mode prints "Output truncated after N lines" on stderr. |
 | `hio jlink list` | Enumerate probes (separate short-lived library instance). `list` never opens a probe, so the firmware is known only when the library lists it (IP probes); unknown values show as `—` (human) and `null` (`--json`); `hio jlink info` shows the firmware (decided 2026-10-09). Human: table SN / product / connection / firmware / in use (e.g. "hio-monitor, PID 1234", ADR-0058). `--json`: `data = {"library": {"path","version"}, "probes": [{"serialNumber","product","connection":"usb"\|"ip","firmware":string\|null,"inUseBy":{"app","pid"}\|null}]}`. No probe → empty list, exit 0. |
 | `hio jlink info [-n SN]` | Library path + version, probe SN, product, firmware string, `firmwareStatus` (`current`/`outdated`/`newer`), target voltage (mV). |
 | `hio jlink update-firmware [-n SN] [--yes]` | Update the probe firmware to the one bundled in the library (or synchronize a newer one). Asks for confirmation on a TTY; non-TTY requires `--yes` (else `usage.confirmation_required`). |
 | global `--jlink-library PATH` | Library override; precedence: this option > env `HIO_JLINK_LIBRARY` > setting `jlink/libraryPath` > auto-discovery. |
 
 Option ranges (decided 2026-10-09): `--jlink-speed` 5–50 000 kHz, `--latency` 1–1000 ms (else `usage.invalid_argument`).
+`--jlink-speed` also accepts `auto`, the default (ADR-0090, decided 2026-10-11): the automatic speed (`JLINKARM_SetSpeed(0)`) as pylink's
+`JLink.connect(chip, speed='auto')`; an explicit kHz value forces that fixed speed for the connect and the session.
 
 Probe choice when `-n` is not given: the **first** probe from the library's list is used; its SN is printed
 (stderr in human mode) and logged. SEGGER dialogs are always suppressed. With `-n`, an unknown SN →
@@ -158,7 +160,8 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   (`ProbeInfo { std::uint32_t serialNumber; std::string product; Connection connection; std::string firmware; }`).
   It knows nothing about locks; `libs/device` adds the lock owner (see `ProbeLock`).
 - **`JLinkProbe`** (owned by the session thread) — `open(std::optional<std::uint32_t> sn)` (first probe if
-  none), suppress dialogs, `setSpeed(kHz)`, SWD, `connect(deviceName)` with 3 attempts 500 ms apart,
+  none), suppress dialogs, `setSpeed(kHz | auto)` (auto = `JLINKARM_SetSpeed(0)`, the default; applied again right
+  after `Device =` in `connect()`, as pylink, ADR-0090), SWD, `connect(deviceName)` with 3 attempts 500 ms apart,
   `hwStatus()` (target voltage mV), `firmwareStatus()` (`Current|Outdated|Newer`), `updateFirmware()`,
   `reset(halt)`, `halt()`, `go()`. Error mapping (cable diagnosis, architecture): no probe → `probe.not_found`;
   open fails → `probe.open_failed`; connect fails with VTref < 1000 mV → `target.no_power` (a reading of
@@ -173,11 +176,11 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
 ### `libs/device`
 
 - **Profiles** (ADR-0032): `struct TargetProfile { std::string_view id; std::string_view jlinkDevice;
-  std::string_view rttTerminal; std::string_view rttLogger; bool hashPrefixIsLog; int defaultSpeedKhz;
+  std::string_view rttTerminal; std::string_view rttLogger; bool hashPrefixIsLog; std::optional<int> defaultSpeedKhz /* nullopt = auto, ADR-0090 */;
   int defaultLatencyMs; int minTargetMillivolts; };` `struct DeviceProfile { std::string_view id;
   std::string_view displayName; std::span<const TargetProfile> targets; };` `ProfileRegistry::find(id)`.
   `profiles/chester.cpp`: `chester` / "CHESTER"; target `app` = `NRF52840_xxAA`, `Terminal`, `Logger`,
-  `hashPrefixIsLog = true`, 2000 kHz, 50 ms, 1000 mV; target `lte` = `NRF9151_XXCA` naming rule (declared, unused).
+  `hashPrefixIsLog = true`, automatic speed (ADR-0090), 50 ms, 1000 mV; target `lte` = `NRF9151_XXCA` naming rule (declared, unused).
 - **`ConsoleLine`** — `{ std::uint64_t seq; Channel channel /*Shell, Log*/; Direction dir /*Out, In, Marker*/;
   std::chrono::system_clock::time_point time; LogLevel level /*None, Debug, Info, Warning, Error*/; std::string text; }`.
 - **`LineAssembler`** (per channel): splits at the byte level on `\n`, strips a trailing `\r`, keeps an
@@ -194,7 +197,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
 - **`DeviceSession`** (façade `QObject`, ADR-0031):
   ```cpp
   struct SessionOptions { const DeviceProfile* profile; std::string_view targetId;
-      std::optional<std::uint32_t> probeSn; int speedKhz; int latencyMs; bool autoReconnect; bool resetOnOpen;
+      std::optional<std::uint32_t> probeSn; std::optional<int> speedKhz /* nullopt = auto, ADR-0090 */; int latencyMs; bool autoReconnect; bool resetOnOpen;
       std::optional<std::filesystem::path> consoleFile; /* nullopt = default, empty = disabled */
       std::shared_ptr<ConsoleLog> consoleLog; /* ADR-0063: nullptr = the session creates its own; a GUI tab passes
                                                  one log for all its sessions. Accessed on the owner thread only. */ };
@@ -235,7 +238,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   `probe()` returns the SN once known (`connectionChanged` is emitted after it is set). The CLI calls
   `waitUntilConnected()` (timeout `defaultConnectTimeout` = `connectTimeoutFor(ProbeTiming, RttTiming)`, 35.5 s,
   see Bounds; review R38) and ends with that error if it fails.
-  Amendment (decided 2026-10-09, rttt behaviour): `console --auto-reconnect` waits with `waitForFirstAttempt()`
+  Amendment (decided 2026-10-09; our rule, not rttt's, R50): `console --auto-reconnect` waits with `waitForFirstAttempt()`
   instead, which also accepts a first attempt that ends Disconnected; the console UI then starts and shows the state
   while the session retries. ADR-0053's "the CLI waits with waitUntilConnected" therefore holds for `command` and
   for `console` without `--auto-reconnect`. A `Stopped` event without an error (suspended on purpose) ends both
@@ -248,21 +251,48 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   after the previous attempt **ended**, whatever its outcome (review R31). Probe firmware `Outdated|Newer` → one
   `Warning` (`probe.firmware_outdated`), never an automatic update.
 
-  **Differences from rttt 1.9.2** (`PyLinkRTTConnector`; kept on purpose and documented, decided 2026-10-11 after the
-  round-4 review):
+  **Differences from rttt 1.9.2** (`PyLinkRTTConnector`, `rttt/cli.py`, over pylink-square 2.0.2; kept on purpose and
+  documented, decided 2026-10-11 after the round-4 review; corrected and completed after round 6, R48–R56, each
+  statement checked against the rttt and pylink sources):
   - A halt reset (`reset(halt = true)`) is not re-attached automatically: the session stays Disconnected until F4
-    (reconnect), `resume()` or a reset without halt (R25). rttt re-attaches.
+    (reconnect), `resume()` or a reset without halt (R25). rttt's watchdog re-attaches it when `--auto-reconnect` is
+    on; without it rttt stays down too.
   - Reconnect / F4 closes and reopens the probe (library copy kept), so a replugged probe is found; rttt only
-    reconnects the target on the open probe.
-  - A missing logger buffer (terminal found) continues without logs after 3 s with one warning; rttt fails the
-    attach after its 15 s deadline.
+    reconnects the target on the open probe (its `jlink.open()` on the open handle only increments pylink's
+    reference count).
+  - A logger buffer name that is not registered (terminal found) continues without logs after 3 s with one warning;
+    rttt keeps searching and fails the attach after its 15 s deadline. A registered logger buffer of size 0 continues
+    without logs after 3 s in both.
   - A reset while detached (probe open, RTT not attached) also attaches RTT; rttt only resets.
-  - The target voltage is checked every 1 s, also while data arrives (R13).
+  - The target voltage is checked every 1 s, also while data arrives (R13); rttt checks it only on idle cycles.
   - Received data reports Connected only while the target is powered (R13, R33).
   - A failed status (VTref) read does not block the auto-reconnect retry (review fix 2).
   - `resume()` re-attaches at once.
   - `suspend()` releases the probe (closes it) until `resume()`.
   - An RTT read per cycle and channel is capped at 64 KiB.
+  - Connect speed: both connect at the automatic speed by default (ADR-0090): pylink's `JLink.connect(chip)` calls
+    `JLINKARM_SetSpeed(0)` after `Device =`, overriding rttt's and py-hardwario's `set_speed(2000)`. An explicit
+    `--jlink-speed` kHz value is a fixed speed here; in rttt / py-hardwario it is overridden by that auto.
+  - The first connect with `--auto-reconnect`: Target-category errors (no power, connect failed, RTT not found) are
+    not fatal here (R50). rttt (and py-hardwario) end on a probe-open or target-connect failure even with
+    `--auto-reconnect`; only the RTT attach of `connector.open()` is retried.
+  - `--reset`: rttt (`rttt/cli.py`) and py-hardwario `chester app command --reset` wait 1 s after the reset before
+    starting RTT; py-hardwario `console --reset` resets through nrfjprog before it opens the probe. Ours attaches right
+    after the reset (the attach polls for the control block, up to 15 s). Not changed in round 6; adding the wait is
+    left to a decision.
+  - The down buffer is resolved by name (`Terminal`), falling back to the terminal's up index; rttt always uses the
+    terminal's up index.
+  - State changes are de-duplicated by state and error code (a changed error code while down is reported), and a
+    `connecting` state exists (first connect, explicit reconnect / resume); rttt de-duplicates by up / down only and
+    has no connecting state.
+  - A command while detached is not written: one warning `target.not_connected` (R18). rttt still tries the write
+    with the down-buffer size of its last attach and reports the library error as a disconnect (before any attach it
+    only logs a zero-size buffer).
+  - The probe firmware is never updated automatically: `DisableAutoUpdateFW` before and after Open, updates only by
+    `hio jlink update-firmware` (R1). rttt calls pylink's `disable_dialog_boxes()`, which sends `SilentUpdateFW`, and
+    leaves the library's automatic update on, so the firmware may be updated silently on open.
+  The RTT write (2 s timeout, 5 ms retries) and the stale-control-block retry (RTT stop, 200 ms, search again) match
+  rttt and are not differences.
 - **`SessionRegistry`** — owned by the application; max **8** sessions, one per probe SN
   (`internal.session_limit`, `probe.open_failed` "already used by this application").
   `[[nodiscard]] Result<std::vector<ProbeStatus>> listProbes(const LibraryLocation&)` wraps `listProbes` and adds,
@@ -286,9 +316,12 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
 - **`ConsoleFileSink`** — rttt line format: `2026-10-09 12:34:56.789 > text` (shell out), ` # ` (log),
   ` < ` (in), ` @ ` (connection), header block with probe SN on open. Default: one file per session
   `AppLocalDataLocation/console/<profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log`, **10 MiB** per file then `.part2`…,
-  retention **50 files / 200 MiB**. The retention never deletes a file a live session may be writing (R45): a file this
-  process has open, or a file of a probe (SN from the file name) whose `ProbeLock` has a live owner per
-  `ProbeLock::owner()` in any process, written since that owner took the lock (the lock file's time; 2 s tolerance). Explicit `--console-file P`: append; when it exceeds **100 MiB** it is renamed
+  retention **50 files / 200 MiB**. The retention never deletes a file a live session is writing (R45, R48): in this
+  process the files a sink has open (the open-files list); for a probe (SN from the file name) whose `ProbeLock` has a
+  live owner in another process per `ProbeLock::owner()`, only the newest file of that SN, and only when it was written
+  since that owner took the lock (the lock file's time; 2 s tolerance). Closed `.partN` files of a live session and
+  older files are pruned like any other file, so the bounds hold apart from at most one live file per live session.
+  Explicit `--console-file P`: append; when it exceeds **100 MiB** it is renamed
   to `P.1` (replacing an older `P.1`) and a new file starts. If that rename fails, the file is not rotated again
   in this session (one `Warning` `io.write_failed`) and is appended to up to **2 × 100 MiB**, then it is not
   written any more (one more `Warning`; review R26). Write errors → one `Warning` (`io.write_failed`),
@@ -313,6 +346,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
 | `target.rtt_read_failed` | Target | "Reading from the device failed." / cable disconnected, reset / "Check the cables; the console reconnects automatically if enabled." | Troubleshooting |
 | `target.rtt_write_failed` | Target | "Writing to the device failed." / cable disconnected, device reset / "Check the cables; the console reconnects automatically if enabled." (added by review fix R5) | Troubleshooting |
 | `probe.firmware_update_failed` | Probe | "The J-Link firmware could not be updated." / the update failed or the probe still reports a firmware different from the library's / "Disconnect and reconnect the J-Link, then run `hio jlink update-firmware` again." (review R11) | Troubleshooting |
+| `probe.io_failed` | Probe | "Communication with the J-Link failed." / the J-Link did not answer: a USB glitch, or the USB cable was disconnected / "Check the USB cable between the J-Link and the computer; the console reconnects automatically if enabled." (a failed `JLINKARM_GetHWStatus` of the open probe; review R52) | Troubleshooting |
 | `target.not_connected` | Target | "The device is not connected." / the console is disconnected or still reconnecting / "Reconnect the console (F4)." or, only while the session re-attaches by itself (auto-reconnect and not halted, suspended or fatally stopped), "Wait for the console to reconnect." (review R18, R35) | ConnectDevice |
 | `internal.session_limit` | Internal | "Too many devices are open (max 8)." / — / "Close a device first." | — |
 | `usage.confirmation_required` | Usage | "This operation needs confirmation." / non-interactive / "Re-run with --yes." | — |
@@ -326,8 +360,9 @@ caller-owned thread (CLI main thread; GUI will use a worker in M3). No shared mu
 
 ### Bounds (all documented here)
 
-Command queue 256 · event queue 10 000 (drops console lines first, R10; when no line is queued the oldest
-element of any kind is dropped and counted in `droppedCount`, which the session reports as dropped lines —
+Command queue 256 · event queue 10 000 (drops console output lines (`Direction::Out`) first, R10; echoes of written
+commands (`Direction::In`) are never dropped, so `command` counts every written line, R54; when no output line is
+queued the oldest element of any kind is dropped and counted in `droppedCount`, which the session reports as dropped lines —
 practically unreachable, state events are de-duplicated and warnings are rare; R29) · J-Link log callback queue 256, 1 KiB/message ·
 partial line 4 KiB · ConsoleLog 100 000 lines/channel · history 1000 × 4 KiB · console files 10 MiB/file,
 50 files / 200 MiB, explicit file 100 MiB + one backup (after a failed rotation: no further rotation, at most
@@ -339,10 +374,10 @@ power check 1 s, auto-reconnect 3 s (counted from the end of the previous attemp
 `command` echo wait one write timeout per line counted as the lines are written (line n + 1 until start + (n + 1) ×
 write timeout + 500 ms), at most lines × write timeout + 500 ms (R23, R39); `command` lines beyond the command queue
 wait in the CLI and are queued as the worker takes them (R39) · `command` response 10 000 lines (output + log) and
-4 MiB of text, then truncated (`"truncated": true`, R42) · console-file retention may temporarily exceed 50 files /
-200 MiB while files of live sessions are kept (R45) · the connect timeout (35.5 s) assumes SWD speeds of about 1000 kHz
-or more: very low `--jlink-speed` values (e.g. 5 kHz) may end with `timeout` before the session's own error (R47, not
-scaled; measured by HIL, G1).
+4 MiB of text, then truncated (`"truncated": true`, R42) · console-file retention may exceed 50 files / 200 MiB by at
+most one live file per live session (R45, R48) · the connect timeout (35.5 s) assumes SWD speeds of about 1000 kHz
+or more: a very low explicit `--jlink-speed` value (e.g. 5 kHz) may end with `timeout` before the session's own error
+(R47, not scaled; measured by HIL, G1); the default automatic speed (ADR-0090) is not concerned.
 
 ## Decisions requiring user confirmation
 
@@ -374,7 +409,7 @@ scaled; measured by HIL, G1).
 | Option ranges | as implemented / other | speed 5–50 000 kHz, latency 1–1000 ms (decided 2026-10-09) | — |
 | Reset without halt | `JLINKARM_ResetNoHalt` / Reset + Go | Reset + Go as rttt; `ResetNoHalt` removed from the function list (decided 2026-10-09) | — |
 | `jlink list` firmware | open probes / only what the library lists | `list` never opens probes; unknown = `—` / `null`; `jlink info` shows it (decided 2026-10-09) | — |
-| `--auto-reconnect` and the first connect | fatal / rttt | rttt: Target errors of the first attempt are not fatal; the retry power gate also works before a healthy reading (after `target.no_power`); library / probe / lock / I/O errors stay fatal; `command` still needs a connect (decided 2026-10-09; amends the ADR-0053 wording, see Design) | ADR-0053 (amended here) |
+| `--auto-reconnect` and the first connect | fatal / not fatal for Target errors | our own rule, not rttt's (rttt ends on a probe-open or target-connect failure even with `--auto-reconnect`; only its RTT attach retries; listed in Differences from rttt, R50): Target errors of the first attempt are not fatal; the retry power gate also works before a healthy reading (after `target.no_power`); library / probe / lock / I/O errors stay fatal; `command` still needs a connect (decided 2026-10-09; reworded 2026-10-11; amends the ADR-0053 wording, see Design) | ADR-0053 (amended here) |
 | Probe selection (independent review) | USB + IP / USB only | USB only for sessions, `jlink info` and `update-firmware`; `jlink list` lists USB and IP (decided 2026-10-10, R12) | — |
 | Firmware update result (independent review) | trust the library / verify | verified by re-reading the status after reopening the probe; unreadable status = `unknown` (decided 2026-10-10, R11) | — |
 | Event queue overflow (independent review) | drop oldest event / drop only lines | the event queue drops only console lines, oldest first (decided 2026-10-10, R10) | — |
@@ -383,6 +418,8 @@ scaled; measured by HIL, G1).
 | Round-4 findings | fix all / partial | fix all 10 (decided 2026-10-11; R31–R40) | — |
 | Differences from rttt (round-4 review) | follow rttt / keep and document | keep ours, documented (decided 2026-10-11; list in Design → `libs/device`) | — |
 | Round-5 findings | fix all / partial | fix all 7 (decided 2026-10-11; R41–R47) | — |
+| Connect speed | auto / fixed | auto like pylink; explicit kHz forces fixed (decided 2026-10-11) | ADR-0090 |
+| Round-6 findings | fix all / partial | fix all 9 + correct the rttt list (decided 2026-10-11; R48–R56) | — |
 | Sanitizer presets DEBUGINFOD_URLS | set empty / local env | set empty in CMakePresets.json (decided 2026-10-11; T1) | — |
 | Reference sources location | scratchpad / ../refs | /home/hardwario/src/monitor/refs, outside repositories (decided 2026-10-11) | — |
 | Minor defaults: all bounds and timeouts above, ANSI stripping, U+FFFD decoding, `--coredump-file` accepted and ignored, new `hio jlink` command group | accept / change | accepted | — |
@@ -406,7 +443,8 @@ Phase A — J-Link library
 
 Phase B — probe and RTT
 - [x] B1 `JLinkProbe` (open/first probe, speed, SWD, connect retries, hw status, firmware status/update, reset) + GMock tests
-  — `JLinkProbe::hardwareStatus()` failing (probe not answering, e.g. unplugged) is `probe.not_found`.
+  — `JLinkProbe::hardwareStatus()` failing (probe not answering, e.g. unplugged) is `probe.not_found` (since R52:
+  `probe.io_failed`).
 - [x] B2 `RttChannel` (ADR-0034 attach/read/write/stop) + GMock tests for every rule in ADR-0034 — timing through an
   injectable `jlink::Clock` (simulated time in tests). The down buffer is resolved by name too (fallback: the
   terminal's up index, as rttt). A write error reported by the library is `target.rtt_write_failed` (review fix R5).
@@ -425,7 +463,7 @@ Phase D — session
   an optional `std::stop_token` (Ctrl+C); `SessionRegistry(RegistryOptions)` (instance root, lock and console
   directories; defaults in AppLocalData), `enumerateProbes()` (with the library version), `checkAvailable()`;
   `probe_tools.h` (`inspectProbe`, `updateProbeFirmware`) for `hio jlink info|update-firmware`. Option ranges:
-  speed 5–50 000 kHz (pylink's limits), latency 1–1000 ms. The first connect is fatal (`Stopped`) for library,
+  speed 5–50 000 kHz (pylink's limits) or auto (ADR-0090, R49), latency 1–1000 ms. The first connect is fatal (`Stopped`) for library,
   probe, lock, I/O and internal errors, and for every error without auto-reconnect; after that every failure is
   `Disconnected`. A `Stopped` session still accepts `reconnect()`. `suspend()` reports `Stopped` without error;
   `resume()` = allow attaching and re-attach now. Tests run on an in-process scripted `IJLinkApi`
@@ -457,7 +495,7 @@ Phase F — CLI
 Phase G — hardware and docs
 - [ ] G1 HIL tests `tests/integration/` (opt-in `HIO_HIL=1`) — written (`hio_hil_tests`, ctest label `hil`, every
   test skipped without `HIO_HIL=1`); not yet run on hardware. Also measure the connect and RTT attach time at
-  `--jlink-speed` 5, 100 and 1000 kHz against the 35.5 s connect timeout (R47).
+  `--jlink-speed` auto (the default, ADR-0090) and 5, 100 and 1000 kHz against the 35.5 s connect timeout (R47).
 - [ ] G2 Manual checks on Linux, Windows, macOS; record the lowest tested J-Link version (ADR-0029); on Windows
   also: `hio chester app console --json` reading from the console (not a pipe) ends promptly on Ctrl+C / when the
   session ends (review R17, `CancelSynchronousIo`); `hio jlink list` shows "in use" for a probe held by another
@@ -515,7 +553,8 @@ now counts from the first `JLINKARM_Open` of a copy (a reopen does not restart t
 - [x] R10 Event loss: `BoundedQueue` gained `OverflowPolicy::DropOldestMatching` (drop the oldest element matching a
   predicate, else the oldest); the session event queue drops only `ConsoleLine`s (bound 10 000, order kept, count
   reported as `linesDropped`). Tests `BoundedQueue.DropOldestMatchingKeepsOtherElements`,
-  `Session.EventOverflowDropsOnlyConsoleLines`.
+  `Session.EventOverflowDropsOnlyConsoleLines`. Amended by R54: only console output lines (`Direction::Out`) are
+  dropped; echoes (`Direction::In`) are kept.
 - [x] R11 Firmware update verified: `FirmwareStatus::Unknown` (unreadable / uncomparable; `jlink info` shows
   `unknown`, no warning); `updateProbeFirmware` opens in `OpenMode::FirmwareUpdate` (no `DisableAutoUpdateFW`;
   since R24 only after a Normal open read a status other than Current), updates, closes, reopens normally and
@@ -791,7 +830,8 @@ test presets (T1). Each test below fails on the code before its fix, except wher
   Live files count towards the bounds, which may therefore be exceeded temporarily (Bounds). Tests
   `Sink.RetentionKeepsTheFilesOfALiveProbeLock` (the oldest file, of the locked SN X, is kept; an X file from before the
   lock and the other old files beyond 50 are pruned; after release it goes), `Sink.RetentionKeepsTheFilesOfAProbeLockedByAnotherProcess`
-  (POSIX), `Sink.RetentionKeepsTheFilesThisProcessHasOpen`.
+  (POSIX), `Sink.RetentionKeepsTheFilesThisProcessHasOpen`. Corrected by R48 (round 6): only the file a live session
+  is writing counts as live; the first two tests were replaced.
 - [x] R46 (finding 6, low) Wall-clock thresholds at about half of the delay they distinguish:
   `History.SaveAttemptsStayAtEvery50AddsWhenSavesAreSkipped` < 490 ms (49 × 20 ms lock waits = 980 ms),
   `Session.OpenReturnsWithoutTouchingTheLibrary` < 500 ms (1000 ms library load),
@@ -799,7 +839,8 @@ test presets (T1). Each test below fails on the code before its fix, except wher
   test.
 - [x] R47 (finding 7, low) `connectTimeoutFor()` is not scaled with `--jlink-speed`: Bounds and Risks state that the
   budget assumes about 1000 kHz or more and very low speeds may end with `timeout`; G1 measures connect and attach at
-  5, 100 and 1000 kHz. Documentation only.
+  5, 100 and 1000 kHz. Documentation only. Since ADR-0090 (R49) the caveat applies only to an explicit low kHz value;
+  the default is the automatic speed.
 - [x] T1 (tooling) The sanitizer test presets (`linux-asan`, `linux-tsan`, `macos-asan`; the only ones with sanitizers)
   set `"DEBUGINFOD_URLS": ""`, so llvm-symbolizer uses local debug info only and never blocks on an unreachable
   debuginfod server (schema 6 presets cannot hold comments; the reason is noted in `tools/sanitizers/tsan.supp` and
@@ -819,6 +860,105 @@ and `.CommandWith300LinesSucceeds` 5 × 20 passed under TSan and ASan; `hio_devi
 Qt entry 157 times, i.e. reports are symbolized from local debug info; clang-tidy 0 findings; qmllint clean;
 translations up to date, 0 unfinished Czech entries (one new string); clang-format and Git LFS clean. Windows-only
 tests compile only under `_WIN32` and were not built here (Windows CI).
+
+### Review fixes (independent review round 6, 2026-10-11)
+
+Verified state (coordinator, clean builds, default environment incl. `DEBUGINFOD_URLS`, 2026-10-11): debug, ASan and
+TSan 368/368, 0 sanitizer reports. T1 works: no hangs without unsetting debuginfod. `Session.*:Lock.*:Sink.*:ConnectTimeout.*`
+×30 under TSan and ASan; 7 e2e tests ×20 under TSan and ASan; tidy 0; qmllint, translations, clang-format and LFS clean.
+Round 6 (with the rttt, pylink and Qt 6.8.3 QLockFile sources) found R41–R44, R46, R47 and T1 correct, and R41
+matching Qt line by line. R45 is wrong in one respect (finding 1).
+
+Decided 2026-10-11: fix all 9 findings (R48–R56; finding n = R(47+n)) and correct the Differences-from-rttt list
+(connect speed: auto like pylink, ADR-0090). Each code fix has a test that fails on the code before it (checked by
+reverting the fix), except R56 (the old tests pass on this machine's coreutils `sleep`).
+
+- [x] R48 (finding 1, medium) R45 regression: only a file a live session is writing counts as live. In this process:
+  the open-files list (a lock held by this process no longer protects anything by itself). In another process: only
+  the newest file of that SN (by modification time, `.partN` included) written since the owner's `lockedAt` (2 s
+  tolerance). Closed `.partN` files of a live session and older files are pruned; the bounds (50 files / 200 MiB) hold
+  apart from at most one live file per live session (Design, Bounds, `console_file_sink.h`). Tests
+  `Sink.RetentionPrunesTheClosedPartsOfALiveSession` (this process holds the lock; the session rotated into
+  `.part3`; its closed parts, written after the lock was taken, are pruned, the current part is kept) and POSIX
+  `Sink.RetentionKeepsOnlyTheNewestFileOfAProbeLockedByAnotherProcess` (a real QLockFile in a helper process; its
+  `.part2` is kept beyond the bound, its closed first part and an older session's file are pruned; after release it
+  goes); they replace `Sink.RetentionKeepsTheFilesOfALiveProbeLock` and
+  `Sink.RetentionKeepsTheFilesOfAProbeLockedByAnotherProcess`. `Sink.RetentionKeepsTheFilesThisProcessHasOpen`
+  unchanged.
+- [x] R49 (finding 2, medium) Connect speed (decided 2026-10-11: auto, like pylink; ADR-0090). pylink-square 2.0.2
+  `JLink.connect(chip, speed='auto')` sends `Device = <chip>`, then `set_speed(auto=True)`: `speed = 0`,
+  `speed | AUTO_JTAG_SPEED` (`0x0`), `JLINKARM_SetSpeed(0)`, then `JLINKARM_Connect` (only when not connected yet).
+  Mirrored through the existing `IJLinkApi::setSpeed()` with `jlink::autoSpeed` = 0 (no new library call; source
+  cited in `jlink_api.h`). `JLinkProbe::setSpeed(std::optional<int>)` (nullopt = auto) applies the
+  speed at once (before the SWD selection, as before) and `connect()` applies it again right after `Device =`, before
+  `JLINKARM_Connect`. `TargetProfile::defaultSpeedKhz` and `SessionOptions::speedKhz` are `std::optional<int>`
+  (nullopt = auto; CHESTER: nullopt). CLI `--jlink-speed auto|KHZ` (default `auto`; a kHz value 5–50 000; anything else
+  `usage.invalid_argument` when the arguments are parsed, `parseJLinkSpeed()` in `chester_commands.h`); the console
+  prints "Connecting to NRF52840_xxAA at auto speed..." (or "at N kHz"). `hio jlink info` and `update-firmware` connect
+  no target and set no speed, so nothing changes there. Tests `Probe.ConnectSetsTheAutomaticSpeedAfterTheDeviceAsPylink`
+  (GMock order `Device = …` → `setSpeed(0)` → `connect()`), `Probe.AutomaticSpeedIsSetAsZero`,
+  `Probe.ExplicitSpeedIsFixedForTheConnect` (4000 at once and after `Device =`, never 0),
+  `Session.SpeedIsAutomaticByDefaultAndFixedWhenGiven` (`ScriptedTarget::speeds`), `CliApp.JLinkSpeedAcceptsAutoOrKiloHertz`,
+  `CliApp.InvalidJLinkSpeedIsUsageError` (`fast`, `1`, `4`, `50001`, an empty value, `2000k`, `-5`, `auto2`),
+  `ParseJLinkSpeed.AutoIsNulloptAndKiloHertzIsFixed`, `FakeJLinkCli.InvalidSpeedIsUsageError` (`1` and `fast` → exit 2),
+  `Profiles.ChesterAppTarget` (default nullopt).
+- [x] R50 (finding 3, low-medium) The decision row and the CLI table describe "`--auto-reconnect` and the first
+  connect" as our own rule (rttt and py-hardwario end on a probe-open or target-connect failure even with
+  `--auto-reconnect`; only the RTT attach of rttt's `connector.open()` retries); listed in Differences from rttt. No
+  code change.
+- [x] R51 (finding 4, low) `ProbeLock::acquire()`: when both `tryLock()` attempts fail and the lock read in the second
+  looks stale (QLockFile's rules as `owner()` mirrors them — dead PID, another boot, another program — or the file is
+  gone, or our own PID that we do not hold), it waits 10 ms and tries once more before reporting
+  `probe.in_use_by_other_process` (bounded: one extra attempt, under the held-serials mutex). Covers `owner()` of
+  another process holding the stale file's `flock` (POSIX) or opening it without `FILE_SHARE_DELETE` (Windows) for a
+  moment. Test POSIX `Lock.StaleLockBrieflyHeldByAnOwnerCheckIsTakenOver` (a thread holds a `flock` on a stale lock
+  file of a dead process for 5 ms through its own file description; the old code reported the dead owner).
+- [x] R52 (finding 5, low) A failed `JLINKARM_GetHWStatus` of the open probe is the new code `probe.io_failed` (Probe,
+  exit 5; "Communication with the J-Link failed." / the J-Link did not answer: a USB glitch, or the USB cable was
+  disconnected / "Check the USB cable between the J-Link and the computer; the console reconnects automatically if
+  enabled."; Troubleshooting; Czech texts). `target.rtt_read_failed` was not used: its texts speak of reading from the
+  device and of the flat cable, while this is the J-Link itself not answering. Callers: the session's power check
+  reports Disconnected with `probe.io_failed` (the auto-reconnect retry still closes and reopens the probe, review
+  fix 2; the gate ignores the code); `chester app command` ends with that error (exit 5 as before, no longer "No
+  J-Link probe found."); `jlink info` ignores a failed read (`targetMillivolts` null, unchanged); `JLinkProbe::connect()`
+  reads the status through the API itself (cable diagnosis, unchanged). Tests `MakeError.ProbeIoFailedCode`,
+  `Probe.HardwareStatusFailureIsProbeIoFailed` (replaces `Probe.HardwareStatusFailureMeansTheProbeIsGone`),
+  `Session.FailedStatusReadIsProbeIoFailed`.
+- [x] R53 (finding 6, low) An empty or unreadable lock file (owner `?`, PID 0) keeps Qt's semantics (not stale, never
+  deleted automatically); its `probe.in_use_by_other_process` error gets the suggestion "If no other HARDWARIO program
+  is running, delete <path>." (translatable, context `hio::device`, native separators; Czech). The detail names the
+  lock file for every owner. Test `Lock.UnknownOwnerSuggestsDeletingTheLockFile`.
+- [x] R54 (finding 7, low) The event queue drops only console output lines (`Direction::Out`); echoes
+  (`Direction::In`) are excluded from the `DropOldestMatching` predicate (`isDroppableEvent`, `session_internal.h`),
+  so `command` counts every written line. Bounded by the command queue; Bounds and R10 updated. Test
+  `Session.EventOverflowKeepsEveryEcho` (40 commands answered by 500 lines each while the owner does not drain: lines
+  are dropped, all 40 echoes arrive in order; the old code delivered 8).
+- [x] R55 (finding 8, low) CLI table: the `command` timeout is counted from the last echo (written line); the lines are
+  written before that within at most lines × write timeout + 500 ms (R7, R23, R39). Documentation only.
+- [x] R56 (finding 9, low) The lock tests record the name Qt's `processNameByPid()` reports for the `sleep` helper
+  (`runningAppName()`: the file name of `/proc/<pid>/exe` on Linux, `proc_name()` on macOS; read right after the helper
+  started) instead of "sleep", so busybox and multicall coreutils images pass: `Lock.HeldByAnotherProcessNamesTheOwner`,
+  `Lock.StaleLockOfADeadProcessIsTakenOver`, `Lock.LiveProcessWithAnotherAppNameIsNoOwner`,
+  `Lock.LockOfAnotherBootIsNoOwner`, `Lock.MachineIdDecidesTheHost`, and the new
+  `Lock.StaleLockBrieflyHeldByAnOwnerCheckIsTakenOver`. No failing-before test here (this machine's `sleep` is its own
+  binary).
+- [x] Differences from rttt (Design → `libs/device`) corrected as the review asked, each statement checked against the
+  rttt 1.9.2 and pylink 2.0.2 sources: halt reset (rttt re-attaches only with `--auto-reconnect`), missing logger (only
+  an unregistered name fails after 15 s in rttt), and added connect speed, the first connect with
+  `--auto-reconnect`, rttt's 1 s wait after `--reset` (listed, behaviour not changed), the down buffer by name, state
+  de-duplication by error code and the `connecting` state, a write while detached, and the silent probe firmware update
+  of pylink's `disable_dialog_boxes()`. The 2 s write timeout and the stale-control-block retry were not in the list;
+  they match rttt (noted under the list).
+
+Verification of R48–R56 (2026-10-11/12, clean asan / tsan / tidy build directories, default environment): debug, ASan
+and TSan 380/380 ctest tests (the 5 `Hil.*` skipped without `HIO_HIL=1`), 0 sanitizer reports; `ctest --repeat
+until-fail:20` of the 39 added or changed tests (`MakeError.ProbeIoFailedCode`, the R49 / R52 `Probe.*` tests,
+`Session.SpeedIsAutomaticByDefaultAndFixedWhenGiven`, `.FailedStatusReadIsProbeIoFailed`, `.EventOverflowKeepsEveryEcho`,
+`Sink.Retention*`, `Lock.*`, the speed `CliApp.*` / `ParseJLinkSpeed.*` tests, `FakeJLinkCli.InvalidSpeedIsUsageError`,
+`Profiles.*`) passed 20/20 under TSan and ASan; `hio_device_tests --gtest_filter='Session.*:Lock.*:Sink.*:ConnectTimeout.*'
+--gtest_repeat=30` 30/30 (98 tests each) under TSan (preset `TSAN_OPTIONS`, `DEBUGINFOD_URLS=`; no new suppression);
+clang-tidy 0 findings; qmllint clean; translations up to date, 0 unfinished Czech entries (4 new strings); clang-format
+and Git LFS clean.
 
 ## Tests and verification
 
@@ -869,9 +1009,10 @@ tests compile only under `_WIN32` and were not built here (Windows CI).
 - **replxx** with clang-cl and sanitizers; terminal handling on Windows consoles.
 - **Vendor library internal threads** vs. TSan: suppressions documented one by one (HIL only; the fake library is ours).
 - **macOS/Linux USB permissions** (udev rules) surface as `probe.open_failed`; the setup wizard is M4.
-- **Very low SWD speeds** (R47): the 35.5 s connect timeout assumes about 1000 kHz or more; at e.g. 5 kHz the connect
-  and attach may take longer and end with `timeout` instead of the session's own error. Not scaled yet; HIL (G1)
-  measures 5, 100 and 1000 kHz.
+- **Very low explicit SWD speeds** (R47): the 35.5 s connect timeout assumes about 1000 kHz or more; at an explicit
+  `--jlink-speed` of e.g. 5 kHz the connect and attach may take longer and end with `timeout` instead of the session's
+  own error. The default automatic speed (ADR-0090) is not concerned. Not scaled yet; HIL (G1) measures auto and 5,
+  100 and 1000 kHz.
 - Found during implementation (2026-10-09): replxx master is only 15 commits ahead of `release-0.0.4` and has had no
   commit since 2021-11-25 (ADR-0064 assumed "years of fixes"); the dependency is effectively unmaintained. It builds
   with one third-party compiler warning (`-Wcharacter-conversion` in `terminal.cxx`, not our flags). The other

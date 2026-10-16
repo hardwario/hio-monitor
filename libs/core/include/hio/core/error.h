@@ -58,6 +58,7 @@ enum class ErrorCode : std::uint8_t {
     TargetRttWriteFailed,      // review fix 2026-10-09
     ProbeFirmwareUpdateFailed, // review R11, 2026-10-10
     TargetNotConnected,        // review R18, 2026-10-10
+    ProbeIoFailed,             // review R52, 2026-10-11
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -153,6 +154,9 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::TargetNotConnected,
               .id = "target.not_connected",
               .category = ErrorCategory::Target},
+    ErrorInfo{.code = ErrorCode::ProbeIoFailed,
+              .id = "probe.io_failed",
+              .category = ErrorCategory::Probe},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every

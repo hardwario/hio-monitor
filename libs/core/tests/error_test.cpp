@@ -113,6 +113,21 @@ TEST(MakeError, FirmwareUpdateFailedAndNotConnectedCodes) {
     EXPECT_EQ(error.wizard, hio::WizardId::ConnectDevice);
 }
 
+// Review R52 (2026-10-11): a J-Link that does not answer (JLINKARM_GetHWStatus fails) has its own
+// Probe code instead of probe.not_found.
+TEST(MakeError, ProbeIoFailedCode) {
+    EXPECT_EQ(hio::idOf(ErrorCode::ProbeIoFailed), "probe.io_failed");
+    EXPECT_EQ(hio::categoryOf(ErrorCode::ProbeIoFailed), ErrorCategory::Probe);
+    EXPECT_EQ(hio::errorCodeFromId("probe.io_failed"), ErrorCode::ProbeIoFailed);
+    const hio::Error error = hio::makeError(ErrorCode::ProbeIoFailed);
+    EXPECT_EQ(error.message, "Communication with the J-Link failed.");
+    EXPECT_EQ(error.cause,
+              "The J-Link did not answer: a USB glitch, or the USB cable was disconnected.");
+    EXPECT_EQ(error.suggestion, "Check the USB cable between the J-Link and the computer; the "
+                                "console reconnects automatically if enabled.");
+    EXPECT_EQ(error.wizard, hio::WizardId::Troubleshooting);
+}
+
 // Review R44: a closed stdout ends with `cancelled` and its own message; the cause, suggestion
 // and the detail of the call site stay.
 TEST(MakeError, OutputClosedIsCancelledWithItsOwnMessage) {

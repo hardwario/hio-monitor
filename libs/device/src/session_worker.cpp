@@ -358,6 +358,8 @@ private:
         if (!m_probe->isOpen() && !step(openProbe(stop))) {
             return;
         }
+        // Automatic unless a kHz value was given; connect() sets it again after `Device =`, as
+        // pylink's JLink.connect() (ADR-0090).
         m_probe->setSpeed(m_config.speedKhz);
         if (!step(m_probe->selectSwd())) {
             return;

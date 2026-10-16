@@ -1140,6 +1140,88 @@ TEST_F(Session, EventOverflowDropsOnlyConsoleLines) {
     EXPECT_EQ(events->warnings.back().code, ErrorCode::TargetRttBufferNotFound);
 }
 
+// Review R54: echo lines (Direction::In) are never dropped on an event-queue overflow (only shell
+// and log output is), so a caller that counts the written lines (`chester app command`) sees every
+// echo. 40 commands, each answered by 500 lines, while the owner thread does not drain: 20 000
+// output lines overflow the queue (10 000); every echo arrives, in order.
+TEST_F(Session, EventOverflowKeepsEveryEcho) {
+    constexpr int commands = 40;
+    constexpr int answerLines = 500;
+    std::string answer;
+    for (int i = 0; i < answerLines; ++i) {
+        answer += "x\n";
+    }
+    target().set([&answer](ScriptedTarget& t) {
+        t.up[0].size = 64 * 1024;
+        t.downBuffers[0].size = 64;
+        for (int i = 0; i < commands; ++i) {
+            t.responses["cmd" + std::to_string(i)] = answer;
+        }
+    });
+    Recorder* events = nullptr;
+    auto session = openConnected(options(), events);
+    ASSERT_TRUE(session);
+    const std::size_t linesBefore = events->lines.size();
+    // From here on the owner thread does not drain until every command was written and answered.
+    for (int i = 0; i < commands; ++i) {
+        ASSERT_TRUE(session->sendLine("cmd" + std::to_string(i)));
+    }
+    ASSERT_TRUE(waitWithoutEvents([this] {
+        return target().written().ends_with("cmd" + std::to_string(commands - 1) + "\n");
+    }));
+    ASSERT_TRUE(waitUntilOutputEmitted());
+    const std::size_t total = static_cast<std::size_t>(commands) * (answerLines + 1);
+    ASSERT_TRUE(waitFor([&] {
+        return events->lines.size() - linesBefore + events->dropped == total;
+    })) << "lines "
+        << events->lines.size() - linesBefore << " dropped " << events->dropped;
+    EXPECT_GT(events->dropped, 0U);
+    const std::vector<std::string> echoes = events->texts(Channel::Shell, Direction::In);
+    ASSERT_EQ(echoes.size(), static_cast<std::size_t>(commands));
+    for (int i = 0; i < commands; ++i) {
+        EXPECT_EQ(echoes.at(static_cast<std::size_t>(i)), "cmd" + std::to_string(i));
+    }
+}
+
+// Review R52: a failed JLINKARM_GetHWStatus during the session (the J-Link did not answer) is
+// reported as probe.io_failed, not probe.not_found.
+TEST_F(Session, FailedStatusReadIsProbeIoFailed) {
+    Recorder* events = nullptr;
+    auto session = openConnected(options(), events);
+    ASSERT_TRUE(session);
+    target().set([](ScriptedTarget& t) { t.hardwareStatusFails = true; });
+    ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
+    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).code,
+              ErrorCode::ProbeIoFailed);
+}
+
+// ADR-0090 / review R49: a session connects at the automatic speed (JLINKARM_SetSpeed(0)) unless
+// a kHz value is given; then every speed call uses that fixed value.
+TEST_F(Session, SpeedIsAutomaticByDefaultAndFixedWhenGiven) {
+    SessionOptions opts = options();
+    opts.speedKhz = std::nullopt;
+    Recorder* events = nullptr;
+    auto session = openConnected(opts, events);
+    ASSERT_TRUE(session);
+    const auto automatic = target().get([](ScriptedTarget& t) { return t.speeds; });
+    ASSERT_GE(automatic.size(), 2U); // before the connect and after `Device =`
+    for (const std::uint32_t speed : automatic) {
+        EXPECT_EQ(speed, 0U);
+    }
+    session->close();
+    session.reset();
+
+    target().set([](ScriptedTarget& t) { t.speeds.clear(); });
+    opts.speedKhz = 4000;
+    auto fixed = openConnected(opts, events);
+    ASSERT_TRUE(fixed);
+    const auto fixedSpeeds = target().get([](ScriptedTarget& t) { return t.speeds; });
+    ASSERT_GE(fixedSpeeds.size(), 2U);
+    for (const std::uint32_t speed : fixedSpeeds) {
+        EXPECT_EQ(speed, 4000U);
+    }
+}
+
 // Review R13: a power loss is detected while the target keeps printing.
 TEST_F(Session, PowerLossIsDetectedDuringContinuousOutput) {
     Recorder* events = nullptr;

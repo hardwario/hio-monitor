@@ -22,7 +22,7 @@ TEST(Profiles, ChesterAppTarget) {
     EXPECT_EQ(app->rttTerminal, "Terminal");
     EXPECT_EQ(app->rttLogger, "Logger");
     EXPECT_TRUE(app->hashPrefixIsLog);
-    EXPECT_EQ(app->defaultSpeedKhz, 2000);
+    EXPECT_FALSE(app->defaultSpeedKhz.has_value()); // automatic, as pylink (ADR-0090)
     EXPECT_EQ(app->defaultLatencyMs, 50);
     EXPECT_EQ(app->minTargetMillivolts, 1000);
 }
@@ -42,7 +42,7 @@ TEST(Profiles, EveryProfileIsConsistent) {
         EXPECT_FALSE(profile->targets.empty()) << profile->id;
         for (const hio::device::TargetProfile& target : profile->targets) {
             EXPECT_FALSE(target.jlinkDevice.empty()) << target.id;
-            EXPECT_GT(target.defaultSpeedKhz, 0) << target.id;
+            EXPECT_GT(target.defaultSpeedKhz.value_or(1), 0) << target.id; // nullopt = auto
             EXPECT_GT(target.defaultLatencyMs, 0) << target.id;
             EXPECT_GT(target.minTargetMillivolts, 0) << target.id;
         }

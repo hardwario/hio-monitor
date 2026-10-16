@@ -62,19 +62,24 @@ public:
     // The open probe (serial number, product, firmware string).
     [[nodiscard]] const ProbeInfo& info() const noexcept { return m_info; }
 
-    void setSpeed(int kiloHertz);
+    // The SWD speed: a fixed kHz, or nullopt = automatic (JLINKARM_SetSpeed(0), the default;
+    // ADR-0090). Applied now and again by connect() right after `Device =`, as pylink's
+    // JLink.connect() does.
+    void setSpeed(std::optional<int> kiloHertz);
     // Errors: probe.open_failed.
     [[nodiscard]] Status selectSwd();
 
-    // Connects the target MCU `deviceName` (e.g. "NRF52840_xxAA"): up to connectAttempts
-    // attempts, connectRetryDelay apart. Errors: target.no_power (0 < VTref < minTargetMillivolts,
+    // Connects the target MCU `deviceName` (e.g. "NRF52840_xxAA"): `Device = <name>`, the speed
+    // of setSpeed() (automatic by default), then up to connectAttempts attempts, connectRetryDelay
+    // apart. Errors: target.no_power (0 < VTref < minTargetMillivolts,
     // or VTref = 0 when `healthyVoltageSeen`: a reading >= minTargetMillivolts was seen on this
     // probe in this session; a probe that cannot measure VTref reports 0), target.connect_failed,
     // cancelled (stop requested).
     [[nodiscard]] Status connect(std::string_view deviceName, int minTargetMillivolts,
                                  bool healthyVoltageSeen, const std::stop_token& stop);
 
-    // Target voltage. Errors: probe.not_found (the probe does not answer, e.g. unplugged).
+    // Target voltage. Errors: probe.io_failed (the open probe does not answer: a USB glitch or
+    // an unplugged probe; review R52).
     [[nodiscard]] Result<HardwareStatus> hardwareStatus();
     // Unknown when the library cannot tell (logged).
     [[nodiscard]] FirmwareStatus firmwareStatus();
@@ -94,6 +99,7 @@ public:
 private:
     [[nodiscard]] std::string libraryDetail(std::string detail);
     void execCommands(std::span<const std::string_view> commands);
+    void applySpeed();
     [[nodiscard]] bool isNetworkProbe(std::uint32_t serialNumber);
 
     IJLinkApi& m_api;
@@ -101,6 +107,7 @@ private:
     ProbeTiming m_timing;
     ProbeInfo m_info;
     bool m_open = false;
+    std::optional<int> m_speed; // kHz; nullopt = automatic (ADR-0090)
     // The result of the network-J-Link check of a serial number (isNetworkProbe, review R22).
     std::optional<std::pair<std::uint32_t, bool>> m_networkCheck;
 };

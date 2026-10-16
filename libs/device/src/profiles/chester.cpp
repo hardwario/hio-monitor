@@ -5,6 +5,7 @@
 #include "profiles.h"
 
 #include <array>
+#include <optional>
 
 namespace hio::device::profiles {
 
@@ -17,7 +18,7 @@ constexpr std::array chesterTargets{
                   .rttTerminal = "Terminal",
                   .rttLogger = "Logger",
                   .hashPrefixIsLog = true,
-                  .defaultSpeedKhz = 2000,
+                  .defaultSpeedKhz = std::nullopt, // automatic (ADR-0090)
                   .defaultLatencyMs = 50,
                   .minTargetMillivolts = 1000},
     // LTE modem MCU (nRF91 series, J-Link device name of the nRF9151; py-hardwario maps every
@@ -27,7 +28,7 @@ constexpr std::array chesterTargets{
                   .rttTerminal = "",
                   .rttLogger = "",
                   .hashPrefixIsLog = false,
-                  .defaultSpeedKhz = 2000,
+                  .defaultSpeedKhz = std::nullopt, // automatic (ADR-0090)
                   .defaultLatencyMs = 50,
                   .minTargetMillivolts = 1000},
 };

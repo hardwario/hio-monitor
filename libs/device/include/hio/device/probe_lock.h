@@ -37,9 +37,13 @@ public:
     // <AppLocalData>/locks (requires initApplicationIdentity()).
     [[nodiscard]] static std::filesystem::path defaultDirectory();
 
-    // Errors: probe.in_use_by_other_process (with the owner's app name and PID),
+    // Errors: probe.in_use_by_other_process (with the owner's app name and PID; an empty or
+    // unreadable lock file is owner "?" / PID 0, whose suggestion names the lock file to delete -
+    // it is never deleted automatically, as QLockFile does not treat it as stale; review R53),
     // probe.open_failed (this process holds it already), io.write_failed (the lock directory
-    // cannot be created or the lock file cannot be written).
+    // cannot be created or the lock file cannot be written). A lock that looks stale but could
+    // not be taken over (owner() of another process holds its file for a moment) is tried once
+    // more after 10 ms (review R51).
     [[nodiscard]] static Result<ProbeLock> acquire(std::uint32_t serialNumber);
     [[nodiscard]] static Result<ProbeLock> acquire(std::uint32_t serialNumber,
                                                    const std::filesystem::path& directory);
