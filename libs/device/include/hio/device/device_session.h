@@ -89,8 +89,10 @@ struct SessionOptions {
     const DeviceProfile* profile = nullptr;
     std::string_view targetId;
     std::optional<std::uint32_t> probeSn; // nullopt = the first probe that is not locked
-    int speedKhz = 0;                     // J-Link speed (minSpeedKhz..maxSpeedKhz)
-    int latencyMs = 0;                    // RTT poll interval (minLatencyMs..maxLatencyMs)
+    // J-Link speed: nullopt = automatic (the default, as pylink; ADR-0090), otherwise this fixed
+    // speed in kHz (minSpeedKhz..maxSpeedKhz) for the connect and the session.
+    std::optional<int> speedKhz;
+    int latencyMs = 0; // RTT poll interval (minLatencyMs..maxLatencyMs)
     bool autoReconnect = false;
     bool resetOnOpen = false; // reset the target (no halt) before attaching
     // false: the session connects the target but never attaches RTT (flash-only sessions; the CLI
@@ -108,7 +110,8 @@ struct SessionOptions {
     std::shared_ptr<ConsoleLog> consoleLog;
 };
 
-// Option ranges checked by open() (usage.invalid_argument).
+// Option ranges checked by open() (usage.invalid_argument). The speed range is pylink's
+// (MIN_JTAG_SPEED, MAX_JTAG_SPEED); it applies to a fixed speed only.
 inline constexpr int minSpeedKhz = 5;
 inline constexpr int maxSpeedKhz = 50000;
 inline constexpr int minLatencyMs = 1;
@@ -271,9 +274,26 @@ connectTimeoutFor(const jlink::ProbeTiming& probe, const jlink::RttTiming& rtt,
            rtt.attachDeadline + rtt.loggerWait + budget.margin;
 }
 
-// The timeout the CLI passes to the waits above: 5 + 3 x (3 + 0.5) + 15 + 3 + 2 = 35.5 s.
+// The timeout the CLI passes to the waits above for a session at J-Link speed `speedKhz`
+// (nullopt = auto), with the attach deadline of that speed (ADR-0095), as DeviceSession::open()
+// uses it.
+[[nodiscard]] constexpr std::chrono::milliseconds
+connectTimeoutForSpeed(std::optional<int> speedKhz) {
+    jlink::RttTiming rtt;
+    rtt.attachDeadline = jlink::rttAttachDeadline(speedKhz, rtt.attachDeadline);
+    return connectTimeoutFor(jlink::ProbeTiming{}, rtt);
+}
+
+// At auto speed and at 1000 kHz or more: 5 + 3 x (3 + 0.5) + 15 + 3 + 2 = 35.5 s; at 250 kHz and
+// below (attach deadline capped at 60 s): 5 + 3 x (3 + 0.5) + 60 + 3 + 2 = 80.5 s.
 inline constexpr std::chrono::milliseconds defaultConnectTimeout =
     connectTimeoutFor(jlink::ProbeTiming{}, jlink::RttTiming{});
 static_assert(defaultConnectTimeout == std::chrono::milliseconds(35500));
+static_assert(connectTimeoutForSpeed(std::nullopt) == defaultConnectTimeout);
+static_assert(connectTimeoutForSpeed(minSpeedKhz) == std::chrono::milliseconds(80500));
+
+// ADR-0095: the warning for a fixed J-Link speed below jlink::rttSlowSpeedKhz (translated), shown
+// before connecting; nullopt at auto and at faster speeds.
+[[nodiscard]] std::optional<std::string> slowSpeedWarning(std::optional<int> speedKhz);
 
 } // namespace hio::device

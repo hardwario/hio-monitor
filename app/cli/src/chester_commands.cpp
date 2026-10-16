@@ -32,6 +32,7 @@
 
 #include <CLI/CLI.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -90,14 +91,19 @@ const device::TargetProfile& chesterApp() {
     return *device::findTarget(*profile, targetId);
 }
 
-device::SessionOptions sessionOptions(const ProbeOptions& group, const ProbeOptions& own,
-                                      int latencyMs, bool autoReconnect, bool reset,
-                                      const std::string& consoleFile, bool consoleFileGiven) {
+Result<device::SessionOptions> sessionOptions(const ProbeOptions& group, const ProbeOptions& own,
+                                              int latencyMs, bool autoReconnect, bool reset,
+                                              const std::string& consoleFile,
+                                              bool consoleFileGiven) {
     device::SessionOptions options;
     options.profile = device::ProfileRegistry::find(profileId);
     options.targetId = targetId;
     options.probeSn = serialNumberOf(group, own);
-    options.speedKhz = speedOf(group, own, chesterApp().defaultSpeedKhz);
+    auto speed = speedOf(group, own, chesterApp().defaultSpeedKhz);
+    if (!speed) {
+        return std::unexpected(std::move(speed).error());
+    }
+    options.speedKhz = *speed;
     options.latencyMs = latencyMs;
     options.autoReconnect = autoReconnect;
     options.resetOnOpen = reset;
@@ -120,6 +126,20 @@ std::vector<std::string> splitLines(const std::string& text) {
     return lines;
 }
 
+// ADR-0095: before connecting at a fixed speed below 125 kHz, where the console may not be found
+// within the (capped) attach deadline. Logged; on stderr in human mode (like the other warnings
+// outside a console event stream).
+void warnAboutSlowSpeed(const Context& context, std::optional<int> speedKhz) {
+    const std::optional<std::string> warning = device::slowSpeedWarning(speedKhz);
+    if (!warning) {
+        return;
+    }
+    qCWarning(lcCli).noquote() << toQString(*warning);
+    if (context.mode == OutputMode::Human) {
+        std::cerr << "Warning: " << *warning << '\n';
+    }
+}
+
 // ---- console --------------------------------------------------------------------------------
 
 Result<CommandResult> console(const Context& context, const GlobalOptions& globals,
@@ -132,12 +152,16 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
         return std::unexpected(std::move(location).error());
     }
     device::SessionRegistry registry;
-    device::SessionOptions sessionOpts =
+    auto sessionOpts =
         sessionOptions(group, options.probe, options.latencyMs, options.autoReconnect,
                        options.reset, options.consoleFile, options.consoleFileGiven);
-    const bool announceProbe = !sessionOpts.probeSn;
-    const int speed = sessionOpts.speedKhz;
-    auto session = device::DeviceSession::open(registry, *location, std::move(sessionOpts));
+    if (!sessionOpts) {
+        return std::unexpected(std::move(sessionOpts).error());
+    }
+    const bool announceProbe = !sessionOpts->probeSn;
+    const std::optional<int> speed = sessionOpts->speedKhz;
+    warnAboutSlowSpeed(context, speed);
+    auto session = device::DeviceSession::open(registry, *location, std::move(*sessionOpts));
     if (!session) {
         return std::unexpected(std::move(session).error());
     }
@@ -161,9 +185,11 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
         }
         return error;
     };
-    view.printStatus(std::format("Connecting to {} at {} kHz...", chesterApp().jlinkDevice, speed));
-    if (const Status connected = waitForConsoleConnection(
-            consoleContext, **session, view, options.autoReconnect, device::defaultConnectTimeout);
+    view.printStatus(std::format("Connecting to {} at {}...", chesterApp().jlinkDevice,
+                                 jlink::speedDetail(speed)));
+    if (const Status connected =
+            waitForConsoleConnection(consoleContext, **session, view, options.autoReconnect,
+                                     device::connectTimeoutForSpeed(speed));
         !connected) {
         return std::unexpected(withReason(connected.error()));
     }
@@ -347,18 +373,22 @@ Result<CommandResult> command(const Context& context, const GlobalOptions& globa
         return std::unexpected(std::move(location).error());
     }
     device::SessionRegistry registry;
-    device::SessionOptions sessionOpts =
-        sessionOptions(group, options.probe, chesterApp().defaultLatencyMs, false, options.reset,
-                       options.consoleFile, options.consoleFileGiven);
-    const bool announceProbe = !sessionOpts.probeSn;
-    auto session = device::DeviceSession::open(registry, *location, std::move(sessionOpts));
+    auto sessionOpts = sessionOptions(group, options.probe, chesterApp().defaultLatencyMs, false,
+                                      options.reset, options.consoleFile, options.consoleFileGiven);
+    if (!sessionOpts) {
+        return std::unexpected(std::move(sessionOpts).error());
+    }
+    const bool announceProbe = !sessionOpts->probeSn;
+    const std::optional<int> speed = sessionOpts->speedKhz;
+    warnAboutSlowSpeed(context, speed);
+    auto session = device::DeviceSession::open(registry, *location, std::move(*sessionOpts));
     if (!session) {
         return std::unexpected(std::move(session).error());
     }
     device::DeviceSession& device = **session;
     ResponseCollector collector(context, device);
     if (const Status connected =
-            device::waitUntilConnected(device, device::defaultConnectTimeout, context.stop);
+            device::waitUntilConnected(device, device::connectTimeoutForSpeed(speed), context.stop);
         !connected) {
         device.close();
         return std::unexpected(connected.error());
@@ -431,13 +461,34 @@ Result<CommandResult> command(const Context& context, const GlobalOptions& globa
 
 } // namespace
 
+Result<std::optional<int>> parseJLinkSpeed(std::string_view text) {
+    if (text == "auto") {
+        return std::optional<int>();
+    }
+    // Decimal digits only (no sign, spaces or suffix); at most 5 digits, so no overflow.
+    constexpr std::size_t maxDigits = 5;
+    const bool digits = !text.empty() && text.size() <= maxDigits &&
+                        std::ranges::all_of(text, [](char c) { return c >= '0' && c <= '9'; });
+    int kiloHertz = 0;
+    for (const char c : digits ? text : std::string_view()) {
+        kiloHertz = (kiloHertz * 10) + (c - '0');
+    }
+    if (!digits || kiloHertz < device::minSpeedKhz || kiloHertz > device::maxSpeedKhz) {
+        Error invalid = makeError(ErrorCode::UsageInvalidArgument, std::string(text));
+        invalid.message = std::format("The J-Link speed must be auto or between {} and {} kHz.",
+                                      device::minSpeedKhz, device::maxSpeedKhz);
+        return std::unexpected(std::move(invalid));
+    }
+    return std::optional<int>(kiloHertz);
+}
+
 void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptions& globals) {
     CLI::App* chester = app.add_subcommand("chester", "HARDWARIO CHESTER");
     chester->require_subcommand(1);
     CLI::App* appGroup = chester->add_subcommand("app", "Application SoC commands");
     appGroup->require_subcommand(1);
     auto group = std::make_shared<ProbeOptions>();
-    addProbeOptions(*appGroup, *group, chesterApp().defaultSpeedKhz);
+    addProbeOptions(*appGroup, *group);
 
     // console
     auto consoleOptions = std::make_shared<ConsoleOptions>();
@@ -473,7 +524,7 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
     consoleCommand->add_flag("--auto-reconnect", consoleOptions->autoReconnect,
                              "Keep re-attaching RTT after the link drops, instead of leaving "
                              "the console disconnected until F4");
-    addProbeOptions(*consoleCommand, consoleOptions->probe, chesterApp().defaultSpeedKhz);
+    addProbeOptions(*consoleCommand, consoleOptions->probe);
     consoleCommand->callback([&slot, &globals, group, consoleOptions, consoleFile] {
         consoleOptions->consoleFileGiven = consoleFile->count() > 0;
         slot.command = [&globals, group, consoleOptions](const Context& context) {
@@ -499,7 +550,7 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
                          "Console log file ('' = none; default: one file per run in the "
                          "application data)")
             ->option_text("PATH");
-    addProbeOptions(*commandCommand, commandOptions->probe, chesterApp().defaultSpeedKhz);
+    addProbeOptions(*commandCommand, commandOptions->probe);
     commandCommand->add_option("command", commandOptions->command, "Shell command(s), one per line")
         ->required();
     commandCommand->callback([&slot, &globals, group, commandOptions, commandConsoleFile] {

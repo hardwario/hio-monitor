@@ -3,6 +3,7 @@
 
 #include "gui_test_support.h"
 #include "hio/core/error.h"
+#include "hio/device/device_session.h"
 #include "hio/device/session_events.h"
 #include "settings_store.h"
 #include "viewmodels/app_view_model.h"
@@ -22,6 +23,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 
 namespace {
 
@@ -45,6 +47,16 @@ protected:
     [[nodiscard]] AppViewModel& app() { return *m_app; }
     [[nodiscard]] DeviceTabViewModel& tab() { return *m_app->currentTabViewModel(); }
     [[nodiscard]] ConnectionViewModel& connection() { return *tab().connection(); }
+    // Closes the app, lets `edit` change the settings file directly, and starts the app again.
+    template <typename Edit> void editSettingsFile(Edit edit) {
+        m_app.reset();
+        {
+            QSettings raw(QString::fromStdU16String(settingsFile().u16string()),
+                          QSettings::IniFormat);
+            edit(raw);
+        }
+        m_app = makeApp();
+    }
 
 private:
     std::unique_ptr<AppViewModel> m_app;
@@ -151,7 +163,9 @@ TEST_F(ConnectionTest, ShortCauses) {
 
 TEST_F(ConnectionTest, OptionsComeFromTheProfileAndTheSettings) {
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
-    EXPECT_EQ(connection().speedKhz(), 2000); // CHESTER app default
+    EXPECT_TRUE(connection().autoSpeed()); // CHESTER app default: automatic (ADR-0090)
+    EXPECT_EQ(connection().speedKhz(), 4000);
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), std::nullopt);
     EXPECT_EQ(connection().latencyMs(), 50);
     EXPECT_TRUE(connection().autoReconnect());
     EXPECT_FALSE(connection().resetOnOpen());
@@ -161,31 +175,121 @@ TEST_F(ConnectionTest, OptionsComeFromTheProfileAndTheSettings) {
     ASSERT_TRUE(app().settingsStore()->setValue(QStringLiteral("rtt/autoReconnect"), false));
     app().newTab();
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012346));
+    EXPECT_FALSE(connection().autoSpeed());
     EXPECT_EQ(connection().speedKhz(), 1000);
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), 1000);
     EXPECT_EQ(connection().latencyMs(), 50);
     EXPECT_FALSE(connection().autoReconnect());
 }
 
+TEST_F(ConnectionTest, AutomaticSpeedByDefault) {
+    // ADR-0096: on by default; turning it off uses the spin box value (4000 kHz).
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    EXPECT_TRUE(connection().autoSpeed());
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), std::nullopt);
+    EXPECT_TRUE(connection().speedWarning().isEmpty());
+
+    connection().setAutoSpeed(false);
+    EXPECT_FALSE(connection().autoSpeed());
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), 4000);
+    EXPECT_EQ(app().settingsStore()->value(QStringLiteral("probes/683012345/speedKhz")).toInt(),
+              4000);
+
+    // While automatic, the fixed value is kept for later; 0 is stored for automatic.
+    connection().setSpeedKhz(12000);
+    connection().setAutoSpeed(true);
+    EXPECT_EQ(connection().speedKhz(), 12000);
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), std::nullopt);
+    EXPECT_EQ(app().settingsStore()->value(QStringLiteral("probes/683012345/speedKhz")).toInt(), 0);
+    connection().setAutoSpeed(false);
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), 12000);
+}
+
+TEST_F(ConnectionTest, StoredSpeedZeroIsAutomatic) {
+    ASSERT_TRUE(app().settingsStore()->setValue(QStringLiteral("jlink/speedKhz"), 0));
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    EXPECT_TRUE(connection().autoSpeed());
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), std::nullopt);
+}
+
+TEST_F(ConnectionTest, StoredFixedSpeedStaysFixed) {
+    // The old explicit 2000 kHz default is not migrated (ADR-0096).
+    ASSERT_TRUE(app().settingsStore()->setValue(QStringLiteral("jlink/speedKhz"), 2000));
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    EXPECT_FALSE(connection().autoSpeed());
+    EXPECT_EQ(connection().speedKhz(), 2000);
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), 2000);
+}
+
+TEST_F(ConnectionTest, OutOfRangeStoredSpeedIsAutomatic) {
+    // Written by hand into the file (the store rejects it through setValue).
+    editSettingsFile([](QSettings& raw) {
+        raw.setValue(QStringLiteral("probes/683012345/speedKhz"), 99999);
+        raw.setValue(QStringLiteral("probes/recent"), QStringLiteral("683012345"));
+    });
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    EXPECT_TRUE(connection().autoSpeed());
+    EXPECT_EQ(connection().speedKhz(), 4000);
+}
+
+TEST_F(ConnectionTest, PerProbeSpeedWinsOverTheGlobalOne) {
+    ASSERT_TRUE(app().settingsStore()->setValue(QStringLiteral("jlink/speedKhz"), 1000));
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    connection().setAutoSpeed(true); // remembered as 0 for this probe
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012346));
+    connection().setSpeedKhz(8000);
+
+    app().newTab();
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    EXPECT_TRUE(connection().autoSpeed());
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), std::nullopt);
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012346));
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), 8000);
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 1));
+    EXPECT_EQ(connection().options().sessionSpeedKhz(), 1000); // the global default
+}
+
+TEST_F(ConnectionTest, SlowSpeedWarningBelow125Khz) {
+    // ADR-0095: only for a fixed speed below 125 kHz.
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    connection().setSpeedKhz(100);
+    EXPECT_TRUE(connection().speedWarning().isEmpty()); // automatic
+    connection().setAutoSpeed(false);
+    const std::optional<std::string> expected = hio::device::slowSpeedWarning(100);
+    ASSERT_TRUE(expected.has_value());
+    EXPECT_EQ(connection().speedWarning(),
+              QString::fromStdString(expected.value_or(std::string())));
+    EXPECT_TRUE(connection().speedWarning().contains(QStringLiteral("1000 kHz")));
+    connection().setSpeedKhz(125);
+    EXPECT_TRUE(connection().speedWarning().isEmpty());
+    connection().setSpeedKhz(124);
+    EXPECT_FALSE(connection().speedWarning().isEmpty());
+    connection().setSpeedKhz(4000);
+    EXPECT_TRUE(connection().speedWarning().isEmpty());
+}
+
 TEST_F(ConnectionTest, OptionsAreRememberedPerProbe) {
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
-    connection().setSpeedKhz(4000);
+    connection().setAutoSpeed(false);
+    connection().setSpeedKhz(4100);
     connection().setResetOnOpen(true);
     connection().setSpeedKhz(1); // out of range: ignored
     connection().setLatencyMs(5000);
-    EXPECT_EQ(connection().speedKhz(), 4000);
+    EXPECT_EQ(connection().speedKhz(), 4100);
     EXPECT_EQ(connection().latencyMs(), 50);
     EXPECT_EQ(app().settingsStore()->value(QStringLiteral("probes/683012345/speedKhz")).toInt(),
-              4000);
+              4100);
     EXPECT_EQ(app().settingsStore()->value(QStringLiteral("probes/recent")).toString(),
               QStringLiteral("683012345"));
 
     // Another tab with the same probe gets the remembered values; another probe the defaults.
     app().newTab();
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
-    EXPECT_EQ(connection().speedKhz(), 4000);
+    EXPECT_FALSE(connection().autoSpeed());
+    EXPECT_EQ(connection().speedKhz(), 4100);
     EXPECT_TRUE(connection().resetOnOpen());
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 1));
-    EXPECT_EQ(connection().speedKhz(), 2000);
+    EXPECT_TRUE(connection().autoSpeed());
     EXPECT_FALSE(connection().resetOnOpen());
 }
 
@@ -193,6 +297,7 @@ TEST_F(ConnectionTest, AtMost32ProbesAreRemembered) {
     for (int serial = 1; serial <= 40; ++serial) {
         ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"),
                                     static_cast<std::uint32_t>(serial)));
+        connection().setAutoSpeed(false);
         connection().setSpeedKhz(1000 + serial);
     }
     const QStringList recent = app()
@@ -211,7 +316,7 @@ TEST_F(ConnectionTest, AtMost32ProbesAreRemembered) {
     EXPECT_TRUE(raw.contains(QStringLiteral("probes/39/speedKhz")));
     // A forgotten probe gets the defaults again.
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 3));
-    EXPECT_EQ(connection().speedKhz(), 2000);
+    EXPECT_TRUE(connection().autoSpeed());
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 39));
     EXPECT_EQ(connection().speedKhz(), 1039);
 }

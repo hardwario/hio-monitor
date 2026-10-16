@@ -7,6 +7,7 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -30,13 +31,13 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <utility>
 
 #ifdef _WIN32
 // NOMINMAX and WIN32_LEAN_AND_MEAN are set by libs/device/CMakeLists.txt.
 #include <windows.h>
 // <psapi.h> needs <windows.h> first.
-#include <QDir>
 #include <QtEnvironmentVariables>
 
 #include <array>
@@ -314,17 +315,34 @@ HeldSerials& heldSerials() {
     return serials;
 }
 
-Error inUseError(std::uint32_t serialNumber, const ProbeLockOwner& owner) {
-    Error error = makeError(ErrorCode::ProbeInUseByOtherProcess,
-                            std::format("lock held by {} (PID {})", owner.app, owner.pid));
+Error inUseError(std::uint32_t serialNumber, const ProbeLockOwner& owner, const fs::path& path) {
+    Error error =
+        makeError(ErrorCode::ProbeInUseByOtherProcess,
+                  std::format("lock held by {} (PID {}): {}", owner.app, owner.pid, toUtf8(path)));
     error.message = QCoreApplication::translate(
                         "hio::device", "The J-Link %1 is used by another program (%2, PID %3).")
                         .arg(serialNumber)
                         .arg(toQString(owner.app))
                         .arg(owner.pid)
                         .toStdString();
+    if (owner.pid == 0) {
+        // An empty or unreadable lock file (e.g. left by a crash while it was being written): not
+        // stale for QLockFile, so it is not removed automatically; the user is told which file it
+        // is (review R53).
+        error.suggestion =
+            QCoreApplication::translate("hio::device",
+                                        "If no other HARDWARIO program is running, delete %1.")
+                .arg(QDir::toNativeSeparators(toQString(toUtf8(path))))
+                .toStdString();
+    }
     return error;
 }
+
+// After both tryLock() attempts failed on a lock that looked stale, acquire() waits this long and
+// tries once more (review R51): owner() of another process briefly holds a stale lock file open
+// (flock on POSIX, open without FILE_SHARE_DELETE on Windows) while it checks it, and QLockFile
+// cannot take a stale lock over meanwhile.
+constexpr std::chrono::milliseconds staleRetryDelay{10};
 
 } // namespace
 
@@ -348,10 +366,25 @@ Result<ProbeLock> ProbeLock::acquire(std::uint32_t serialNumber, const fs::path&
     const fs::path path = lockPath(serialNumber, directory);
     auto lock = std::make_unique<QLockFile>(toQString(toUtf8(path)));
     lock->setStaleLockTime(std::chrono::milliseconds(0)); // stale only when the owner is gone
+    const QString file = toQString(toUtf8(path));
     HeldSerials& held = heldSerials();
     const auto guard = held.guard(); // across tryLock + add (review R20)
-    // Two attempts: the owner may release the lock between tryLock() and getLockInfo().
-    for (int attempt = 0; attempt < 2; ++attempt) {
+    // Two attempts: the owner may release the lock between tryLock() and getLockInfo(). A third
+    // one, staleRetryDelay later, only when the lock read in the second looked stale: owner()
+    // would report no owner, or QLockFile's rules say stale (R51).
+    std::optional<ProbeLockOwner> staleOwner; // the owner read in this attempt, if it looked stale
+    bool apparentlyStale = false;
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        if (attempt == 2) {
+            if (!apparentlyStale) {
+                break;
+            }
+            qCDebug(log::lcDevice)
+                << "Probe lock looks stale but was not taken over; retrying:" << file;
+            std::this_thread::sleep_for(staleRetryDelay); // bounded: one extra attempt
+        }
+        apparentlyStale = false;
+        staleOwner.reset();
         if (lock->tryLock(std::chrono::milliseconds(0))) {
             qCDebug(log::lcDevice) << "Probe lock taken:" << toQString(toUtf8(path));
             held.add(serialNumber);
@@ -365,6 +398,9 @@ Result<ProbeLock> ProbeLock::acquire(std::uint32_t serialNumber, const fs::path&
         }
         const auto owner = readOwner(*lock);
         if (!owner) {
+            // Gone (released meanwhile: owner() would report no owner), or unreadable (an unknown
+            // owner, not stale for QLockFile; R53).
+            apparentlyStale = !QFile::exists(file);
             continue;
         }
         if (owner->pid == QCoreApplication::applicationPid() && !held.contains(serialNumber)) {
@@ -373,6 +409,7 @@ Result<ProbeLock> ProbeLock::acquire(std::uint32_t serialNumber, const fs::path&
             qCInfo(log::lcDevice) << "Removing a stale probe lock with this process's PID:"
                                   << toQString(toUtf8(path));
             lock->removeStaleLockFile();
+            apparentlyStale = true; // owner() reports no owner for it
             continue;
         }
         if (owner->pid == QCoreApplication::applicationPid()) {
@@ -384,10 +421,19 @@ Result<ProbeLock> ProbeLock::acquire(std::uint32_t serialNumber, const fs::path&
                                 .toStdString();
             return std::unexpected(std::move(error));
         }
-        return std::unexpected(inUseError(serialNumber, *owner));
+        // QLockFile's stale rules as owner() applies them (R41): a dead owner (or another boot, a
+        // reused PID) whose lock could not be taken over - its file is held open for a moment by
+        // owner() in another process - is tried again once (R51).
+        if (const auto info = readLockFile(file); info && isApparentlyStale(*info)) {
+            apparentlyStale = true;
+            staleOwner = owner;
+            continue;
+        }
+        return std::unexpected(inUseError(serialNumber, *owner, path));
     }
-    return std::unexpected(
-        inUseError(serialNumber, ProbeLockOwner{.app = "?", .pid = 0, .lockedAt = std::nullopt}));
+    return std::unexpected(inUseError(
+        serialNumber,
+        staleOwner.value_or(ProbeLockOwner{.app = "?", .pid = 0, .lockedAt = std::nullopt}), path));
 }
 
 std::optional<ProbeLockOwner> ProbeLock::owner(std::uint32_t serialNumber) {

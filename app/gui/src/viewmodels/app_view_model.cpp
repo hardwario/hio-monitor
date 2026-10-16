@@ -211,7 +211,7 @@ void AppViewModel::registerShellKeys(SettingsStore& store) {
                    .type = QMetaType::QString,
                    .defaultValue = QString(),
                    .validator = validators::maxLength(4096)},
-        // 0 = the profile's value (ADR-0052).
+        // 0 = the profile's value (ADR-0052); for the speed 0 = automatic (ADR-0096).
         SettingKey{.path = QStringLiteral("jlink/speedKhz"),
                    .type = QMetaType::Int,
                    .defaultValue = 0,
@@ -230,6 +230,7 @@ void AppViewModel::registerShellKeys(SettingsStore& store) {
                    .type = QMetaType::Bool,
                    .defaultValue = false,
                    .validator = {}},
+        // 0 = automatic (ADR-0096).
         SettingKey{.path = QStringLiteral("probes/*/speedKhz"),
                    .type = QMetaType::Int,
                    .defaultValue = 0,

@@ -106,7 +106,7 @@ std::vector<std::string> resolveAll(QLibrary& library, abi::Functions& fn) {
     resolveInto(library, "JLINKARM_Reset", fn.reset, missing);
     resolveInto(library, "JLINKARM_Halt", fn.halt, missing);
     resolveInto(library, "JLINKARM_Go", fn.go, missing);
-    resolveInto(library, "JLINKARM_SetLogOutHandler", fn.setLogOutHandler, missing);
+    resolveInto(library, "JLINKARM_EnableLog", fn.enableLog, missing);
     resolveInto(library, "JLINKARM_SetWarnOutHandler", fn.setWarnOutHandler, missing);
     resolveInto(library, "JLINKARM_SetErrorOutHandler", fn.setErrorOutHandler, missing);
     resolveInto(library, "JLINK_RTTERMINAL_Control", fn.rttControl, missing);
@@ -188,16 +188,25 @@ int unsecureDialogHook(const char* /*title*/, const char* /*message*/,
 }
 
 // Sets currentFlashProgress for the lifetime of one vendor call.
+// HIL H3: the callback is registered only around EndDownload, as pylink does per flash write.
+// Registered right after loading the library (before EMU_SelectByUSBSN), it made the select fail.
 class FlashProgressScope {
 public:
-    explicit FlashProgressScope(const FlashProgressFn& progress) {
+    FlashProgressScope(abi::SetFlashProgressFn set, const FlashProgressFn& progress) : m_set(set) {
         currentFlashProgress = &progress;
+        m_set(&flashProgressCallback);
     }
-    ~FlashProgressScope() { currentFlashProgress = nullptr; }
+    ~FlashProgressScope() {
+        m_set(nullptr);
+        currentFlashProgress = nullptr;
+    }
     FlashProgressScope(const FlashProgressScope&) = delete;
     FlashProgressScope& operator=(const FlashProgressScope&) = delete;
     FlashProgressScope(FlashProgressScope&&) = delete;
     FlashProgressScope& operator=(FlashProgressScope&&) = delete;
+
+private:
+    abi::SetFlashProgressFn m_set;
 };
 
 Error loadFailed(std::string detail) {
@@ -232,13 +241,10 @@ struct JLinkLibrary::Impl {
                 fn.close();
             }
             for (abi::SetOutHandlerFn set :
-                 {fn.setLogOutHandler, fn.setWarnOutHandler, fn.setErrorOutHandler}) {
+                 {fn.enableLog, fn.setWarnOutHandler, fn.setErrorOutHandler}) {
                 if (set != nullptr) {
                     set(nullptr);
                 }
-            }
-            if (fn.setFlashProgress != nullptr) {
-                fn.setFlashProgress(nullptr);
             }
             bool unloaded = false;
             {
@@ -326,10 +332,9 @@ Result<std::unique_ptr<JLinkLibrary>> JLinkLibrary::loadCopy(const LibraryLocati
         return std::unexpected(std::move(slot).error());
     }
     impl->slot = std::move(*slot);
-    impl->fn.setLogOutHandler(impl->slot->logHandler());
+    impl->fn.enableLog(impl->slot->logHandler());
     impl->fn.setWarnOutHandler(impl->slot->warningHandler());
     impl->fn.setErrorOutHandler(impl->slot->errorHandler());
-    impl->fn.setFlashProgress(&flashProgressCallback);
 
     qCInfo(log::lcJLink).noquote()
         << QStringLiteral("J-Link library %1 (%2) loaded from %3 as %4")
@@ -544,7 +549,7 @@ int JLinkLibrary::writeMemory(std::uint32_t address, std::span<const std::byte> 
 }
 
 int JLinkLibrary::endDownload(const FlashProgressFn& progress) {
-    const FlashProgressScope scope(progress);
+    const FlashProgressScope scope(m_impl->fn.setFlashProgress, progress);
     return m_impl->fn.endDownload();
 }
 

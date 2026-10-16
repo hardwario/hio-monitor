@@ -11,6 +11,11 @@
 // rtt/resetOnOpen; 0 = the profile's value) and are remembered per probe serial number
 // (probes/<sn>/..., the 32 most recently changed probes, probes/recent).
 //
+// J-Link speed (ADR-0096): "Automatic speed" (autoSpeed, on by default, ADR-0090) or the fixed
+// value speedKhz (kept while automatic; 4000 kHz when none was stored). The speed keys store 0 for
+// automatic; 0, a missing key or a value outside minSpeedKhz..maxSpeedKhz means automatic (for
+// jlink/speedKhz: the profile's default, automatic for every profile since ADR-0090).
+//
 // The connection itself is run by the owning DeviceTabViewModel; this object forwards the actions
 // and presents its state.
 //
@@ -39,11 +44,19 @@ class SettingsStore;
 
 // The J-Link options of one connect (SessionOptions subset).
 struct ConnectionOptions {
-    int speedKhz = 0;
+    static constexpr int defaultFixedSpeedKhz = 4000;
+
+    bool autoSpeed = true;               // ADR-0096
+    int speedKhz = defaultFixedSpeedKhz; // the fixed speed, used when !autoSpeed
     int latencyMs = 0;
     bool autoReconnect = true;
     bool resetOnOpen = false;
     bool logToFile = true;
+
+    // SessionOptions::speedKhz: nullopt = automatic.
+    [[nodiscard]] std::optional<int> sessionSpeedKhz() const {
+        return autoSpeed ? std::nullopt : std::optional<int>(speedKhz);
+    }
 };
 
 class ConnectionViewModel : public QObject {
@@ -68,7 +81,10 @@ class ConnectionViewModel : public QObject {
     Q_PROPERTY(hio::gui::ErrorInfo warning READ warning NOTIFY warningChanged)
     Q_PROPERTY(bool canChooseAnotherProbe READ canChooseAnotherProbe NOTIFY errorChanged)
 
+    Q_PROPERTY(bool autoSpeed READ autoSpeed WRITE setAutoSpeed NOTIFY optionsChanged)
     Q_PROPERTY(int speedKhz READ speedKhz WRITE setSpeedKhz NOTIFY optionsChanged)
+    // ADR-0095: the warning for a fixed speed below 125 kHz (translated); empty otherwise.
+    Q_PROPERTY(QString speedWarning READ speedWarning NOTIFY optionsChanged)
     Q_PROPERTY(int latencyMs READ latencyMs WRITE setLatencyMs NOTIFY optionsChanged)
     Q_PROPERTY(bool autoReconnect READ autoReconnect WRITE setAutoReconnect NOTIFY optionsChanged)
     Q_PROPERTY(bool resetOnOpen READ resetOnOpen WRITE setResetOnOpen NOTIFY optionsChanged)
@@ -99,8 +115,11 @@ public:
     [[nodiscard]] ErrorInfo warning() const { return m_warning; }
     [[nodiscard]] bool canChooseAnotherProbe() const;
 
+    [[nodiscard]] bool autoSpeed() const noexcept { return m_options.autoSpeed; }
+    void setAutoSpeed(bool value);
     [[nodiscard]] int speedKhz() const noexcept { return m_options.speedKhz; }
     void setSpeedKhz(int value);
+    [[nodiscard]] QString speedWarning() const;
     [[nodiscard]] int latencyMs() const noexcept { return m_options.latencyMs; }
     void setLatencyMs(int value);
     [[nodiscard]] bool autoReconnect() const noexcept { return m_options.autoReconnect; }
@@ -138,7 +157,7 @@ public:
     // An error without a session (open() failed); also cleared by setConnection().
     void setOpenError(std::optional<Error> error);
     void setWarning(const Error& warning);
-    // Re-evaluates the texts (busy state, probe, language).
+    // Re-evaluates the texts (busy state, probe, language, speed warning).
     void refresh();
 
     // The short cause for state texts and markers ("target not powered"), translated.

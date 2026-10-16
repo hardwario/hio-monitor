@@ -77,6 +77,7 @@ enum class ErrorCode : std::uint8_t {
     DependencyNrfUtilDeviceMissing,
     DependencyNrfUtilTooOld,
     InternalBusy,
+    ProbeIoFailed, // review R52, 2026-10-11
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -225,6 +226,9 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::InternalBusy,
               .id = "internal.busy",
               .category = ErrorCategory::Internal},
+    ErrorInfo{.code = ErrorCode::ProbeIoFailed,
+              .id = "probe.io_failed",
+              .category = ErrorCategory::Probe},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every

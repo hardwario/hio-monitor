@@ -3,10 +3,14 @@
 #include "hio/firmware/firmware_image.h"
 #include "profiles/profiles.h"
 
+#include <QCoreApplication>
+#include <QString>
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace hio::device {
@@ -36,6 +40,11 @@ const TargetProfile* findTarget(const DeviceProfile& profile, std::string_view i
 const ChipPart* findPart(const TargetProfile& target, std::uint32_t part) noexcept {
     const auto it = std::ranges::find(target.parts, part, &ChipPart::part);
     return it == target.parts.end() ? nullptr : &*it;
+}
+
+QString targetDisplayName(const TargetProfile& target) {
+    const std::string source(target.displayName.empty() ? target.id : target.displayName);
+    return QCoreApplication::translate("hio::device", source.c_str());
 }
 
 firmware::AddressRange pibRange(const TargetProfile& target) noexcept {

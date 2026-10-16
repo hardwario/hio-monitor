@@ -214,6 +214,54 @@ TestCase {
         tryCompare(AppViewModel, "railCompact", false);
     }
 
+    function popoverOf(button) {
+        // The ⋯ Advanced popover of the device bar that holds `button`.
+        for (let item = button; item; item = item.parent) {
+            const popover = findChild(item, "advancedPopover");
+            if (popover)
+                return popover;
+        }
+        return null;
+    }
+
+    function test_advancedPopoverSpeed() {
+        // ADR-0096: automatic speed by default, the kHz box disabled while automatic, the
+        // ADR-0095 warning for a fixed speed below 125 kHz.
+        verify(testSupport.configureTab(0, "app", 801000077, ""));
+        const connection = AppViewModel.currentTabViewModel.connection;
+        const popover = popoverOf(currentBar("advancedButton"));
+        verify(popover !== null);
+        click(currentBar("advancedButton"));
+        tryVerify(() => popover.opened);
+        const autoSwitch = findChild(popover.contentItem, "autoSpeedSwitch");
+        const speedBox = findChild(popover.contentItem, "speedBox");
+        const warning = findChild(popover.contentItem, "speedWarning");
+        verify(autoSwitch.checked);
+        verify(!speedBox.enabled);
+        compare(speedBox.value, 4000);
+        verify(!warning.visible);
+
+        click(autoSwitch);
+        verify(!connection.autoSpeed);
+        verify(speedBox.enabled);
+        connection.speedKhz = 100;
+        compare(speedBox.value, 100);
+        verify(warning.visible);
+        compare(warning.text, connection.speedWarning);
+        verify(connection.speedWarning.indexOf("1000 kHz") >= 0);
+        connection.speedKhz = 125;
+        verify(!warning.visible);
+
+        connection.speedKhz = 100;
+        click(autoSwitch);
+        verify(connection.autoSpeed);
+        verify(!speedBox.enabled);
+        compare(speedBox.value, 100); // kept for later
+        verify(!warning.visible);
+        keyClick(Qt.Key_Escape);
+        tryVerify(() => !popover.visible);
+    }
+
     function test_settingsPage() {
         AppViewModel.openGlobalPage("settings");
         const loader = find("globalPage");

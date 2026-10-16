@@ -25,6 +25,20 @@ TestCase {
         AppViewModel.setLanguage("en");
     }
 
+    function visibleAll(parent, name) {
+        let result = [];
+        const children = parent && parent.children ? parent.children : [];
+        for (let i = 0; i < children.length; ++i) {
+            let shown = true;
+            for (let item = children[i]; item; item = item.parent)
+                shown = shown && item.visible;
+            if (children[i].objectName === name && shown)
+                result.push(children[i]);
+            result = result.concat(visibleAll(children[i], name));
+        }
+        return result;
+    }
+
     function save(name) {
         waitForRendering(window.contentItem, 2000);
         wait(250);
@@ -75,6 +89,26 @@ TestCase {
         AppViewModel.openGlobalPage("settings");
         save("06-settings");
         AppViewModel.closeGlobalPage();
+
+        // The ⋯ Advanced popover (ADR-0096): automatic speed, then a slow fixed speed (ADR-0095).
+        AppViewModel.currentTab = 0;
+        const connection = AppViewModel.currentTabViewModel.connection;
+        connection.autoSpeed = true;
+        const button = visibleAll(window.contentItem, "advancedButton")[0];
+        verify(button !== undefined);
+        let popover = null;
+        for (let item = button; item && !popover; item = item.parent)
+            popover = findChild(item, "advancedPopover");
+        verify(popover !== null);
+        mouseClick(button);
+        tryVerify(() => popover.opened);
+        save("08-advanced-auto");
+        connection.autoSpeed = false;
+        connection.speedKhz = 100;
+        save("09-advanced-slow");
+        connection.autoSpeed = true;
+        keyClick(Qt.Key_Escape);
+        tryVerify(() => !popover.visible);
 
         window.width = 960;
         window.height = 600;

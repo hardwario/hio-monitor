@@ -1,3 +1,4 @@
+#include "chester_commands.h"
 #include "cli_app.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
@@ -87,6 +88,49 @@ TEST(CliApp, UnknownOptionIsUsageError) {
     ASSERT_FALSE(parsed.has_value());
     EXPECT_EQ(parsed.error().code, hio::ErrorCode::UsageInvalidArgument);
     EXPECT_NE(parsed.error().message.find("--bogus"), std::string::npos);
+}
+
+// ADR-0090 / review R49: --jlink-speed is `auto` (the default) or a fixed speed of 5-50 000 kHz,
+// on the `chester app` group and on its subcommands; anything else is a usage error at parse time.
+TEST(CliApp, JLinkSpeedAcceptsAutoOrKiloHertz) {
+    for (const auto& args : std::vector<std::vector<std::string>>{
+             {"chester", "app", "command", "--jlink-speed", "auto", "version"},
+             {"chester", "app", "command", "--jlink-speed", "2000", "version"},
+             {"chester", "app", "command", "--jlink-speed", "5", "version"},
+             {"chester", "app", "command", "--jlink-speed", "50000", "version"},
+             {"chester", "app", "--jlink-speed", "auto", "console"},
+             {"chester", "app", "console", "--jlink-speed", "4000"},
+             {"chester", "app", "command", "version"}}) {
+        CliApp cli;
+        const auto parsed = cli.parse(args);
+        ASSERT_TRUE(parsed.has_value()) << args.at(3) << ": " << parsed.error().message;
+        EXPECT_EQ(*parsed, ParseOutcome::Run);
+    }
+}
+
+TEST(CliApp, InvalidJLinkSpeedIsUsageError) {
+    for (const std::string speed : {"fast", "1", "4", "50001", "", "2000k", "-5", "auto2"}) {
+        CliApp cli;
+        const auto parsed =
+            cli.parse({"chester", "app", "command", "--jlink-speed", speed, "version"});
+        ASSERT_FALSE(parsed.has_value()) << speed;
+        EXPECT_EQ(parsed.error().code, hio::ErrorCode::UsageInvalidArgument) << speed;
+        EXPECT_NE(parsed.error().message.find("auto or between 5 and 50000 kHz"), std::string::npos)
+            << parsed.error().message;
+    }
+}
+
+TEST(ParseJLinkSpeed, AutoIsNulloptAndKiloHertzIsFixed) {
+    const auto automatic = hio::cli::parseJLinkSpeed("auto");
+    ASSERT_TRUE(automatic.has_value());
+    EXPECT_FALSE(automatic->has_value());
+    const auto fixed = hio::cli::parseJLinkSpeed("2000");
+    ASSERT_TRUE(fixed.has_value());
+    EXPECT_EQ(fixed->value_or(0), 2000);
+    const auto fast = hio::cli::parseJLinkSpeed("fast");
+    ASSERT_FALSE(fast.has_value());
+    EXPECT_EQ(fast.error().code, hio::ErrorCode::UsageInvalidArgument);
+    EXPECT_FALSE(hio::cli::parseJLinkSpeed("1").has_value());
 }
 
 TEST(CliApp, SelftestErrorReturnsTableError) {

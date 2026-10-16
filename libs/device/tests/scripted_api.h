@@ -110,6 +110,7 @@ public:
     bool writeStall = false;
     bool readFails = false;
     std::optional<std::uint32_t> openedSerial;
+    std::vector<std::uint32_t> speeds; // every setSpeed() value (0 = automatic, ADR-0090)
 
     // ---- counters ----
     int opens = 0;
@@ -229,7 +230,9 @@ public:
         return {};
     }
     int selectInterface(jlink::TargetInterface /*targetInterface*/) override { return 0; }
-    void setSpeed(std::uint32_t /*kiloHertz*/) override {}
+    void setSpeed(std::uint32_t kiloHertz) override {
+        m_target->set([kiloHertz](ScriptedTarget& t) { t.speeds.push_back(kiloHertz); });
+    }
 
     int connect() override {
         std::this_thread::sleep_for(m_target->get([](ScriptedTarget& t) {

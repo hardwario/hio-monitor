@@ -12,11 +12,12 @@
 // (UTC); at maxDefaultFileBytes the session continues in <name>.part2.log, .part3.log, ...;
 // at open and on every rotation the console files (*.log) in the directory are pruned to the
 // newest maxDefaultFiles files and maxDefaultTotalBytes in total (by age; deletion failures are
-// ignored). A file that a live session may be writing is never deleted (review R45): the files
-// this process has open (any session), and the files of a probe whose ProbeLock (ADR-0058) has a
-// live owner in any process, written since that owner took the lock (the serial number is the
-// last part of the default file name). Such files count towards the bounds, which may therefore
-// be exceeded while they are live.
+// ignored). A file that a live session is writing is never deleted (review R45, R48): in this
+// process the files a sink has open (any session); for a probe whose ProbeLock (ADR-0058) has a
+// live owner in another process, only the newest file of that serial number (the last part of
+// the default file name), and only when it was written since that owner took the lock. Closed
+// .partN files of a live session are pruned like any other file. Live files count towards the
+// bounds, which may therefore be exceeded by at most one file per live session.
 // Explicit file (--console-file P): appended to; when it exceeds maxExplicitFileBytes it is
 // renamed to P.1 (replacing an older P.1) and a new P is started. When that rename fails, the file
 // is not rotated again in this session (one warning, takeWarning()) and keeps being appended to,

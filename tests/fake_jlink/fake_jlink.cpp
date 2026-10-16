@@ -67,7 +67,10 @@
 // erased (0xFF). A download (BeginDownload, WriteMem, EndDownload) behaves like the J-Link flash
 // loader: only the written bytes change, the rest of every touched 4 KiB sector is kept; bytes
 // outside flash and UICR make EndDownload fail. EndDownload reports "Erase" and "Program" progress
-// to the JLINK_SetFlashProgProgressCallback callback. JLINK_EraseChip and CTRL-AP ERASEALL erase
+// to the JLINK_SetFlashProgProgressCallback callback. Like J-Link 9.84 on hardware (Phase 0 item
+// 0.10, ADR-0094), JLINKARM_Close during a download programs the buffered bytes; and (HIL H3)
+// JLINKARM_EMU_SelectByUSBSN fails while a flash progress callback is registered. JLINK_EraseChip
+// and CTRL-AP ERASEALL erase
 // flash and UICR; ERASEALL also clears "protected". The CTRL-AP is AP 1 (nRF52) / AP 4 (nRF91)
 // with RESET (0x0), ERASEALL (0x4), ERASEALLSTATUS (0x8) and APPROTECTSTATUS (0xC).
 // "Boot" is JLINKARM_Open and every JLINKARM_Reset (a reset restarts the RTT timeline: the
@@ -455,6 +458,23 @@ struct State {
         }
     }
 
+    // Programs the buffered download bytes that lie in flash or UICR and clears the buffer. The
+    // loader keeps the unwritten bytes of every touched sector (read-modify-write). Returns the
+    // number of bytes programmed.
+    std::size_t programBuffered(ChipScenario& chip) {
+        std::size_t total = 0;
+        for (const auto& [address, bytes] : downloadData) {
+            for (std::size_t i = 0; i < bytes.size(); ++i) {
+                if (std::uint8_t* byte = chip.at(std::uint64_t{address} + i); byte != nullptr) {
+                    *byte = bytes[i];
+                    ++total;
+                }
+            }
+        }
+        downloadData.clear();
+        return total;
+    }
+
     void appendPending(int buffer, std::string_view bytes) {
         std::deque<char>& queue = pending[buffer];
         queue.insert(queue.end(), bytes.begin(), bytes.end());
@@ -569,7 +589,9 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_EMU_SelectByUSBSN(std::uint32_t serialNumber)
     const std::scoped_lock lock(s.mutex);
     const auto& probes = s.data().probes;
     const auto it = std::ranges::find(probes, serialNumber, &ProbeScenario::serialNumber);
-    if (it == probes.end()) {
+    // HIL H3: with the progress callback registered before the select, the real library's select
+    // failed (-1).
+    if (it == probes.end() || s.flashProgress != nullptr) {
         return -1;
     }
     s.selected = static_cast<std::size_t>(it - probes.begin());
@@ -607,6 +629,12 @@ HIO_FAKE_JLINK_EXPORT const char* JLINKARM_Open() {
 HIO_FAKE_JLINK_EXPORT void JLINKARM_Close() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
+    if (s.downloading) { // Phase 0 item 0.10 (ADR-0094): the close programs the buffer
+        s.downloading = false;
+        if (ProbeScenario* probe = s.probe(); probe != nullptr) {
+            s.programBuffered(probe->chip);
+        }
+    }
     s.open = false;
     s.connected = false;
     s.rttStarted = false;
@@ -752,7 +780,7 @@ HIO_FAKE_JLINK_EXPORT char JLINKARM_Halt() {
 
 HIO_FAKE_JLINK_EXPORT void JLINKARM_Go() {}
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_SetLogOutHandler(abi::LogHandler handler) {
+HIO_FAKE_JLINK_EXPORT void JLINKARM_EnableLog(abi::LogHandler handler) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     s.logHandler = handler;
@@ -958,15 +986,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_EndDownload() {
         s.flashProgress("Program", "", 50);
         s.flashProgress("Program", "", 100);
     }
-    // The loader keeps the unwritten bytes of every touched sector (read-modify-write).
-    std::size_t total = 0;
-    for (const auto& [address, bytes] : s.downloadData) {
-        for (std::size_t i = 0; i < bytes.size(); ++i) {
-            *chip.at(std::uint64_t{address} + i) = bytes[i];
-        }
-        total += bytes.size();
-    }
-    s.downloadData.clear();
+    const std::size_t total = s.programBuffered(chip);
     return static_cast<int>(std::min<std::size_t>(total, 0x7FFFFFFF));
 }
 

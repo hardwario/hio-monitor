@@ -5,7 +5,10 @@
 #include "hio/hw/jlink/programmer.h"
 #include "profiles.h"
 
+#include <QtTranslation>
+
 #include <array>
+#include <optional>
 
 namespace hio::device::profiles {
 
@@ -38,11 +41,12 @@ constexpr jlink::ChipFamily nrf91{.name = "nRF91",
 constexpr std::array chesterTargets{
     // Application MCU: the RTT console of `hio chester app console` / `command`.
     TargetProfile{.id = "app",
+                  .displayName = QT_TRANSLATE_NOOP("hio::device", "application"),
                   .jlinkDevice = "NRF52840_xxAA",
                   .rttTerminal = "Terminal",
                   .rttLogger = "Logger",
                   .hashPrefixIsLog = true,
-                  .defaultSpeedKhz = 2000,
+                  .defaultSpeedKhz = std::nullopt, // automatic (ADR-0090)
                   .defaultLatencyMs = 50,
                   .minTargetMillivolts = 1000,
                   .parts = appParts,
@@ -57,11 +61,12 @@ constexpr std::array chesterTargets{
     // first part's J-Link name, then with the exact part's name (to confirm in Phase 0). The PIB
     // lies in the UICR OTP area, which a UICR erase does not touch.
     TargetProfile{.id = "lte",
+                  .displayName = QT_TRANSLATE_NOOP("hio::device", "LTE"),
                   .jlinkDevice = "NRF9151_XXCA",
                   .rttTerminal = "",
                   .rttLogger = "",
                   .hashPrefixIsLog = false,
-                  .defaultSpeedKhz = 2000,
+                  .defaultSpeedKhz = std::nullopt, // automatic (ADR-0090)
                   .defaultLatencyMs = 50,
                   .minTargetMillivolts = 1000,
                   .parts = ltePartsList,

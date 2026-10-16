@@ -151,7 +151,8 @@ using SetResetDelayFn = void (*)(int);               // JLINKARM_SetResetDelay
 using ResetFn = int (*)();                           // JLINKARM_Reset
 using HaltFn = char (*)();                           // JLINKARM_Halt (0 = halted)
 using GoFn = void (*)();                             // JLINKARM_Go
-using SetOutHandlerFn = void (*)(LogHandler);        // JLINKARM_Set{Log,Warn,Error}OutHandler
+using SetOutHandlerFn =
+    void (*)(LogHandler); // JLINKARM_EnableLog, JLINKARM_Set{Warn,Error}OutHandler
 using RttControlFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, void*); // JLINK_RTTERMINAL_Control
 using RttReadFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, char*, std::uint32_t);        // ..._Read
 using RttWriteFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, const char*, std::uint32_t); // ..._Write
@@ -213,7 +214,7 @@ struct Functions {
     ResetFn reset = nullptr;
     HaltFn halt = nullptr;
     GoFn go = nullptr;
-    SetOutHandlerFn setLogOutHandler = nullptr;
+    SetOutHandlerFn enableLog = nullptr; // no JLINKARM_SetLogOutHandler in 9.x (HIL, as pylink)
     SetOutHandlerFn setWarnOutHandler = nullptr;
     SetOutHandlerFn setErrorOutHandler = nullptr;
     RttControlFn rttControl = nullptr;

@@ -358,7 +358,7 @@ TEST_F(Operations, CrossTargetRestoresAfterFailureAndCancel) {
     ASSERT_NE(failed, nullptr);
     ASSERT_FALSE(failed->status);
     EXPECT_EQ(failed->status.error().code, ErrorCode::TargetProgramFailed);
-    EXPECT_EQ(failed->status.error().message, "Programming the lte MCU failed.");
+    EXPECT_EQ(failed->status.error().message, "Programming the LTE MCU failed.");
     EXPECT_TRUE(waitFor(
         [&] { return rttStarts() > starts && events().reached(ConnectionState::Connected); }));
 
@@ -386,7 +386,7 @@ TEST_F(Operations, CrossTargetRestoresAfterFailureAndCancel) {
 TEST_F(Operations, FailedRestoreReportsDisconnected) {
     auto session = openConnected(options("app"));
     ASSERT_TRUE(session);
-    // The app MCU cannot be reached again after the switch to lte.
+    // The application MCU cannot be reached again after the switch to lte.
     target().set([](ScriptedTarget& t) { t.failConnectTo = "NRF52840_xxAA"; });
     const OperationResult* result = finish(session->reset("lte", ResetMode::Go));
     ASSERT_NE(result, nullptr);
@@ -463,7 +463,7 @@ TEST_F(Operations, ProtectedFlashFailsAndRecoverUnlocks) {
     ASSERT_NE(flash, nullptr);
     ASSERT_FALSE(flash->status);
     EXPECT_EQ(flash->status.error().code, ErrorCode::TargetProtected);
-    EXPECT_EQ(flash->status.error().message, "The app MCU is read-back protected.");
+    EXPECT_EQ(flash->status.error().message, "The application MCU is read-back protected.");
     const OperationResult* recover = finish(session->recover("app"));
     ASSERT_TRUE(recover->status) << recover->status.error().detail;
     EXPECT_FALSE(target().get([](ScriptedTarget& t) { return t.app.protectedChip; }));

@@ -220,7 +220,7 @@ Status DeviceTabViewModel::openSession() {
     sessionOptions.profile = m_profile;
     sessionOptions.targetId = target->id;
     sessionOptions.probeSn = m_serial;
-    sessionOptions.speedKhz = options.speedKhz;
+    sessionOptions.speedKhz = options.sessionSpeedKhz(); // nullopt = automatic (ADR-0096)
     sessionOptions.latencyMs = options.latencyMs;
     sessionOptions.autoReconnect = options.autoReconnect;
     sessionOptions.resetOnOpen = options.resetOnOpen;

@@ -171,9 +171,22 @@ TEST_F(Workflow, WrongFamily) {
     const auto result = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().code, ErrorCode::TargetWrongFamily);
-    EXPECT_EQ(result.error().message, "Expected the app MCU (nRF52840) but found nRF9151.");
-    EXPECT_EQ(result.error().suggestion, "Connect the J-Link to the app connector.");
+    EXPECT_EQ(result.error().message, "Expected the application MCU (nRF52840) but found nRF9151.");
+    EXPECT_EQ(result.error().suggestion, "Connect the J-Link to the application connector.");
     EXPECT_EQ(result.error().wizard, hio::WizardId::ConnectDevice);
+}
+
+// HIL H4 (Phase 0 item 0.5b): a session for lte with the probe on the app connector finds the
+// nRF52840; the texts name the target by its display name, not its id.
+TEST_F(Workflow, WrongFamilyOnTheLteTargetNamesTheLteConnector) {
+    EXPECT_CALL(programmer(), identify()).WillOnce(Return(chip(0x52840)));
+    EXPECT_CALL(programmer(), program(_, _, _)).Times(0);
+    auto ctx = context("lte");
+    const auto result = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, ErrorCode::TargetWrongFamily);
+    EXPECT_EQ(result.error().message, "Expected the LTE MCU (nRF9151) but found nRF52840.");
+    EXPECT_EQ(result.error().suggestion, "Connect the J-Link to the LTE connector.");
 }
 
 TEST_F(Workflow, UnknownPart) {
@@ -182,7 +195,7 @@ TEST_F(Workflow, UnknownPart) {
     const auto result = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().message,
-              "Expected the app MCU (nRF52840) but found an unknown MCU (part 0x1234).");
+              "Expected the application MCU (nRF52840) but found an unknown MCU (part 0x1234).");
 }
 
 TEST_F(Workflow, ProtectedChip) {
@@ -192,7 +205,7 @@ TEST_F(Workflow, ProtectedChip) {
     const auto result = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().code, ErrorCode::TargetProtected);
-    EXPECT_EQ(result.error().message, "The lte MCU is read-back protected.");
+    EXPECT_EQ(result.error().message, "The LTE MCU is read-back protected.");
     EXPECT_EQ(result.error().suggestion, "Run `hio chester lte recover` (erases the MCU).");
 }
 
@@ -202,11 +215,12 @@ TEST_F(Workflow, OutOfRangeImageIsRejectedBeforeTheProbeIsUsed) {
     const auto ram = hio::device::detail::runFlash(ctx, image({{0x20000000, 16}}), {});
     ASSERT_FALSE(ram);
     EXPECT_EQ(ram.error().code, ErrorCode::FirmwareOutOfRange);
-    EXPECT_EQ(ram.error().message, "The firmware does not fit the app MCU (address 0x20000000).");
+    EXPECT_EQ(ram.error().message,
+              "The firmware does not fit the application MCU (address 0x20000000).");
     const auto tooLong = hio::device::detail::runFlash(ctx, image({{0xFFF00, 0x200}}), {});
     ASSERT_FALSE(tooLong);
     EXPECT_EQ(tooLong.error().message,
-              "The firmware does not fit the app MCU (address 0x00100000).");
+              "The firmware does not fit the application MCU (address 0x00100000).");
 }
 
 TEST_F(Workflow, UicrRecordsNeedAllowUicrAndThePibIsNeverWritten) {
@@ -284,7 +298,7 @@ TEST_F(Workflow, ProgramFailureNamesTheTarget) {
     auto ctx = context();
     const auto result = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error().message, "Programming the app MCU failed.");
+    EXPECT_EQ(result.error().message, "Programming the application MCU failed.");
     EXPECT_TRUE(ctx.cpuHalted); // halted before programming
 }
 
@@ -309,7 +323,7 @@ TEST_F(Workflow, EraseScopes) {
         .WillOnce(Return(Status(std::unexpected(hio::makeError(ErrorCode::TargetEraseFailed)))));
     const auto failed = hio::device::detail::runErase(ctx, EraseScope::All);
     ASSERT_FALSE(failed);
-    EXPECT_EQ(failed.error().message, "Erasing the app MCU failed.");
+    EXPECT_EQ(failed.error().message, "Erasing the application MCU failed.");
 }
 
 TEST_F(Workflow, RecoverAppWithoutImage) {
@@ -362,7 +376,7 @@ TEST_F(Workflow, RecoverFailure) {
     auto ctx = context("lte");
     const auto result = hio::device::detail::runRecover(ctx, [] { return Status{}; });
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error().message, "Recovering the lte MCU failed.");
+    EXPECT_EQ(result.error().message, "Recovering the LTE MCU failed.");
 }
 
 // Review R2: FICR unreadable and APPROTECT not enabled is no "protected"; the other family's
@@ -373,7 +387,7 @@ TEST_F(Workflow, UnreadableChipIsNotReportedAsProtected) {
     const auto result = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().code, ErrorCode::TargetConnectFailed);
-    EXPECT_EQ(result.error().message, "The type of the app MCU could not be read.");
+    EXPECT_EQ(result.error().message, "The type of the application MCU could not be read.");
 }
 
 TEST_F(Workflow, OtherFamilysCtrlApIsTheWrongConnector) {
@@ -383,7 +397,8 @@ TEST_F(Workflow, OtherFamilysCtrlApIsTheWrongConnector) {
     const auto flash = hio::device::detail::runFlash(ctx, image({{0x0, 16}}), {});
     ASSERT_FALSE(flash);
     EXPECT_EQ(flash.error().code, ErrorCode::TargetWrongFamily);
-    EXPECT_EQ(flash.error().message, "Expected the app MCU (nRF52840) but found an nRF91 MCU.");
+    EXPECT_EQ(flash.error().message,
+              "Expected the application MCU (nRF52840) but found an nRF91 MCU.");
     const auto recover = hio::device::detail::runRecover(ctx, [] { return Status{}; });
     ASSERT_FALSE(recover);
     EXPECT_EQ(recover.error().code, ErrorCode::TargetWrongFamily);
@@ -416,8 +431,8 @@ TEST_F(Workflow, CodeEraseThatChangesThePibFails) {
     const auto result = hio::device::detail::runErase(ctx, EraseScope::Code);
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().code, ErrorCode::TargetEraseFailed);
-    EXPECT_EQ(result.error().message,
-              "Erasing the code flash of the app MCU also changed its Product Information Block.");
+    EXPECT_EQ(result.error().message, "Erasing the code flash of the application MCU also changed "
+                                      "its Product Information Block.");
     EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U)).Times(2).WillRepeatedly(Return(pib));
     EXPECT_TRUE(hio::device::detail::runErase(ctx, EraseScope::Code));
 }
@@ -432,8 +447,8 @@ TEST_F(Workflow, PibUnreadableAfterTheCodeEraseFails) {
     const auto result = hio::device::detail::runErase(ctx, EraseScope::Code);
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().code, ErrorCode::TargetEraseFailed);
-    EXPECT_EQ(result.error().message,
-              "The Product Information Block of the app MCU could not be checked after the erase.");
+    EXPECT_EQ(result.error().message, "The Product Information Block of the application MCU could "
+                                      "not be checked after the erase.");
     EXPECT_NE(result.error().detail.find("before: baba"), std::string::npos);
     EXPECT_EQ(result.error().suggestion,
               "Do not erase again. Run `hio chester app pib read` and compare it with the bytes in "

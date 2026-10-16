@@ -181,43 +181,51 @@ TEST_F(Sink, RetentionKeepsAtMost200MiB) {
     EXPECT_TRUE(fs::exists(dir() / "big-4.log"));
 }
 
-// Review R45: retention never deletes a file of a live session. Probe 777's lock is live (held
-// in this process) and was taken 300 h ago; its file written since then is the oldest console
-// file but is kept, a file of 777 from before the lock (a finished session) and the other old
-// files beyond the newest 50 are pruned. The kept live file counts towards the bound.
-TEST_F(Sink, RetentionKeepsTheFilesOfALiveProbeLock) {
-    makeOldFiles();
+// Review R45, R48: a long session of this process (it holds probe 777's lock, taken 300 h ago)
+// rotated into three parts. Only its current part is live (the open-files list); its closed
+// parts, written after the lock was taken, are pruned like any other old file, so a long session
+// cannot keep its console files beyond the bounds.
+TEST_F(Sink, RetentionPrunesTheClosedPartsOfALiveSession) {
     auto lock = hio::device::ProbeLock::acquire(777, lockDir());
     ASSERT_TRUE(lock) << lock.error().detail;
     const auto now = fs::file_time_type::clock::now();
     fs::last_write_time(lockDir() / "probe-777.lock", now - std::chrono::hours(300));
-    const fs::path live = dir() / "chester-app-20260101-000000-777.part2.log";
-    const fs::path finished = dir() / "chester-app-20251201-000000-777.log";
-    std::ofstream(live) << "x";
-    std::ofstream(finished) << "x";
-    fs::last_write_time(live, now - std::chrono::hours(200));
-    fs::last_write_time(finished, now - std::chrono::hours(400));
+    auto session =
+        ConsoleFileSink::open(defaultConfig(), 777, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(session);
+    const fs::path part1 = (*session)->currentFile();
+    const std::string text(512ULL * 1024, 'x');
+    for (int i = 0; i < 100 && (*session)->currentFile().filename().string().find(".part3.log") ==
+                                   std::string::npos;
+         ++i) {
+        ASSERT_TRUE((*session)->write(line(Channel::Shell, Direction::Out, text)));
+    }
+    ASSERT_TRUE((*session)->flush());
+    const fs::path part3 = (*session)->currentFile();
+    ASSERT_NE(part3.filename().string().find(".part3.log"), std::string::npos) << part3;
+    fs::path part2 = part1;
+    part2.replace_extension(".part2.log");
+    ASSERT_TRUE(fs::exists(part2)) << part2;
+    fs::last_write_time(part1, now - std::chrono::hours(200)); // after the lock was taken
+    fs::last_write_time(part2, now - std::chrono::hours(199));
+    makeOldFiles();
 
-    auto sink =
+    auto other =
         ConsoleFileSink::open(defaultConfig(), 1, "header", std::chrono::system_clock::now());
-    ASSERT_TRUE(sink);
-    EXPECT_TRUE(fs::exists(live)); // the oldest file, kept
-    EXPECT_FALSE(fs::exists(finished));
-    EXPECT_FALSE(fs::exists(oldFile(0)));
-    EXPECT_FALSE(fs::exists(oldFile(5)));
-    EXPECT_TRUE(fs::exists(oldFile(6))); // 49 old files + the new file are the newest 50
-    EXPECT_TRUE(fs::exists(oldFile(54)));
-
-    lock->release(); // no live owner any more: the next prune deletes it
-    auto next =
-        ConsoleFileSink::open(defaultConfig(), 2, "header", std::chrono::system_clock::now());
-    ASSERT_TRUE(next);
-    EXPECT_FALSE(fs::exists(live));
+    ASSERT_TRUE(other);
+    EXPECT_FALSE(fs::exists(part1)); // closed parts of the live session: pruned
+    EXPECT_FALSE(fs::exists(part2));
+    EXPECT_TRUE(fs::exists(part3)); // its current part: kept
+    // The new file, part 3 and 48 old files are the newest 50.
+    EXPECT_TRUE(fs::exists(oldFile(7)));
+    EXPECT_FALSE(fs::exists(oldFile(6)));
 }
 
 #ifndef _WIN32
-// Review R45: the same with the lock held by another process (a real QLockFile written there).
-TEST_F(Sink, RetentionKeepsTheFilesOfAProbeLockedByAnotherProcess) {
+// Review R45, R48: a session of another process (a real QLockFile written there, taken 300 h
+// ago) that rotated into two parts: only the newest file of its probe written since the lock is
+// live; its closed part and an older finished session's file are pruned.
+TEST_F(Sink, RetentionKeepsOnlyTheNewestFileOfAProbeLockedByAnotherProcess) {
     makeOldFiles();
     fs::create_directories(lockDir());
     hio::device::test::LockHolder holder(
@@ -225,16 +233,32 @@ TEST_F(Sink, RetentionKeepsTheFilesOfAProbeLockedByAnotherProcess) {
     ASSERT_TRUE(holder.waitUntilLocked());
     const auto now = fs::file_time_type::clock::now();
     fs::last_write_time(lockDir() / "probe-778.lock", now - std::chrono::hours(300));
-    const fs::path live = dir() / "chester-app-20260101-000000-778.log";
+    const fs::path closed = dir() / "chester-app-20260101-000000-778.log";
+    const fs::path live = dir() / "chester-app-20260101-000000-778.part2.log";
+    const fs::path finished = dir() / "chester-app-20251201-000000-778.log";
+    std::ofstream(closed) << "x";
     std::ofstream(live) << "x";
-    fs::last_write_time(live, now - std::chrono::hours(200));
+    std::ofstream(finished) << "x";
+    fs::last_write_time(closed, now - std::chrono::hours(200));
+    fs::last_write_time(live, now - std::chrono::hours(150));
+    fs::last_write_time(finished, now - std::chrono::hours(400));
 
     auto sink =
         ConsoleFileSink::open(defaultConfig(), 1, "header", std::chrono::system_clock::now());
     ASSERT_TRUE(sink);
-    EXPECT_TRUE(fs::exists(live));
+    EXPECT_TRUE(fs::exists(live)); // older than every old file, but live: kept beyond the bound
+    EXPECT_FALSE(fs::exists(closed));
+    EXPECT_FALSE(fs::exists(finished));
     EXPECT_FALSE(fs::exists(oldFile(0)));
+    EXPECT_FALSE(fs::exists(oldFile(5)));
+    EXPECT_TRUE(fs::exists(oldFile(6))); // the new file and 49 old files are the newest 50
     EXPECT_TRUE(fs::exists(oldFile(54)));
+
+    holder.release(); // no live owner any more: the next prune deletes it
+    auto next =
+        ConsoleFileSink::open(defaultConfig(), 2, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(next);
+    EXPECT_FALSE(fs::exists(live));
 }
 #endif
 

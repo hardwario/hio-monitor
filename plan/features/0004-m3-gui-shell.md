@@ -4,7 +4,7 @@
 - **Milestone:** M3 (plan 1 of 3, ADR-0059; followed by [0005](0005-m3-console.md) and [0006](0006-m3-flash-settings.md))
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0002, ADR-0003, ADR-0004, ADR-0018, ADR-0025, ADR-0027, ADR-0031, ADR-0043, ADR-0044,
-  ADR-0047, ADR-0048, ADR-0050, ADR-0051, ADR-0052, ADR-0053, ADR-0058, ADR-0059, ADR-0060, ADR-0061, ADR-0063
+  ADR-0047, ADR-0048, ADR-0050, ADR-0051, ADR-0052, ADR-0053, ADR-0058, ADR-0059, ADR-0060, ADR-0061, ADR-0063, ADR-0096
 - **Depends on:** 0001 (M0). 0002 (M1, with the ADR-0053 / ADR-0058 amendments applied) for real sessions; until
   M1 lands, the shell runs against the fake J-Link library.
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
@@ -120,7 +120,9 @@ Screens are drawn in the mockups (`plan/gui/mockups/`, with light/dark and EN/CS
   - *Auto-reconnecting*: "Reconnecting… (target not powered)".
   - *Busy*: the text the busy page provides (e.g. "Flashing…"). The probe is shown as busy.
 - The ⋯ popover holds speed, RTT latency, auto-reconnect, reset on open and "Save console to log file"
-  (ADR-0052), with the note "Changes apply on the next connect."
+  (ADR-0052), with the note "Changes apply on the next connect." Speed (ADR-0096): an **Automatic speed** switch,
+  on by default (ADR-0090), and the kHz spin box, disabled while automatic (it keeps the last fixed value; 4000 kHz
+  when none was stored). A fixed speed below 125 kHz shows the ADR-0095 warning (`device::slowSpeedWarning`).
 - The target picker is disabled while connected.
 
 ### Shortcuts (ADR-0051)
@@ -296,7 +298,8 @@ class AppViewModel : public QObject {          // QML_SINGLETON (M0) — additio
 class ConnectionViewModel : public QObject {
     Q_PROPERTY(QString probeLabel ...) Q_PROPERTY(QString targetId ...) Q_PROPERTY(QString stateText ...)
     Q_PROPERTY(double targetVolts ...) Q_PROPERTY(hio::gui::ErrorInfo error ...)   // invalid when none
-    Q_PROPERTY(int speedKhz ...) Q_PROPERTY(int latencyMs ...) Q_PROPERTY(bool autoReconnect ...)
+    Q_PROPERTY(bool autoSpeed ...) Q_PROPERTY(int speedKhz ...) /*fixed value*/ Q_PROPERTY(QString speedWarning ...)
+    Q_PROPERTY(int latencyMs ...) Q_PROPERTY(bool autoReconnect ...)
     Q_PROPERTY(bool resetOnOpen ...) Q_PROPERTY(bool logToFile ...)
     Q_INVOKABLE void connectDevice(); Q_INVOKABLE void disconnectDevice(); Q_INVOKABLE void reconnect();
 };
@@ -354,8 +357,8 @@ Disconnect / Cancel and the ⋯ popover.
 | `ui/windowGeometry` | string (base64) | — |
 | `ui/restoreTabs` | bool | `true` |
 | `ui/tabs` | string (JSON `{current, tabs:[{profile,target,sn}]}`, max 8) | — |
-| `jlink/speedKhz`, `rtt/latencyMs`, `rtt/autoReconnect`, `rtt/resetOnOpen` | int/int/bool/bool | profile values |
-| `probes/<sn>/{speedKhz,latencyMs,autoReconnect,resetOnOpen}` | per probe, LRU max 32 | — |
+| `jlink/speedKhz`, `rtt/latencyMs`, `rtt/autoReconnect`, `rtt/resetOnOpen` | int/int/bool/bool | profile values (speed: 0 = automatic, ADR-0096) |
+| `probes/<sn>/{speedKhz,latencyMs,autoReconnect,resetOnOpen}` | per probe, LRU max 32 (speed: 0 = automatic) | — |
 
 The `schemaVersion` bump and its migration (a no-op for new keys) are documented. The `console/*` and `flash/*` keys
 are registered by 0005 and 0006 through `SettingsStore::registerKeys`.
@@ -488,7 +491,10 @@ end need a decision by the user.
   is computed on the GUI thread from the tabs' configured probe serial numbers (a superset of the registry's
   sessions: a restored, disconnected tab also reserves its probe). Rescans with the same probes update the rows in
   place (no model reset), so focus and hover survive the 2 s refresh.
-- **J-Link options (ADR-0052):** `jlink/speedKhz` and `rtt/latencyMs` default to 0 = the profile's value;
+- **J-Link options (ADR-0052, ADR-0096):** `jlink/speedKhz` and `rtt/latencyMs` default to 0 = the profile's value;
+  for the speed, 0, a missing key or a value outside 5–50000 means automatic (the profile default, automatic for every
+  profile since ADR-0090; `SessionOptions::speedKhz` = `std::nullopt`), and the per-probe speed stores 0 for
+  automatic. Stored fixed values stay fixed, including the old explicit 2000 kHz default (no migration);
   `rtt/autoReconnect` defaults to on and `rtt/resetOnOpen` to off (the profile has no values for these). "Save
   console to log file" is per tab (default `console/logToFile` once 0005 registers it, otherwise on) and is not
   remembered per probe (it is not in the per-probe key list). Per-probe values are written when an option is changed
@@ -604,6 +610,7 @@ All fixed on `v2/m3-gui` on top of the merge of `v2/m2-flashing` (55c348c); test
 | S15 | `StepSpinBox.qml` (speed and latency): +/− buttons, Up/Down and the wheel step on the grid via `AppViewModel.stepValue()`; typed values stay exact. | `AppViewModelTest.StepValueSnapsToTheGrid`, `Components::test_stepSpinBox` |
 | ADR-0091 | "Connected · 3.30 V" from `ConnectionEvent::targetMillivolts` (nothing when empty; decimal comma in Czech). | `ConnectionTest.StateTextForEveryConnectionEvent`, `ConnectionTest.VoltageFollowsTheLocale`, `Shell::test_chooseDeviceAndConnect` |
 | ADR-0092 | LRU eviction removes the `probes/<sn>` group (`SettingsStore::removeGroup` → `Settings::remove`). | `ConnectionTest.AtMost32ProbesAreRemembered` |
+| ADR-0096 | Merge of M1 round 6 (ADR-0090 automatic speed, ADR-0095 attach deadline): "Automatic speed" switch (on by default) in the ⋯ popover, kHz box disabled while automatic (keeps the fixed value, 4000 kHz by default), the ADR-0095 warning below 125 kHz; `ConnectionViewModel::autoSpeed` / `speedKhz` / `speedWarning`, `ConnectionOptions::sessionSpeedKhz()` → `SessionOptions::speedKhz` (nullopt = automatic); speed keys store 0 = automatic. The GUI has no fixed connect timeout (it shows the session's events), so `connectTimeoutForSpeed()` is not needed there. | `ConnectionTest.AutomaticSpeedByDefault`, `.StoredSpeedZeroIsAutomatic`, `.StoredFixedSpeedStaysFixed`, `.OutOfRangeStoredSpeedIsAutomatic`, `.PerProbeSpeedWinsOverTheGlobalOne`, `.SlowSpeedWarningBelow125Khz`, `Shell::test_advancedPopoverSpeed`, screenshots 08/09 |
 | CI | `lfs: true` for the checkout of the build jobs (the check job keeps `lfs: false` for `check-lfs.sh`). | — |
 | (S4 follow-up, backend) | `libs/hw/jlink/src/jlink_library.cpp`: loading and unloading of library copies are serialized by one process-wide mutex. With S4 the scanner unloads its copy on its own thread while a session may load one; a new copy can be mapped where the old one was, and ld.so's locking is invisible to TSan, which reported the fake library's state as a race (`tst_gui.tst_shell` under TSan). Deviation from "no change to `libs/*`"; to be confirmed. | `tst_gui.tst_shell` (TSan), the 30× TSan repeat |
 

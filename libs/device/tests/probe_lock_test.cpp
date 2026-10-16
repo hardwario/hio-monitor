@@ -4,6 +4,7 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -19,13 +20,24 @@
 
 #ifdef _WIN32
 #include <QtEnvironmentVariables>
+#else
+#include <sys/file.h>
+#ifdef __APPLE__
+#include <array>
+#include <libproc.h>
+#endif
 #endif
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <format>
+#include <latch>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -76,6 +88,38 @@ private:
     QTemporaryDir m_dir;
 };
 
+#ifndef _WIN32
+// The application name QLockFile records for a running process, as ProbeLock's mirror of Qt's
+// processNameByPid() reads it: Linux the file name of /proc/<pid>/exe (without " (deleted)"),
+// macOS proc_name(). A helper started as `sleep` may be busybox or a multicall coreutils binary,
+// so the tests record this name instead of "sleep" (review R56).
+QByteArray runningAppName(qint64 pid) {
+#ifdef __APPLE__
+    std::array<char, 1024> name{};
+    static_cast<void>(
+        proc_name(static_cast<int>(pid), name.data(), static_cast<std::uint32_t>(name.size())));
+    return {name.data()};
+#else
+    std::error_code ec;
+    std::string target = fs::read_symlink(std::format("/proc/{}/exe", pid), ec).string();
+    constexpr std::string_view deleted = " (deleted)";
+    if (target.ends_with(deleted)) {
+        target.resize(target.size() - deleted.size());
+    }
+    return QFileInfo(QString::fromStdString(target)).fileName().toUtf8();
+#endif
+}
+
+// Starts `sleep <seconds>` and returns the name recorded for it (empty when it did not start).
+QByteArray startSleep(QProcess& process, const QString& seconds) {
+    process.start(QStringLiteral("sleep"), {seconds});
+    if (!process.waitForStarted(5000)) {
+        return {};
+    }
+    return runningAppName(process.processId());
+}
+#endif
+
 TEST_F(Lock, AcquireAndRelease) {
     {
         auto lock = ProbeLock::acquire(42, dir());
@@ -113,18 +157,19 @@ TEST_F(Lock, MoveKeepsTheLock) {
 #ifndef _WIN32
 TEST_F(Lock, HeldByAnotherProcessNamesTheOwner) {
     QProcess other;
-    other.start(QStringLiteral("sleep"), {QStringLiteral("30")});
-    ASSERT_TRUE(other.waitForStarted(5000));
-    writeLock(46, contentFor(46, other.processId(), "sleep"));
+    const QByteArray app = startSleep(other, QStringLiteral("30"));
+    ASSERT_FALSE(app.isEmpty());
+    writeLock(46, contentFor(46, other.processId(), app));
 
     const auto lock = ProbeLock::acquire(46, dir());
     ASSERT_FALSE(lock);
     EXPECT_EQ(lock.error().code, ErrorCode::ProbeInUseByOtherProcess);
-    EXPECT_EQ(lock.error().message, "The J-Link 46 is used by another program (sleep, PID " +
+    EXPECT_EQ(lock.error().message, "The J-Link 46 is used by another program (" +
+                                        app.toStdString() + ", PID " +
                                         std::to_string(other.processId()) + ").");
     const auto owner = ProbeLock::owner(46, dir());
     ASSERT_TRUE(owner.has_value());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).app, "sleep");
+    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).app, app.toStdString());
     EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).pid, other.processId());
 
     other.kill();
@@ -133,14 +178,41 @@ TEST_F(Lock, HeldByAnotherProcessNamesTheOwner) {
 
 TEST_F(Lock, StaleLockOfADeadProcessIsTakenOver) {
     QProcess gone;
-    gone.start(QStringLiteral("sleep"), {QStringLiteral("0.1")});
-    ASSERT_TRUE(gone.waitForStarted(5000));
+    const QByteArray app = startSleep(gone, QStringLiteral("0.1"));
     const qint64 pid = gone.processId(); // 0 once the process has finished
     ASSERT_GT(pid, 0);
     ASSERT_TRUE(gone.waitForFinished(5000));
-    writeLock(47, contentFor(47, pid, "sleep"));
+    writeLock(47, contentFor(47, pid, app));
     EXPECT_FALSE(ProbeLock::owner(47, dir()).has_value());
     const auto lock = ProbeLock::acquire(47, dir());
+    EXPECT_TRUE(lock) << lock.error().message;
+}
+
+// Review R51: owner() of another process holds a stale lock file's flock for a moment while it
+// checks it (as QLockFile's removeStaleLock() would), so QLockFile cannot take the stale lock
+// over meanwhile. acquire() tries once more 10 ms later instead of reporting the dead owner (here
+// a thread of this process holds the flock for 5 ms through its own file description).
+TEST_F(Lock, StaleLockBrieflyHeldByAnOwnerCheckIsTakenOver) {
+    QProcess gone;
+    const QByteArray app = startSleep(gone, QStringLiteral("0.1"));
+    const qint64 pid = gone.processId();
+    ASSERT_GT(pid, 0);
+    ASSERT_TRUE(gone.waitForFinished(5000));
+    writeLock(68, contentFor(68, pid, app));
+    std::latch held(1);
+    std::jthread check([this, &held] {
+        QFile file(lockFile(68));
+        const bool opened =
+            file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::ExistingOnly);
+        if (opened) {
+            static_cast<void>(::flock(file.handle(), LOCK_EX));
+        }
+        held.count_down();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        file.close(); // releases the flock
+    });
+    held.wait();
+    const auto lock = ProbeLock::acquire(68, dir());
     EXPECT_TRUE(lock) << lock.error().message;
 }
 
@@ -148,8 +220,7 @@ TEST_F(Lock, StaleLockOfADeadProcessIsTakenOver) {
 // program than the one recorded (a reused PID) is no owner, and acquire() takes the lock over.
 TEST_F(Lock, LiveProcessWithAnotherAppNameIsNoOwner) {
     QProcess other;
-    other.start(QStringLiteral("sleep"), {QStringLiteral("30")});
-    ASSERT_TRUE(other.waitForStarted(5000));
+    ASSERT_FALSE(startSleep(other, QStringLiteral("30")).isEmpty());
     writeLock(51, contentFor(51, other.processId(), "not-the-recorded-app"));
     EXPECT_FALSE(ProbeLock::owner(51, dir()).has_value());
     const auto lock = ProbeLock::acquire(51, dir());
@@ -282,16 +353,31 @@ TEST_F(Lock, UnreadableLockFileIsAnUnknownOwner) {
     EXPECT_EQ(lock.error().code, ErrorCode::ProbeInUseByOtherProcess);
 }
 
+// Review R53: an empty lock file (e.g. left by a crash) stays an unknown owner as QLockFile sees
+// it (not stale, not deleted), but the error names the file the user may delete.
+TEST_F(Lock, UnknownOwnerSuggestsDeletingTheLockFile) {
+    fs::create_directories(dir());
+    writeLock(69, QByteArray());
+    const auto lock = ProbeLock::acquire(69, dir());
+    ASSERT_FALSE(lock);
+    EXPECT_EQ(lock.error().code, ErrorCode::ProbeInUseByOtherProcess);
+    EXPECT_EQ(lock.error().message, "The J-Link 69 is used by another program (?, PID 0).");
+    EXPECT_EQ(lock.error().suggestion, "If no other HARDWARIO program is running, delete " +
+                                           QDir::toNativeSeparators(lockFile(69)).toStdString() +
+                                           ".");
+    EXPECT_TRUE(QFile::exists(lockFile(69))); // never deleted automatically
+}
+
 #ifndef _WIN32
 // Review R41: QLockFile's boot-id rule - on this host, a lock written in another boot is stale
 // even when its PID runs the recorded program now.
 TEST_F(Lock, LockOfAnotherBootIsNoOwner) {
     QProcess other;
-    other.start(QStringLiteral("sleep"), {QStringLiteral("30")});
-    ASSERT_TRUE(other.waitForStarted(5000));
+    const QByteArray app = startSleep(other, QStringLiteral("30"));
+    ASSERT_FALSE(app.isEmpty());
     QList<QByteArray> lines = qtLines(65);
     lines[0] = QByteArray::number(other.processId());
-    lines[1] = "sleep";
+    lines[1] = app;
     writeLock(65, lines.join('\n'));
     ASSERT_TRUE(ProbeLock::owner(65, dir()).has_value()); // the same lock of this boot
     lines[4] = "00000000-0000-0000-0000-000000000000";
@@ -310,13 +396,13 @@ TEST_F(Lock, MachineIdDecidesTheHost) {
         GTEST_SKIP() << "this host has no machine id";
     }
     QProcess gone;
-    gone.start(QStringLiteral("sleep"), {QStringLiteral("0.1")});
-    ASSERT_TRUE(gone.waitForStarted(5000));
+    const QByteArray app = startSleep(gone, QStringLiteral("0.1"));
     const qint64 pid = gone.processId();
+    ASSERT_GT(pid, 0);
     ASSERT_TRUE(gone.waitForFinished(5000));
     QList<QByteArray> lines = qtLines(66);
     lines[0] = QByteArray::number(pid);
-    lines[1] = "sleep";
+    lines[1] = app;
     lines[3] = "another-machine-id";
     writeLock(66, lines.join('\n')); // our host name, another machine id
     EXPECT_TRUE(ProbeLock::owner(66, dir()).has_value());
@@ -326,7 +412,7 @@ TEST_F(Lock, MachineIdDecidesTheHost) {
 
     lines = qtLines(67);
     lines[0] = QByteArray::number(pid);
-    lines[1] = "sleep";
+    lines[1] = app;
     lines[2] = "another-host-name";
     writeLock(67, lines.join('\n')); // another host name, our machine id
     EXPECT_FALSE(ProbeLock::owner(67, dir()).has_value());

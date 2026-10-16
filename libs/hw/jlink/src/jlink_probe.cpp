@@ -171,8 +171,14 @@ void JLinkProbe::close() {
     }
 }
 
-void JLinkProbe::setSpeed(int kiloHertz) {
-    m_api.setSpeed(static_cast<std::uint32_t>(std::max(kiloHertz, 1)));
+void JLinkProbe::setSpeed(std::optional<int> kiloHertz) {
+    m_speed = kiloHertz;
+    applySpeed();
+}
+
+void JLinkProbe::applySpeed() {
+    // nullopt = automatic: JLINKARM_SetSpeed(0) as pylink's set_speed(auto=True) (ADR-0090).
+    m_api.setSpeed(m_speed ? static_cast<std::uint32_t>(std::max(*m_speed, 1)) : autoSpeed);
 }
 
 Status JLinkProbe::selectSwd() {
@@ -188,6 +194,11 @@ Status JLinkProbe::selectSwd() {
 Status JLinkProbe::connect(std::string_view deviceName, int minTargetMillivolts,
                            bool healthyVoltageSeen, const std::stop_token& stop) {
     const std::string deviceError = m_api.execCommand(std::format("Device = {}", deviceName));
+    // pylink JLink.connect(chip, speed): the speed is set again right after `Device =` and before
+    // JLINKARM_Connect, by default 'auto' (JLINKARM_SetSpeed(0)), which overrides the speed rttt
+    // and py-hardwario set before; ours is the setSpeed() value, auto unless a kHz was given
+    // (ADR-0090).
+    applySpeed();
     std::string lastFailure = deviceError.empty() ? std::string() : "Device: " + deviceError;
     for (int attempt = 1; attempt <= m_timing.connectAttempts; ++attempt) {
         if (stop.stop_requested()) {
@@ -239,8 +250,10 @@ Status JLinkProbe::connect(std::string_view deviceName, int minTargetMillivolts,
 Result<HardwareStatus> JLinkProbe::hardwareStatus() {
     auto status = m_api.hardwareStatus();
     if (!status) {
+        // The open probe did not answer: a USB glitch or an unplugged probe. Not probe.not_found
+        // ("No J-Link probe found"): the probe was found and opened (review R52).
         return std::unexpected(
-            makeError(ErrorCode::ProbeNotFound, libraryDetail("JLINKARM_GetHWStatus failed")));
+            makeError(ErrorCode::ProbeIoFailed, libraryDetail("JLINKARM_GetHWStatus failed")));
     }
     return *status;
 }

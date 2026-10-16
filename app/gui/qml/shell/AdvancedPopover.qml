@@ -1,6 +1,6 @@
-// ⋯ Advanced popover of the device bar (ADR-0052): J-Link speed, RTT latency, auto-reconnect,
-// reset on open and "Save console to log file", per tab and remembered per probe. The values apply
-// on the next connect.
+// ⋯ Advanced popover of the device bar (ADR-0052): J-Link speed (automatic or fixed, ADR-0096),
+// RTT latency, auto-reconnect, reset on open and "Save console to log file", per tab and
+// remembered per probe. The values apply on the next connect.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -31,6 +31,14 @@ Popup {
             color: Theme.text
         }
 
+        Switch {
+            objectName: "autoSpeedSwitch"
+            Layout.fillWidth: true
+            text: qsTr("Automatic speed")
+            checked: popover.connection.autoSpeed
+            onToggled: popover.connection.autoSpeed = checked
+        }
+
         GridLayout {
             Layout.fillWidth: true
             columns: 2
@@ -40,7 +48,7 @@ Popup {
             Label {
                 Layout.fillWidth: true
                 text: qsTr("J-Link speed (kHz)")
-                color: Theme.text
+                color: popover.connection.autoSpeed ? Theme.textMuted : Theme.text
                 wrapMode: Text.Wrap
             }
 
@@ -48,6 +56,8 @@ Popup {
                 id: speedBox
 
                 objectName: "speedBox"
+                // While automatic, the box keeps the last fixed value (ADR-0096).
+                enabled: !popover.connection.autoSpeed
                 from: popover.connection.minSpeedKhz
                 to: popover.connection.maxSpeedKhz
                 step: 100
@@ -55,6 +65,17 @@ Popup {
                 Accessible.name: qsTr("J-Link speed (kHz)")
                 onValueModified: popover.connection.speedKhz = speedBox.value
                 onStepped: newValue => popover.connection.speedKhz = newValue
+            }
+
+            Label {
+                objectName: "speedWarning"
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                visible: text !== ""
+                text: popover.connection.speedWarning
+                font: Theme.fontUiSmall
+                color: Theme.warning
+                wrapMode: Text.Wrap
             }
 
             Label {

@@ -39,3 +39,12 @@ MCU or the modem through the same probe. In M1/M2 a `DeviceSession` is bound to 
 - Feature 0003 must be amended (API signatures, workflow tests: cross-target flash, reconnect after failure).
 - The GUI Flash page works from any tab state. A tab with no session opens one for the chosen kind's target with
   `attachRtt = false`.
+
+## Phase 0 result (2026-10-16)
+
+Feature 0003, Phase 0 item 0.5b, on a CHESTER-M (R3.4) with one J-Link probe and J-Link Software 9.84: the LTE MCU
+is **not** reachable through the application connector. A session for target `lte` with the probe on the
+application connector connected (J-Link device `NRF9151_XXCA` selected), but FICR showed an nRF52840, and the
+operation failed early with `target.wrong_family` and the connector hint, as designed. On this variant a cross-target
+operation therefore needs the probe on the other connector; the GUI Flash page must say so before starting. Other
+CHESTER variants were not checked.
