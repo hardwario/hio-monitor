@@ -115,31 +115,31 @@ Result<FirmwareImage> combine(const FirmwareImage& code, const std::optional<Fir
 } // namespace
 
 Error forTarget(Error error, const DeviceProfile& profile, const TargetProfile& target) {
-    const QString id = toQString(target.id);
+    const QString name = targetDisplayName(target); // user-visible (H4)
     switch (error.code) {
     case ErrorCode::TargetProgramFailed:
         error.message = QCoreApplication::translate("hio::device", "Programming the %1 MCU failed.")
-                            .arg(id)
+                            .arg(name)
                             .toStdString();
         break;
     case ErrorCode::TargetEraseFailed:
         error.message = QCoreApplication::translate("hio::device", "Erasing the %1 MCU failed.")
-                            .arg(id)
+                            .arg(name)
                             .toStdString();
         break;
     case ErrorCode::TargetRecoverFailed:
         error.message = QCoreApplication::translate("hio::device", "Recovering the %1 MCU failed.")
-                            .arg(id)
+                            .arg(name)
                             .toStdString();
         break;
     case ErrorCode::TargetProtected:
         error.message =
             QCoreApplication::translate("hio::device", "The %1 MCU is read-back protected.")
-                .arg(id)
+                .arg(name)
                 .toStdString();
         error.suggestion =
             QCoreApplication::translate("hio::device", "Run `hio %1 %2 recover` (erases the MCU).")
-                .arg(toQString(profile.id), id)
+                .arg(toQString(profile.id), toQString(target.id))
                 .toStdString();
         break;
     default:
@@ -184,11 +184,11 @@ Result<ImagePlan> planImage(const DeviceProfile& profile, const TargetProfile& t
                                       target.uicr.start, target.uicr.end));
             error.message = QCoreApplication::translate(
                                 "hio::device", "The firmware does not fit the %1 MCU (address %2).")
-                                .arg(toQString(target.id), hexAddress(outside))
+                                .arg(targetDisplayName(target), hexAddress(outside))
                                 .toStdString();
             error.suggestion = QCoreApplication::translate(
                                    "hio::device", "Check that the firmware is for the %1 MCU.")
-                                   .arg(toQString(target.id))
+                                   .arg(targetDisplayName(target))
                                    .toStdString();
             return std::unexpected(std::move(error));
         }
@@ -217,11 +217,11 @@ Error wrongFamily(const TargetProfile& target, const QString& found, std::string
     Error error = makeError(ErrorCode::TargetWrongFamily, std::move(detail));
     error.message =
         QCoreApplication::translate("hio::device", "Expected the %1 MCU (%2) but found %3.")
-            .arg(toQString(target.id), expected, found)
+            .arg(targetDisplayName(target), expected, found)
             .toStdString();
     error.suggestion =
         QCoreApplication::translate("hio::device", "Connect the J-Link to the %1 connector.")
-            .arg(toQString(target.id))
+            .arg(targetDisplayName(target))
             .toStdString();
     return error;
 }
@@ -252,7 +252,7 @@ Result<jlink::ChipInfo> unreadableChip(WorkflowContext& context, jlink::ChipInfo
         makeError(ErrorCode::TargetConnectFailed, "FICR unreadable, APPROTECT not enabled");
     error.message =
         QCoreApplication::translate("hio::device", "The type of the %1 MCU could not be read.")
-            .arg(toQString(target.id))
+            .arg(targetDisplayName(target))
             .toStdString();
     return std::unexpected(std::move(error));
 }
@@ -378,7 +378,7 @@ Result<jlink::ChipInfo> runErase(WorkflowContext& context, EraseScope scope) {
                     QCoreApplication::translate("hio::device",
                                                 "The Product Information Block of the %1 MCU could "
                                                 "not be checked after the erase.")
-                        .arg(toQString(target.id))
+                        .arg(targetDisplayName(target))
                         .toStdString();
                 // Review R19: a second erase would read the possibly wiped PIB as "before".
                 error.suggestion =
@@ -400,7 +400,7 @@ Result<jlink::ChipInfo> runErase(WorkflowContext& context, EraseScope scope) {
                 error.message = QCoreApplication::translate(
                                     "hio::device", "Erasing the code flash of the %1 MCU also "
                                                    "changed its Product Information Block.")
-                                    .arg(toQString(target.id))
+                                    .arg(targetDisplayName(target))
                                     .toStdString();
                 error.suggestion =
                     QCoreApplication::translate(

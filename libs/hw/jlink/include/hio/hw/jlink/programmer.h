@@ -9,8 +9,9 @@
 //   verify   ReadMemEx of every written range in verifyChunk pieces, byte compare (first
 //            mismatch -> firmware.verify_failed, the address in `detail`)
 //   eraseCode  0xFF over the flash range through the flash loader (sectors that differ are
-//            erased; UICR untouched). Erase method to confirm in Phase 0.
-//   eraseAll JLINK_EraseChip (flash + UICR)
+//            erased; UICR untouched; confirmed on an nRF52840 in Phase 0, G1 EraseCode gate).
+//   eraseAll reset + halt, then JLINK_EraseChip (flash + UICR; HIL H5: after only a halt it
+//            erased nothing on a running nRF52840)
 //   recover  checks the expected family's CTRL-AP IDR, then CTRL-AP ERASEALL via CoreSight, poll
 //            ERASEALLSTATUS, CTRL-AP RESET toggle
 //   identify FICR INFO.PART / INFO.VARIANT; when FICR cannot be read, the CTRL-AP of the expected
@@ -21,9 +22,10 @@
 // buffering of one download, EndDownload, EraseChip and an ERASEALL are never interrupted (a
 // buffered download cannot be discarded through the library). Deadlines (timing below) are
 // checked between chunks; a single library call is synchronous. A download that fails or runs out
-// of time before EndDownload is abandoned by closing the probe (review R3): JLINKARM_EndDownload
-// would program the partial buffer and the library has no abort, so the probe is closed (which
-// ends the download mode and drops the buffer - to confirm in Phase 0); the session reopens it.
+// of time before EndDownload is abandoned by closing the probe (review R3); the library has no
+// abort, and Phase 0 (item 0.10) showed that the close still programs the buffered data, so this is
+// reported as an interrupted flash: target.program_failed, "may be partly written" (ADR-0094). The
+// session reopens the probe.
 //
 // Thread safety: none (the session worker).
 
@@ -118,11 +120,13 @@ public:
     [[nodiscard]] virtual Status verify(const firmware::FirmwareImage& image,
                                         const firmware::ProgressFn& progress,
                                         std::stop_token stop) = 0;
-    // Errors: target.erase_failed, timeout, cancelled.
+    // Errors: target.erase_failed, target.program_failed (abandoned download, ADR-0094), timeout,
+    // cancelled.
     [[nodiscard]] virtual Status eraseCode(firmware::AddressRange flash,
                                            const firmware::ProgressFn& progress,
                                            std::stop_token stop) = 0;
-    // Flash + UICR. Errors: target.erase_failed, timeout.
+    // Flash + UICR, after a reset and halt (HIL H5). Errors: target.connect_failed (reset failed),
+    // target.erase_failed, timeout.
     [[nodiscard]] virtual Status eraseAll() = 0;
     // CTRL-AP ERASEALL. Errors: target.recover_failed, timeout, cancelled (only before it starts).
     [[nodiscard]] virtual Status recover(std::stop_token stop) = 0;
@@ -173,8 +177,9 @@ private:
     [[nodiscard]] bool ctrlApPresent(const ChipFamily& family, std::string& detail);
     // The family whose CTRL-AP answers, starting with the expected one; nullptr when none.
     [[nodiscard]] const ChipFamily* answeringFamily(std::string& detail);
-    // Closes the probe so the library drops a buffered download (review R3).
-    void abandonDownload(std::string_view reason);
+    // Closes the probe instead of calling EndDownload (review R3) and returns the
+    // target.program_failed error of an interrupted flash (ADR-0094); `detail` names the reason.
+    [[nodiscard]] Error abandonDownload(std::string detail);
     // One BeginDownload / WriteMem / EndDownload pass. `programsData`: the loader's non-erase
     // progress is reported as Programming (program), otherwise everything as Erasing (eraseCode).
     [[nodiscard]] Status download(const std::vector<firmware::Segment>& segments, bool programsData,

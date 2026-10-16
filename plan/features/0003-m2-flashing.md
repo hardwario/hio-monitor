@@ -3,7 +3,7 @@
 - **Status:** In progress (implementation started 2026-10-11; approved by Matej Strnad, 2026-10-11, in the text amended by ADR-0057 and ADR-0062; ADR-0069 is not part of this implementation)
 - **Milestone:** M2
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062
+- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062, 0094
 - **Depends on:** 0001 (M0 skeleton), 0002 (M1 J-Link & RTT: library loading, `JLinkProbe`, `DeviceSession`, fake library)
 
 > **Amended by ADR-0057 and ADR-0062 (M3 planning, applied in this text):** every operation carries its
@@ -400,23 +400,61 @@ modem update 10 min, terminate→kill 5 s · progress events ≤ 10/s per operat
 
 Phase 0 — hardware spike (go/no-go; originally before Phase A — run after A–F by decision of 2026-10-11, see the decision table)
 - [ ] 0.1 Throw-away tool (not merged) on M1's `JLinkLibrary`; CHESTER with nRF52840 + nRF9151 (+ nRF9160 if available), J-Link 8.x on Linux.
+  - Run 2026-10-16 on Linux, J-Link Software 9.84, one J-Link probe, CHESTER-M R3.4 (variant CGLS). Only the
+    application MCU (nRF52840) was tested; the LTE MCU (nRF9151) is deferred by decision of the user, and nRF Util is
+    not installed. No separate spike tool was needed except a throw-away ctypes script for 0.10 (not committed);
+    the M2 CLI and `JLinkExe` were used for backups and read-back.
+  - Found and fixed during the run: **H1** `JLINKARM_SetLogOutHandler` is not exported by 9.84 → the log handler is
+    registered with `JLINKARM_EnableLog`. **H3** `JLINK_SetFlashProgProgressCallback` called right after loading
+    the library (before `JLINKARM_EMU_SelectByUSBSN`) made the select fail (-1) → the callback is registered only
+    around `EndDownload` and cleared afterwards, as pylink does per flash write (the fake library's select now fails
+    while a callback is registered; `FakeLibrary.FlashFunctionsReachTheLibrary`,
+    `FakeLibrary.FlashProgressCallbackIsClearedAfterAFailedDownload`). **H4** the wrong-connector error named the
+    raw target id ("the lte connector") → targets have a translatable display name ("application", "LTE";
+    `Workflow.WrongFamilyOnTheLteTargetNamesTheLteConnector`). **H5** `JLINK_EraseChip` after only a halt returned
+    0 but erased nothing on a running nRF52840 (log "Erase: 0.001s") → `eraseAll()` resets and halts first, as
+    J-Link Commander's erase does (`Programmer.EraseAll`, `Programmer.EraseAllStopsWhenTheResetFails`).
 - [ ] 0.2 Flash-loader download of a real CHESTER app hex keeps UICR and the PIB byte-for-byte (nRF52840, nRF9151).
+  - nRF52840 **PASS** (2026-10-16): flashing a full application image (797 696 bytes) kept the UICR and the PIB
+    byte-for-byte (whole flash + UICR compared with a backup). nRF9151: open.
 - [ ] 0.3 `JLINK_EraseChip` erases flash + UICR on both; code-only erase method chosen.
+  - nRF52840 **PASS after fix H5** (2026-10-16): `JLINK_EraseChip` needs a reset + halt first; it then erases flash
+    and UICR (all 0xFF afterwards). Code-only erase method: as implemented, `JLinkProgrammer::eraseCode` downloads
+    0xFF over the profile's flash range through the flash loader; the G1 `EraseCodeKeepsThePibAndPibDecodes` gate
+    passed (erase + reflash 47.8 s). nRF9151: open.
 - [ ] 0.4 CTRL-AP ERASEALL recovers a protected nRF52840 and nRF9151; nRF91 stays debuggable after the disable-AP-protect image + reset.
+  - Not run (2026-10-16): the user decided not to protect / recover the hardware in this session. Open.
 - [ ] 0.5 FICR part read works on both; LTE connect name strategy chosen.
+  - nRF52840 (2026-10-16): FICR part 0x52840, variant 0x41414430 read OK. nRF9151 and the LTE connect name
+    strategy: open.
 - [ ] 0.5b Cross-target switching (ADR-0057): with the J-Link on one CHESTER connector, can the probe connect to
   the other MCU (app ↔ lte) without re-plugging? Record the wiring per CHESTER variant. If not, operations for the
   other target fail early with `target.wrong_family` (connector hint), and the GUI Flash page says so before
   starting → update ADR-0057 with the result.
+  - Result (2026-10-16, CHESTER-M): the LTE MCU is **not** reachable through the application connector. A session for
+    target `lte` with the probe on the application connector connected (J-Link device `NRF9151_XXCA` selected), but
+    FICR showed an nRF52840 → `target.wrong_family` with the connector hint, as designed. Recorded in ADR-0057.
+    Other CHESTER variants: not checked.
 - [ ] 0.6 Programming speed within 20 % of nrfjprog on the same image.
+  - Not run (2026-10-16): nrfjprog is not installed. Note: flashing an image identical to the flash content took
+    1.4 s (the flash loader skips equal pages).
 - [ ] 0.7 `nrfutil device program` of a modem zip with our session suspended (library copy kept loaded, probe closed); JSON progress format captured; modem zip markers recorded; tested versions → ADR-0042.
+  - Open (2026-10-16): nRF Util is not installed.
 - [ ] 0.8 Go/no-go recorded; any failed criterion → stop, new ADR, update this plan, ask the user.
+  - 2026-10-16: application MCU (nRF52840) **GO** with the fixes H3, H5 and ADR-0094; LTE MCU pending.
 - [ ] 0.9 Review R1: with the `JLINK_SetHookUnsecureDialog` hook (answers NO) a protected nRF52840 and nRF91
   are never mass-erased by Open/Connect (PIB unchanged, connect fails → `target.protected`); record what the
   library does. Also the CTRL-AP IDR values (R2, R15: record the full IDRs at AP 1 and AP 4 on both MCUs).
+  - Not run (2026-10-16): no protect / recover on hardware in this session (user decision). Open.
 - [ ] 0.10 Review R16: abandoned download (R3): on each MCU, read a flash range, `BeginDownload` + `WriteMem` of N
   chunks with a different pattern, close the probe without `EndDownload`, reopen, read the range back — it must be
   unchanged. Otherwise stop: new decision on how a download is abandoned.
+  - nRF52840 **FAILED** (2026-10-16): closing the probe without `EndDownload` programs the buffer — 4091 of 4096
+    bytes of the page changed. New decision: **ADR-0094** (an abandoned download is reported as an interrupted
+    flash, `target.program_failed` "the firmware may be partly written"); implemented in `JLinkProgrammer`
+    (`Programmer.WriteFailureAbandonsTheDownload`, `Programmer.DeadlineAbandonsTheDownload`,
+    `Programmer.AbandonedEraseCodeIsAnInterruptedFlash`); the fake library's `JLINKARM_Close` now programs a
+    buffered download too (`FakeLibrary.CloseDuringADownloadProgramsTheBuffer`). nRF9151: not run.
 
 Phase A — `libs/firmware`
 - [x] A1 `FirmwareImage`, `parseIntelHex` + tests (corpus incl. CHESTER build outputs)
@@ -452,6 +490,9 @@ Phase F — CLI
 
 Phase G — hardware and docs
 - [ ] G1 HIL tests (opt-in `HIO_HIL=1`): flash by file and ID, verify, erase, erase --all, recover (app + lte), LTE bundle, PIB read — code written (`tests/integration/hil_flash_test.cpp`), not run yet. **Release gate (review R5):** `HilFlash.EraseCodeKeepsThePibAndPibDecodes` must pass on nRF52840 (and the LTE MCU) before `erase` ships.
+  - Run 2026-10-16 (nRF52840 only, setup as in 0.1): `HilFlash.FlashByFileVerifiesAndKeepsThePib` **PASS** (flash of an
+    identical image 1392 ms); `HilFlash.EraseCodeKeepsThePibAndPibDecodes` **PASS** (release gate met for the
+    nRF52840; the LTE MCU is pending). Not run: `FlashByCatalogId`, `EraseAllAndRecoverApp`, the LTE tests.
 - [ ] G2 Manual checks on Linux, Windows, macOS (incl. nRF Util discovery on each)
 - [ ] G3 Update `plan/0006-cli.md` statuses, `plan/0002-legacy-inventory.md` parity rows, roadmap M2 → Done
 
@@ -466,9 +507,11 @@ plan / the ADRs / py-hardwario and must be confirmed on hardware; a failed confi
 
 **To confirm in Phase 0**
 - **Code-only erase** (0.3): `JLinkProgrammer::eraseCode` downloads 0xFF over the profile's flash range through
-  the flash loader (sectors that differ are erased; the UICR is outside the range). **(Phase 0)**
+  the flash loader (sectors that differ are erased; the UICR is outside the range). **(Phase 0)** Confirmed on
+  the nRF52840 on 2026-10-16 (0.3, G1 gate); nRF9151 open.
 - **Flash loader keeps UICR/PIB** (0.2): a download touches only the sectors of the written bytes and keeps
-  their other bytes (the fake library models exactly this). **(Phase 0)**
+  their other bytes (the fake library models exactly this). **(Phase 0)** Confirmed on the nRF52840 on 2026-10-16
+  (0.2); nRF9151 open.
 - **LTE connect strategy** (0.5): connect as `NRF9151_XXCA` (first part of the `lte` profile), read FICR, and when
   the part is another one (0x9160) send `Device = NRF9160_xxAA` + `JLINKARM_Connect` again on the open probe.
   **(Phase 0)**
@@ -483,6 +526,8 @@ plan / the ADRs / py-hardwario and must be confirmed on hardware; a failed confi
   `nm` on 9.84). The C callback has no user data, so it is routed to the running `endDownload()` through a
   `thread_local` pointer, i.e. it must be called synchronously on the calling thread; Compare/Erase are reported
   as Erasing, Program/Verify as Programming (review R6). A call from another thread is ignored. **(Phase 0)**
+  HIL H3 (2026-10-16): the callback is registered only for the duration of `EndDownload` (registered at load time,
+  it made `JLINKARM_EMU_SelectByUSBSN` fail).
 - **`--allow-uicr`** (ADR-0036): the UICR page (4 KiB: nRF52840 `0x10001000–0x10002000`, nRF91
   `0x00FF8000–0x00FF9000`) is read, the image's UICR bytes merged in and the page programmed together with the
   code in one download; on the nRF91 the PIB range (UICR OTP, `pibErasableWithUicr = false`) is left out of the
@@ -612,7 +657,7 @@ Review of 7f371c6 (debug 516/516; stress repeats clean). Decided 2026-10-12: fix
 |---|---|---|
 | R1 | `JLINK_SetHookUnsecureDialog` declared (`__stdcall` on Win32) and resolved; `JLinkProbe::open()` installs a `noexcept` hook answering `DLG_BUTTON_NO` right after Open in every open mode, and fails with `probe.open_failed` if the library rejects it. Fake library: a protected chip asks the hook on connect (no hook / YES = mass erase, NO = connect fails). Phase 0 item 0.9. | `Probe.InstallsTheUnsecureDialogHookAfterOpen`, `Probe.OpenFailsWithoutTheUnsecureDialogHook`, `FakeLibrary.UnsecureDialogHookAnswersNo`, `FakeLibrarySession.ProtectedChipIsNotErasedByConnecting` |
 | R2 | `identify()` trusts only a CTRL-AP whose IDR (bank 0xF, 0xFC) matches; APPROTECTSTATUS is read only on the expected family; `ChipInfo::family` names the family that answered; the workflow maps another family to `target.wrong_family` and an unreadable, unprotected chip to `target.connect_failed`. `recover()` checks the expected CTRL-AP IDR before ERASEALL (`target.wrong_family` / `target.connect_failed`); `runRecover` stops when the family is not confirmed. | `Programmer.AbsentCtrlApsReadZeroAndAreNotProtected`, `Programmer.OtherFamilysCtrlApNamesThatFamily`, `Programmer.UnreadableUnprotectedChipIsNotProtected`, `Programmer.RecoverChecksTheCtrlApIdentification`, `Workflow.UnreadableChipIsNotReportedAsProtected`, `Workflow.OtherFamilysCtrlApIsTheWrongConnector`, `Workflow.RecoverNeedsTheExpectedFamily` |
-| R3 | A download that fails (`WriteMem`) or exceeds its deadline before `EndDownload` is abandoned by closing the probe (no `EndDownload`, which would program the partial buffer); the session reopens and reconnects in its restore step. | `Programmer.WriteFailureAbandonsTheDownload`, `Programmer.DeadlineAbandonsTheDownload` |
+| R3 | A download that fails (`WriteMem`) or exceeds its deadline before `EndDownload` is abandoned by closing the probe (no `EndDownload`, which would program the partial buffer); the session reopens and reconnects in its restore step. **Amended by ADR-0094** (Phase 0 item 0.10): the close still programs the buffer, so the abandon is reported as an interrupted flash (`target.program_failed`, "may be partly written"). | `Programmer.WriteFailureAbandonsTheDownload`, `Programmer.DeadlineAbandonsTheDownload` |
 | R4 | `close()` ends a running operation with a synthesized `cancelled` result; a worker that dies (Stopped + `internal.unexpected`) ends it with that error (`operationFinished` emitted); `waitForOperation()` picks up results delivered before or after `close()` and gives up `cancelGrace` (default 90 s) after a cancel request. | `Operations.WaitEndsWhenTheWorkerDies`, `Operations.WaitEndsWhenTheSessionIsClosed`, `Operations.WaitGivesUpAfterTheCancelGrace` |
 | R5 | Code-only erase reads the PIB before and after; a change fails with `target.erase_failed` ("… also changed its Product Information Block") and an `@` log line. G1 `EraseCodeKeepsThePibAndPibDecodes` is a release gate. | `Workflow.CodeEraseThatChangesThePibFails` |
 | R6 | Loader actions mapped explicitly: Compare/Erase → Erasing, Program/Verify → Programming, others keep the phase. | `Programmer.LoaderActionsMapToPhases` |
@@ -644,7 +689,7 @@ finding n = R(11+n).
 | R13 | `close()` takes a real `OperationFinishedEvent` of the running operation from the queue after `join()` before synthesizing `cancelled`; `DeviceSession::finishedResult(id)` returns it; the CLI reports it after `close()` (real success / real error with its exit code). Documented: `cancelGrace` bounds only the wait, `close()` still joins the current step; a second Ctrl+C force-exits. | `Operations.CloseKeepsTheRealResultAfterTheWaitGaveUp` |
 | R14 | The worker sets `workerFailed` before pushing its death event (so a full queue cannot hide it); `startOperation` then refuses with `internal.unexpected`; `close()` ends a running operation with `internal.unexpected`. | `Operations.WaitEndsWhenTheWorkerDies` (extended) |
 | R15 | Code, profile and plan say that the masked IDR only proves a Nordic CTRL-AP and the AP index is the family discriminator; test renamed (`Programmer.CtrlApAtTheOtherFamilysIndexNamesThatFamily`); fake option `absentApsReadZero`; a connect failure is mapped through `identifyTarget` (protected or wrong family). | `FakeLibrarySession.AbsentApsReadingZeroAreTheWrongConnector` |
-| R16 | Phase 0 item 0.10 (write N chunks, close without `EndDownload`, reopen, read back unchanged). | — |
+| R16 | Phase 0 item 0.10 (write N chunks, close without `EndDownload`, reopen, read back unchanged). Result 2026-10-16: the close programs the buffer → ADR-0094. | — |
 | R17 | A PIB that cannot be read after the code erase → `target.erase_failed` "The Product Information Block of the %1 MCU could not be checked after the erase." (cs translated), the old PIB bytes in the log and `detail`. | `Workflow.PibUnreadableAfterTheCodeEraseFails` |
 
 ## Open findings (independent review round 3, 2026-10-12)

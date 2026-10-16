@@ -158,11 +158,24 @@ Result<ChipInfo> JLinkProgrammer::identify() {
     return std::unexpected(std::move(error));
 }
 
-void JLinkProgrammer::abandonDownload(std::string_view reason) {
+Error JLinkProgrammer::abandonDownload(std::string detail) {
+    // ADR-0094 (Phase 0 item 0.10): closing the J-Link without EndDownload still programs the
+    // buffered data, so an abandoned download is an interrupted flash.
     qCWarning(log::lcFlash).noquote()
-        << "Flash download abandoned (" << toQString(reason)
-        << "): closing the J-Link so the buffered data is never programmed";
+        << "Flash download abandoned (" << toQString(detail)
+        << "): closing the J-Link; the buffered data may be partly programmed";
     m_probe.close();
+    Error error =
+        makeError(ErrorCode::TargetProgramFailed, "flash download abandoned: " + std::move(detail));
+    error.cause =
+        QCoreApplication::translate(
+            "hio::jlink", "Programming was interrupted; the firmware may be partly written.")
+            .toStdString();
+    error.suggestion =
+        QCoreApplication::translate("hio::jlink",
+                                    "Check the cables and power, then flash the firmware again.")
+            .toStdString();
+    return error;
 }
 
 Status JLinkProgrammer::download(const std::vector<Segment>& segments, bool programsData,
@@ -182,19 +195,20 @@ Status JLinkProgrammer::download(const std::vector<Segment>& segments, bool prog
         const std::span<const std::byte> data(segment.data);
         for (std::size_t offset = 0; offset < data.size(); offset += m_config.timing.writeChunk) {
             if (m_clock.now() > deadline) {
-                // Nothing was written yet; EndDownload would program the partial buffer.
-                abandonDownload("deadline");
-                return std::unexpected(timedOut("flash download buffering exceeded the deadline"));
+                return std::unexpected(abandonDownload(std::format(
+                    "buffering exceeded the deadline of {} s",
+                    std::chrono::duration_cast<std::chrono::seconds>(m_config.timing.programTimeout)
+                        .count())));
             }
             const auto chunk =
                 data.subspan(offset, std::min(m_config.timing.writeChunk, data.size() - offset));
             const auto address = static_cast<std::uint32_t>(segment.address + offset);
             const int written = m_api.writeMemory(address, chunk);
             if (written < 0) {
-                const std::string detail = libraryDetail(std::format(
-                    "JLINKARM_WriteMem(0x{:08X}, {}) returned {}", address, chunk.size(), written));
-                abandonDownload("WriteMem failed");
-                return std::unexpected(makeError(failure, detail));
+                // The library's error text is taken before the probe is closed.
+                return std::unexpected(abandonDownload(
+                    libraryDetail(std::format("JLINKARM_WriteMem(0x{:08X}, {}) returned {}",
+                                              address, chunk.size(), written))));
             }
         }
     }
@@ -307,7 +321,11 @@ Status JLinkProgrammer::eraseCode(firmware::AddressRange flash, const ProgressFn
 }
 
 Status JLinkProgrammer::eraseAll() {
-    (void)m_api.halt(); // pylink erase(): halt first, ignore a failure
+    // HIL H5: with only a halt (pylink erase()), JLINK_EraseChip on a running nRF52840 returned 0
+    // and erased nothing ("Erase: 0.001s"). Reset and halt first, as J-Link Commander's erase does.
+    if (auto halted = m_probe.reset(/*halt=*/true); !halted) {
+        return halted;
+    }
     const auto started = m_clock.now();
     const int result = m_api.eraseChip();
     m_api.flushMessages();

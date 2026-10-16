@@ -328,13 +328,30 @@ TEST_F(Programmer, EraseCodeWritesErasedBytesOverTheRange) {
     }
 }
 
+// HIL H5: EraseChip after only a halt erased nothing on a running nRF52840; reset + halt first.
 TEST_F(Programmer, EraseAll) {
-    EXPECT_CALL(api(), halt()).Times(2).WillRepeatedly(Return(0));
-    EXPECT_CALL(api(), eraseChip()).WillOnce(Return(0)).WillOnce(Return(-1));
+    EXPECT_CALL(api(), go()).Times(0);
+    {
+        const InSequence order;
+        EXPECT_CALL(api(), reset()).WillOnce(Return(0));
+        EXPECT_CALL(api(), eraseChip()).WillOnce(Return(0));
+        EXPECT_CALL(api(), reset()).WillOnce(Return(0));
+        EXPECT_CALL(api(), eraseChip()).WillOnce(Return(-1));
+    }
     ASSERT_TRUE(programmer().eraseAll());
     const auto failed = programmer().eraseAll();
     ASSERT_FALSE(failed);
     EXPECT_EQ(failed.error().code, ErrorCode::TargetEraseFailed);
+}
+
+TEST_F(Programmer, EraseAllStopsWhenTheResetFails) {
+    EXPECT_CALL(api(), reset()).WillOnce(Return(-1));
+    EXPECT_CALL(api(), eraseChip()).Times(0);
+    const auto failed = programmer().eraseAll();
+    ASSERT_FALSE(failed);
+    EXPECT_EQ(failed.error().code, ErrorCode::TargetConnectFailed);
+    EXPECT_NE(failed.error().detail.find("JLINKARM_Reset returned -1"), std::string::npos)
+        << failed.error().detail;
 }
 
 TEST_F(Programmer, RecoverRunsEraseAllOnTheCtrlAp) {
@@ -405,8 +422,17 @@ TEST_F(Programmer, LoaderActionsMapToPhases) {
     EXPECT_EQ(progress().at(1).phase, ProgramPhase::Erasing); // the Compare report
 }
 
-// Review R3: a download that cannot finish is abandoned by closing the probe; EndDownload, which
-// would program the partial buffer, is never called.
+// Review R3, ADR-0094: a download that cannot finish is abandoned by closing the probe
+// (EndDownload is never called). Phase 0 showed that the close still programs the buffered data, so
+// it is reported as an interrupted flash.
+void expectInterruptedFlash(const hio::Error& error, std::string_view detail) {
+    EXPECT_EQ(error.code, ErrorCode::TargetProgramFailed);
+    EXPECT_EQ(error.message, "Programming the MCU failed.");
+    EXPECT_EQ(error.cause, "Programming was interrupted; the firmware may be partly written.");
+    EXPECT_EQ(error.suggestion, "Check the cables and power, then flash the firmware again.");
+    EXPECT_NE(error.detail.find(detail), std::string::npos) << error.detail;
+}
+
 TEST_F(Programmer, WriteFailureAbandonsTheDownload) {
     openProbe();
     EXPECT_CALL(api(), writeMemory(_, _)).WillOnce(Return(-1));
@@ -414,7 +440,9 @@ TEST_F(Programmer, WriteFailureAbandonsTheDownload) {
     EXPECT_CALL(api(), close());
     const auto status = programmer().program(image(0, 10000), recorder(), {});
     ASSERT_FALSE(status);
-    EXPECT_EQ(status.error().code, ErrorCode::TargetProgramFailed);
+    expectInterruptedFlash(status.error(),
+                           "flash download abandoned: JLINKARM_WriteMem(0x00000000, 4096) returned "
+                           "-1");
 }
 
 TEST_F(Programmer, DeadlineAbandonsTheDownload) {
@@ -428,7 +456,19 @@ TEST_F(Programmer, DeadlineAbandonsTheDownload) {
     EXPECT_CALL(api(), close());
     const auto status = programmer().program(image(0, 10000), recorder(), {});
     ASSERT_FALSE(status);
-    EXPECT_EQ(status.error().code, ErrorCode::Timeout);
+    expectInterruptedFlash(status.error(),
+                           "flash download abandoned: buffering exceeded the deadline of 300 s");
+}
+
+// ADR-0094: the code-only erase is a download of 0xFF; abandoning it is an interrupted flash too.
+TEST_F(Programmer, AbandonedEraseCodeIsAnInterruptedFlash) {
+    openProbe();
+    EXPECT_CALL(api(), writeMemory(_, _)).WillOnce(Return(-1));
+    EXPECT_CALL(api(), endDownload(_)).Times(0);
+    EXPECT_CALL(api(), close());
+    const auto status = programmer().eraseCode({.start = 0, .end = 0x100000}, recorder(), {});
+    ASSERT_FALSE(status);
+    expectInterruptedFlash(status.error(), "JLINKARM_WriteMem(0x00000000, 4096) returned -1");
 }
 
 TEST_F(Programmer, ReadMemoryBounds) {

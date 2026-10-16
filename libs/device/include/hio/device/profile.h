@@ -10,6 +10,8 @@
 #include "hio/firmware/firmware_image.h"
 #include "hio/hw/jlink/programmer.h"
 
+#include <QString>
+
 #include <cstdint>
 #include <span>
 #include <string_view>
@@ -35,7 +37,10 @@ enum class EraseScope : std::uint8_t {
 };
 
 struct TargetProfile {
-    std::string_view id;          // "app", "lte"
+    std::string_view id; // "app", "lte" (CLI, logs, file names)
+    // In user-visible text ("the %1 MCU", "the %1 connector"): English source text, marked with
+    // QT_TRANSLATE_NOOP in context "hio::device" and shown through targetDisplayName().
+    std::string_view displayName; // "application", "LTE"
     std::string_view jlinkDevice; // J-Link device name used to connect, e.g. "NRF52840_xxAA"
     std::string_view rttTerminal; // RTT shell buffer name ("" = no RTT console)
     std::string_view rttLogger;   // RTT log buffer name ("" = none)
@@ -78,6 +83,9 @@ public:
 
 // The part of `target` with this FICR part number, nullptr when it is not one of its parts.
 [[nodiscard]] const ChipPart* findPart(const TargetProfile& target, std::uint32_t part) noexcept;
+
+// The translated display name of `target` (ADR-0027), e.g. "application".
+[[nodiscard]] QString targetDisplayName(const TargetProfile& target);
 
 // The PIB address range of `target`.
 [[nodiscard]] firmware::AddressRange pibRange(const TargetProfile& target) noexcept;

@@ -183,7 +183,7 @@ TEST_F(FlashCli, SubcommandSerialNumberWinsOverTheGroup) {
                                  QStringLiteral("-n"), QStringLiteral("801000002"),
                                  QStringLiteral("flash"), path(QStringLiteral("app.hex"))});
     EXPECT_EQ(group.exitCode, 6) << group.err;
-    EXPECT_NE(group.err.find("Expected the app MCU (nRF52840) but found nRF9151."),
+    EXPECT_NE(group.err.find("Expected the application MCU (nRF52840) but found nRF9151."),
               std::string::npos);
     const RunResult own =
         hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("-n"),

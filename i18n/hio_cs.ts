@@ -1023,6 +1023,16 @@
         <source>The Product Information Block is missing or damaged (%1).</source>
         <translation>Blok informací o produktu (PIB) chybí nebo je poškozený (%1).</translation>
     </message>
+    <message>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="43"/>
+        <source>application</source>
+        <translation>aplikace</translation>
+    </message>
+    <message>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="63"/>
+        <source>LTE</source>
+        <translation>LTE</translation>
+    </message>
 </context>
 <context>
     <name>hio::firmware</name>
@@ -1055,7 +1065,7 @@
 <context>
     <name>hio::jlink</name>
     <message>
-        <location filename="../libs/hw/jlink/src/jlink_library.cpp" line="294"/>
+        <location filename="../libs/hw/jlink/src/jlink_library.cpp" line="319"/>
         <source>J-Link Software %1 is too old.</source>
         <translation>J-Link Software %1 je příliš starý.</translation>
     </message>
@@ -1091,7 +1101,17 @@
         <translation>Typ MCU nelze přečíst (FICR).</translation>
     </message>
     <message>
-        <location filename="../libs/hw/jlink/src/programmer.cpp" line="274"/>
+        <location filename="../libs/hw/jlink/src/programmer.cpp" line="171"/>
+        <source>Programming was interrupted; the firmware may be partly written.</source>
+        <translation>Programování bylo přerušeno; firmware může být zapsán jen zčásti.</translation>
+    </message>
+    <message>
+        <location filename="../libs/hw/jlink/src/programmer.cpp" line="175"/>
+        <source>Check the cables and power, then flash the firmware again.</source>
+        <translation>Zkontrolujte kabely a napájení a potom firmware nahrajte znovu.</translation>
+    </message>
+    <message>
+        <location filename="../libs/hw/jlink/src/programmer.cpp" line="288"/>
         <source>Verification failed at address %1.</source>
         <translation>Ověření selhalo na adrese %1.</translation>
     </message>

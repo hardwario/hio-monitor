@@ -244,6 +244,8 @@ TEST_F(FakeLibrary, FlashFunctionsReachTheLibrary) {
     auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
     ASSERT_TRUE(library) << library.error().detail;
     JLinkLibrary& api = **library;
+    // HIL H3: the fake's select fails while a flash progress callback is registered, as the real
+    // library did; the loader must not register it.
     ASSERT_EQ(api.selectBySerialNumber(5), 0);
     ASSERT_FALSE(api.open().has_value());
     ASSERT_GE(api.connect(), 0);
@@ -266,7 +268,8 @@ TEST_F(FakeLibrary, FlashFunctionsReachTheLibrary) {
         ++callbacks;
     }),
               0);
-    EXPECT_GT(callbacks, 0); // the loader's progress reached the FlashProgressFn
+    EXPECT_GT(callbacks, 0);                   // the loader's progress reached the FlashProgressFn
+    EXPECT_EQ(api.selectBySerialNumber(5), 0); // HIL H3: the callback is cleared afterwards
     std::array<std::byte, 3> back{};
     ASSERT_EQ(api.readMemory(0x2000, back), 3);
     EXPECT_EQ(back, data);
@@ -280,6 +283,43 @@ TEST_F(FakeLibrary, FlashFunctionsReachTheLibrary) {
     const auto status = api.coresightRead(3, true);
     ASSERT_TRUE(status);
     EXPECT_EQ(*status & 1U, 1U); // not protected
+}
+
+// HIL H3: the progress callback is also cleared when EndDownload fails.
+TEST_F(FakeLibrary, FlashProgressCallbackIsClearedAfterAFailedDownload) {
+    useScenario(R"({"probes": [{"serialNumber": 5, "chip": {"writeFault": true}}]})");
+    auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
+    ASSERT_TRUE(library) << library.error().detail;
+    JLinkLibrary& api = **library;
+    ASSERT_EQ(api.selectBySerialNumber(5), 0);
+    ASSERT_FALSE(api.open().has_value());
+    ASSERT_GE(api.connect(), 0);
+    api.beginDownload();
+    const std::array<std::byte, 1> data{std::byte{1}};
+    EXPECT_EQ(api.writeMemory(0x2000, data), 1);
+    EXPECT_LT(api.endDownload([](std::string_view /*action*/, int /*percent*/) {}), 0);
+    EXPECT_EQ(api.selectBySerialNumber(5), 0);
+}
+
+// Phase 0 item 0.10, ADR-0094: closing the J-Link during a download programs the buffered bytes
+// (the fake models what J-Link 9.84 did on hardware).
+TEST_F(FakeLibrary, CloseDuringADownloadProgramsTheBuffer) {
+    useScenario(R"({"probes": [{"serialNumber": 5}]})");
+    auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
+    ASSERT_TRUE(library) << library.error().detail;
+    JLinkLibrary& api = **library;
+    ASSERT_EQ(api.selectBySerialNumber(5), 0);
+    ASSERT_FALSE(api.open().has_value());
+    ASSERT_GE(api.connect(), 0);
+    api.beginDownload();
+    const std::array<std::byte, 2> data{std::byte{0xA5}, std::byte{0xA5}};
+    EXPECT_EQ(api.writeMemory(0x3000, data), 2);
+    api.close();
+    ASSERT_FALSE(api.open().has_value());
+    ASSERT_GE(api.connect(), 0);
+    std::array<std::byte, 2> back{};
+    ASSERT_EQ(api.readMemory(0x3000, back), 2);
+    EXPECT_EQ(back, data);
 }
 
 } // namespace

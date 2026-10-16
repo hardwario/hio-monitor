@@ -278,7 +278,7 @@ Result<CommandResult> erase(const Context& context, const GlobalOptions& globals
         const std::string question = std::format(
             "This erases all flash, UICR and the Product Information Block of the {} MCU.\n"
             "Continue? [y/N] ",
-            targetId == "lte" ? "LTE" : "application");
+            targetOf(targetId).displayName); // the CLI is English only (ADR-0027)
         if (Status confirmed = confirmDestructive(context, yes, question); !confirmed) {
             return std::unexpected(std::move(confirmed).error());
         }
@@ -318,7 +318,7 @@ Result<CommandResult> recover(const Context& context, const GlobalOptions& globa
     const std::string question = std::format(
         "This erases ALL flash, UICR and the Product Information Block of the {} MCU and removes "
         "read-back protection.\nContinue? [y/N] ",
-        targetId == "lte" ? "LTE" : "application");
+        targetOf(targetId).displayName); // the CLI is English only (ADR-0027)
     if (Status confirmed = confirmDestructive(context, yes, question); !confirmed) {
         return std::unexpected(std::move(confirmed).error());
     }
