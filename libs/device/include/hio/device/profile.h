@@ -13,6 +13,7 @@
 #include <QString>
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -45,7 +46,8 @@ struct TargetProfile {
     std::string_view rttTerminal; // RTT shell buffer name ("" = no RTT console)
     std::string_view rttLogger;   // RTT log buffer name ("" = none)
     bool hashPrefixIsLog;         // shell lines starting with '#' are log lines (older CHESTER fw)
-    int defaultSpeedKhz;
+    // J-Link speed in kHz; nullopt = automatic (JLINKARM_SetSpeed(0), as pylink; ADR-0090).
+    std::optional<int> defaultSpeedKhz;
     int defaultLatencyMs;
     int minTargetMillivolts; // below this VTref the target counts as unpowered
 

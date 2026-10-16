@@ -7,6 +7,7 @@
 #include "hio/device/console_line.h"
 #include "hio/device/probe_lock.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
 #include <QIODevice>
@@ -25,7 +26,6 @@
 #include <filesystem>
 #include <format>
 #include <limits>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -338,27 +338,27 @@ void ConsoleFileSink::prune() const {
     std::ranges::sort(files, [](const FileInfo& a, const FileInfo& b) {
         return a.modified > b.modified; // newest first
     });
-    // A file a live session may be writing is kept (review R45): one this process has open, or
-    // one of a probe with a live lock owner (this or another process, ProbeLock::owner() rules),
-    // written since the owner took the lock (earlier files are from finished sessions).
+    // Only a file a live session is writing now is kept (review R45, R48): in this process the
+    // files a sink has open; for a probe whose lock has a live owner in ANOTHER process
+    // (ProbeLock::owner() rules), only the newest file of that serial number, and only when it was
+    // written since the owner took the lock. The closed .partN files of a live session and the
+    // files of finished sessions are pruned as usual, so at most one file per live session is
+    // kept beyond the bounds.
     const fs::path lockDirectory =
         m_config.lockDirectory.empty() ? ProbeLock::defaultDirectory() : m_config.lockDirectory;
-    std::map<std::uint32_t, std::optional<ProbeLockOwner>> owners; // bounded by the files
+    const qint64 ownPid = QCoreApplication::applicationPid();
+    std::set<std::uint32_t> newestSeen; // serial numbers whose newest file was seen; bounded
     const auto isLive = [&](const FileInfo& file) {
         if (openFiles().contains(file.path)) {
             return true;
         }
         const std::optional<std::uint32_t> serialNumber = serialNumberOf(file.path);
-        if (!serialNumber) {
-            return false;
+        if (!serialNumber || !newestSeen.insert(*serialNumber).second) {
+            return false; // not a session file, or not the newest file of its probe
         }
-        auto it = owners.find(*serialNumber);
-        if (it == owners.end()) {
-            it =
-                owners.emplace(*serialNumber, ProbeLock::owner(*serialNumber, lockDirectory)).first;
-        }
-        const std::optional<ProbeLockOwner>& owner = it->second;
-        return owner.has_value() &&
+        const std::optional<ProbeLockOwner> owner = ProbeLock::owner(*serialNumber, lockDirectory);
+        // A lock of this process: its sessions' files are in the open-files list above.
+        return owner.has_value() && owner->pid != ownPid &&
                (!owner->lockedAt || file.modified + lockTimeTolerance >= *owner->lockedAt);
     };
     std::size_t kept = 0;

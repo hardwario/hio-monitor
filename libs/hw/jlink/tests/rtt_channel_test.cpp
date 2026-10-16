@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstddef>
 #include <expected>
+#include <optional>
 #include <span>
 #include <stop_token>
 #include <string>
@@ -204,6 +205,52 @@ TEST_F(Rtt, NoControlBlockWithin15sIsRttNotFound) {
     EXPECT_GE(clock().slept(), std::chrono::milliseconds(15000));
     EXPECT_LE(clock().slept(), std::chrono::milliseconds(15300));
     EXPECT_FALSE(rtt().isAttached());
+}
+
+// ADR-0095: the attach deadline scales with a fixed speed below 1000 kHz, capped at 60 s.
+TEST(RttAttachDeadline, ScalesWithAFixedLowSpeed) {
+    using hio::jlink::rttAttachDeadline;
+    using std::chrono::milliseconds;
+    EXPECT_EQ(rttAttachDeadline(std::nullopt), milliseconds(15000)); // auto
+    EXPECT_EQ(rttAttachDeadline(4000), milliseconds(15000));
+    EXPECT_EQ(rttAttachDeadline(1000), milliseconds(15000));
+    EXPECT_EQ(rttAttachDeadline(999), milliseconds(15015)); // 15 000 x 1000 / 999, rounded down
+    EXPECT_EQ(rttAttachDeadline(500), milliseconds(30000));
+    EXPECT_EQ(rttAttachDeadline(250), milliseconds(60000));
+    EXPECT_EQ(rttAttachDeadline(100), milliseconds(60000)); // capped
+    EXPECT_EQ(rttAttachDeadline(5), milliseconds(60000));
+    // Another base (the session tests' short timings) scales the same way.
+    EXPECT_EQ(rttAttachDeadline(std::nullopt, milliseconds(400)), milliseconds(400));
+    EXPECT_EQ(rttAttachDeadline(500, milliseconds(400)), milliseconds(800));
+    EXPECT_EQ(rttAttachDeadline(5, milliseconds(400)), milliseconds(1600));
+}
+
+TEST(RttAttachDeadline, SlowSpeedIsAFixedSpeedBelow125kHz) {
+    using hio::jlink::isSlowRttSpeed;
+    EXPECT_FALSE(isSlowRttSpeed(std::nullopt));
+    EXPECT_FALSE(isSlowRttSpeed(1000));
+    EXPECT_FALSE(isSlowRttSpeed(125));
+    EXPECT_TRUE(isSlowRttSpeed(124));
+    EXPECT_TRUE(isSlowRttSpeed(5));
+}
+
+// ADR-0095: the target.rtt_not_found detail names the deadline and the speed.
+TEST_F(Rtt, RttNotFoundDetailNamesTheSpeed) {
+    target().found = false;
+    const auto autoSpeed = rtt().attach(chesterNames, {});
+    ASSERT_FALSE(autoSpeed);
+    EXPECT_EQ(autoSpeed.error().detail, "no RTT control block found within 15000 ms at auto speed");
+
+    hio::jlink::RttTiming timing;
+    timing.attachDeadline = hio::jlink::rttAttachDeadline(100);
+    RttChannel slow(api(), clock(), timing, 100);
+    const auto before = clock().slept();
+    const auto layout = slow.attach(chesterNames, {});
+    ASSERT_FALSE(layout);
+    EXPECT_EQ(layout.error().code, ErrorCode::TargetRttNotFound);
+    EXPECT_EQ(layout.error().detail, "no RTT control block found within 60000 ms at 100 kHz");
+    EXPECT_GE(clock().slept() - before, std::chrono::milliseconds(60000));
+    EXPECT_LE(clock().slept() - before, std::chrono::milliseconds(60300));
 }
 
 TEST_F(Rtt, TerminalNeverReadyIsBufferNotFound) {

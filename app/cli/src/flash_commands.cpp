@@ -108,7 +108,11 @@ Result<OperationOutcome> runOperation(const Context& context, const GlobalOption
     options.profile = &chester();
     options.targetId = targetId;
     options.probeSn = serialNumberOf(group, own);
-    options.speedKhz = speedOf(group, own, target.defaultSpeedKhz);
+    auto speed = speedOf(group, own, target.defaultSpeedKhz);
+    if (!speed) {
+        return std::unexpected(std::move(speed).error());
+    }
+    options.speedKhz = *speed;
     options.latencyMs = target.defaultLatencyMs;
     options.autoReconnect = false;
     options.attachRtt = false;
@@ -560,7 +564,6 @@ Result<FlashInput> resolveFlashInput(const std::string& argument, const fs::path
 
 void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOptions>& group,
                               CommandSlot& slot, const GlobalOptions& globals) {
-    const int speed = targetOf("app").defaultSpeedKhz;
 
     auto flashOptions = std::make_shared<AppFlashOptions>();
     CLI::App* flash = appGroup.add_subcommand(
@@ -577,7 +580,7 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
         "Also program the image's UICR records (the Product Information Block is kept)");
     flash->add_flag("--no-cache", flashOptions->noCache,
                     "Download a catalog firmware even when it is cached");
-    addProbeOptions(*flash, flashOptions->probe, speed);
+    addProbeOptions(*flash, flashOptions->probe);
     flash->callback([&slot, &globals, group, flashOptions] {
         slot.command = [&globals, group, flashOptions](const Context& context) {
             return appFlash(context, globals, *group, *flashOptions);
@@ -595,7 +598,7 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
     eraseCommand->add_flag("--all", eraseOptions->all,
                            "Erase all flash and the UICR (the Product Information Block is lost)");
     eraseCommand->add_flag("--yes", eraseOptions->yes, "Do not ask for confirmation");
-    addProbeOptions(*eraseCommand, eraseOptions->probe, speed);
+    addProbeOptions(*eraseCommand, eraseOptions->probe);
     eraseCommand->callback([&slot, &globals, group, eraseOptions] {
         slot.command = [&globals, group, eraseOptions](const Context& context) {
             return erase(context, globals, *group, eraseOptions->probe, "app",
@@ -611,7 +614,7 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
     auto resetOptions = std::make_shared<ResetOptions>();
     CLI::App* resetCommand = appGroup.add_subcommand("reset", "Reset the application MCU");
     resetCommand->add_flag("--halt", resetOptions->halt, "Leave the CPU halted");
-    addProbeOptions(*resetCommand, resetOptions->probe, speed);
+    addProbeOptions(*resetCommand, resetOptions->probe);
     resetCommand->callback([&slot, &globals, group, resetOptions] {
         slot.command = [&globals, group, resetOptions](const Context& context) {
             return reset(context, globals, *group, resetOptions->probe, "app", resetOptions->halt);
@@ -626,7 +629,7 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
     CLI::App* recoverCommand = appGroup.add_subcommand(
         "recover", "Recover a read-back protected application MCU (erases everything)");
     recoverCommand->add_flag("--yes", recoverOptions->yes, "Do not ask for confirmation");
-    addProbeOptions(*recoverCommand, recoverOptions->probe, speed);
+    addProbeOptions(*recoverCommand, recoverOptions->probe);
     recoverCommand->callback([&slot, &globals, group, recoverOptions] {
         slot.command = [&globals, group, recoverOptions](const Context& context) {
             return recover(context, globals, *group, recoverOptions->probe, "app",
@@ -637,16 +640,16 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
     CLI::App* pib = appGroup.add_subcommand("pib", "HARDWARIO Product Information Block");
     pib->require_subcommand(1);
     auto pibOptions = std::make_shared<ProbeOptions>();
-    addProbeOptions(*pib, *pibOptions, speed);
+    addProbeOptions(*pib, *pibOptions);
     auto pibReadOptions = std::make_shared<ProbeOptions>();
     CLI::App* pibReadCommand =
         pib->add_subcommand("read", "Read the Product Information Block from the UICR");
-    addProbeOptions(*pibReadCommand, *pibReadOptions, speed);
+    addProbeOptions(*pibReadCommand, *pibReadOptions);
     pibReadCommand->callback([&slot, &globals, group, pibOptions, pibReadOptions] {
         slot.command = [&globals, group, pibOptions, pibReadOptions](const Context& context) {
             const ProbeOptions own{.serialNumber = serialNumberOf(*pibOptions, *pibReadOptions),
-                                   .speedKhz = pibReadOptions->speedKhz ? pibReadOptions->speedKhz
-                                                                        : pibOptions->speedKhz};
+                                   .speed = pibReadOptions->speed ? pibReadOptions->speed
+                                                                  : pibOptions->speed};
             return pibRead(context, globals, *group, own);
         };
     });
@@ -654,7 +657,7 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
     CLI::App* uicr = appGroup.add_subcommand("uicr", "UICR flash area");
     uicr->require_subcommand(1);
     auto uicrOptions = std::make_shared<ProbeOptions>();
-    addProbeOptions(*uicr, *uicrOptions, speed);
+    addProbeOptions(*uicr, *uicrOptions);
     struct UicrReadOptions {
         ProbeOptions probe;
         std::string format;
@@ -670,13 +673,13 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
     uicrReadCommand->add_option("file", uicrReadOptions->file, "Output file, - for stdout")
         ->required()
         ->option_text("FILE");
-    addProbeOptions(*uicrReadCommand, uicrReadOptions->probe, speed);
+    addProbeOptions(*uicrReadCommand, uicrReadOptions->probe);
     uicrReadCommand->callback([&slot, &globals, group, uicrOptions, uicrReadOptions] {
         slot.command = [&globals, group, uicrOptions, uicrReadOptions](const Context& context) {
             const ProbeOptions own{
                 .serialNumber = serialNumberOf(*uicrOptions, uicrReadOptions->probe),
-                .speedKhz = uicrReadOptions->probe.speedKhz ? uicrReadOptions->probe.speedKhz
-                                                            : uicrOptions->speedKhz};
+                .speed = uicrReadOptions->probe.speed ? uicrReadOptions->probe.speed
+                                                      : uicrOptions->speed};
             return uicrRead(context, globals, *group, own, uicrReadOptions->format,
                             uicrReadOptions->file);
         };
@@ -685,11 +688,10 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
 
 void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
                          const GlobalOptions& globals) {
-    const int speed = targetOf("lte").defaultSpeedKhz;
     CLI::App* lte = chesterCommand.add_subcommand("lte", "LTE modem SoC commands");
     lte->require_subcommand(1);
     auto group = std::make_shared<ProbeOptions>();
-    addProbeOptions(*lte, *group, speed);
+    addProbeOptions(*lte, *group);
 
     struct FlashOptions {
         ProbeOptions probe;
@@ -706,7 +708,7 @@ void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
     flash->add_flag(
         "--allow-uicr", flashOptions->allowUicr,
         "Also program the image's UICR records (the Product Information Block is kept)");
-    addProbeOptions(*flash, flashOptions->probe, speed);
+    addProbeOptions(*flash, flashOptions->probe);
     flash->callback([&slot, &globals, group, flashOptions] {
         slot.command = [&globals, group, flashOptions](const Context& context) {
             return lteFlash(context, globals, *group, flashOptions->probe, flashOptions->file,
@@ -723,7 +725,7 @@ void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
         "erase",
         "Erase all flash and the UICR of the LTE MCU (the Product Information Block is lost)");
     eraseCommand->add_flag("--yes", eraseOptions->yes, "Do not ask for confirmation");
-    addProbeOptions(*eraseCommand, eraseOptions->probe, speed);
+    addProbeOptions(*eraseCommand, eraseOptions->probe);
     eraseCommand->callback([&slot, &globals, group, eraseOptions] {
         slot.command = [&globals, group, eraseOptions](const Context& context) {
             return erase(context, globals, *group, eraseOptions->probe, "lte",
@@ -733,7 +735,7 @@ void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
 
     auto resetOptions = std::make_shared<ProbeOptions>();
     CLI::App* resetCommand = lte->add_subcommand("reset", "Reset the LTE MCU and let it run");
-    addProbeOptions(*resetCommand, *resetOptions, speed);
+    addProbeOptions(*resetCommand, *resetOptions);
     resetCommand->callback([&slot, &globals, group, resetOptions] {
         slot.command = [&globals, group, resetOptions](const Context& context) {
             return reset(context, globals, *group, *resetOptions, "lte", false);
@@ -745,7 +747,7 @@ void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
         "recover", "Recover a read-back protected LTE MCU (erases everything, then programs the "
                    "debug-port unlock image)");
     recoverCommand->add_flag("--yes", recoverOptions->yes, "Do not ask for confirmation");
-    addProbeOptions(*recoverCommand, recoverOptions->probe, speed);
+    addProbeOptions(*recoverCommand, recoverOptions->probe);
     recoverCommand->callback([&slot, &globals, group, recoverOptions] {
         slot.command = [&globals, group, recoverOptions](const Context& context) {
             return recover(context, globals, *group, recoverOptions->probe, "lte",

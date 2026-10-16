@@ -19,6 +19,7 @@
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_library.h"
 #include "hio/hw/jlink/library_locator.h"
+#include "hio/hw/jlink/rtt_channel.h"
 #include "hio/hw/jlink/types.h"
 #include "hio/hw/nrfutil/nrfutil.h"
 #include "session_internal.h"
@@ -85,13 +86,13 @@ Result<const TargetProfile*> validate(const SessionOptions& options) {
                 .arg(toQString(target->id), toQString(options.profile->displayName)),
             {}));
     }
-    if (options.speedKhz < minSpeedKhz || options.speedKhz > maxSpeedKhz) {
+    if (options.speedKhz && (*options.speedKhz < minSpeedKhz || *options.speedKhz > maxSpeedKhz)) {
         return std::unexpected(
             invalidOption(QCoreApplication::translate(
                               "hio::device", "The J-Link speed must be between %1 and %2 kHz.")
                               .arg(minSpeedKhz)
                               .arg(maxSpeedKhz),
-                          std::to_string(options.speedKhz)));
+                          std::to_string(*options.speedKhz)));
     }
     if (options.latencyMs < minLatencyMs || options.latencyMs > maxLatencyMs) {
         return std::unexpected(invalidOption(
@@ -104,6 +105,19 @@ Result<const TargetProfile*> validate(const SessionOptions& options) {
 }
 
 } // namespace
+
+std::optional<std::string> slowSpeedWarning(std::optional<int> speedKhz) {
+    if (!jlink::isSlowRttSpeed(speedKhz)) {
+        return std::nullopt;
+    }
+    return QCoreApplication::translate("hio::device",
+                                       "At this J-Link speed the console may not be found within "
+                                       "%1 s. Use auto or %2 kHz or more.")
+        .arg(std::chrono::duration_cast<std::chrono::seconds>(jlink::rttAttachDeadline(speedKhz))
+                 .count())
+        .arg(jlink::rttFullSpeedKhz)
+        .toStdString();
+}
 
 std::string_view connectionStateId(ConnectionState state) noexcept {
     switch (state) {
@@ -219,6 +233,10 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
     config.attachRtt = options.attachRtt;
     config.lockDirectory = registry.options().lockDirectory;
     config.timing = hooks.timing;
+    // ADR-0095: the attach deadline scales with a fixed low speed (the base is the hooks' value,
+    // 15 s in production).
+    config.timing.rtt.attachDeadline =
+        jlink::rttAttachDeadline(options.speedKhz, hooks.timing.rtt.attachDeadline);
     config.cycles = std::move(hooks.cycles);
     if (!options.consoleFile || !options.consoleFile->empty()) {
         config.consoleFile = ConsoleFileConfig{.explicitFile = options.consoleFile,

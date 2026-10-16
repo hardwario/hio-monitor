@@ -44,6 +44,11 @@ enum class TargetInterface : std::uint8_t {
 // "Program", "Verify", "Compare", ...) and a percentage. Called on the calling thread; must not
 // throw.
 using FlashProgressFn = std::function<void(std::string_view action, int percent)>;
+// JLINKARM_SetSpeed value for the automatic speed (ADR-0090). Source: pylink-square 2.0.2
+// jlink.py, JLink.set_speed(auto=True) with no speed: `speed = 0`, then `speed | AUTO_JTAG_SPEED`
+// (AUTO_JTAG_SPEED = 0x0), so the library is called with 0; JLink.connect(chip, speed='auto')
+// does that right after `Device =`.
+inline constexpr std::uint32_t autoSpeed = 0;
 
 class IJLinkApi {
 public:
@@ -76,7 +81,7 @@ public:
     [[nodiscard]] virtual std::string execCommand(std::string_view command) = 0;
     // JLINKARM_TIF_Select. Returns the vendor code (0 = success).
     [[nodiscard]] virtual int selectInterface(TargetInterface targetInterface) = 0;
-    // JLINKARM_SetSpeed (kHz).
+    // JLINKARM_SetSpeed (kHz), or autoSpeed (0) for the automatic speed (ADR-0090).
     virtual void setSpeed(std::uint32_t kiloHertz) = 0;
     // JLINKARM_Connect. Returns the vendor code (< 0: error).
     [[nodiscard]] virtual int connect() = 0;

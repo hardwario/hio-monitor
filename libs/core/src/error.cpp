@@ -101,6 +101,7 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::DependencyNrfUtilDeviceMissing:
     case ErrorCode::DependencyNrfUtilTooOld:
     case ErrorCode::InternalBusy:
+    case ErrorCode::ProbeIoFailed:
         return true;
     }
     return false;
@@ -641,6 +642,21 @@ constexpr std::array defaultTexts{
                                     "internal.busy cause"),
         .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Wait for it to finish or cancel it.",
                                          "internal.busy suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::ProbeIoFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Communication with the J-Link failed.",
+                                      "probe.io_failed message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "The J-Link did not answer: a USB glitch, or the USB cable was disconnected.",
+            "probe.io_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Check the USB cable between the J-Link and the computer; the console reconnects "
+            "automatically if enabled.",
+            "probe.io_failed suggestion"),
+        .wizard = WizardId::Troubleshooting,
     },
 };
 
