@@ -76,6 +76,12 @@ struct ProbeIdentified {
     jlink::ProbeInfo probe;
 };
 
+// The console file the worker writes now (opened, continued in a .partN file, or stopped after a
+// write failure: empty); sets DeviceSession::consoleFile() (plan 0002, amended by 0005).
+struct ConsoleFileChanged {
+    std::filesystem::path file;
+};
+
 struct OperationProgressEvent {
     OperationId id = 0;
     OperationProgress progress;
@@ -85,8 +91,9 @@ struct OperationFinishedEvent {
     OperationResult result;
 };
 
-using WorkerEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified,
-                                 OperationProgressEvent, OperationFinishedEvent>;
+using WorkerEvent =
+    std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified, ConsoleFileChanged,
+                 OperationProgressEvent, OperationFinishedEvent>;
 
 // The events the event queue may drop when it is full: shell and log output (Direction::Out).
 // Echoes of written commands (Direction::In) are kept, so a caller that counts the written lines

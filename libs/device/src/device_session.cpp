@@ -502,6 +502,8 @@ const ConsoleLog& DeviceSession::log() const { return *m_internals->log; }
 
 jlink::ProbeInfo DeviceSession::probe() const { return m_probe; }
 
+std::filesystem::path DeviceSession::consoleFile() const { return m_consoleFile; }
+
 const DeviceProfile& DeviceSession::profile() const noexcept { return *m_internals->profile; }
 
 const TargetProfile& DeviceSession::target() const noexcept { return *m_internals->target; }
@@ -562,6 +564,9 @@ void DeviceSession::drainEvents() {
                     emit warning(item.error);
                 },
                 [&](detail::ProbeIdentified& identified) { m_probe = std::move(identified.probe); },
+                [&](detail::ConsoleFileChanged& changed) {
+                    m_consoleFile = std::move(changed.file);
+                },
                 [&](const detail::OperationProgressEvent& item) {
                     flushBatch();
                     emit operationProgress(item.id, item.progress);

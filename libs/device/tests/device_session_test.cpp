@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -989,6 +990,60 @@ TEST_F(Session, DefaultConsoleFileInTheConsoleDirectory) {
         found = found || it->path().filename().string().starts_with("chester-app-");
     }
     EXPECT_TRUE(found);
+}
+
+// Plan 0005 amendment of 0002: consoleFile() names the file the worker writes.
+TEST_F(Session, ConsoleFileIsReportedOnceOpened) {
+    const fs::path file = root() / "reported.log";
+    SessionOptions opts = options();
+    opts.consoleFile = file;
+    Recorder* events = nullptr;
+    auto session = openConnected(opts, events);
+    ASSERT_TRUE(session);
+    EXPECT_TRUE(waitFor([&] { return session->consoleFile() == file; }));
+    session->close();
+    EXPECT_EQ(session->consoleFile(), file); // the last known file stays readable
+}
+
+TEST_F(Session, DefaultConsoleFileIsReported) {
+    SessionOptions opts = options();
+    opts.consoleFile = std::nullopt;
+    Recorder* events = nullptr;
+    auto session = openConnected(opts, events);
+    ASSERT_TRUE(session);
+    ASSERT_TRUE(waitFor([&] { return !session->consoleFile().empty(); }));
+    const fs::path file = session->consoleFile();
+    EXPECT_EQ(file.parent_path(), root() / "console");
+    EXPECT_TRUE(file.filename().string().starts_with("chester-app-")) << file;
+    EXPECT_TRUE(fs::exists(file)) << file;
+}
+
+TEST_F(Session, NoConsoleFileIsEmpty) {
+    Recorder* events = nullptr;
+    auto session = openConnected(options(), events); // consoleFile = empty path: none
+    ASSERT_TRUE(session);
+    ASSERT_TRUE(session->sendLine("x"));
+    ASSERT_TRUE(waitFor([&] { return !events->lines.empty(); }));
+    EXPECT_TRUE(session->consoleFile().empty());
+}
+
+TEST_F(Session, ConsoleFileIsEmptyAfterAWriteFailure) {
+    const fs::path full("/dev/full"); // every write fails with ENOSPC
+    if (!fs::exists(full)) {
+        GTEST_SKIP() << "no /dev/full";
+    }
+    SessionOptions opts = options();
+    opts.consoleFile = full;
+    Recorder* events = nullptr;
+    auto session = openConnected(opts, events);
+    ASSERT_TRUE(session);
+    ASSERT_TRUE(session->sendLine("x")); // a line to write (the sink flushes every cycle)
+    ASSERT_TRUE(waitFor([&] {
+        return std::ranges::any_of(events->warnings, [](const hio::Error& warning) {
+            return warning.code == ErrorCode::IoWriteFailed;
+        });
+    }));
+    EXPECT_TRUE(session->consoleFile().empty());
 }
 
 TEST_F(Session, RegistryDestructionClosesSessions) {

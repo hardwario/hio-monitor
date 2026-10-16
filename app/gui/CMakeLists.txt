@@ -28,13 +28,21 @@ set(HIO_GUI_QML_FILES
     qml/components/StepSpinBox.qml
     qml/components/Toast.qml
     qml/components/WarningBanner.qml
+    qml/console/Banners.qml
+    qml/console/ConsoleRow.qml
+    qml/console/ConsoleSearchBar.qml
+    qml/console/ConsoleView.qml
+    qml/console/HistoryPopup.qml
+    qml/console/ShellInput.qml
     qml/pages/ChooseDevicePage.qml
+    qml/pages/ConsolePage.qml
     qml/pages/PlaceholderPage.qml
     qml/shell/AdvancedPopover.qml
     qml/shell/DeviceBar.qml
     qml/shell/DeviceTabBar.qml
     qml/shell/NavRail.qml
     qml/shell/PageHost.qml
+    qml/settings/ConsoleSection.qml
     qml/shell/TabView.qml)
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
@@ -59,6 +67,8 @@ qt_add_qml_module(hio_gui
         src/language_manager.h
         src/pages/builtin_pages.cpp
         src/pages/builtin_pages.h
+        src/pages/console_page.cpp
+        src/pages/console_page.h
         src/pages/placeholder_view_model.cpp
         src/pages/placeholder_view_model.h
         src/settings_store.cpp
@@ -71,12 +81,22 @@ qt_add_qml_module(hio_gui
         src/viewmodels/app_view_model.h
         src/viewmodels/connection_view_model.cpp
         src/viewmodels/connection_view_model.h
+        src/viewmodels/console_line_model.cpp
+        src/viewmodels/console_line_model.h
+        src/viewmodels/console_settings.cpp
+        src/viewmodels/console_settings.h
+        src/viewmodels/console_view_model.cpp
+        src/viewmodels/console_view_model.h
         src/viewmodels/device_tab_list_model.cpp
         src/viewmodels/device_tab_list_model.h
         src/viewmodels/device_tab_view_model.cpp
         src/viewmodels/device_tab_view_model.h
         src/viewmodels/error_info.cpp
         src/viewmodels/error_info.h
+        src/viewmodels/find_filter_engine.cpp
+        src/viewmodels/find_filter_engine.h
+        src/viewmodels/history_store.cpp
+        src/viewmodels/history_store.h
         src/viewmodels/page_list_model.cpp
         src/viewmodels/page_list_model.h
         src/viewmodels/page_registry.cpp
@@ -85,13 +105,16 @@ qt_add_qml_module(hio_gui
         src/viewmodels/probe_picker_view_model.h
         src/viewmodels/shortcut_registry.cpp
         src/viewmodels/shortcut_registry.h
+        src/workers/batch_runner.cpp
+        src/workers/batch_runner.h
         src/workers/probe_scanner.cpp
         src/workers/probe_scanner.h)
 target_include_directories(hio_gui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # The generated QML type registration includes the view model headers by file name.
 target_include_directories(hio_gui PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/pages"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels")
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/workers")
 target_link_libraries(hio_gui PUBLIC
     hio::core
     hio::device

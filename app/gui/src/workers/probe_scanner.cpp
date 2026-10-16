@@ -28,7 +28,9 @@ ProbeScanner::ProbeScanner(std::filesystem::path instanceRoot, std::filesystem::
       m_lockDirectory(std::move(lockDirectory)), m_interval(interval),
       m_worker([this](const std::stop_token& stop) { run(stop); }) {}
 
-ProbeScanner::~ProbeScanner() {
+ProbeScanner::~ProbeScanner() { stop(); }
+
+void ProbeScanner::stop() {
     m_worker.request_stop();
     m_wake.notify_all();
     if (m_worker.joinable()) {

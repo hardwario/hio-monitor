@@ -70,6 +70,32 @@
     </message>
 </context>
 <context>
+    <name>Banners</name>
+    <message numerus="yes">
+        <location filename="../app/gui/qml/console/Banners.qml" line="20"/>
+        <source>%Ln lines were dropped because the device sent data faster than it could be displayed.</source>
+        <translation>
+            <numerusform>%Ln řádek byl zahozen, protože zařízení posílalo data rychleji, než je bylo možné zobrazit.</numerusform>
+            <numerusform>%Ln řádky byly zahozeny, protože zařízení posílalo data rychleji, než je bylo možné zobrazit.</numerusform>
+            <numerusform>%Ln řádků bylo zahozeno, protože zařízení posílalo data rychleji, než je bylo možné zobrazit.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../app/gui/qml/console/Banners.qml" line="29"/>
+        <source>The view is paused. %Ln new lines are not shown yet.</source>
+        <translation>
+            <numerusform>Výpis je pozastavený. %Ln nový řádek zatím není zobrazený.</numerusform>
+            <numerusform>Výpis je pozastavený. %Ln nové řádky zatím nejsou zobrazené.</numerusform>
+            <numerusform>Výpis je pozastavený. %Ln nových řádků zatím není zobrazených.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/Banners.qml" line="31"/>
+        <source>Resume</source>
+        <translation>Pokračovat</translation>
+    </message>
+</context>
+<context>
     <name>ChooseDevicePage</name>
     <message>
         <location filename="../app/gui/qml/pages/ChooseDevicePage.qml" line="32"/>
@@ -181,6 +207,397 @@
         <location filename="../app/gui/qml/components/ConfirmDialog.qml" line="19"/>
         <source>Cancel</source>
         <translation>Zrušit</translation>
+    </message>
+</context>
+<context>
+    <name>ConsolePage</name>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="33"/>
+        <source>Console</source>
+        <translation>Konzole</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="157"/>
+        <source>Save view</source>
+        <translation>Uložit výpis</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="160"/>
+        <source>Text files (*.txt *.log)</source>
+        <translation>Textové soubory (*.txt *.log)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="160"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="169"/>
+        <source>All files (*)</source>
+        <translation>Všechny soubory (*)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="167"/>
+        <source>Run a batch file</source>
+        <translation>Spustit dávkový soubor</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="169"/>
+        <source>Text files (*.txt)</source>
+        <translation>Textové soubory (*.txt)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="179"/>
+        <source>Copy</source>
+        <translation>Kopírovat</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="184"/>
+        <source>Select all</source>
+        <translation>Vybrat vše</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="191"/>
+        <source>Clear the shell</source>
+        <translation>Vymazat shell</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="191"/>
+        <source>Clear the log</source>
+        <translation>Vymazat log</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="223"/>
+        <source>Console actions</source>
+        <translation>Akce konzole</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="230"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="241"/>
+        <source>Reset</source>
+        <translation>Reset</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="233"/>
+        <source>Opens the reset menu</source>
+        <translation>Otevře nabídku resetu</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="247"/>
+        <source>Reset and halt</source>
+        <translation>Reset a zastavit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="256"/>
+        <source>Reconnect</source>
+        <translation>Znovu připojit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="266"/>
+        <source>Batch…</source>
+        <translation>Dávka…</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="278"/>
+        <source>Clear</source>
+        <translation>Vymazat</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="281"/>
+        <source>Opens the clear menu</source>
+        <translation>Otevře nabídku mazání</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="288"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="571"/>
+        <source>Shell</source>
+        <translation>Shell</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="293"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="627"/>
+        <source>Log</source>
+        <translation>Log</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="298"/>
+        <source>Both</source>
+        <translation>Obojí</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="307"/>
+        <source>Save view…</source>
+        <translation>Uložit výpis…</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="329"/>
+        <source>Batch %1 / %2</source>
+        <translation>Dávka %1 / %2</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="337"/>
+        <source>Stop the batch</source>
+        <translation>Zastavit dávku</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="351"/>
+        <source>Follow</source>
+        <translation>Sledovat</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="363"/>
+        <source>Pause</source>
+        <translation>Pozastavit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="377"/>
+        <source>More</source>
+        <translation>Další</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="385"/>
+        <source>Open log file</source>
+        <translation>Otevřít soubor s logem</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="390"/>
+        <source>Open log folder</source>
+        <translation>Otevřít složku s logy</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="397"/>
+        <source>Show timestamps</source>
+        <translation>Zobrazit časové značky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="404"/>
+        <source>Wrap lines</source>
+        <translation>Zalamovat řádky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="411"/>
+        <source>Swap panes</source>
+        <translation>Prohodit panely</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="418"/>
+        <source>Stacked layout</source>
+        <translation>Panely pod sebou</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="463"/>
+        <source>Not connected</source>
+        <translation>Nepřipojeno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="464"/>
+        <source>Connect to see the device console.</source>
+        <translation>Připojte se a uvidíte konzoli zařízení.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="465"/>
+        <source>Connect</source>
+        <translation>Připojit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="511"/>
+        <source>Resize the shell and the log</source>
+        <translation>Změnit velikost shellu a logu</translation>
+    </message>
+</context>
+<context>
+    <name>ConsoleSearchBar</name>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="36"/>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="238"/>
+        <source>Search in shell</source>
+        <translation>Hledat v shellu</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="36"/>
+        <source>Search and filter the log</source>
+        <translation>Hledat a filtrovat log</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="183"/>
+        <source>Search</source>
+        <translation>Hledat</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="190"/>
+        <source>Filter</source>
+        <translation>Filtr</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="239"/>
+        <source>Search in log (Ctrl+F)</source>
+        <translation>Hledat v logu (Ctrl+F)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="240"/>
+        <source>Filter log lines (Ctrl+L)</source>
+        <translation>Filtrovat řádky logu (Ctrl+L)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="271"/>
+        <source>Match case</source>
+        <translation>Rozlišovat velikost písmen</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="284"/>
+        <source>Regular expression</source>
+        <translation>Regulární výraz</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="308"/>
+        <source>%1 / %2</source>
+        <translation>%1 / %2</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="309"/>
+        <source>%Ln matches</source>
+        <translation>
+            <numerusform>%Ln shoda</numerusform>
+            <numerusform>%Ln shody</numerusform>
+            <numerusform>%Ln shod</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="318"/>
+        <source>Previous match</source>
+        <translation>Předchozí shoda</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="329"/>
+        <source>Next match</source>
+        <translation>Další shoda</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="340"/>
+        <source>Clear the search</source>
+        <translation>Zrušit hledání</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="354"/>
+        <source>Filter: %1</source>
+        <translation>Filtr: %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="354"/>
+        <source>Filter: levels</source>
+        <translation>Filtr: úrovně</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="355"/>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="379"/>
+        <source>Clear filter</source>
+        <translation>Zrušit filtr</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="369"/>
+        <source>Showing %1 of %2 lines</source>
+        <translation>Zobrazeno %1 z %2 řádků</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="389"/>
+        <source>Invalid regular expression: %1</source>
+        <translation>Neplatný regulární výraz: %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="399"/>
+        <source>Log levels</source>
+        <translation>Úrovně logu</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="407"/>
+        <source>Debug</source>
+        <translation>Ladění</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="416"/>
+        <source>Info</source>
+        <translation>Informace</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="425"/>
+        <source>Warning</source>
+        <translation>Varování</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleSearchBar.qml" line="434"/>
+        <source>Error</source>
+        <translation>Chyba</translation>
+    </message>
+</context>
+<context>
+    <name>ConsoleSection</name>
+    <message>
+        <location filename="../app/gui/qml/settings/ConsoleSection.qml" line="22"/>
+        <location filename="../app/gui/qml/settings/ConsoleSection.qml" line="35"/>
+        <source>Font size</source>
+        <translation>Velikost písma</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/ConsoleSection.qml" line="43"/>
+        <source>Show timestamps</source>
+        <translation>Zobrazit časové značky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/ConsoleSection.qml" line="51"/>
+        <source>Wrap long lines</source>
+        <translation>Zalamovat dlouhé řádky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/ConsoleSection.qml" line="59"/>
+        <source>Save console to log files</source>
+        <translation>Ukládat konzoli do souborů</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/ConsoleSection.qml" line="73"/>
+        <source>Log folder</source>
+        <translation>Složka s logy</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/ConsoleSection.qml" line="89"/>
+        <source>Open</source>
+        <translation>Otevřít</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/ConsoleSection.qml" line="97"/>
+        <source>Keeps the last %1 files, max. %2 MB.</source>
+        <translation>Uchovává posledních %1 souborů, max. %2 MB.</translation>
+    </message>
+</context>
+<context>
+    <name>ConsoleView</name>
+    <message numerus="yes">
+        <location filename="../app/gui/qml/console/ConsoleView.qml" line="74"/>
+        <source>%Ln lines</source>
+        <translation>
+            <numerusform>%Ln řádek</numerusform>
+            <numerusform>%Ln řádky</numerusform>
+            <numerusform>%Ln řádků</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleView.qml" line="85"/>
+        <source>Searching</source>
+        <translation>Hledání</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleView.qml" line="217"/>
+        <source>Waiting for data from the device…</source>
+        <translation>Čekání na data ze zařízení…</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../app/gui/qml/console/ConsoleView.qml" line="228"/>
+        <source>▼ %Ln new lines</source>
+        <translation>
+            <numerusform>▼ %Ln nový řádek</numerusform>
+            <numerusform>▼ %Ln nové řádky</numerusform>
+            <numerusform>▼ %Ln nových řádků</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ConsoleView.qml" line="229"/>
+        <source>Follow new lines</source>
+        <translation>Sledovat nové řádky</translation>
     </message>
 </context>
 <context>
@@ -349,6 +766,29 @@
     </message>
 </context>
 <context>
+    <name>HistoryPopup</name>
+    <message>
+        <location filename="../app/gui/qml/console/HistoryPopup.qml" line="50"/>
+        <source>History — type to search</source>
+        <translation>Historie — pište pro hledání</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/HistoryPopup.qml" line="62"/>
+        <source>Search the command history</source>
+        <translation>Hledat v historii příkazů</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/HistoryPopup.qml" line="80"/>
+        <source>Commands</source>
+        <translation>Příkazy</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/HistoryPopup.qml" line="113"/>
+        <source>No matching commands</source>
+        <translation>Žádné odpovídající příkazy</translation>
+    </message>
+</context>
+<context>
     <name>Main</name>
     <message>
         <location filename="../app/gui/qml/Main.qml" line="22"/>
@@ -411,7 +851,8 @@
 <context>
     <name>Pages</name>
     <message>
-        <location filename="../app/gui/src/pages/builtin_pages.cpp" line="40"/>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="108"/>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="121"/>
         <source>Console</source>
         <translation>Konzole</translation>
     </message>
@@ -497,6 +938,24 @@
     </message>
 </context>
 <context>
+    <name>ShellInput</name>
+    <message>
+        <location filename="../app/gui/qml/console/ShellInput.qml" line="79"/>
+        <source>Command</source>
+        <translation>Příkaz</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ShellInput.qml" line="88"/>
+        <source>Type a command, Enter to send · ↑↓ history · Ctrl+R search</source>
+        <translation>Napište příkaz, Enter odešle · ↑↓ historie · Ctrl+R hledat</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/console/ShellInput.qml" line="114"/>
+        <source>Send</source>
+        <translation>Odeslat</translation>
+    </message>
+</context>
+<context>
     <name>ShortcutOverlay</name>
     <message>
         <location filename="../app/gui/qml/components/ShortcutOverlay.qml" line="19"/>
@@ -512,45 +971,45 @@
 <context>
     <name>Shortcuts</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="271"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="273"/>
         <source>New device tab</source>
         <translation>Nová karta zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="274"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="276"/>
         <source>Close the device tab</source>
         <translation>Zavřít kartu zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="277"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="280"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="279"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="282"/>
         <source>Next tab</source>
         <translation>Další karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="283"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="286"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="285"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="288"/>
         <source>Previous tab</source>
         <translation>Předchozí karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="289"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="291"/>
         <source>Settings</source>
         <translation>Nastavení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="292"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="294"/>
         <source>Connect or disconnect</source>
         <translation>Připojit nebo odpojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="295"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="297"/>
         <source>Reconnect</source>
         <translation>Znovu připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="298"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="301"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="300"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="303"/>
         <source>Keyboard shortcuts</source>
         <translation>Klávesové zkratky</translation>
     </message>
@@ -564,13 +1023,120 @@
         <source>General</source>
         <translation>Obecné</translation>
     </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="39"/>
+        <source>Search</source>
+        <translation>Hledat</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="42"/>
+        <source>Next match</source>
+        <translation>Další shoda</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="45"/>
+        <source>Previous match</source>
+        <translation>Předchozí shoda</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="48"/>
+        <source>Filter the log</source>
+        <translation>Filtrovat log</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="51"/>
+        <source>Clear the focused view</source>
+        <translation>Vymazat aktivní výpis</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="54"/>
+        <source>Save the focused view</source>
+        <translation>Uložit aktivní výpis</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="57"/>
+        <source>Pause or resume the view</source>
+        <translation>Pozastavit nebo obnovit výpis</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="60"/>
+        <source>Follow new lines</source>
+        <translation>Sledovat nové řádky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="63"/>
+        <source>Run a batch file</source>
+        <translation>Spustit dávkový soubor</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="66"/>
+        <source>Focus the command input</source>
+        <translation>Přejít na zadávání příkazu</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="69"/>
+        <source>Search the command history</source>
+        <translation>Hledat v historii příkazů</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="72"/>
+        <source>Select all lines</source>
+        <translation>Vybrat všechny řádky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="75"/>
+        <source>Copy the selected lines</source>
+        <translation>Kopírovat vybrané řádky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="78"/>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="81"/>
+        <location filename="../app/gui/src/pages/console_page.cpp" line="84"/>
+        <source>Console font size</source>
+        <translation>Velikost písma konzole</translation>
+    </message>
 </context>
 <context>
     <name>WarningBanner</name>
     <message>
-        <location filename="../app/gui/qml/components/WarningBanner.qml" line="62"/>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="72"/>
+        <source>Details</source>
+        <translation>Podrobnosti</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="74"/>
+        <source>Expanded</source>
+        <translation>Rozbaleno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="74"/>
+        <source>Collapsed</source>
+        <translation>Sbaleno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="87"/>
         <source>Dismiss</source>
         <translation>Zavřít</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="97"/>
+        <source>Probably: %1</source>
+        <translation>Pravděpodobně: %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="106"/>
+        <source>What to do: %1</source>
+        <translation>Co dělat: %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="136"/>
+        <source>Warning details</source>
+        <translation>Podrobnosti varování</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/components/WarningBanner.qml" line="142"/>
+        <source>Copy</source>
+        <translation>Kopírovat</translation>
     </message>
 </context>
 <context>
@@ -1470,7 +2036,7 @@
         <translation>Při této rychlosti J-Linku nemusí být konzole nalezena do %1 s. Použijte auto nebo alespoň %2 kHz.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="617"/>
+        <location filename="../libs/device/src/device_session.cpp" line="622"/>
         <source>The device did not connect in time.</source>
         <translation>Zařízení se nepřipojilo včas.</translation>
     </message>
@@ -1491,22 +2057,22 @@
         <translation>J-Link %1 už tato aplikace používá.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="317"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="330"/>
         <source>The J-Link firmware is newer than the J-Link library.</source>
         <translation>Firmware J-Linku je novější než knihovna J-Link.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="340"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="353"/>
         <source>RTT buffer &quot;%1&quot; not found; the device log is not shown.</source>
         <translation>Vyrovnávací paměť RTT &quot;%1&quot; nebyla nalezena; log zařízení se nezobrazí.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="549"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="562"/>
         <source>The device has no power (%1 mV).</source>
         <translation>Zařízení nemá napájení (%1 mV).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="567"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="580"/>
         <source>Wait for the console to reconnect.</source>
         <translation>Počkejte, až se konzole znovu připojí.</translation>
     </message>
@@ -1640,6 +2206,59 @@
     </message>
 </context>
 <context>
+    <name>hio::gui::BatchRunner</name>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="49"/>
+        <source>The batch file could not be read.</source>
+        <translation>Dávkový soubor se nepodařilo přečíst.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="50"/>
+        <source>the file is missing or you do not have permission to read it.</source>
+        <translation>soubor neexistuje nebo nemáte oprávnění ho číst.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="51"/>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="104"/>
+        <source>Choose another file.</source>
+        <translation>Vyberte jiný soubor.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="60"/>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="73"/>
+        <source>The batch file is too large (max. %1 MiB).</source>
+        <translation>Dávkový soubor je příliš velký (max. %1 MiB).</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="61"/>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="74"/>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="89"/>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="96"/>
+        <source>Split it into smaller files.</source>
+        <translation>Rozdělte ho na menší soubory.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="87"/>
+        <source>The batch file is too large (max. %1 commands).</source>
+        <translation>Dávkový soubor je příliš velký (max. %1 příkazů).</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="94"/>
+        <source>The batch file contains a command longer than %1 bytes.</source>
+        <translation>Dávkový soubor obsahuje příkaz delší než %1 bajtů.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="103"/>
+        <source>The batch file contains no commands.</source>
+        <translation>Dávkový soubor neobsahuje žádné příkazy.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/workers/batch_runner.cpp" line="104"/>
+        <source>every line is empty or a comment (#).</source>
+        <translation>všechny řádky jsou prázdné nebo jsou to komentáře (#).</translation>
+    </message>
+</context>
+<context>
     <name>hio::gui::ConnectionViewModel</name>
     <message>
         <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="151"/>
@@ -1680,44 +2299,141 @@
         <translation>Opětovné připojování…</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="449"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="440"/>
+        <source>The console log file could not be written; logging to file is off for this session.</source>
+        <translation>Soubor s výpisem konzole nelze zapsat; ukládání do souboru je pro tuto relaci vypnuté.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="458"/>
         <source>target not powered</source>
         <translation>zařízení není napájené</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="451"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="460"/>
         <source>J-Link not found</source>
         <translation>J-Link nenalezen</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="453"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="462"/>
         <source>J-Link used by another program</source>
         <translation>J-Link používá jiný program</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="455"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="464"/>
         <source>J-Link could not be opened</source>
         <translation>J-Link nelze otevřít</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="457"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="466"/>
         <source>target does not respond</source>
         <translation>zařízení neodpovídá</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="460"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="469"/>
         <source>no RTT console found</source>
         <translation>konzole RTT nenalezena</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="464"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="473"/>
         <source>connection lost</source>
         <translation>spojení ztraceno</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="468"/>
+        <location filename="../app/gui/src/viewmodels/connection_view_model.cpp" line="477"/>
         <source>J-Link Software missing</source>
         <translation>chybí software J-Link</translation>
+    </message>
+</context>
+<context>
+    <name>hio::gui::ConsoleViewModel</name>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="186"/>
+        <source>The batch stopped after %1 of %2 commands.</source>
+        <translation>Dávka se zastavila po %1 z %2 příkazů.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="171"/>
+        <source>the device disconnected.</source>
+        <translation>zařízení se odpojilo.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="116"/>
+        <source>another operation started on the device.</source>
+        <translation>na zařízení byla spuštěna jiná operace.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="117"/>
+        <source>Run the batch file again when it has finished.</source>
+        <translation>Po jejím dokončení spusťte dávkový soubor znovu.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="172"/>
+        <source>Reconnect and run the batch file again.</source>
+        <translation>Znovu se připojte a spusťte dávkový soubor znovu.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="199"/>
+        <source>The device was reset and halted.</source>
+        <translation>Zařízení bylo resetováno a zastaveno.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="200"/>
+        <source>The device was reset.</source>
+        <translation>Zařízení bylo resetováno.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="277"/>
+        <source>%1 — the console resumes automatically</source>
+        <translation>%1 — konzole se obnoví automaticky</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="280"/>
+        <source>This target has no console</source>
+        <translation>Tento cíl nemá konzoli</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="283"/>
+        <source>Connecting…</source>
+        <translation>Připojování…</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="285"/>
+        <source>Not connected</source>
+        <translation>Nepřipojeno</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="526"/>
+        <source>The file could not be saved.</source>
+        <translation>Soubor se nepodařilo uložit.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="527"/>
+        <source>the folder is not writable or the disk is full.</source>
+        <translation>do složky nelze zapisovat nebo je disk plný.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="528"/>
+        <source>Choose another folder.</source>
+        <translation>Vyberte jinou složku.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="545"/>
+        <source>The view was saved to %1.</source>
+        <translation>Výpis byl uložen do %1.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="558"/>
+        <source>Only the first %Ln lines were copied (copy limit).</source>
+        <translation>
+            <numerusform>Zkopírován byl jen první %Ln řádek (limit kopírování).</numerusform>
+            <numerusform>Zkopírovány byly jen první %Ln řádky (limit kopírování).</numerusform>
+            <numerusform>Zkopírováno bylo jen prvních %Ln řádků (limit kopírování).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="573"/>
+        <source>There is no console log file for this device yet.</source>
+        <translation>Pro toto zařízení zatím neexistuje soubor s logem konzole.</translation>
     </message>
 </context>
 <context>

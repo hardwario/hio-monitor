@@ -36,6 +36,7 @@ Item {
             Layout.fillWidth: true
             visible: !host.choosing && host.tab.connection.warning.valid
             text: host.tab.connection.warning.message
+            details: host.tab.connection.warning
             onDismissed: host.tab.connection.dismissWarning()
         }
 

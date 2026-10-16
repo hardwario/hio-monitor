@@ -199,7 +199,33 @@ TestCase {
         banner.dismissed.connect(() => ++dismissed);
         mouseClick(findChild(banner, "bannerDismiss"));
         compare(dismissed, 1);
+        // Without an ErrorInfo there is no [Details].
+        verify(!findChild(banner, "bannerDetailsToggle").visible);
         waitForRendering(banner);
+    }
+
+    // Plan 0005 amendment of 0004 (2026-10-16): a backend warning has [Details].
+    function test_warningBannerDetails() {
+        const banner = createTemporaryObject(bannerComponent, testCase, {
+            text: "The J-Link firmware is outdated.",
+            details: testSupport.error("probe.firmware_outdated", false)
+        });
+        const toggle = findChild(banner, "bannerDetailsToggle");
+        verify(toggle.visible);
+        verify(!findChild(banner, "bannerDetails").visible);
+        const collapsedHeight = banner.height;
+        mouseClick(toggle);
+        verify(findChild(banner, "bannerDetails").visible);
+        compare(findChild(banner, "bannerDetailsText").text,
+                "probe.firmware_outdated\nVTref = 0 mV · J-Link 801000001");
+        compare(findChild(banner, "bannerCause").text, "Probably: the target voltage is 0.0 V.");
+        tryVerify(() => banner.height > collapsedHeight);
+        mouseClick(toggle);
+        verify(!findChild(banner, "bannerDetails").visible);
+        // Another warning starts collapsed.
+        mouseClick(toggle);
+        banner.details = testSupport.error("io.write_failed", false);
+        verify(!banner.detailsExpanded);
     }
 
     function test_confirmDialog_data() {

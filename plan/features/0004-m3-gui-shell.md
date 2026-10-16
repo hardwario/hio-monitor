@@ -278,6 +278,12 @@ public:
   - Pages register their shortcuts with `descriptionSourceText = QT_TRANSLATE_NOOP("Shortcuts", "…")`: the overlay
     translates descriptions in the "Shortcuts" context (the shell's own Ctrl+1 … entries use the page titles,
     context "Pages").
+- **Amended by 0005 (2026-10-16, user decision, review round 1 of 0005):** the session-warning banner in `PageHost`
+  (`WarningBanner`) has a [Details] toggle for warnings with details (cause, suggestion, code + detail, Copy; e.g.
+  `probe.firmware_outdated`), and `ConnectionViewModel::setWarning` shows the console log file's `io.write_failed`
+  warning as "The console log file could not be written; logging to file is off for this session." (the backend
+  detail stays for [Details]). Pages do not repeat session warnings. `ProbeScanner::stop()` (stop and join, also
+  used by the destructor) lets the Qt Quick test runner stop the scanner when a test file has finished.
 - Settings is a global page (`global = true`). 0006 registers it. Until then 0004 ships `PlaceholderPage.qml` for
   the "settings" id.
 - The test page (`tests/qml/TestPage.qml` + a fake VM) exercises the contract: registration, busy, close

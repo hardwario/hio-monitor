@@ -32,6 +32,9 @@
 //         "up":   [ {"name": "Terminal", "size": 1024, "registeredAfterMs": 0}, ... ],
 //         "down": [ {"name": "Terminal", "size": 16} ],
 //         "output": [ {"atMs": 0, "buffer": 0, "text": "line\n"} | {..., "hex": "c3a9"} ],
+//         "stream": [ {"buffer": 1, "linesPerSecond": 5000, "text": "<inf> perf: line"} ],
+//                                                   generated lines "<text> <n>\n" since boot
+//                                                   (console performance test, plan 0005)
 //         "responses": { "version": "Firmware version: v3.1.0\n" },  reply on up buffer 0
 //         "responseDelayMs": 0,                     the reply comes this long after the write
 //         "echo": false,                            echo written lines on up buffer 0
@@ -138,12 +141,20 @@ struct OutputItem {
     std::string bytes;
 };
 
+// A generated stream of lines (performance tests).
+struct StreamSpec {
+    int buffer = 0;
+    std::int64_t linesPerSecond = 0;
+    std::string text;
+};
+
 struct RttScenario {
     std::int64_t foundAfterMs = 0;
     std::int64_t staleUntilMs = 0;
     std::vector<BufferSpec> up;
     std::vector<BufferSpec> down;
     std::vector<OutputItem> output;
+    std::vector<StreamSpec> streams;
     std::map<std::string, std::string> responses;
     std::int64_t responseDelayMs = 0;
     bool echo = false;
@@ -254,6 +265,13 @@ RttScenario readRtt(const QJsonObject& object) {
                                         .bytes = bytes.toStdString()});
     }
     std::ranges::stable_sort(rtt.output, {}, &OutputItem::atMs);
+    for (const QJsonValue item : object.value(QStringLiteral("stream")).toArray()) {
+        const QJsonObject stream = item.toObject();
+        rtt.streams.push_back(
+            StreamSpec{.buffer = stream.value(QStringLiteral("buffer")).toInt(),
+                       .linesPerSecond = stream.value(QStringLiteral("linesPerSecond")).toInteger(),
+                       .text = stream.value(QStringLiteral("text")).toString().toStdString()});
+    }
     const QJsonObject responses = object.value(QStringLiteral("responses")).toObject();
     for (auto it = responses.begin(); it != responses.end(); ++it) {
         rtt.responses.emplace(it.key().toStdString(), it.value().toString().toStdString());
@@ -388,6 +406,7 @@ struct State {
     // acceptEachWriteAfterMs counts from here; reset when a write is accepted.
     std::optional<Clock::time_point> pendingWriteSince;
     std::size_t nextOutput = 0;              // next item of rtt.output since boot
+    std::vector<std::int64_t> streamLines;   // lines generated per rtt.streams item since boot
     std::map<int, std::deque<char>> pending; // target-side data per up buffer
     std::string writtenLine;                 // down buffer 0 until '\n'
     // Replies due later (responseDelayMs); bounded by the lines written (tests only).
@@ -446,6 +465,7 @@ struct State {
     void boot() {
         bootedAt = Clock::now();
         nextOutput = 0;
+        streamLines.clear();
         pending.clear();
         delayedReplies.clear();
         writtenLine.clear();
@@ -498,6 +518,20 @@ struct State {
             const OutputItem& item = p->rtt.output.at(nextOutput);
             appendPending(item.buffer, item.bytes);
             ++nextOutput;
+        }
+        streamLines.resize(p->rtt.streams.size(), 0);
+        for (std::size_t i = 0; i < p->rtt.streams.size(); ++i) {
+            const StreamSpec& stream = p->rtt.streams[i];
+            const std::int64_t due = now * stream.linesPerSecond / 1000;
+            std::string bytes;
+            // At most the pending bound per call (older target-side data is dropped anyway).
+            while (streamLines[i] < due && bytes.size() < maxPendingBytes) {
+                bytes += stream.text + " " + std::to_string(streamLines[i]++) + "\n";
+            }
+            streamLines[i] = std::max(streamLines[i], due);
+            if (!bytes.empty()) {
+                appendPending(stream.buffer, bytes);
+            }
         }
     }
 

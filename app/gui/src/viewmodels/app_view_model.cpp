@@ -14,6 +14,7 @@
 #include "system_preferences.h"
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
+#include "viewmodels/history_store.h"
 #include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
@@ -98,6 +99,7 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
       m_scanner(std::make_unique<ProbeScanner>(m_options.registry.instanceRoot,
                                                m_options.registry.lockDirectory,
                                                m_options.scanInterval)),
+      m_history(std::make_unique<HistoryStore>(m_options.registry.consoleDirectory)),
       m_tabs(new DeviceTabListModel(this)), // NOLINT(cppcoreguidelines-owning-memory)
       m_reducedMotion(reducedMotionRequested()) {
     m_availableLanguages.append(QVariantMap{{QStringLiteral("code"), QStringLiteral("system")},

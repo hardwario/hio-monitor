@@ -197,14 +197,27 @@ private:
     void sinkResult(const Status& status) {
         if (!status && m_sink) {
             m_sink.reset(); // the session continues without the file
+            reportConsoleFile();
             warn(status.error());
             return;
         }
         if (m_sink) {
+            reportConsoleFile(); // a write may have continued in the next .partN file
             if (auto warning = m_sink->takeWarning()) {
                 warn(std::move(*warning)); // e.g. a failed rotation (review R26)
             }
         }
+    }
+
+    // DeviceSession::consoleFile() (amended by plan 0005): reported when the file changes.
+    void reportConsoleFile() {
+        static const std::filesystem::path none;
+        const std::filesystem::path& current = m_sink ? m_sink->currentFile() : none;
+        if (current.native() == m_reportedConsoleFile.native()) { // per line: a string compare
+            return;
+        }
+        m_reportedConsoleFile = current;
+        emitEvent(ConsoleFileChanged{.file = current});
     }
 
     void flushSink() {
@@ -1022,6 +1035,7 @@ private:
     const TargetProfile* m_probeTarget = nullptr; // the target the probe is connected to now
     std::string m_connectedDevice;                // with this J-Link device name
     std::unique_ptr<ConsoleFileSink> m_sink;
+    std::filesystem::path m_reportedConsoleFile; // the last ConsoleFileChanged
     LineAssembler m_shellLines;
     LineAssembler m_logLines;
     std::vector<std::byte> m_readBuffer; // maxReadBytes, allocated once

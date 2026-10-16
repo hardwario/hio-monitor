@@ -432,7 +432,16 @@ void ConnectionViewModel::setError(std::optional<Error> error) {
 }
 
 void ConnectionViewModel::setWarning(const Error& warning) {
-    m_warning = ErrorInfo(warning);
+    Error shown = warning;
+    if (shown.code == ErrorCode::IoWriteFailed) {
+        // The session's only io.write_failed warning is its console log file, which it then stops
+        // writing (the GUI always uses the default files; plan 0005 amendment, 2026-10-16). The
+        // backend detail (file and reason) stays for [Details].
+        shown.message = tr("The console log file could not be written; logging to file is off "
+                           "for this session.")
+                            .toStdString();
+    }
+    m_warning = ErrorInfo(shown);
     warningChanged(); // signal
 }
 

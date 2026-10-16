@@ -19,6 +19,7 @@
 #include "settings_store.h"
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
+#include "viewmodels/history_store.h"
 #include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
@@ -146,6 +147,8 @@ public:
     [[nodiscard]] PageRegistry& pageRegistry() { return m_pages; }
     [[nodiscard]] device::SessionRegistry& sessionRegistry() { return *m_registry; }
     [[nodiscard]] ProbeScanner& probeScanner() { return *m_scanner; }
+    // The console command histories, shared by the tabs per (profile, target) (plan 0005).
+    [[nodiscard]] HistoryStore& historyStore() { return *m_history; }
     // Environment, the jlink/libraryPath setting and the search paths of this OS.
     [[nodiscard]] jlink::LocatorOptions locatorOptions() const;
 
@@ -229,6 +232,8 @@ private:
     // worker is joined before the registry goes away.
     std::unique_ptr<device::SessionRegistry> m_registry;
     std::unique_ptr<ProbeScanner> m_scanner;
+    // Console histories (plan 0005): saved when destroyed, after the tabs.
+    std::unique_ptr<HistoryStore> m_history;
     DeviceTabListModel* m_tabs = nullptr;                         // child
     std::vector<std::pair<QString, QObject*>> m_globalViewModels; // children
     QPointer<LanguageManager> m_languageManager;                  // non-owning, owned by main()

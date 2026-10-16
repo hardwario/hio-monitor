@@ -1,5 +1,6 @@
 #include "pages/builtin_pages.h"
 
+#include "pages/console_page.h"
 #include "pages/placeholder_view_model.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_view_model.h"
@@ -36,9 +37,8 @@ PageDescriptor placeholder(const QString& id, const char* title, const QString& 
 } // namespace
 
 void registerBuiltInPages(AppViewModel& app) {
+    registerConsolePage(app); // plan 0005 (replaces the console placeholder)
     PageRegistry& pages = app.pageRegistry();
-    pages.add(placeholder(QStringLiteral("console"), QT_TRANSLATE_NOOP("Pages", "Console"),
-                          QStringLiteral("console"), 10, false));
     pages.add(placeholder(QStringLiteral("flash"), QT_TRANSLATE_NOOP("Pages", "Flash"),
                           QStringLiteral("flash"), 20, false));
     pages.add(placeholder(QStringLiteral("settings"), QT_TRANSLATE_NOOP("Pages", "Settings"),
