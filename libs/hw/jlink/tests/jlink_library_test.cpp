@@ -301,7 +301,7 @@ TEST_F(FakeLibrary, FlashProgressCallbackIsClearedAfterAFailedDownload) {
     EXPECT_EQ(api.selectBySerialNumber(5), 0);
 }
 
-// Phase 0 item 0.10, ADR-0094: closing the J-Link during a download programs the buffered bytes
+// Phase 0 item 0.10, ADR-0109: closing the J-Link during a download programs the buffered bytes
 // (the fake models what J-Link 9.84 did on hardware).
 TEST_F(FakeLibrary, CloseDuringADownloadProgramsTheBuffer) {
     useScenario(R"({"probes": [{"serialNumber": 5}]})");

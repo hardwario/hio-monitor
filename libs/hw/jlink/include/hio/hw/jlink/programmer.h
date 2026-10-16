@@ -24,7 +24,7 @@
 // checked between chunks; a single library call is synchronous. A download that fails or runs out
 // of time before EndDownload is abandoned by closing the probe (review R3); the library has no
 // abort, and Phase 0 (item 0.10) showed that the close still programs the buffered data, so this is
-// reported as an interrupted flash: target.program_failed, "may be partly written" (ADR-0094). The
+// reported as an interrupted flash: target.program_failed, "may be partly written" (ADR-0109). The
 // session reopens the probe.
 //
 // Thread safety: none (the session worker).
@@ -120,7 +120,7 @@ public:
     [[nodiscard]] virtual Status verify(const firmware::FirmwareImage& image,
                                         const firmware::ProgressFn& progress,
                                         std::stop_token stop) = 0;
-    // Errors: target.erase_failed, target.program_failed (abandoned download, ADR-0094), timeout,
+    // Errors: target.erase_failed, target.program_failed (abandoned download, ADR-0109), timeout,
     // cancelled.
     [[nodiscard]] virtual Status eraseCode(firmware::AddressRange flash,
                                            const firmware::ProgressFn& progress,
@@ -178,7 +178,7 @@ private:
     // The family whose CTRL-AP answers, starting with the expected one; nullptr when none.
     [[nodiscard]] const ChipFamily* answeringFamily(std::string& detail);
     // Closes the probe instead of calling EndDownload (review R3) and returns the
-    // target.program_failed error of an interrupted flash (ADR-0094); `detail` names the reason.
+    // target.program_failed error of an interrupted flash (ADR-0109); `detail` names the reason.
     [[nodiscard]] Error abandonDownload(std::string detail);
     // One BeginDownload / WriteMem / EndDownload pass. `programsData`: the loader's non-erase
     // progress is reported as Programming (program), otherwise everything as Erasing (eraseCode).

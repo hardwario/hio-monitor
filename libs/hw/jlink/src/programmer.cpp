@@ -159,7 +159,7 @@ Result<ChipInfo> JLinkProgrammer::identify() {
 }
 
 Error JLinkProgrammer::abandonDownload(std::string detail) {
-    // ADR-0094 (Phase 0 item 0.10): closing the J-Link without EndDownload still programs the
+    // ADR-0109 (Phase 0 item 0.10): closing the J-Link without EndDownload still programs the
     // buffered data, so an abandoned download is an interrupted flash.
     qCWarning(log::lcFlash).noquote()
         << "Flash download abandoned (" << toQString(detail)

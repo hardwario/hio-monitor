@@ -338,7 +338,7 @@ test presets (T1). Each test below fails on the code before its fix, except wher
   budget assumes about 1000 kHz or more and very low speeds may end with `timeout`; G1 measures connect and attach at
   5, 100 and 1000 kHz. Documentation only. Since ADR-0090 (R49) the caveat applies only to an explicit low kHz value;
   the default is the automatic speed.
-  Superseded 2026-10-16 by ADR-0095 (HIL G1, H2): `rttAttachDeadline()` (`rtt_channel.h`) scales the attach deadline
+  Superseded 2026-10-16 by ADR-0110 (HIL G1, H2): `rttAttachDeadline()` (`rtt_channel.h`) scales the attach deadline
   with a fixed speed below 1000 kHz (at most 60 s); `DeviceSession::open()` applies it and the CLI waits
   `connectTimeoutForSpeed()`; below 125 kHz the CLI warns (`slowSpeedWarning()`) and the `target.rtt_not_found`
   detail names the speed. Tests `RttAttachDeadline.*`, `Rtt.RttNotFoundDetailNamesTheSpeed`,

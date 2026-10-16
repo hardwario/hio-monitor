@@ -303,7 +303,7 @@ TEST_F(FakeJLinkCli, InvalidSpeedIsUsageError) {
     }
 }
 
-// ADR-0095: a fixed speed below 125 kHz is warned about on stderr before connecting.
+// ADR-0110: a fixed speed below 125 kHz is warned about on stderr before connecting.
 TEST_F(FakeJLinkCli, SlowSpeedIsWarnedBeforeConnecting) {
     const std::string warning = "Warning: At this J-Link speed the console may not be found "
                                 "within 60 s. Use auto or 1000 kHz or more.";

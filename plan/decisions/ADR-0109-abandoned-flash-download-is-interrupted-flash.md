@@ -1,4 +1,4 @@
-# ADR-0094 — An abandoned flash download is reported as an interrupted flash
+# ADR-0109 — An abandoned flash download is reported as an interrupted flash
 
 - **Status:** Accepted
 - **Date:** 2026-10-16

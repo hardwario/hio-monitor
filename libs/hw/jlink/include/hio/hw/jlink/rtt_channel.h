@@ -3,7 +3,7 @@
 // RttChannel - SEGGER RTT over an IJLinkApi, reproducing rttt 1.9.2 PyLinkRTTConnector (ADR-0034):
 //
 // attach(): RTT start -> poll the up/down buffer counts every pollInterval (overall deadline
-//   attachDeadline; it scales with a fixed low J-Link speed, rttAttachDeadline(), ADR-0095) ->
+//   attachDeadline; it scales with a fixed low J-Link speed, rttAttachDeadline(), ADR-0110) ->
 //   resolve the buffers by name on every attach (a reflash may move them) ->
 //   require a non-zero terminal buffer size; a zero-sized (or not yet registered) terminal buffer
 //   means a stale control block: RTT stop, wait staleRetryDelay, search again. The logger buffer
@@ -30,7 +30,7 @@
 
 namespace hio::jlink {
 
-// ADR-0095: the RTT attach deadline at auto speed and at a fixed speed of rttFullSpeedKhz or more.
+// ADR-0110: the RTT attach deadline at auto speed and at a fixed speed of rttFullSpeedKhz or more.
 inline constexpr std::chrono::milliseconds baseRttAttachDeadline{15000};
 // Below this fixed speed the deadline grows as base x rttFullSpeedKhz / kHz ...
 inline constexpr int rttFullSpeedKhz = 1000;
@@ -51,7 +51,7 @@ struct RttTiming {
     std::chrono::milliseconds writeRetryInterval{5};
 };
 
-// ADR-0095: the RTT attach deadline at the J-Link speed `fixedSpeedKhz` (nullopt = auto):
+// ADR-0110: the RTT attach deadline at the J-Link speed `fixedSpeedKhz` (nullopt = auto):
 // `base` at auto and at rttFullSpeedKhz or more, otherwise base x rttFullSpeedKhz / kHz, capped at
 // the value for rttCapSpeedKhz (15 s, 15 s x 1000 / kHz, at most 60 s for the production base).
 [[nodiscard]] constexpr std::chrono::milliseconds
@@ -64,7 +64,7 @@ rttAttachDeadline(std::optional<int> fixedSpeedKhz,
     return base * rttFullSpeedKhz / kiloHertz;
 }
 
-// ADR-0095: true for a fixed speed below rttSlowSpeedKhz, where the console may not be found
+// ADR-0110: true for a fixed speed below rttSlowSpeedKhz, where the console may not be found
 // within the capped deadline.
 [[nodiscard]] constexpr bool isSlowRttSpeed(std::optional<int> fixedSpeedKhz) {
     return fixedSpeedKhz && *fixedSpeedKhz < rttSlowSpeedKhz;
@@ -98,7 +98,7 @@ public:
                std::optional<int> speedKhz = std::nullopt);
 
     // Errors: target.rtt_not_found (no control block before the deadline, or RTT start failed;
-    // the detail names the deadline and the speed, ADR-0095),
+    // the detail names the deadline and the speed, ADR-0110),
     // target.rtt_buffer_not_found (control block found, terminal buffer never registered),
     // cancelled (stop requested; RTT is stopped again).
     [[nodiscard]] Result<RttLayout> attach(const RttNames& names, const std::stop_token& stopToken);

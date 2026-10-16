@@ -422,7 +422,7 @@ TEST_F(Programmer, LoaderActionsMapToPhases) {
     EXPECT_EQ(progress().at(1).phase, ProgramPhase::Erasing); // the Compare report
 }
 
-// Review R3, ADR-0094: a download that cannot finish is abandoned by closing the probe
+// Review R3, ADR-0109: a download that cannot finish is abandoned by closing the probe
 // (EndDownload is never called). Phase 0 showed that the close still programs the buffered data, so
 // it is reported as an interrupted flash.
 void expectInterruptedFlash(const hio::Error& error, std::string_view detail) {
@@ -460,7 +460,7 @@ TEST_F(Programmer, DeadlineAbandonsTheDownload) {
                            "flash download abandoned: buffering exceeded the deadline of 300 s");
 }
 
-// ADR-0094: the code-only erase is a download of 0xFF; abandoning it is an interrupted flash too.
+// ADR-0109: the code-only erase is a download of 0xFF; abandoning it is an interrupted flash too.
 TEST_F(Programmer, AbandonedEraseCodeIsAnInterruptedFlash) {
     openProbe();
     EXPECT_CALL(api(), writeMemory(_, _)).WillOnce(Return(-1));
