@@ -136,8 +136,18 @@ std::vector<std::string> splitLines(const std::string& text) {
     return lines;
 }
 
-std::string speedText(std::optional<int> speedKhz) {
-    return speedKhz ? std::format("{} kHz", *speedKhz) : std::string("auto speed");
+// ADR-0095: before connecting at a fixed speed below 125 kHz, where the console may not be found
+// within the (capped) attach deadline. Logged; on stderr in human mode (like the other warnings
+// outside a console event stream).
+void warnAboutSlowSpeed(const Context& context, std::optional<int> speedKhz) {
+    const std::optional<std::string> warning = device::slowSpeedWarning(speedKhz);
+    if (!warning) {
+        return;
+    }
+    qCWarning(lcCli).noquote() << toQString(*warning);
+    if (context.mode == OutputMode::Human) {
+        std::cerr << "Warning: " << *warning << '\n';
+    }
 }
 
 void addProbeOptions(CLI::App& command, ProbeOptions& options) {
@@ -177,6 +187,7 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
     }
     const bool announceProbe = !sessionOpts->probeSn;
     const std::optional<int> speed = sessionOpts->speedKhz;
+    warnAboutSlowSpeed(context, speed);
     auto session = device::DeviceSession::open(registry, *location, std::move(*sessionOpts));
     if (!session) {
         return std::unexpected(std::move(session).error());
@@ -201,10 +212,11 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
         }
         return error;
     };
-    view.printStatus(
-        std::format("Connecting to {} at {}...", chesterApp().jlinkDevice, speedText(speed)));
-    if (const Status connected = waitForConsoleConnection(
-            consoleContext, **session, view, options.autoReconnect, device::defaultConnectTimeout);
+    view.printStatus(std::format("Connecting to {} at {}...", chesterApp().jlinkDevice,
+                                 jlink::speedDetail(speed)));
+    if (const Status connected =
+            waitForConsoleConnection(consoleContext, **session, view, options.autoReconnect,
+                                     device::connectTimeoutForSpeed(speed));
         !connected) {
         return std::unexpected(withReason(connected.error()));
     }
@@ -394,6 +406,8 @@ Result<CommandResult> command(const Context& context, const GlobalOptions& globa
         return std::unexpected(std::move(sessionOpts).error());
     }
     const bool announceProbe = !sessionOpts->probeSn;
+    const std::optional<int> speed = sessionOpts->speedKhz;
+    warnAboutSlowSpeed(context, speed);
     auto session = device::DeviceSession::open(registry, *location, std::move(*sessionOpts));
     if (!session) {
         return std::unexpected(std::move(session).error());
@@ -401,7 +415,7 @@ Result<CommandResult> command(const Context& context, const GlobalOptions& globa
     device::DeviceSession& device = **session;
     ResponseCollector collector(context, device);
     if (const Status connected =
-            device::waitUntilConnected(device, device::defaultConnectTimeout, context.stop);
+            device::waitUntilConnected(device, device::connectTimeoutForSpeed(speed), context.stop);
         !connected) {
         device.close();
         return std::unexpected(connected.error());

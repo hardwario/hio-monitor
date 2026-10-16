@@ -540,32 +540,37 @@
 <context>
     <name>hio::device</name>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="68"/>
+        <location filename="../libs/device/src/device_session.cpp" line="69"/>
         <source>No device profile was given.</source>
         <translation>Nebyl zadán profil zařízení.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="73"/>
+        <location filename="../libs/device/src/device_session.cpp" line="74"/>
         <source>The device %1 has no target &quot;%2&quot;.</source>
         <translation>Zařízení %1 nemá cíl &quot;%2&quot;.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="79"/>
+        <location filename="../libs/device/src/device_session.cpp" line="80"/>
         <source>The %1 target of %2 has no console.</source>
         <translation>Cíl %1 zařízení %2 nemá konzoli.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="85"/>
+        <location filename="../libs/device/src/device_session.cpp" line="86"/>
         <source>The J-Link speed must be between %1 and %2 kHz.</source>
         <translation>Rychlost J-Linku musí být mezi %1 a %2 kHz.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="93"/>
+        <location filename="../libs/device/src/device_session.cpp" line="94"/>
         <source>The latency must be between %1 and %2 ms.</source>
         <translation>Latence musí být mezi %1 a %2 ms.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="369"/>
+        <location filename="../libs/device/src/device_session.cpp" line="108"/>
+        <source>At this J-Link speed the console may not be found within %1 s. Use auto or %2 kHz or more.</source>
+        <translation>Při této rychlosti J-Linku nemusí být konzole nalezena do %1 s. Použijte auto nebo alespoň %2 kHz.</translation>
+    </message>
+    <message>
+        <location filename="../libs/device/src/device_session.cpp" line="387"/>
         <source>The device did not connect in time.</source>
         <translation>Zařízení se nepřipojilo včas.</translation>
     </message>
@@ -586,22 +591,22 @@
         <translation>J-Link %1 už tato aplikace používá.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="306"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="307"/>
         <source>The J-Link firmware is newer than the J-Link library.</source>
         <translation>Firmware J-Linku je novější než knihovna J-Link.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="329"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="330"/>
         <source>RTT buffer &quot;%1&quot; not found; the device log is not shown.</source>
         <translation>Vyrovnávací paměť RTT &quot;%1&quot; nebyla nalezena; log zařízení se nezobrazí.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="510"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="512"/>
         <source>The device has no power (%1 mV).</source>
         <translation>Zařízení nemá napájení (%1 mV).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="528"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="530"/>
         <source>Wait for the console to reconnect.</source>
         <translation>Počkejte, až se konzole znovu připojí.</translation>
     </message>

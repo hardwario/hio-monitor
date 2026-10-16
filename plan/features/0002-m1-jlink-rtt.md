@@ -3,7 +3,7 @@
 - **Status:** In progress (implementation started 2026-10-09; approved by Matej Strnad, 2026-10-09; re-approved 2026-10-09 with the ADR-0053/0058/0063 amendments)
 - **Milestone:** M1
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063, 0064, 0090
+- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063, 0064, 0090, 0095
 - **Depends on:** 0001 (M0 skeleton, incl. the translation infrastructure)
 
 > **Amended by ADR-0053, ADR-0058 and ADR-0063 (M3 planning, applied in this text):** `DeviceSession::open()` is
@@ -134,7 +134,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   `JLINKARM_TIF_Select`, `JLINKARM_SetSpeed`, `JLINKARM_Connect`, `JLINKARM_IsConnected`, `JLINKARM_GetHWStatus`,
   `JLINKARM_GetFirmwareString`, `JLINKARM_GetEmbeddedFWString`, `JLINKARM_UpdateFirmwareIfNewer`, `JLINKARM_GetSN`,
   `JLINKARM_Reset`, `JLINKARM_Halt`, `JLINKARM_Go`, `JLINKARM_SetResetDelay`,
-  `JLINKARM_SetLogOutHandler`, `JLINKARM_SetWarnOutHandler`, `JLINKARM_SetErrorOutHandler`,
+  `JLINKARM_EnableLog` (HIL H1: no `JLINKARM_SetLogOutHandler` export in 9.84), `JLINKARM_SetWarnOutHandler`, `JLINKARM_SetErrorOutHandler`,
   `JLINK_RTTERMINAL_Control`, `JLINK_RTTERMINAL_Read`, `JLINK_RTTERMINAL_Write` (`JLINKARM_ResetNoHalt` was removed
   from this list, decided 2026-10-09: a reset without halt is `JLINKARM_Reset` + `JLINKARM_Go`, as rttt / pylink do); structs
   `EMU_CONNECT_INFO`, `HW_STATUS`, `RTTERMINAL_BUFDESC`, `RTTERMINAL_START` with `static_assert`ed sizes.
@@ -169,7 +169,8 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   reports 0; review R21); otherwise `target.connect_failed`. A serial number that is not listed is checked
   against the network J-Links only on its first failed open per `JLinkProbe` (once per session or tool run,
   review R22).
-- **`RttChannel`** — implements ADR-0034 exactly: `attach(names, stop_token)` (15 s deadline, 100 ms polls,
+- **`RttChannel`** — implements ADR-0034 exactly: `attach(names, stop_token)` (15 s deadline at auto speed and at
+  1000 kHz or more; at a fixed lower speed `rttAttachDeadline()` = 15 s × 1000 / kHz, at most 60 s, ADR-0095; 100 ms polls,
   name resolution, zero-size retry with RTT stop + 200 ms, logger wait 3 s), `read(index, span)`,
   `write(index, bytes, stop_token)` (down-buffer chunks, 5 ms retries, 2 s timeout), `stop()`.
 
@@ -236,8 +237,10 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   lock or probe errors, or any error with auto-reconnect off), with the `hio::Error`. Every step checks the stop
   token, so `close()` during connect returns within one step (≤ 1 s, apart from a single blocking vendor call).
   `probe()` returns the SN once known (`connectionChanged` is emitted after it is set). The CLI calls
-  `waitUntilConnected()` (timeout `defaultConnectTimeout` = `connectTimeoutFor(ProbeTiming, RttTiming)`, 35.5 s,
-  see Bounds; review R38) and ends with that error if it fails.
+  `waitUntilConnected()` (timeout `connectTimeoutForSpeed(speed)` = `connectTimeoutFor(ProbeTiming, RttTiming)` with
+  the attach deadline of the session speed: 35.5 s at auto and at 1000 kHz or more, up to 80.5 s at 250 kHz and
+  below, ADR-0095; see Bounds; review R38) and ends with that error if it fails. Below 125 kHz the CLI warns before
+  connecting (ADR-0095).
   Amendment (decided 2026-10-09; our rule, not rttt's, R50): `console --auto-reconnect` waits with `waitForFirstAttempt()`
   instead, which also accepts a first attempt that ends Disconnected; the console UI then starts and shows the state
   while the session retries. ADR-0053's "the CLI waits with waitUntilConnected" therefore holds for `command` and
@@ -368,16 +371,19 @@ partial line 4 KiB · ConsoleLog 100 000 lines/channel · history 1000 × 4 KiB 
 50 files / 200 MiB, explicit file 100 MiB + one backup (after a failed rotation: no further rotation, at most
 2 × 100 MiB, then not written; R26) · 8 sessions/process · lock waits: probe 0 ms, history 2 s · `waitUntilConnected` / `waitForFirstAttempt`
 `defaultConnectTimeout` = library load 5 s + connect attempts (3) × (one connect 3 s + retry delay 0.5 s) + attach
-deadline 15 s + logger wait 3 s + margin 2 s = **35.5 s** (`connectTimeoutFor()` in `device_session.h`, R38) · RTT read per cycle ≤ up-buffer
-size (capped at 64 KiB) · timeouts: attach 15 s, logger wait 3 s, write 2 s, connect 3 × 500 ms,
+deadline 15 s + logger wait 3 s + margin 2 s = **35.5 s** (`connectTimeoutFor()` in `device_session.h`, R38); with a
+fixed speed below 1000 kHz the attach deadline and this timeout scale (`connectTimeoutForSpeed()`, ADR-0095): 50.5 s at
+500 kHz, at most **80.5 s** (attach deadline 60 s) · RTT read per cycle ≤ up-buffer
+size (capped at 64 KiB) · timeouts: attach 15 s (fixed speed < 1000 kHz: 15 s × 1000 / kHz, at most 60 s; ADR-0095), logger wait 3 s, write 2 s, connect 3 × 500 ms,
 power check 1 s, auto-reconnect 3 s (counted from the end of the previous attempt, R31), `command` default 1 s,
 `command` echo wait one write timeout per line counted as the lines are written (line n + 1 until start + (n + 1) ×
 write timeout + 500 ms), at most lines × write timeout + 500 ms (R23, R39); `command` lines beyond the command queue
 wait in the CLI and are queued as the worker takes them (R39) · `command` response 10 000 lines (output + log) and
 4 MiB of text, then truncated (`"truncated": true`, R42) · console-file retention may exceed 50 files / 200 MiB by at
-most one live file per live session (R45, R48) · the connect timeout (35.5 s) assumes SWD speeds of about 1000 kHz
-or more: a very low explicit `--jlink-speed` value (e.g. 5 kHz) may end with `timeout` before the session's own error
-(R47, not scaled; measured by HIL, G1); the default automatic speed (ADR-0090) is not concerned.
+most one live file per live session (R45, R48) · the attach deadline and the connect timeout scale with a fixed
+`--jlink-speed` below 1000 kHz (ADR-0095, replacing the R47 caveat after HIL G1); below 125 kHz a search of the whole
+RAM can exceed the 60 s cap: the CLI warns before connecting and `target.rtt_not_found` names the speed; the default
+automatic speed (ADR-0090) is not concerned.
 
 ## Decisions requiring user confirmation
 
@@ -419,6 +425,7 @@ or more: a very low explicit `--jlink-speed` value (e.g. 5 kHz) may end with `ti
 | Differences from rttt (round-4 review) | follow rttt / keep and document | keep ours, documented (decided 2026-10-11; list in Design → `libs/device`) | — |
 | Round-5 findings | fix all / partial | fix all 7 (decided 2026-10-11; R41–R47) | — |
 | Connect speed | auto / fixed | auto like pylink; explicit kHz forces fixed (decided 2026-10-11) | ADR-0090 |
+| RTT attach deadline at a low fixed speed (HIL G1, H2) | scale / keep 15 s and warn / document | scale: 15 s × 1000 / kHz below 1000 kHz, at most 60 s; connect timeout follows; CLI warning and speed in the error detail below 125 kHz (decided 2026-10-16) | ADR-0095 |
 | Round-6 findings | fix all / partial | fix all 9 + correct the rttt list (decided 2026-10-11; R48–R56) | — |
 | Sanitizer presets DEBUGINFOD_URLS | set empty / local env | set empty in CMakePresets.json (decided 2026-10-11; T1) | — |
 | Reference sources location | scratchpad / ../refs | /home/hardwario/src/monitor/refs, outside repositories (decided 2026-10-11) | — |
@@ -494,8 +501,22 @@ Phase F — CLI
 
 Phase G — hardware and docs
 - [ ] G1 HIL tests `tests/integration/` (opt-in `HIO_HIL=1`) — written (`hio_hil_tests`, ctest label `hil`, every
-  test skipped without `HIO_HIL=1`); not yet run on hardware. Also measure the connect and RTT attach time at
+  test skipped without `HIO_HIL=1`). Also measure the connect and RTT attach time at
   `--jlink-speed` auto (the default, ADR-0090) and 5, 100 and 1000 kHz against the 35.5 s connect timeout (R47).
+  - Run 1 (2026-10-16; Linux, J-Link Software 9.84, one J-Link probe, one CHESTER-M nRF52840 application MCU):
+    `hio_hil_tests` 4 of 5 pass (`ProbesAreListed`, `ConsoleAttachesWithoutResetAndAnswersVersion`,
+    `ResetReattaches`, `RebootFromTheShellIsReattachedAutomatically`); `TwoChestersWithTwoProbesInOneProcess`
+    skipped (one probe only).
+  - H1 (found and fixed): J-Link 9.84 does not export `JLINKARM_SetLogOutHandler`; the log handler is registered
+    with `JLINKARM_EnableLog` (A1 function list).
+  - Timing: connect about 0.3 s at every speed. RTT attach: auto < 2 s (whole command 2.3 s); 1000 kHz 2.9 s
+    command; 100 kHz 12.8 s RTT search (14.5 s command); 5 kHz `target.rtt_not_found` after 15 s → H2, fixed by
+    ADR-0095 (attach deadline and connect timeout scale with a fixed low speed; warning below 125 kHz).
+  - `hio jlink list`, `hio jlink info`, `hio chester app command help` work; target voltage read 2983 mV. The probe
+    firmware status is "unknown" on this probe (`JLINKARM_GetEmbeddedFWString` returned -1), so the
+    outdated-firmware check could not be tested with it.
+  - Not testable with this setup: two probes in one process, the outdated-firmware warning.
+  - Open: re-run G1 after the ADR-0095 fix (5 and 100 kHz) and the two-probe test with a second probe and board.
 - [ ] G2 Manual checks on Linux, Windows, macOS; record the lowest tested J-Link version (ADR-0029); on Windows
   also: `hio chester app console --json` reading from the console (not a pipe) ends promptly on Ctrl+C / when the
   session ends (review R17, `CancelSynchronousIo`); `hio jlink list` shows "in use" for a probe held by another
@@ -841,6 +862,12 @@ test presets (T1). Each test below fails on the code before its fix, except wher
   budget assumes about 1000 kHz or more and very low speeds may end with `timeout`; G1 measures connect and attach at
   5, 100 and 1000 kHz. Documentation only. Since ADR-0090 (R49) the caveat applies only to an explicit low kHz value;
   the default is the automatic speed.
+  Superseded 2026-10-16 by ADR-0095 (HIL G1, H2): `rttAttachDeadline()` (`rtt_channel.h`) scales the attach deadline
+  with a fixed speed below 1000 kHz (at most 60 s); `DeviceSession::open()` applies it and the CLI waits
+  `connectTimeoutForSpeed()`; below 125 kHz the CLI warns (`slowSpeedWarning()`) and the `target.rtt_not_found`
+  detail names the speed. Tests `RttAttachDeadline.*`, `Rtt.RttNotFoundDetailNamesTheSpeed`,
+  `Session.AttachDeadlineScalesWithAFixedLowSpeed`, `SlowSpeedWarning.OnlyBelow125kHz`,
+  `ConnectTimeout.HandComputedValues`, `FakeJLinkCli.SlowSpeedIsWarnedBeforeConnecting`.
 - [x] T1 (tooling) The sanitizer test presets (`linux-asan`, `linux-tsan`, `macos-asan`; the only ones with sanitizers)
   set `"DEBUGINFOD_URLS": ""`, so llvm-symbolizer uses local debug info only and never blocks on an unreachable
   debuginfod server (schema 6 presets cannot hold comments; the reason is noted in `tools/sanitizers/tsan.supp` and
@@ -1009,10 +1036,11 @@ and Git LFS clean.
 - **replxx** with clang-cl and sanitizers; terminal handling on Windows consoles.
 - **Vendor library internal threads** vs. TSan: suppressions documented one by one (HIL only; the fake library is ours).
 - **macOS/Linux USB permissions** (udev rules) surface as `probe.open_failed`; the setup wizard is M4.
-- **Very low explicit SWD speeds** (R47): the 35.5 s connect timeout assumes about 1000 kHz or more; at an explicit
-  `--jlink-speed` of e.g. 5 kHz the connect and attach may take longer and end with `timeout` instead of the session's
-  own error. The default automatic speed (ADR-0090) is not concerned. Not scaled yet; HIL (G1) measures auto and 5,
-  100 and 1000 kHz.
+- **Very low explicit SWD speeds** (R47): HIL G1 measured 12.8 s for the RTT search at 100 kHz and no control block
+  within 15 s at 5 kHz (H2). Since ADR-0095 the attach deadline (15 s × 1000 / kHz, at most 60 s) and the connect
+  timeout scale with a fixed speed below 1000 kHz; below 125 kHz a full-RAM search can still exceed 60 s, so the CLI
+  warns before connecting and `target.rtt_not_found` names the speed. The default automatic speed (ADR-0090) is not
+  concerned.
 - Found during implementation (2026-10-09): replxx master is only 15 commits ahead of `release-0.0.4` and has had no
   commit since 2021-11-25 (ADR-0064 assumed "years of fixes"); the dependency is effectively unmaintained. It builds
   with one third-party compiler warning (`-Wcharacter-conversion` in `terminal.cxx`, not our flags). The other

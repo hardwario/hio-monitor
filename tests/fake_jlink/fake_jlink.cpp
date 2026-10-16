@@ -611,7 +611,7 @@ HIO_FAKE_JLINK_EXPORT char JLINKARM_Halt() {
 
 HIO_FAKE_JLINK_EXPORT void JLINKARM_Go() {}
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_SetLogOutHandler(abi::LogHandler handler) {
+HIO_FAKE_JLINK_EXPORT void JLINKARM_EnableLog(abi::LogHandler handler) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     s.logHandler = handler;

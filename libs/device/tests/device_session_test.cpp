@@ -621,6 +621,34 @@ TEST_F(Session, RttNotFoundIsStopped) {
               ErrorCode::TargetRttNotFound);
 }
 
+// ADR-0095: the session scales the attach deadline with its fixed low speed (base 400 ms here:
+// 800 ms at 500 kHz) and the detail names the speed.
+TEST_F(Session, AttachDeadlineScalesWithAFixedLowSpeed) {
+    useShortAttachDeadline();
+    target().set([](ScriptedTarget& t) { t.controlBlockFound = false; });
+    for (const auto& [speed, detail] :
+         {std::pair{std::optional<int>(500),
+                    std::string("no RTT control block found within 800 ms at 500 kHz")},
+          std::pair{std::optional<int>(), // auto: the base deadline
+                    std::string("no RTT control block found within 400 ms at auto speed")}}) {
+        SessionOptions opts = options();
+        opts.speedKhz = speed;
+        auto session = open(opts);
+        ASSERT_TRUE(session);
+        Recorder events(**session);
+        const auto begin = std::chrono::steady_clock::now();
+        ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Stopped); }));
+        const auto elapsed = std::chrono::steady_clock::now() - begin;
+        const hio::Error error = events.connections.back().error.value_or(hio::Error{});
+        EXPECT_EQ(error.code, ErrorCode::TargetRttNotFound);
+        EXPECT_EQ(error.detail, detail);
+        if (speed) {
+            EXPECT_GE(elapsed, std::chrono::milliseconds(800));
+        }
+        (*session)->close();
+    }
+}
+
 TEST_F(Session, OutdatedProbeFirmwareIsOneWarning) {
     target().set(
         [](ScriptedTarget& t) { t.libraryFirmware = "J-Link V1 compiled Oct  1 2025 10:00:00"; });
@@ -1360,6 +1388,11 @@ TEST_F(ConnectTimeout, HandComputedValues) {
     EXPECT_EQ(hio::device::connectTimeoutFor(hio::jlink::ProbeTiming{}, hio::jlink::RttTiming{}),
               milliseconds(35500));
     EXPECT_EQ(hio::device::defaultConnectTimeout, milliseconds(35500));
+    // ADR-0095: the attach deadline of the speed; 30 s at 500 kHz, capped at 60 s.
+    EXPECT_EQ(hio::device::connectTimeoutForSpeed(std::nullopt), milliseconds(35500));
+    EXPECT_EQ(hio::device::connectTimeoutForSpeed(1000), milliseconds(35500));
+    EXPECT_EQ(hio::device::connectTimeoutForSpeed(500), milliseconds(50500));
+    EXPECT_EQ(hio::device::connectTimeoutForSpeed(100), milliseconds(80500));
     hio::jlink::ProbeTiming probe;
     probe.connectAttempts = 3;
     probe.connectRetryDelay = milliseconds(100);
@@ -1371,6 +1404,15 @@ TEST_F(ConnectTimeout, HandComputedValues) {
                                                    .margin = milliseconds(100000)};
     // 1 + 3 x (10 + 100) + 1000 + 10000 + 100000
     EXPECT_EQ(hio::device::connectTimeoutFor(probe, rtt, budget), milliseconds(111331));
+}
+
+// ADR-0095: the CLI warning before connecting at a fixed speed below 125 kHz.
+TEST(SlowSpeedWarning, OnlyBelow125kHz) {
+    EXPECT_FALSE(hio::device::slowSpeedWarning(std::nullopt));
+    EXPECT_FALSE(hio::device::slowSpeedWarning(125));
+    EXPECT_EQ(hio::device::slowSpeedWarning(100).value_or(std::string()),
+              "At this J-Link speed the console may not be found within 60 s. Use auto or "
+              "1000 kHz or more.");
 }
 
 TEST_F(ConnectTimeout, LibraryLoadTermCoversASlowLoad) {

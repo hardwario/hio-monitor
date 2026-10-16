@@ -245,7 +245,8 @@ private:
         }
         m_api = std::move(*api);
         m_probe = std::make_unique<jlink::JLinkProbe>(*m_api, clock(), m_config.timing.probe);
-        m_rtt = std::make_unique<jlink::RttChannel>(*m_api, clock(), m_config.timing.rtt);
+        m_rtt = std::make_unique<jlink::RttChannel>(*m_api, clock(), m_config.timing.rtt,
+                                                    m_config.speedKhz);
         return {};
     }
 
@@ -394,7 +395,8 @@ private:
     // The next automatic attempt is due one reconnect interval after this attempt ENDED,
     // whatever its outcome (review R31): an attempt that fails like the previous one is not
     // reported again (report() de-duplicates and does not move the timer), and an attempt can
-    // take longer than the interval (RTT attach deadline 15 s), so a timer set before the attempt
+    // take longer than the interval (RTT attach deadline 15 s, up to 60 s at a fixed low speed,
+    // ADR-0095), so a timer set before the attempt
     // would let the retries run back to back.
     void reconnect(const std::stop_token& stop, bool automatic = false) {
         detach();

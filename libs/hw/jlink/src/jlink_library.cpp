@@ -106,7 +106,7 @@ std::vector<std::string> resolveAll(QLibrary& library, abi::Functions& fn) {
     resolveInto(library, "JLINKARM_Reset", fn.reset, missing);
     resolveInto(library, "JLINKARM_Halt", fn.halt, missing);
     resolveInto(library, "JLINKARM_Go", fn.go, missing);
-    resolveInto(library, "JLINKARM_SetLogOutHandler", fn.setLogOutHandler, missing);
+    resolveInto(library, "JLINKARM_EnableLog", fn.enableLog, missing);
     resolveInto(library, "JLINKARM_SetWarnOutHandler", fn.setWarnOutHandler, missing);
     resolveInto(library, "JLINKARM_SetErrorOutHandler", fn.setErrorOutHandler, missing);
     resolveInto(library, "JLINK_RTTERMINAL_Control", fn.rttControl, missing);
@@ -164,7 +164,7 @@ struct JLinkLibrary::Impl {
                 fn.close();
             }
             for (abi::SetOutHandlerFn set :
-                 {fn.setLogOutHandler, fn.setWarnOutHandler, fn.setErrorOutHandler}) {
+                 {fn.enableLog, fn.setWarnOutHandler, fn.setErrorOutHandler}) {
                 if (set != nullptr) {
                     set(nullptr);
                 }
@@ -245,7 +245,7 @@ Result<std::unique_ptr<JLinkLibrary>> JLinkLibrary::loadCopy(const LibraryLocati
         return std::unexpected(std::move(slot).error());
     }
     impl->slot = std::move(*slot);
-    impl->fn.setLogOutHandler(impl->slot->logHandler());
+    impl->fn.enableLog(impl->slot->logHandler());
     impl->fn.setWarnOutHandler(impl->slot->warningHandler());
     impl->fn.setErrorOutHandler(impl->slot->errorHandler());
 

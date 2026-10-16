@@ -303,6 +303,33 @@ TEST_F(FakeJLinkCli, InvalidSpeedIsUsageError) {
     }
 }
 
+// ADR-0095: a fixed speed below 125 kHz is warned about on stderr before connecting.
+TEST_F(FakeJLinkCli, SlowSpeedIsWarnedBeforeConnecting) {
+    const std::string warning = "Warning: At this J-Link speed the console may not be found "
+                                "within 60 s. Use auto or 1000 kHz or more.";
+    const RunResult slow =
+        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
+             QStringLiteral("--jlink-speed"), QStringLiteral("100"), QStringLiteral("version"),
+             QStringLiteral("--timeout"), QStringLiteral("0.5")});
+    EXPECT_EQ(slow.exitCode, 0) << slow.err;
+    EXPECT_NE(slow.err.find(warning), std::string::npos) << slow.err;
+    EXPECT_LT(slow.err.find(warning), slow.err.find("Using J-Link")) << slow.err;
+    const RunResult fast =
+        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
+             QStringLiteral("--jlink-speed"), QStringLiteral("125"), QStringLiteral("version"),
+             QStringLiteral("--timeout"), QStringLiteral("0.5")});
+    EXPECT_EQ(fast.exitCode, 0) << fast.err;
+    EXPECT_EQ(fast.err.find("Warning:"), std::string::npos) << fast.err;
+    // --json: stdout stays the single result envelope, stderr stays free of the human text.
+    const RunResult json =
+        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+             QStringLiteral("command"), QStringLiteral("--jlink-speed"), QStringLiteral("100"),
+             QStringLiteral("version"), QStringLiteral("--timeout"), QStringLiteral("0.5")});
+    EXPECT_EQ(json.exitCode, 0) << json.err;
+    EXPECT_EQ(envelopes(json.out).size(), 1U) << json.out;
+    EXPECT_EQ(json.err.find(warning), std::string::npos) << json.err;
+}
+
 // Review fix 7: the collection window starts when the command was written, not when it was
 // queued. The fake accepts the write 1.5 s after the first attempt (relative to the write, not to
 // boot; review R30): a window of 1 s from queueing would end before the reply exists, the window

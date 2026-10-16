@@ -71,8 +71,12 @@ Error bufferNotFound(const std::string& name, std::string detail) {
 
 } // namespace
 
-RttChannel::RttChannel(IJLinkApi& api, Clock& clock, RttTiming timing)
-    : m_api(api), m_clock(clock), m_timing(timing) {}
+std::string speedDetail(std::optional<int> fixedSpeedKhz) {
+    return fixedSpeedKhz ? std::format("{} kHz", *fixedSpeedKhz) : std::string("auto speed");
+}
+
+RttChannel::RttChannel(IJLinkApi& api, Clock& clock, RttTiming timing, std::optional<int> speedKhz)
+    : m_api(api), m_clock(clock), m_timing(timing), m_speedKhz(speedKhz) {}
 
 std::string RttChannel::libraryDetail(std::string detail) {
     const std::string libraryText = m_api.takeErrorText();
@@ -227,9 +231,10 @@ Error RttChannel::deadlineError(const RttNames& names, bool sawControlBlock) {
             libraryDetail(std::format("terminal buffer \"{}\" not ready within {} ms",
                                       names.terminal, m_timing.attachDeadline.count())));
     }
-    return makeError(ErrorCode::TargetRttNotFound,
-                     libraryDetail(std::format("no RTT control block found within {} ms",
-                                               m_timing.attachDeadline.count())));
+    return makeError(
+        ErrorCode::TargetRttNotFound,
+        libraryDetail(std::format("no RTT control block found within {} ms at {}",
+                                  m_timing.attachDeadline.count(), speedDetail(m_speedKhz))));
 }
 
 Result<std::size_t> RttChannel::read(int index, std::span<std::byte> buffer) {
