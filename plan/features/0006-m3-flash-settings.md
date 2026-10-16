@@ -20,6 +20,8 @@
 > Flash rail item is disabled on Bluetooth tabs with the tooltip "Flashing needs a J-Link. Open a J-Link tab to
 > flash this device."
 
+
+> **Pending amendment from M6 ([0014](0014-m6-mcp-gui.md)):** contributed Settings section "AI assistants (MCP)".
 ## Context
 
 Flashing by catalog ID or by a local `.hex` is the second core workflow of the old app. Its problems:

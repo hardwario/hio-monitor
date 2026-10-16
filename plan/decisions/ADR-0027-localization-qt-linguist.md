@@ -1,6 +1,6 @@
 # ADR-0027 — Localization: English and Czech with Qt Linguist
 
-- **Status:** Accepted
+- **Status:** Accepted (amended by ADR-0103: everything sent over MCP is English, in the GUI too)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M1 planning session)
 
@@ -52,4 +52,5 @@ languages later. The M0 plan (still Draft) already defines `hio::Error` with use
 - Wizard illustrations and photos avoid embedded text (text goes into translatable captions).
 - Czech translation becomes part of each feature's definition of done for GUI-visible texts; unfinished
   `cs` entries are reported in CI and must be 0 before a release (M7).
-- MCP served by the GUI (M6) returns texts in the GUI language; clients rely on `code` ids.
+- ~~MCP served by the GUI (M6) returns texts in the GUI language; clients rely on `code` ids.~~ Superseded by
+  ADR-0103: MCP texts are English in the GUI and the CLI.

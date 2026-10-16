@@ -13,10 +13,10 @@ before the plan that depends on it is approved.
 | 6 | Code-signing certificates (macOS Developer ID, Windows) — owner and CI secret handling | M7 |
 | 7 | Flatpak: how to grant USB (J-Link) and BLE access (BLE needs D-Bus `--system-talk-name=org.bluez`, 0011); is Flatpak viable with runtime-loaded vendor libs? | M7 |
 | 8 | Windows installer format: Qt Installer Framework (as before) vs. MSI (WiX) vs. MSIX | M7 |
-| 9 | MCP: existing C++ MCP SDK vs. own implementation; MCP protocol revision | M6 |
+| 9 | ~~MCP: existing C++ MCP SDK vs. own implementation; MCP protocol revision~~ — **resolved**: own implementation on QtNetwork + QJsonDocument (ADR-0096), MCP 2025-11-25 + 2026-07-28 (ADR-0095) | — |
 | 10 | ~~JSON library~~ — **resolved**: Qt `QJsonDocument` (ADR-0019) | — |
 | 11 | In scope later: PIB/UICR write, firmware upload to catalog, LTE modem trace, serial console, other devices | after v2.0 |
-| 12 | ~~Obtain `rttt` sources~~ — **resolved**: rttt 1.9.2 sdist from PyPI read for M1; RTT behaviour in ADR-0034 (re-read `mcp_server.py` for M6) | — |
+| 12 | ~~Obtain `rttt` sources~~ — **resolved**: rttt 1.9.2 sdist from PyPI read for M1; RTT behaviour in ADR-0034 (`mcp_server.py` re-read for M6, ADR-0099) | — |
 | 13 | Linux arm64 and Windows arm64 builds? | M7 |
 | 14 | ~~Minimum nRF Util version~~ — **decided**: the versions tested in the M2 Phase 0 spike (ADR-0042, Proposed until then); J-Link: 8.00 (ADR-0029) | M2 spike |
 | 15 | Firmware catalog browsing (list/info API needs a HARDWARIO Cloud token): token source and storage (env only / OS keychain), GUI catalog browser (ADR-0037 defers it; M3 GUI uses the ID field only, ADR-0054). **M4: deferred again** — HARDWARIO is migrating to a new system that will provide an API; revisit when it exists | after the new HARDWARIO API |
@@ -29,3 +29,5 @@ before the plan that depends on it is approved.
 | 22 | CHESTER connection guide content: exact connector names, cable type, pin-1 marking, power wording, and the real illustrations for the wizard slots (ADR-0076, ADR-0077) — HARDWARIO content task | before 0009 is Done |
 | 23 | CHESTER Bluetooth facts used by M5 (taken from the old app and py-hardwario only): advertised name format, whether NUS is in the advertisement, shell prompt `bt_nus:~$ `, passkey default 123456 and how bonds are cleared on the device; also BLE illustrations (ADR-0089) — confirm with the CHESTER firmware team | before 0011 is Done |
 | 24 | Windows: does `QBluetoothLocalDevice::requestPairing` show a passkey dialog for CHESTER? If not, `hio ble pair` on Windows falls back to instructions (ADR-0084) | 0011 HIL |
+| 25 | CHESTER RTT shell prompt string (app and lte targets) for `TargetProfile::shellPrompt` (ADR-0104); empty until recorded on hardware — `send_command` then ends by silence | 0013 HIL (E3) |
+| 26 | Drop the legacy MCP dialect (2025-11-25) once Claude, Cursor and VS Code speak 2026-07-28 (ADR-0095) | after v2.0 |

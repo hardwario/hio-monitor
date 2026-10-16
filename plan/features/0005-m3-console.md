@@ -16,6 +16,9 @@
 > BLE); Reset is hidden without the `Reset` capability; the log pane is hidden while the Log channel is empty for
 > BLE tabs.
 
+
+> **Pending amendment from M6 (ADR-0105, specified in [0014](0014-m6-mcp-gui.md)):** AI activity marker rows and the
+> input placeholder "AI is running a command…" while an AI `send_command` collects output.
 ## Context
 
 The console is the screen users spend most of their time on. The old app's workflows must be kept:

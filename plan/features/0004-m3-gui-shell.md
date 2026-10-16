@@ -22,6 +22,10 @@
 > list; `DeviceTabViewModel` gains `transport`, `consoleSession()`, `openBle()`, `bleSession()`; BLE tabs have a BLE
 > device bar and title; `ui/tabs` entries gain `transport`; settings `ui/lastTransport`, `ble/*`.
 
+
+> **Pending amendment from M6 (ADR-0105, specified in [0014](0014-m6-mcp-gui.md)):** an "MCP" indicator on the rail
+> above Settings; an "AI" badge on tabs opened by an AI assistant (not restored); busy page id `ai` for AI
+> operations; `AppViewModel::openTab` overload for programmatic opening.
 ## Context
 
 M0–M2 deliver the backend (J-Link sessions, RTT console, flashing, catalog download) and the CLI. The GUI is still
