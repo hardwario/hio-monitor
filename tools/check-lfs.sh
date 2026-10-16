@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Checks the Git LFS rule from CLAUDE.md: every file that is binary or larger than 100 KB must be
-# stored as a Git LFS pointer (its pattern belongs in .gitattributes), and every file matching an
-# LFS pattern must really be a pointer. Vendor SDK binaries must never be committed at all.
+# Checks the Git LFS rule from CLAUDE.md (ADR-0112): every binary file, and every generated text file
+# (firmware images, linker maps) larger than 100 KB, must be stored as a Git LFS pointer (its pattern
+# belongs in .gitattributes), and every file matching an LFS pattern must really be a pointer. Other
+# text files stay in plain Git at any size. Vendor SDK binaries must never be committed at all.
 #
 # Usage: tools/check-lfs.sh [--untracked]
 #   Checks the files in the index (what will be committed). With --untracked, untracked files that
@@ -12,6 +13,8 @@
 set -eu
 
 readonly limit_bytes=$((100 * 1024))
+# Generated / compiled text that counts as "large" above limit_bytes (ADR-0112).
+readonly generated_text_pattern='\.(hex|ihex|map|srec|s19|s28|s37)$'
 readonly lfs_pointer_header='version https://git-lfs.github.com/spec/v1'
 
 check_untracked=false
@@ -44,8 +47,8 @@ check_file() {
     fi
     local size
     size=$("$@" | wc -c)
-    if ((size > limit_bytes)); then
-        offenders+=("$path: ${size} bytes > 100 KB; track it with Git LFS (.gitattributes)")
+    if ((size > limit_bytes)) && [[ "$path" =~ $generated_text_pattern ]]; then
+        offenders+=("$path: generated file of ${size} bytes > 100 KB; track it with Git LFS (.gitattributes)")
         return
     fi
     # grep -I treats binary content as non-matching; empty files are text.
@@ -69,7 +72,7 @@ if $check_untracked; then
 fi
 
 if ((${#offenders[@]} > 0)); then
-    echo "Git LFS check failed (CLAUDE.md: large or binary files only via Git LFS):" >&2
+    echo "Git LFS check failed (CLAUDE.md: binary and large generated files only via Git LFS):" >&2
     printf '  %s\n' "${offenders[@]}" >&2
     exit 1
 fi

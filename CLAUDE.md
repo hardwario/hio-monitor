@@ -29,9 +29,10 @@ All design documentation lives in [`plan/`](plan/README.md). Read `plan/README.m
 
 ## Repository rules
 
-- **Never commit large or binary files directly. Use Git LFS.** Patterns are in
-  `.gitattributes`; any new binary type (or any file > 100 KB that is not source text)
-  must be added there *before* it is committed. Run `git lfs install` once per clone.
+- **Never commit binary files directly. Use Git LFS.** Patterns are in `.gitattributes`; any new binary type
+  must be added there *before* it is committed, and so must generated text over 100 KB (firmware `.hex`, linker
+  maps). Other text files (sources, plans, `.ts`, docs) stay in plain Git at any size (ADR-0112).
+  Run `git lfs install` once per clone.
 - **Never commit vendor SDK binaries** (SEGGER J-Link, Nordic nRF Util / nrfjprog, Qt) — not even via LFS.
   They are loaded at runtime from the user's installation (ADR-0006).
 - Don't commit secrets, tokens, signing certificates or `.env` files.
@@ -106,7 +107,7 @@ cmake --build --preset linux-debug --target all_qmllint           # QML lint
 cmake --build --preset linux-debug --target update_translations   # after changing user-visible strings
 cmake --build --preset linux-debug --target check_translations    # .ts freshness (CI), unfinished cs count
 git ls-files -z -- '*.h' '*.cpp' | xargs -0 clang-format-21 --dry-run --Werror   # formatting
-tools/check-lfs.sh [--untracked]                # Git LFS rule (binary or > 100 KB files)
+tools/check-lfs.sh [--untracked]                # Git LFS rule (binary, generated text > 100 KB)
 build/linux-debug/app/cli/hio --help            # CLI; GUI: build/linux-debug/app/gui/hio-monitor
 build/linux-debug/app/cli/hio jlink list        # probes (J-Link Software 8.x: auto-discovered, or
                                                 # --jlink-library PATH / $HIO_JLINK_LIBRARY)
