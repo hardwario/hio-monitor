@@ -6,10 +6,12 @@
 // (qml/TestPage.qml), the fake J-Link library with two probes, and a LanguageManager.
 
 #include "fonts.h"
+#include "hex_builder.h"
 #include "hio/core/app_identity.h"
 #include "hio/core/error.h"
 #include "hio/core/settings.h"
 #include "hio/device/session_registry.h"
+#include "hio/firmware/firmware_image.h"
 #include "language_manager.h"
 #include "pages/builtin_pages.h"
 #include "support/fake_jlink_scenario.h"
@@ -20,8 +22,12 @@
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/error_info.h"
+#include "zip_builder.h"
 
+#include <QByteArray>
 #include <QCoreApplication>
+#include <QFile>
+#include <QIODevice>
 #include <QObject>
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -38,10 +44,12 @@
 #include <QtQuickTest/quicktest.h>
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <utility>
+#include <vector>
 
 Q_IMPORT_QML_PLUGIN(HardwarioMonitorPlugin)
 
@@ -52,7 +60,8 @@ class QmlTestSupport : public QObject {
     Q_PROPERTY(QString screenshotDir READ screenshotDir CONSTANT)
 
 public:
-    explicit QmlTestSupport(hio::gui::AppViewModel* app) : m_app(app) {}
+    QmlTestSupport(hio::gui::AppViewModel* app, QString directory)
+        : m_app(app), m_dir(std::move(directory)) {}
 
     [[nodiscard]] static QString screenshotDir() {
         return qEnvironmentVariable("HIO_SCREENSHOT_DIR");
@@ -113,6 +122,52 @@ public:
     // The open test wizard (its test hooks: goTo, startOperation, finishOperation), or null.
     Q_INVOKABLE [[nodiscard]] QObject* openWizard() const { return m_app->wizard()->wizard(); }
 
+    // ---- plan 0006 (Flash page) ----
+    // The Flash page view model of a tab.
+    Q_INVOKABLE [[nodiscard]] QObject* flashPage(int index) const {
+        hio::gui::DeviceTabViewModel* tab = m_app->tabs()->at(index);
+        return tab != nullptr ? tab->pageViewModel(QStringLiteral("flash")) : nullptr;
+    }
+
+    // Writes test firmware files into the test directory and returns their URLs: an Intel HEX
+    // (`uicr`: with a UICR record of the application MCU), an LTE bundle, a modem firmware zip.
+    Q_INVOKABLE [[nodiscard]] QUrl writeHex(const QString& name, int size, bool uicr) const {
+        std::vector<hio::firmware::Segment> segments;
+        segments.push_back(hio::firmware::Segment{
+            .address = 0x1000,
+            .data = std::vector<std::byte>(static_cast<std::size_t>(size), std::byte{0x5A})});
+        if (uicr) {
+            segments.push_back(hio::firmware::Segment{
+                .address = 0x10001200, .data = std::vector<std::byte>(4, std::byte{1})});
+        }
+        const auto image = hio::firmware::FirmwareImage::fromSegments(std::move(segments));
+        return write(name, image ? QByteArray::fromStdString(hio::firmware::test::toHex(*image))
+                                 : QByteArray());
+    }
+
+    Q_INVOKABLE [[nodiscard]] QUrl writeBundle() const {
+        const QByteArray modem = hio::firmware::test::zipBytes(
+            {{.name = "firmware.update.image.segments.0.hex", .data = ":00000001FF\n"}});
+        const QUrl hex = writeHex(QStringLiteral("application.hex"), 4096, false);
+        QFile file(hex.toLocalFile());
+        (void)file.open(QIODevice::ReadOnly);
+        return write(QStringLiteral("chester-lte-v3.0.0.zip"),
+                     hio::firmware::test::zipBytes(
+                         {{.name = "modem.zip", .data = modem.toStdString()},
+                          {.name = "application.hex", .data = file.readAll().toStdString()}}));
+    }
+
+    Q_INVOKABLE [[nodiscard]] QUrl writeModemZip() const {
+        return write(QStringLiteral("mfw_nrf91x1_2.0.2.zip"),
+                     hio::firmware::test::zipBytes({{.name = "firmware.update.image.segments.0.hex",
+                                                     .data = ":00000001FF\n"}}));
+    }
+
+    // Replaces the fake J-Link scenario (used by the next library copy, i.e. the next session).
+    Q_INVOKABLE [[nodiscard]] bool useScenario(const QString& json) const {
+        return hio::gui::test::useFakeJLink(m_dir, json.toUtf8().constData());
+    }
+
     // Shows a connection error in the tab's ErrorPanel (as a failed open() would).
     Q_INVOKABLE void setConnectionError(int index, const QString& code) {
         if (hio::gui::DeviceTabViewModel* tab = m_app->tabs()->at(index); tab != nullptr) {
@@ -123,7 +178,18 @@ public:
     }
 
 private:
+    [[nodiscard]] QUrl write(const QString& name, const QByteArray& bytes) const {
+        const QString path = m_dir + QLatin1Char('/') + name;
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            return {};
+        }
+        file.write(bytes);
+        return QUrl::fromLocalFile(path);
+    }
+
     hio::gui::AppViewModel* m_app;
+    QString m_dir;
 };
 
 class Setup : public QObject {
@@ -136,6 +202,8 @@ public slots:
         QQuickStyle::setStyle(QStringLiteral("Material"));
         hio::gui::loadBundledFonts();
         (void)hio::gui::test::useFakeJLink(m_dir.path(), hio::gui::test::twoProbesScenario);
+        // No nRF Util in the Qt Quick tests (whatever is installed): deterministic prerequisites.
+        qputenv("HIO_NRFUTIL", QFile::encodeName(m_dir.path() + QStringLiteral("/no-nrfutil")));
     }
 
     // One AppViewModel per test file (per QML engine): QML bindings of one engine never outlive it
@@ -174,7 +242,7 @@ public slots:
         if (!m_languageManager->apply(QStringLiteral("en"))) {
             qFatal("tst_gui: English could not be selected");
         }
-        m_support.emplace(&*m_app);
+        m_support.emplace(&*m_app, m_dir.path());
     }
 
     void destroyApp() {

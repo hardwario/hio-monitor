@@ -48,24 +48,6 @@ QStringList recentProbes(const SettingsStore* settings) {
     return settings->value(recentKey).toString().split(QLatin1Char(','), Qt::SkipEmptyParts);
 }
 
-// A stored speed (ADR-0111): a value in minSpeedKhz..maxSpeedKhz is fixed; 0, a missing key or any
-// other value means automatic (nullopt).
-std::optional<int> storedSpeed(const QVariant& value) {
-    bool ok = false;
-    const int speed = value.toInt(&ok);
-    if (!ok || speed < device::minSpeedKhz || speed > device::maxSpeedKhz) {
-        return std::nullopt;
-    }
-    return speed;
-}
-
-void applySpeed(ConnectionOptions& options, std::optional<int> speed) {
-    options.autoSpeed = !speed.has_value();
-    if (speed) {
-        options.speedKhz = *speed;
-    }
-}
-
 void logFailure(const char* what, const Status& status) {
     if (!status) {
         qCWarning(lcGui) << "Could not store" << what << toQString(status.error().message)
@@ -74,6 +56,27 @@ void logFailure(const char* what, const Status& status) {
 }
 
 } // namespace
+
+QString ConnectionOptions::speedWarning() const {
+    const std::optional<std::string> warning = device::slowSpeedWarning(sessionSpeedKhz());
+    return warning ? toQString(*warning) : QString();
+}
+
+std::optional<int> ConnectionOptions::storedSpeed(const QVariant& value) {
+    bool ok = false;
+    const int speed = value.toInt(&ok);
+    if (!ok || speed < device::minSpeedKhz || speed > device::maxSpeedKhz) {
+        return std::nullopt;
+    }
+    return speed;
+}
+
+void ConnectionOptions::applyStoredSpeed(std::optional<int> speed) {
+    autoSpeed = !speed.has_value();
+    if (speed) {
+        speedKhz = *speed;
+    }
+}
 
 ConnectionViewModel::ConnectionViewModel(DeviceTabViewModel* tab, SettingsStore* settings)
     : QObject(tab), m_tab(tab), m_settings(settings) {}
@@ -211,11 +214,7 @@ void ConnectionViewModel::setAutoSpeed(bool value) {
     optionsChanged(); // signal
 }
 
-QString ConnectionViewModel::speedWarning() const {
-    const std::optional<std::string> warning =
-        device::slowSpeedWarning(m_options.sessionSpeedKhz());
-    return warning ? toQString(*warning) : QString();
-}
+QString ConnectionViewModel::speedWarning() const { return m_options.speedWarning(); }
 
 void ConnectionViewModel::setSpeedKhz(int value) {
     if (value == m_options.speedKhz || value < device::minSpeedKhz || value > device::maxSpeedKhz) {
@@ -323,13 +322,13 @@ void ConnectionViewModel::loadOptions(std::optional<std::uint32_t> serial,
         probeChanged(); // signal
     }
     ConnectionOptions options;
-    applySpeed(options, target.defaultSpeedKhz);
+    options.applyStoredSpeed(target.defaultSpeedKhz);
     options.latencyMs = target.defaultLatencyMs;
     if (m_settings != nullptr) {
         // ADR-0111: 0 / missing / out of range = the profile's default (automatic).
-        if (const std::optional<int> speed =
-                storedSpeed(m_settings->value(QStringLiteral("jlink/speedKhz")))) {
-            applySpeed(options, speed);
+        if (const std::optional<int> speed = ConnectionOptions::storedSpeed(
+                m_settings->value(QStringLiteral("jlink/speedKhz")))) {
+            options.applyStoredSpeed(speed);
         }
         if (const int latency = m_settings->value(QStringLiteral("rtt/latencyMs")).toInt();
             latency != 0) {
@@ -344,7 +343,8 @@ void ConnectionViewModel::loadOptions(std::optional<std::uint32_t> serial,
         m_remembered = m_serial && recentProbes(m_settings).contains(QString::number(*m_serial));
         if (m_remembered) {
             // ADR-0111: 0 (stored for automatic), missing or out of range = automatic.
-            applySpeed(options, storedSpeed(m_settings->value(probeKey(*m_serial, "speedKhz"))));
+            options.applyStoredSpeed(
+                ConnectionOptions::storedSpeed(m_settings->value(probeKey(*m_serial, "speedKhz"))));
             options.latencyMs = m_settings->value(probeKey(*m_serial, "latencyMs")).toInt();
             options.autoReconnect =
                 m_settings->value(probeKey(*m_serial, "autoReconnect")).toBool();
@@ -367,8 +367,8 @@ void ConnectionViewModel::rememberOptions() {
     }
     const std::uint32_t serial = *m_serial;
     // ADR-0111: 0 = automatic.
-    logFailure("speedKhz", m_settings->setValue(probeKey(serial, "speedKhz"),
-                                                m_options.autoSpeed ? 0 : m_options.speedKhz));
+    logFailure("speedKhz",
+               m_settings->setValue(probeKey(serial, "speedKhz"), m_options.speedToStore()));
     logFailure("latencyMs",
                m_settings->setValue(probeKey(serial, "latencyMs"), m_options.latencyMs));
     logFailure("autoReconnect",

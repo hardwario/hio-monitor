@@ -224,6 +224,7 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
     internals->target = *target;
     internals->requestedSn = options.probeSn;
     internals->log = options.consoleLog ? options.consoleLog : std::make_shared<ConsoleLog>();
+    internals->nrfUtilProvider = std::move(options.nrfUtilProvider);
 
     WorkerConfig config;
     config.profile = options.profile;
@@ -238,6 +239,7 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
     config.usbSysfsRoot = std::move(hooks.usbSysfsRoot);
     config.usbDevRoot = std::move(hooks.usbDevRoot);
     config.lockDirectory = registry.options().lockDirectory;
+    config.nrfUtil = nrfUtilLocator(options);
     config.timing = hooks.timing;
     // ADR-0110: the attach deadline scales with a fixed low speed (the base is the hooks' value,
     // 15 s in production).
@@ -266,8 +268,8 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
 
     ModemUpdaterFactory modemFactory = std::move(hooks.modemUpdaterFactory);
     if (!modemFactory) {
-        modemFactory = [locator = nrfUtilLocator(
-                            options)]() -> Result<std::unique_ptr<nrfutil::IModemUpdater>> {
+        modemFactory = [](const nrfutil::LocatorOptions& locator)
+            -> Result<std::unique_ptr<nrfutil::IModemUpdater>> {
             auto executable = nrfutil::locate(locator);
             if (!executable) {
                 return std::unexpected(std::move(executable).error());
@@ -435,6 +437,9 @@ Result<OperationId> DeviceSession::flashLteBundle(std::string_view targetId,
     command.kind = OperationKind::LteBundle;
     command.bundle = std::move(bundle);
     command.flash = options;
+    if (m_internals->nrfUtilProvider) {
+        command.nrfUtil = m_internals->nrfUtilProvider(); // ADR-0114: at request time
+    }
     return startOperation(std::move(command), targetId);
 }
 
@@ -459,6 +464,9 @@ Result<OperationId> DeviceSession::updateModem(std::string_view targetId,
     detail::OperationCommand command;
     command.kind = OperationKind::Modem;
     command.modemZip = std::move(modemZip);
+    if (m_internals->nrfUtilProvider) {
+        command.nrfUtil = m_internals->nrfUtilProvider(); // ADR-0114: at request time
+    }
     return startOperation(std::move(command), targetId);
 }
 

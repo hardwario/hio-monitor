@@ -716,10 +716,12 @@ private:
     }
 
     // Step "Modem": nRF Util with the probe released.
+    // `locator`: the options the command carries (ADR-0114), else the snapshot of open().
     [[nodiscard]] Status runModem(const std::filesystem::path& modemZip,
+                                  const std::optional<nrfutil::LocatorOptions>& locator,
                                   OperationReporter& reporter, const std::stop_token& stop) {
         auto updater = m_modemFactory
-                           ? m_modemFactory()
+                           ? m_modemFactory(locator ? *locator : m_config.nrfUtil)
                            : Result<std::unique_ptr<nrfutil::IModemUpdater>>(
                                  std::unexpected(makeError(ErrorCode::DependencyNrfUtilNotFound)));
         if (!updater) {
@@ -920,12 +922,14 @@ private:
             if (run.crossTarget) {
                 run.reporter.phase(ProgramPhase::SwitchingTarget);
             }
-            return runModem(command.modemZip, run.reporter, run.stop);
+            return runModem(command.modemZip, command.nrfUtil, run.reporter, run.stop);
         case OperationKind::LteBundle: {
             if (run.crossTarget) {
                 run.reporter.phase(ProgramPhase::SwitchingTarget);
             }
-            if (Status modem = runModem(command.bundle->modemZip, run.reporter, run.stop); !modem) {
+            if (Status modem =
+                    runModem(command.bundle->modemZip, command.nrfUtil, run.reporter, run.stop);
+                !modem) {
                 return modem; // a failed or cancelled step 1 skips step 2 (ADR-0062)
             }
             run.reporter.step(2, 2);

@@ -34,8 +34,23 @@ set(HIO_GUI_QML_FILES
     qml/components/WizardDialog.qml
     qml/components/WizardStepList.qml
     qml/dialogs/ReportDialog.qml
+    qml/flash/FlashBar.qml
+    qml/flash/FlashCard.qml
+    qml/flash/KindCards.qml
+    qml/flash/MaintenanceSection.qml
+    qml/flash/OptionsCard.qml
+    qml/flash/ProgressCard.qml
+    qml/flash/ResultCard.qml
+    qml/flash/SourceCard.qml
     qml/pages/ChooseDevicePage.qml
+    qml/pages/FlashPage.qml
     qml/pages/PlaceholderPage.qml
+    qml/pages/SettingsPage.qml
+    qml/settings/AboutSection.qml
+    qml/settings/GeneralSection.qml
+    qml/settings/JLinkSection.qml
+    qml/settings/NrfUtilSection.qml
+    qml/settings/SettingsRow.qml
     qml/shell/AdvancedPopover.qml
     qml/shell/DeviceBar.qml
     qml/shell/DeviceTabBar.qml
@@ -70,6 +85,10 @@ qt_add_qml_module(hio_gui
         src/language_manager.h
         src/pages/builtin_pages.cpp
         src/pages/builtin_pages.h
+        src/pages/firmware_services.cpp
+        src/pages/firmware_services.h
+        src/pages/flash_settings_pages.cpp
+        src/pages/flash_settings_pages.h
         src/pages/placeholder_view_model.cpp
         src/pages/placeholder_view_model.h
         src/settings_store.cpp
@@ -82,18 +101,28 @@ qt_add_qml_module(hio_gui
         src/viewmodels/app_view_model.h
         src/viewmodels/connection_view_model.cpp
         src/viewmodels/connection_view_model.h
+        src/viewmodels/dependency_status.cpp
+        src/viewmodels/dependency_status.h
         src/viewmodels/device_tab_list_model.cpp
         src/viewmodels/device_tab_list_model.h
         src/viewmodels/device_tab_view_model.cpp
         src/viewmodels/device_tab_view_model.h
         src/viewmodels/error_info.cpp
         src/viewmodels/error_info.h
+        src/viewmodels/firmware_source_view_model.cpp
+        src/viewmodels/firmware_source_view_model.h
+        src/viewmodels/flash_view_model.cpp
+        src/viewmodels/flash_view_model.h
         src/viewmodels/page_list_model.cpp
         src/viewmodels/page_list_model.h
         src/viewmodels/page_registry.cpp
         src/viewmodels/page_registry.h
         src/viewmodels/probe_picker_view_model.cpp
         src/viewmodels/probe_picker_view_model.h
+        src/viewmodels/recent_sources_model.cpp
+        src/viewmodels/recent_sources_model.h
+        src/viewmodels/settings_view_model.cpp
+        src/viewmodels/settings_view_model.h
         src/viewmodels/shortcut_registry.cpp
         src/viewmodels/shortcut_registry.h
         src/wizard/check_list_model.cpp
@@ -110,6 +139,8 @@ qt_add_qml_module(hio_gui
         src/wizard/wizard_view_model.h
         src/workers/diag_worker.cpp
         src/workers/diag_worker.h
+        src/workers/firmware_loader.cpp
+        src/workers/firmware_loader.h
         src/workers/probe_scanner.cpp
         src/workers/probe_scanner.h)
 target_include_directories(hio_gui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -122,6 +153,7 @@ target_link_libraries(hio_gui PUBLIC
     hio::core
     hio::device
     hio::diag
+    hio::firmware
     Qt6::Core
     Qt6::Gui
     Qt6::Network

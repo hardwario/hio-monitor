@@ -138,9 +138,11 @@ struct ProcessOutput {
     std::string err;
 };
 
-// Runs `executable args` to completion (short probes such as --version).
+// Runs `executable args` to completion (short probes such as --version). A stop request kills
+// the process (checked every probePoll).
 Result<ProcessOutput> runShort(const fs::path& executable, const QStringList& arguments,
-                               std::chrono::milliseconds timeout) {
+                               std::chrono::milliseconds timeout, const std::stop_token& stop) {
+    constexpr std::chrono::milliseconds probePoll{100};
     QProcess process;
     process.setProgram(toQ(executable));
     process.setArguments(arguments);
@@ -149,13 +151,26 @@ Result<ProcessOutput> runShort(const fs::path& executable, const QStringList& ar
         return std::unexpected(notFound(std::format("{} cannot be started: {}", toUtf8(executable),
                                                     process.errorString().toStdString())));
     }
-    if (!process.waitForFinished(static_cast<int>(timeout.count()))) {
-        process.kill();
-        process.waitForFinished();
-        return std::unexpected(makeError(
-            ErrorCode::Timeout,
-            std::format("{} {} did not finish within {} ms", toUtf8(executable),
-                        arguments.join(QLatin1Char(' ')).toStdString(), timeout.count())));
+    const auto deadline = Clock::now() + timeout;
+    while (!process.waitForFinished(static_cast<int>(probePoll.count()))) {
+        if (process.state() == QProcess::NotRunning) {
+            break;
+        }
+        if (stop.stop_requested()) {
+            process.kill();
+            process.waitForFinished();
+            return std::unexpected(makeError(
+                ErrorCode::Cancelled, std::format("{} {} stopped", toUtf8(executable),
+                                                  arguments.join(QLatin1Char(' ')).toStdString())));
+        }
+        if (Clock::now() >= deadline) {
+            process.kill();
+            process.waitForFinished();
+            return std::unexpected(makeError(
+                ErrorCode::Timeout,
+                std::format("{} {} did not finish within {} ms", toUtf8(executable),
+                            arguments.join(QLatin1Char(' ')).toStdString(), timeout.count())));
+        }
     }
     constexpr qint64 maxProbeBytes = qint64{64} * 1024;
     return ProcessOutput{.exitCode = process.exitCode(),
@@ -257,8 +272,9 @@ std::optional<Version> parseVersion(std::string_view text) {
                    .patch = std::stoi(match[3].str())};
 }
 
-Result<NrfUtilInfo> checkVersions(const fs::path& executable, std::chrono::milliseconds timeout) {
-    auto core = runShort(executable, {QStringLiteral("--version")}, timeout);
+Result<NrfUtilInfo> checkVersions(const fs::path& executable, std::chrono::milliseconds timeout,
+                                  const std::stop_token& stop) {
+    auto core = runShort(executable, {QStringLiteral("--version")}, timeout, stop);
     if (!core) {
         return std::unexpected(std::move(core).error());
     }
@@ -268,8 +284,8 @@ Result<NrfUtilInfo> checkVersions(const fs::path& executable, std::chrono::milli
             notFound(std::format("{} --version: exit {}, \"{}\"", toUtf8(executable),
                                  core->exitCode, firstLine(core->out + core->err))));
     }
-    auto device =
-        runShort(executable, {QStringLiteral("device"), QStringLiteral("--version")}, timeout);
+    auto device = runShort(executable, {QStringLiteral("device"), QStringLiteral("--version")},
+                           timeout, stop);
     if (!device) {
         return std::unexpected(std::move(device).error());
     }

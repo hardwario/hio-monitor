@@ -106,8 +106,13 @@ struct SessionOptions {
     // nRF Util for updateModem / flashLteBundle (ADR-0016), located on the worker when a modem
     // update starts. nullopt (default) = nrfutil::defaultLocatorOptions() with the user's settings
     // (HIO_NRFUTIL, nrfutil/path, PATH, install directories; review R9); the CLI passes its
-    // --nrfutil there.
+    // --nrfutil there. This snapshot is taken in open() and used when nrfUtilProvider is empty.
     std::optional<nrfutil::LocatorOptions> nrfUtil;
+    // ADR-0114: called on the owner thread by updateModem() / flashLteBundle() each time such an
+    // operation is requested; the options it returns travel with that operation to the worker,
+    // so a path changed after open() (GUI Settings, setup wizard) is used. Must not throw. Empty
+    // (default) = the `nrfUtil` snapshot.
+    std::function<nrfutil::LocatorOptions()> nrfUtilProvider;
     // nullopt = default console file, empty path = no console file, otherwise this file.
     std::optional<std::filesystem::path> consoleFile;
     // ADR-0063: nullptr = the session creates its own log; a GUI tab passes one log for all its

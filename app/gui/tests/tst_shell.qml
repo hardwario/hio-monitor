@@ -267,8 +267,9 @@ TestCase {
         const loader = find("globalPage");
         tryVerify(() => loader.item !== null);
         verify(!find("tabStack").visible);
-        compare(findChild(loader.item, "placeholderTitle").text, "Settings");
-        tryVerify(() => findChild(loader.item, "libraryPath").text.indexOf("fake_jlink") >= 0, 5000);
+        // The Settings page of plan 0006 (sections from the PageRegistry).
+        compare(findChild(loader.item, "settingsTitle").text, "Settings");
+        tryVerify(() => findChild(loader.item, "jlinkDetected").text.indexOf("fake_jlink") >= 0, 10000);
         verify(findChild(loader.item, "themeSelector") !== null);
         AppViewModel.closeGlobalPage();
         verify(find("tabStack").visible);

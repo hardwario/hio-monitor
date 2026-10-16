@@ -26,6 +26,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariant>
 #include <QVariantList>
 #include <QtQmlIntegration>
 
@@ -57,6 +58,15 @@ struct ConnectionOptions {
     [[nodiscard]] std::optional<int> sessionSpeedKhz() const {
         return autoSpeed ? std::nullopt : std::optional<int>(speedKhz);
     }
+    // ADR-0110: the warning for a fixed speed below 125 kHz (translated); empty otherwise.
+    [[nodiscard]] QString speedWarning() const;
+    // ADR-0111: a stored speed (jlink/speedKhz, probes/<sn>/speedKhz): a value in
+    // minSpeedKhz..maxSpeedKhz is fixed; 0, a missing key or any other value means automatic.
+    [[nodiscard]] static std::optional<int> storedSpeed(const QVariant& value);
+    // Applies a stored speed: automatic keeps the last fixed value (speedKhz).
+    void applyStoredSpeed(std::optional<int> speed);
+    // The value to store for the speed: 0 = automatic.
+    [[nodiscard]] int speedToStore() const { return autoSpeed ? 0 : speedKhz; }
 };
 
 class ConnectionViewModel : public QObject {

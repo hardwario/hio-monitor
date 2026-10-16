@@ -127,6 +127,27 @@ TEST_F(NrfUtil, VersionCheck) {
     EXPECT_EQ(missing.error().code, ErrorCode::DependencyNrfUtilNotFound);
 }
 
+TEST_F(NrfUtil, AVersionProbeStopsOnRequest) {
+    mode("slowversion"); // `--version` answers after 30 s
+    std::stop_source stop;
+    std::jthread stopper([&stop] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        stop.request_stop();
+    });
+    const auto before = std::chrono::steady_clock::now();
+    const auto info = hio::nrfutil::checkVersions(fake, std::chrono::seconds(20), stop.get_token());
+    EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::seconds(5));
+    ASSERT_FALSE(info);
+    EXPECT_EQ(info.error().code, ErrorCode::Cancelled);
+}
+
+TEST_F(NrfUtil, AVersionProbeTimesOut) {
+    mode("slowversion");
+    const auto info = hio::nrfutil::checkVersions(fake, std::chrono::milliseconds(300));
+    ASSERT_FALSE(info);
+    EXPECT_EQ(info.error().code, ErrorCode::Timeout);
+}
+
 TEST_F(NrfUtil, ProgramArguments) {
     const auto args = NrfUtilModemUpdater::programArguments("/tmp/modem.zip", 801234567);
     const std::vector<std::string> expected{"device",         "program",         "--firmware",

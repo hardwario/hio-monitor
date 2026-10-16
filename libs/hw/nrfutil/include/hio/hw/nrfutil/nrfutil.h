@@ -88,11 +88,13 @@ struct NrfUtilInfo {
     Version device;
 };
 
-// Runs the two version probes. Errors: dependency.nrfutil_not_found (does not start),
-// dependency.nrfutil_device_missing, dependency.nrfutil_too_old, timeout.
+// Runs the two version probes. A stop request ends a running probe at once (the process is
+// killed; polled every 100 ms). Errors: dependency.nrfutil_not_found (does not start),
+// dependency.nrfutil_device_missing, dependency.nrfutil_too_old, timeout, cancelled (stop).
 [[nodiscard]] Result<NrfUtilInfo>
 checkVersions(const std::filesystem::path& executable,
-              std::chrono::milliseconds timeout = std::chrono::seconds(10));
+              std::chrono::milliseconds timeout = std::chrono::seconds(10),
+              const std::stop_token& stop = {});
 
 // ---- modem update ---------------------------------------------------------------------------
 

@@ -10,6 +10,8 @@
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
 #include "hio/hw/jlink/library_locator.h"
+#include "hio/hw/nrfutil/nrfutil.h"
+#include "settings_store.h"
 #include "viewmodels/connection_view_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/probe_picker_view_model.h"
@@ -249,6 +251,13 @@ Status DeviceTabViewModel::openSession(bool connectTarget) {
         sessionOptions.consoleFile = std::filesystem::path();
     }
     sessionOptions.consoleLog = m_consoleLog;
+    // ADR-0114: nRF Util is located with the settings at the time a modem update is requested, so
+    // a path changed in Settings (or by the setup wizard) reaches an open session. Called on this
+    // (GUI) thread; the SettingsStore outlives the tabs and their sessions.
+    sessionOptions.nrfUtilProvider = [settings = m_context.settings] {
+        return nrfutil::defaultLocatorOptions(std::nullopt,
+                                              settings != nullptr ? settings->settings() : nullptr);
+    };
 
     auto opened =
         device::DeviceSession::open(*m_context.registry, *location, std::move(sessionOptions));

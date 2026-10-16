@@ -3,12 +3,17 @@
 - **Status:** In progress (implementation started 2026-10-11; approved by Matej Strnad, 2026-10-11, in the text amended by ADR-0057 and ADR-0062; ADR-0069 is not part of this implementation); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010)
 - **Milestone:** M2
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062, 0069, 0094
+- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062, 0069, 0094, 0114
 - **Depends on:** 0001 (M0 skeleton), 0002 (M1 J-Link & RTT: library loading, `JLinkProbe`, `DeviceSession`, fake library)
 
 > **Amended by ADR-0057 and ADR-0062 (M3 planning, applied in this text):** every operation carries its
 > target MCU. The `Operation*` types are concrete, an LTE bundle is one operation, and reset is an operation.
 > Cancel reports the M0 code `cancelled`. Operations also work on sessions opened with `attachRtt = false`.
+
+> **Amended by ADR-0114 (2026-10-16, plan 0006 review F5):** `SessionOptions` gets an optional `nrfUtilProvider`.
+> When it is set, `updateModem()` / `flashLteBundle()` call it on the owner thread each time such an operation is
+> requested, and the options travel with the operation to the worker. When it is empty, the snapshot of `open()` (R9)
+> is used. The GUI passes a provider; the CLI keeps its fixed `--nrfutil` options.
 
 > **Amended by 0007 (approved 2026-10-16; ADR-0069; applied in this text):** `OperationKind::Diagnose` with
 > `DeviceSession::diagnose(targetId)`, the `DiagnoseStep` result type, `OperationResult::checks` and the
@@ -691,7 +696,7 @@ Review of 7f371c6 (debug 516/516; stress repeats clean). Decided 2026-10-12: fix
 | R6 | Loader actions mapped explicitly: Compare/Erase → Erasing, Program/Verify → Programming, others keep the phase. | `Programmer.LoaderActionsMapToPhases` |
 | R7 | Reset (protected allowed) and memory reads (`pib read`, `uicr read`) run the family check first. | `Workflow.ResetAndReadMemoryCheckTheFamily` |
 | R8 | `HIO_CATALOG_URL` is compiled in only with the CMake option `HIO_TEST_OVERRIDES` (default = `HIO_BUILD_TESTS`; shipped builds must set it OFF); redirects are followed only to https. | `Catalog.RedirectsOnlyToHttps`; the CLI catalog e2e tests skip without the option |
-| R9 | `SessionOptions::nrfUtil` is optional; nullopt = `nrfutil::defaultLocatorOptions()` with the user's settings (resolved in `open()`). | `NrfUtilLocatorDefault.UsesTheEnvironmentAndThePath` |
+| R9 | `SessionOptions::nrfUtil` is optional; nullopt = `nrfutil::defaultLocatorOptions()` with the user's settings (resolved in `open()`). *Amended by ADR-0114:* this snapshot is used only without `SessionOptions::nrfUtilProvider`; a provider is evaluated per modem / LTE bundle operation on the owner thread. | `NrfUtilLocatorDefault.UsesTheEnvironmentAndThePath`, `Operations.NrfUtilProviderIsCalledPerOperationOnTheOwnerThread`, `Operations.WithoutAProviderTheSnapshotOfOpenIsUsed` |
 | R10 | All hardware-unconfirmed values are listed under "To confirm in Phase 0" (unsecure hook, CTRL-AP IDR, abandoned download, recover registers, nRF Util serial format, 4 KiB UICR). | — |
 | R11 | TSan skip kept; pointer comment added to `tools/sanitizers/tsan.supp`. | — |
 

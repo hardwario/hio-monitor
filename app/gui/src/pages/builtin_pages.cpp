@@ -1,5 +1,6 @@
 #include "pages/builtin_pages.h"
 
+#include "pages/flash_settings_pages.h"
 #include "pages/placeholder_view_model.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_view_model.h"
@@ -39,10 +40,8 @@ void registerBuiltInPages(AppViewModel& app) {
     PageRegistry& pages = app.pageRegistry();
     pages.add(placeholder(QStringLiteral("console"), QT_TRANSLATE_NOOP("Pages", "Console"),
                           QStringLiteral("console"), 10, false));
-    pages.add(placeholder(QStringLiteral("flash"), QT_TRANSLATE_NOOP("Pages", "Flash"),
-                          QStringLiteral("flash"), 20, false));
-    pages.add(placeholder(QStringLiteral("settings"), QT_TRANSLATE_NOOP("Pages", "Settings"),
-                          QStringLiteral("settings"), 100, true));
+    // Flash and the global Settings page (plan 0006).
+    registerFlashAndSettingsPages(app);
 }
 
 } // namespace hio::gui

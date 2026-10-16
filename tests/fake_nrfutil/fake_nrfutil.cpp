@@ -7,7 +7,8 @@
 //                                     NDJSON progress lines and a task_end result
 //
 // Behaviour from the environment:
-//   HIO_FAKE_NRFUTIL_MODE  ok (default) | fail | hang | flood | nodevice | old
+//   HIO_FAKE_NRFUTIL_MODE  ok (default) | fail | hang | flood | nodevice | old | slowversion
+//                          (slowversion: `--version` answers after 30 s)
 //   HIO_FAKE_NRFUTIL_LOG   a file; every invocation appends its arguments as one line
 //   HIO_FAKE_NRFUTIL_STEP_MS  delay between progress lines (default 20)
 
@@ -82,6 +83,9 @@ int main(int argc, char** argv) {
         file << '\n';
     }
     if (args.size() == 1 && args[0] == "--version") {
+        if (mode == "slowversion") {
+            std::this_thread::sleep_for(std::chrono::seconds(30));
+        }
         std::cout << (mode == "old" ? "nrfutil 6.1.0 (fake)\n" : "nrfutil 7.13.0 (fake)\n");
         return 0;
     }

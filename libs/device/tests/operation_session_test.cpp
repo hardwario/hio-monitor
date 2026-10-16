@@ -74,6 +74,8 @@ struct ModemScript {
     std::optional<bool> probeOpenDuringUpdate;
     std::uint32_t serial = 0;
     bool factoryFails = false;
+    // The `option` of the locator options each factory call got (ADR-0114); "" = none.
+    std::vector<fs::path> locators;
 };
 
 class ScriptedModemUpdater final : public hio::nrfutil::IModemUpdater {
@@ -149,11 +151,12 @@ protected:
                                 m_target]() -> hio::Result<std::unique_ptr<hio::jlink::IJLinkApi>> {
             return std::make_unique<ScriptedApi>(target);
         };
-        hooks.modemUpdaterFactory =
-            [script = m_modem,
-             target = m_target]() -> hio::Result<std::unique_ptr<hio::nrfutil::IModemUpdater>> {
+        hooks.modemUpdaterFactory = [script = m_modem,
+                                     target = m_target](const hio::nrfutil::LocatorOptions& locator)
+            -> hio::Result<std::unique_ptr<hio::nrfutil::IModemUpdater>> {
             {
                 const std::scoped_lock lock(script->mutex);
+                script->locators.push_back(locator.option.value_or(fs::path()));
                 if (script->factoryFails) {
                     return std::unexpected(hio::makeError(ErrorCode::DependencyNrfUtilNotFound));
                 }
@@ -535,6 +538,54 @@ TEST_F(Operations, CrossTargetModemAndBundle) {
     ASSERT_TRUE(finish(lteBundle)->status);
     expectPlanned(events(), *lteBundle, OperationKind::LteBundle, true);
     EXPECT_TRUE(waitFor([&] { return events().reached(ConnectionState::Connected); }));
+}
+
+// ---- ADR-0114: nRF Util locator options resolved per operation ---------------------------------
+
+hio::nrfutil::LocatorOptions locatorWith(const fs::path& option) {
+    hio::nrfutil::LocatorOptions options;
+    options.option = option;
+    return options;
+}
+
+TEST_F(Operations, NrfUtilProviderIsCalledPerOperationOnTheOwnerThread) {
+    auto opts = options("lte", false);
+    opts.nrfUtil = locatorWith(fs::path("/snapshot/nrfutil"));
+    int calls = 0;
+    std::vector<std::thread::id> threads;
+    fs::path current("/first/nrfutil");
+    opts.nrfUtilProvider = [&] {
+        ++calls;
+        threads.push_back(std::this_thread::get_id());
+        return locatorWith(current);
+    };
+    auto session = openConnected(opts);
+    ASSERT_TRUE(session);
+    EXPECT_EQ(calls, 0); // not at open()
+    ASSERT_TRUE(finish(session->updateModem("lte", root() / "mfw.zip"))->status);
+    current = fs::path("/second/nrfutil"); // e.g. a new path in the GUI Settings
+    ASSERT_TRUE(finish(session->flashLteBundle("lte", bundle(), {}))->status);
+    // Other operations do not ask.
+    ASSERT_TRUE(finish(session->reset("lte", ResetMode::Go))->status);
+    EXPECT_EQ(calls, 2);
+    for (const std::thread::id& thread : threads) {
+        EXPECT_EQ(thread, std::this_thread::get_id());
+    }
+    const std::scoped_lock lock(modem().mutex);
+    EXPECT_EQ(modem().locators,
+              (std::vector<fs::path>{fs::path("/first/nrfutil"), fs::path("/second/nrfutil")}));
+}
+
+TEST_F(Operations, WithoutAProviderTheSnapshotOfOpenIsUsed) {
+    auto opts = options("lte", false);
+    opts.nrfUtil = locatorWith(fs::path("/snapshot/nrfutil"));
+    auto session = openConnected(opts);
+    ASSERT_TRUE(session);
+    ASSERT_TRUE(finish(session->updateModem("lte", root() / "mfw.zip"))->status);
+    ASSERT_TRUE(finish(session->flashLteBundle("lte", bundle(), {}))->status);
+    const std::scoped_lock lock(modem().mutex);
+    EXPECT_EQ(modem().locators, (std::vector<fs::path>{fs::path("/snapshot/nrfutil"),
+                                                       fs::path("/snapshot/nrfutil")}));
 }
 
 TEST_F(Operations, NrfUtilMissingFailsBeforeReleasingTheProbe) {
