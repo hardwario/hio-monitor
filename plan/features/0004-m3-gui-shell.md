@@ -26,6 +26,13 @@
 > **Pending amendment from M6 (ADR-0105, specified in [0014](0014-m6-mcp-gui.md)):** an "MCP" indicator on the rail
 > above Settings; an "AI" badge on tabs opened by an AI assistant (not restored); busy page id `ai` for AI
 > operations; `AppViewModel::openTab` overload for programmatic opening.
+
+> **Pending amendment from M7 ([0015](0015-m7-packaging-release.md), [0016](0016-m7-update-check.md); applied when
+> they are approved — then this plan needs re-approval):** the shell banner area hosts `UpdateBanner` (below error
+> banners) and `CrashNoticeBanner` (ADR-0123); `setDesktopFileName("com.hardwario.monitor")`, window icon and the
+> Windows AppUserModelID are set in `main()`; single instance on Windows is verified on the MSI install (Flatpak is
+> deferred, ADR-0118).
+
 ## Context
 
 M0–M2 deliver the backend (J-Link sessions, RTT console, flashing, catalog download) and the CLI. The GUI is still

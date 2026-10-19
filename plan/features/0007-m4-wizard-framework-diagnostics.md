@@ -17,6 +17,11 @@
 > `app-dirs`, Warning only, 5 s) with `EnvironmentContext::ble`; `WizardStep::embedded` gains `ble-picker`;
 > illustration slots `ble-enable`, `ble-pair-os`; Help menu item "Pair a Bluetooth device…".
 
+> **Pending amendment from M7 ([0015](0015-m7-packaging-release.md), ADR-0123, ADR-0118; applied when 0015 is
+> approved — then this plan needs re-approval):** the diagnostic report adds `crashes/` (newest 3 crash files, plus
+> macOS DiagnosticReports `hio*`), within the 16 MiB bound; the summary shows the package kind. The Flatpak note in
+> "Risks" no longer applies to v2.0 (Flatpak deferred).
+
 ## Context
 
 Every `hio::Error` already names a wizard (`WizardId`, M0) and the M1/M2 error tables map about 25 error codes to

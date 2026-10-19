@@ -47,9 +47,11 @@ Qt is obtained as official binaries: Qt online installer locally, `aqtinstall` (
 
 | OS | Artifacts |
 |---|---|
-| Linux | AppImage, Flatpak (USB + BLE permissions to be designed), .deb; udev rules for J-Link |
-| macOS | universal signed + notarized DMG |
-| Windows | signed installer (format decided in M7 plan) |
+| Linux | AppImage (Ubuntu 22.04+), .deb (Ubuntu 24.04+, private Qt in `/opt`, J-Link udev rule) — ADR-0118, ADR-0121; Flatpak deferred |
+| macOS | universal signed + notarized DMG, hardened runtime (ADR-0126) |
+| Windows | signed per-machine MSI (WiX), `hio` on PATH (ADR-0117) |
+
+Details, signing (ADR-0120) and the tag-triggered release workflow (ADR-0125): [features/0015](features/0015-m7-packaging-release.md).
 
 Vendor software (J-Link library, optional nRF Util) is **not** bundled (ADR-0006, ADR-0016); installers and the setup
 wizard point users to the official downloads.

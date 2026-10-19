@@ -1,6 +1,6 @@
 # ADR-0075 — Diagnostic report: zip with summary, logs and settings; redacted; never sent automatically
 
-- **Status:** Accepted
+- **Status:** Accepted (amended by ADR-0123: the report also contains the newest crash files)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M4 planning session)
 

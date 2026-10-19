@@ -11,6 +11,9 @@
   [0012](0012-m5-ble-gui-pairing.md); without it only J-Link tabs are listed.
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M7 ([0015](0015-m7-packaging-release.md) decision table):** ADR-0108 asked M7 to reconsider
+> native notifications for consent prompts; the user decided on 2026-10-19 to keep the own always-on-top window, so nothing changes here.
+
 ## Context
 
 ADR-0008: the GUI hosts MCP over Streamable HTTP on 127.0.0.1, opt-in, and the AI works on **the same live
