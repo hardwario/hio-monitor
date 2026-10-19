@@ -14,6 +14,9 @@
 > coverage test also accepts error codes whose wizard is BlePairing when the BlePairing wizard maps them to a start
 > step; the Connect wizard stays J-Link only.
 
+> **Pending amendment from M8 ([0017](0017-m8-parity.md), ADR-0132):** the troubleshooting topic `probe-firmware` gets an
+> [Update J-Link firmware] step; the `hio jlink update-firmware` CommandBlock stays as the alternative.
+
 ## Context
 
 Most support cases are physical: the J-Link is not plugged in, the flat cable is on the other MCU's connector,

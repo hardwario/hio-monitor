@@ -41,7 +41,7 @@ Qt is obtained as official binaries: Qt online installer locally, `aqtinstall` (
 
 - On every PR and push to `v2-dev`: build + unit tests on Linux, Windows, macOS; ASan/UBSan and
   TSan jobs on Linux (and macOS where possible); clang-tidy and clang-format check; QML lint.
-- Hardware-in-the-loop tests: opt-in self-hosted runner with a CHESTER + J-Link (later).
+- Hardware-in-the-loop tests: opt-in self-hosted runner with a CHESTER + J-Link, `hil.yml` on dispatch and `v2.*` tags, part of the release gate (ADR-0140, [features/0017](features/0017-m8-parity.md)).
 
 ## Packaging
 

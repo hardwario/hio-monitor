@@ -33,6 +33,9 @@
 > Windows AppUserModelID are set in `main()`; single instance on Windows is verified on the MSI install (Flatpak is
 > deferred, ADR-0118).
 
+> **Pending amendment from M8 ([0017](0017-m8-parity.md), ADR-0132):** the device bar shows the "J-Link firmware is
+> outdated" warning banner with [Update] / [Not now]; error panels' "More help" link uses `docsUrl()` (ADR-0138).
+
 ## Context
 
 M0–M2 deliver the backend (J-Link sessions, RTT console, flashing, catalog download) and the CLI. The GUI is still
