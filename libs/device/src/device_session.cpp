@@ -9,6 +9,7 @@
 #include "hio/device/console_file_sink.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
+#include "hio/device/console_session.h"
 #include "hio/device/operation.h"
 #include "hio/device/probe_lock.h"
 #include "hio/device/profile.h"
@@ -117,6 +118,16 @@ std::optional<std::string> slowSpeedWarning(std::optional<int> speedKhz) {
                  .count())
         .arg(jlink::rttFullSpeedKhz)
         .toStdString();
+}
+
+std::string_view transportId(Transport transport) noexcept {
+    switch (transport) {
+    case Transport::JLink:
+        return "jlink";
+    case Transport::Ble:
+        return "ble";
+    }
+    return "jlink";
 }
 
 std::string_view connectionStateId(ConnectionState state) noexcept {
@@ -317,9 +328,11 @@ DeviceSession::DeviceSession(Passkey /*key*/, SessionRegistry& registry,
                              std::unique_ptr<detail::SessionInternals> internals)
     : m_registry(&registry), m_internals(std::move(internals)) {}
 
-DeviceSession::~DeviceSession() { close(); }
+DeviceSession::~DeviceSession() { closeNow(); }
 
-void DeviceSession::close() {
+void DeviceSession::closeSession() { closeNow(); }
+
+void DeviceSession::closeNow() {
     if (m_closed) {
         return;
     }
@@ -559,6 +572,23 @@ std::filesystem::path DeviceSession::consoleFile() const { return m_consoleFile;
 
 const DeviceProfile& DeviceSession::profile() const noexcept { return *m_internals->profile; }
 
+SessionIdentity DeviceSession::identity() const {
+    std::optional<std::uint32_t> serialNumber = m_internals->requestedSn;
+    if (m_probe.serialNumber != 0) {
+        serialNumber = m_probe.serialNumber;
+    }
+    const std::string id = serialNumber ? std::to_string(*serialNumber) : std::string();
+    return SessionIdentity{.transport = Transport::JLink,
+                           .id = id,
+                           .displayName = id.empty() ? std::string("J-Link") : "J-Link " + id};
+}
+
+Capabilities DeviceSession::capabilities() const {
+    return Capabilities(Capability::Reset) | Capability::LogChannel | Capability::Operations;
+}
+
+std::string_view DeviceSession::consoleTargetId() const { return m_internals->target->id; }
+
 const TargetProfile& DeviceSession::target() const noexcept { return *m_internals->target; }
 
 void DeviceSession::wakeUp() {
@@ -650,83 +680,6 @@ void DeviceSession::drainEvents() {
     }
 }
 
-namespace {
-
-using FinalResult = std::function<std::optional<Status>(const ConnectionEvent&)>;
-
-// Runs a local event loop until `finalResult` gives a result for a connection event (the current
-// one first), `timeout` (timeout) or a stop request (cancelled).
-Status waitForConnection(DeviceSession& session, std::chrono::milliseconds timeout,
-                         const std::stop_token& stop, const FinalResult& finalResult) {
-    if (auto result = finalResult(session.connection())) {
-        return *result;
-    }
-    std::optional<Status> result;
-    QEventLoop loop;
-    const QMetaObject::Connection connection = QObject::connect(
-        &session, &DeviceSession::connectionChanged, &loop, [&](const ConnectionEvent& event) {
-            if (!result) {
-                result = finalResult(event);
-                if (result) {
-                    loop.quit();
-                }
-            }
-        });
-    QTimer deadline;
-    deadline.setSingleShot(true);
-    QObject::connect(&deadline, &QTimer::timeout, &loop, [&] {
-        if (!result) {
-            Error error = makeError(ErrorCode::Timeout,
-                                    std::format("not connected within {} ms", timeout.count()));
-            error.message =
-                QCoreApplication::translate("hio::device", "The device did not connect in time.")
-                    .toStdString();
-            result = std::unexpected(std::move(error));
-        }
-        loop.quit();
-    });
-    QTimer stopPoll;
-    QObject::connect(&stopPoll, &QTimer::timeout, &loop, [&] {
-        if (stop.stop_requested() && !result) {
-            result = fail(ErrorCode::Cancelled);
-            loop.quit();
-        }
-    });
-    deadline.start(timeout);
-    stopPoll.start(std::chrono::milliseconds(50));
-    loop.exec();
-    QObject::disconnect(connection);
-    return result.value_or(Status{});
-}
-
-// Stopped: with its error, or cancelled when stopped on purpose (suspend(); review fix 9 - the
-// session will not connect by itself, so waiting longer is pointless).
-std::optional<Status> stoppedResult(const ConnectionEvent& event) {
-    if (event.state != ConnectionState::Stopped) {
-        return std::nullopt;
-    }
-    if (event.error) {
-        return std::unexpected(*event.error);
-    }
-    return fail(ErrorCode::Cancelled);
-}
-
-} // namespace
-
-Status waitUntilConnected(DeviceSession& session, std::chrono::milliseconds timeout,
-                          const std::stop_token& stop) {
-    return waitForConnection(session, timeout, stop,
-                             [](const ConnectionEvent& event) -> std::optional<Status> {
-                                 if (event.state == ConnectionState::Connected) {
-                                     return Status{};
-                                 }
-                                 if (event.state == ConnectionState::Disconnected && event.error) {
-                                     return std::unexpected(*event.error);
-                                 }
-                                 return stoppedResult(event);
-                             });
-}
-
 OperationResult waitForOperation(DeviceSession& session, OperationId id,
                                  const std::function<void(const OperationProgress&)>& onProgress,
                                  const std::stop_token& stop,
@@ -791,18 +744,6 @@ OperationResult waitForOperation(DeviceSession& session, OperationId id,
             .checks = {}};
     }
     return std::move(*result);
-}
-
-Status waitForFirstAttempt(DeviceSession& session, std::chrono::milliseconds timeout,
-                           const std::stop_token& stop) {
-    return waitForConnection(session, timeout, stop,
-                             [](const ConnectionEvent& event) -> std::optional<Status> {
-                                 if (event.state == ConnectionState::Connected ||
-                                     event.state == ConnectionState::Disconnected) {
-                                     return Status{};
-                                 }
-                                 return stoppedResult(event);
-                             });
 }
 
 } // namespace hio::device

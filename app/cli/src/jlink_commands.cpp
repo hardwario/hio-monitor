@@ -22,8 +22,6 @@
 
 #include <CLI/CLI.hpp>
 
-#include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -52,45 +50,6 @@ QJsonValue ownerJson(const std::optional<device::ProbeLockOwner>& owner) {
     object.insert(QStringLiteral("app"), toQString(owner->app));
     object.insert(QStringLiteral("pid"), static_cast<double>(owner->pid));
     return object;
-}
-
-// Characters (UTF-8 code points) of `text`, for column alignment.
-std::size_t displayWidth(std::string_view text) {
-    return static_cast<std::size_t>(std::ranges::count_if(
-        text, [](char c) { return (static_cast<unsigned char>(c) & 0xC0U) != 0x80U; }));
-}
-
-std::string padded(std::string text, std::size_t width) {
-    const std::size_t current = displayWidth(text);
-    if (current < width) {
-        text.append(width - current, ' ');
-    }
-    return text;
-}
-
-// A table with columns two spaces apart (widths in characters).
-std::string formatTable(const std::vector<std::string>& header,
-                        const std::vector<std::vector<std::string>>& rows) {
-    std::vector<std::size_t> widths;
-    for (std::size_t column = 0; column < header.size(); ++column) {
-        std::size_t width = displayWidth(header[column]);
-        for (const auto& row : rows) {
-            width = std::max(width, displayWidth(row[column]));
-        }
-        widths.push_back(width + 2);
-    }
-    const auto formatRow = [&](const std::vector<std::string>& row) {
-        std::string line;
-        for (std::size_t column = 0; column < row.size(); ++column) {
-            line += column + 1 < row.size() ? padded(row[column], widths[column]) : row[column];
-        }
-        return line + "\n";
-    };
-    std::string text = formatRow(header);
-    for (const auto& row : rows) {
-        text += formatRow(row);
-    }
-    return text;
 }
 
 Result<CommandResult> listProbes(const GlobalOptions& globals) {

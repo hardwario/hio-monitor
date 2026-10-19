@@ -14,6 +14,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <format>
 #include <string>
 #include <string_view>
 
@@ -56,6 +57,12 @@ QJsonObject connectionEventJson(const device::ConnectionEvent& event) {
     object.insert(QStringLiteral("state"), latin1(device::connectionStateId(event.state)));
     object.insert(QStringLiteral("error"),
                   event.error ? QJsonValue(toJson(*event.error)) : QJsonValue(QJsonValue::Null));
+    // M5 (plan 0011 Q5): the transport on every event, the MTU on BLE events.
+    object.insert(QStringLiteral("transport"), latin1(device::transportId(event.transport)));
+    if (event.transport == device::Transport::Ble) {
+        object.insert(QStringLiteral("mtu"), event.mtu ? QJsonValue(static_cast<int>(*event.mtu))
+                                                       : QJsonValue(QJsonValue::Null));
+    }
     return object;
 }
 
@@ -98,6 +105,10 @@ std::string humanLine(const device::ConsoleLine& line, bool colors) {
 std::string humanConnection(const device::ConnectionEvent& event) {
     std::string text = "-- ";
     text += device::connectionStateId(event.state);
+    if (event.state == device::ConnectionState::Connected &&
+        event.transport == device::Transport::Ble) {
+        text += event.mtu ? std::format(" (Bluetooth, MTU {})", *event.mtu) : " (Bluetooth)";
+    }
     if (event.error) {
         text += ": " + event.error->message;
     }

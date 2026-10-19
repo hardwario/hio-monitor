@@ -108,7 +108,9 @@ cmake --build --preset linux-debug --target update_translations   # after changi
 cmake --build --preset linux-debug --target check_translations    # .ts freshness (CI), unfinished cs count
 git ls-files -z -- '*.h' '*.cpp' | xargs -0 clang-format-21 --dry-run --Werror   # formatting
 tools/check-lfs.sh [--untracked]                # Git LFS rule (binary, generated text > 100 KB)
+tools/check-includes.sh                         # no <bits/...> includes (libc++ / MSVC STL)
 build/linux-debug/app/cli/hio --help            # CLI; GUI: build/linux-debug/app/gui/hio-monitor
+HIO_FAKE_BLE_SCENARIO=tests/ble_scenarios/chester.json build/linux-debug/app/cli/hio ble scan   # fake BLE (test builds)
 build/linux-debug/app/cli/hio jlink list        # probes (J-Link Software 8.x: auto-discovered, or
                                                 # --jlink-library PATH / $HIO_JLINK_LIBRARY)
 build/linux-debug/app/cli/hio chester app console   # RTT console; `chester app command version`

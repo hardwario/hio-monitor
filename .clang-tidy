@@ -61,5 +61,8 @@ CheckOptions:
   readability-function-cognitive-complexity.IgnoreMacros: true
   # POSIX declares sigaction() & co. in <signal.h>; we include <csignal>
   # (modernize-deprecated-headers), which pulls it in.
-  misc-include-cleaner.IgnoreHeaders: 'signal\.h'
+  # libstdc++ implementation headers (<bits/...>, e.g. bits/chrono.h for the chrono literals) are
+  # never asked for: they break libc++ and the MSVC STL (plan 0011 review B1, tools/check-includes.sh);
+  # the public header (<chrono>) is included instead.
+  misc-include-cleaner.IgnoreHeaders: 'signal\.h;bits/.*'
 ...

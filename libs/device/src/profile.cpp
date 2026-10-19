@@ -32,6 +32,22 @@ const DeviceProfile* ProfileRegistry::find(std::string_view id) noexcept {
 
 std::span<const DeviceProfile* const> ProfileRegistry::all() noexcept { return registeredProfiles; }
 
+const DeviceProfile* ProfileRegistry::findByAdvertisement(
+    std::string_view name, [[maybe_unused]] std::span<const std::string> serviceUuids) noexcept {
+    // ADR-0132: by the name pattern only; an advertised NUS UUID is no profile match (Ruuvi tags
+    // and other Nordic devices advertise it too).
+    for (const DeviceProfile* profile : registeredProfiles) {
+        if (!profile->ble) {
+            continue;
+        }
+        const BleProfile& ble = *profile->ble;
+        if (!ble.namePattern.empty() && name.find(ble.namePattern) != std::string_view::npos) {
+            return profile;
+        }
+    }
+    return nullptr;
+}
+
 const TargetProfile* findTarget(const DeviceProfile& profile, std::string_view id) noexcept {
     const auto it = std::ranges::find(profile.targets, id, &TargetProfile::id);
     return it == profile.targets.end() ? nullptr : &*it;
@@ -61,6 +77,13 @@ QString powerHint(const DeviceProfile& profile) {
     }
     const std::string source(profile.powerHintSourceText);
     return QCoreApplication::translate("hio::device", source.c_str());
+}
+
+QString passkeyHint(const DeviceProfile& profile) {
+    if (!profile.ble || std::string_view(profile.ble->passkeyHintSourceText).empty()) {
+        return {};
+    }
+    return QCoreApplication::translate("hio::device", profile.ble->passkeyHintSourceText);
 }
 
 firmware::AddressRange pibRange(const TargetProfile& target) noexcept {

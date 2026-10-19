@@ -215,6 +215,8 @@ set_target_properties(hio-monitor PROPERTIES
     MACOSX_BUNDLE_BUNDLE_NAME "HARDWARIO Monitor"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+    # ADR-0086: CMake's default keys + NSBluetoothAlwaysUsageDescription.
+    MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/macos/Info.plist.in"
     # Qt is linked dynamically (ADR-0002), so Qt's own QML plugins are loaded at runtime and the
     # static-import scan is not needed; our own module's plugin is linked and imported explicitly.
     QT_QML_MODULE_NO_IMPORT_SCAN ON)

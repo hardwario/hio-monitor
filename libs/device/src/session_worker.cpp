@@ -20,6 +20,7 @@
 #include "hio/device/probe_lock.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
+#include "hio/device/session_key.h"
 #include "hio/diag/check.h"
 #include "hio/diag/usb_access.h"
 #include "hio/firmware/firmware_image.h"
@@ -239,7 +240,7 @@ private:
         const std::string header =
             std::format("Console: {} {}, J-Link {}, hio {}", m_config.profile->displayName,
                         m_config.target->id, *m_serial, buildInfo().version);
-        auto sink = ConsoleFileSink::open(*m_config.consoleFile, *m_serial, header,
+        auto sink = ConsoleFileSink::open(*m_config.consoleFile, ProbeKey{.sn = *m_serial}, header,
                                           std::chrono::system_clock::now());
         if (!sink) {
             warn(std::move(sink).error());

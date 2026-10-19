@@ -22,6 +22,18 @@ target_compile_definitions(tst_gui PRIVATE
     "QUICK_TEST_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\""
     "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\"")
 add_dependencies(tst_gui hio_fake_jlink)
+# M5 (plan 0011 E1): the environment checks include `bluetooth`; the tests read the fake BLE
+# backend instead of the machine's Bluetooth stack (HIO_TEST_OVERRIDES builds, ADR-0127).
+set(_hio_gui_test_ble "")
+set(_hio_gui_unit_test_ble "")
+if(HIO_TEST_OVERRIDES)
+    set(_hio_gui_ble_scenario "${PROJECT_SOURCE_DIR}/tests/ble_scenarios/chester.json")
+    set(_hio_gui_test_ble ";HIO_FAKE_BLE_SCENARIO=${_hio_gui_ble_scenario}")
+    # gtest_discover_tests() splits PROPERTIES at ';': one variable per property value.
+    set(_hio_gui_unit_test_ble
+        ENVIRONMENT_MODIFICATION "HIO_FAKE_BLE_SCENARIO=set:${_hio_gui_ble_scenario}")
+endif()
+
 set_target_properties(tst_gui PROPERTIES
     WIN32_EXECUTABLE OFF
     MACOSX_BUNDLE OFF
@@ -39,7 +51,7 @@ foreach(_test IN LISTS _hio_gui_qml_tests)
         LABELS "qml"
         # No desktop input-method plugin (IBus over D-Bus) in tests: it starts uninstrumented Qt
         # threads that TSan reports. Older Qt reads QT_IM_MODULE, newer Qt QT_IM_MODULES.
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_IM_MODULE=none;QT_IM_MODULES=none;TSAN_OPTIONS=suppressions=${PROJECT_SOURCE_DIR}/tools/sanitizers/tsan-qml.supp:halt_on_error=1:second_deadlock_stack=1")
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_IM_MODULE=none;QT_IM_MODULES=none;TSAN_OPTIONS=suppressions=${PROJECT_SOURCE_DIR}/tools/sanitizers/tsan-qml.supp:halt_on_error=1:second_deadlock_stack=1${_hio_gui_test_ble}")
 endforeach()
 
 add_executable(hio_gui_tests
@@ -87,7 +99,8 @@ gtest_discover_tests(hio_gui_tests
     ${_hio_gui_test_filter}
     PROPERTIES
         LABELS "unit"
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_IM_MODULE=none;QT_IM_MODULES=none")
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_IM_MODULE=none;QT_IM_MODULES=none"
+        ${_hio_gui_unit_test_ble})
 
 # Console HIL (plan/features/0005-m3-console.md): skipped unless HIO_HIL=1 and HIO_HIL_SN is set
 # (a CHESTER with the RTT shell on that J-Link probe). Label "hil" like tests/integration.

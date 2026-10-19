@@ -169,6 +169,84 @@ TEST(MakeError, M4Codes) {
     }
 }
 
+TEST(ErrorTable, BleCodes) {
+    struct Row {
+        ErrorCode code;
+        std::string_view id;
+        hio::ErrorCategory category;
+        std::optional<hio::WizardId> wizard;
+    };
+    using hio::WizardId;
+    constexpr auto ble = WizardId::BlePairing;
+    for (const Row& row : {
+             Row{.code = ErrorCode::BleAdapterNotFound,
+                 .id = "ble.adapter_not_found",
+                 .category = ErrorCategory::Dependency,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BleAdapterOff,
+                 .id = "ble.adapter_off",
+                 .category = ErrorCategory::Dependency,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BlePermissionDenied,
+                 .id = "ble.permission_denied",
+                 .category = ErrorCategory::Dependency,
+                 .wizard = WizardId::FirstRunSetup},
+             Row{.code = ErrorCode::BleStackUnavailable,
+                 .id = "ble.stack_unavailable",
+                 .category = ErrorCategory::Dependency,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BleDeviceNotFound,
+                 .id = "ble.device_not_found",
+                 .category = ErrorCategory::Target,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BleConnectFailed,
+                 .id = "ble.connect_failed",
+                 .category = ErrorCategory::Target,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BleServiceNotFound,
+                 .id = "ble.service_not_found",
+                 .category = ErrorCategory::Target,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BleNotPaired,
+                 .id = "ble.not_paired",
+                 .category = ErrorCategory::Target,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BlePairingFailed,
+                 .id = "ble.pairing_failed",
+                 .category = ErrorCategory::Target,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BlePairingNotSupported,
+                 .id = "ble.pairing_not_supported",
+                 .category = ErrorCategory::Usage,
+                 .wizard = std::nullopt},
+             Row{.code = ErrorCode::BleWriteFailed,
+                 .id = "ble.write_failed",
+                 .category = ErrorCategory::Target,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BleWriteTimeout,
+                 .id = "ble.write_timeout",
+                 .category = ErrorCategory::Target,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BleDisconnected,
+                 .id = "ble.disconnected",
+                 .category = ErrorCategory::Target,
+                 .wizard = ble},
+             Row{.code = ErrorCode::BleInUseByOtherProcess,
+                 .id = "ble.in_use_by_other_process",
+                 .category = ErrorCategory::Probe,
+                 .wizard = std::nullopt},
+         }) {
+        const hio::Error error = hio::makeError(row.code);
+        EXPECT_EQ(hio::idOf(row.code), row.id);
+        EXPECT_EQ(hio::categoryOf(row.code), row.category) << row.id;
+        EXPECT_EQ(error.wizard, row.wizard) << row.id;
+        EXPECT_FALSE(error.message.empty());
+        EXPECT_FALSE(error.cause.empty());
+        EXPECT_FALSE(error.suggestion.empty());
+        EXPECT_EQ(error.message.find('%'), std::string::npos) << row.id;
+    }
+}
+
 TEST(MakeError, OutputClosedIsCancelledWithItsOwnMessage) {
     const hio::Error error = hio::outputClosedError("the standard output was closed");
     const hio::Error cancelled = hio::makeError(ErrorCode::Cancelled);

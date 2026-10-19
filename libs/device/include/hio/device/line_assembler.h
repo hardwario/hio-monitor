@@ -39,6 +39,9 @@ public:
     // Drops an incomplete line (a new RTT attach starts from scratch, like rttt's cache reset).
     void reset() noexcept;
     [[nodiscard]] std::size_t pendingBytes() const noexcept { return m_partial.size(); }
+    // M5 (plan/features/0011): read-only view of the raw bytes of the incomplete line (prompt
+    // detection, ADR-0082); valid until the next feed() or reset().
+    [[nodiscard]] std::string_view partial() const noexcept { return m_partial; }
 
 private:
     [[nodiscard]] ConsoleLine makeLine(std::string_view raw,

@@ -9,6 +9,7 @@
 #include "hio/core/result.h"
 #include "hio/device/command_history.h"
 #include "hio/device/console_line.h"
+#include "hio/device/console_session.h"
 #include "hio/device/device_session.h"
 #include "hio/device/session_events.h"
 #include "output.h"
@@ -51,16 +52,16 @@ constexpr auto eofWriteWait = std::chrono::seconds(3);
 
 // ---- ConsoleView ---------------------------------------------------------------------------
 
-ConsoleView::ConsoleView(const Context& context, device::DeviceSession& session, bool colors,
+ConsoleView::ConsoleView(const Context& context, device::ConsoleSession& session, bool colors,
                          bool announceProbe)
     : m_context(&context), m_session(&session), m_colors(colors), m_announceProbe(announceProbe) {
-    QObject::connect(&session, &device::DeviceSession::linesReceived, &m_connections,
+    QObject::connect(&session, &device::ConsoleSession::linesReceived, &m_connections,
                      [this](const QList<device::ConsoleLine>& lines) { onLines(lines); });
-    QObject::connect(&session, &device::DeviceSession::connectionChanged, &m_connections,
+    QObject::connect(&session, &device::ConsoleSession::connectionChanged, &m_connections,
                      [this](const device::ConnectionEvent& event) { onConnection(event); });
-    QObject::connect(&session, &device::DeviceSession::warning, &m_connections,
+    QObject::connect(&session, &device::ConsoleSession::warning, &m_connections,
                      [this](const Error& error) { onWarning(error); });
-    QObject::connect(&session, &device::DeviceSession::linesDropped, &m_connections,
+    QObject::connect(&session, &device::ConsoleSession::linesDropped, &m_connections,
                      [this](quint64 count) { onDropped(count); });
 }
 
@@ -114,19 +115,22 @@ void ConsoleView::printStopped() {
     // last state, with or without an error (review R28).
     if (m_context->mode == OutputMode::Json && !m_stoppedPrinted) {
         m_stoppedPrinted = true;
-        printEvent(
-            connectionEventJson(device::ConnectionEvent{.state = device::ConnectionState::Stopped,
-                                                        .error = std::nullopt,
-                                                        .targetMillivolts = std::nullopt}));
+        printEvent(connectionEventJson(
+            device::ConnectionEvent{.state = device::ConnectionState::Stopped,
+                                    .error = std::nullopt,
+                                    .targetMillivolts = std::nullopt,
+                                    .transport = m_session->connection().transport,
+                                    .mtu = std::nullopt}));
     }
 }
 
 void ConsoleView::announceProbe() {
-    if (!m_announceProbe || m_session->probe().serialNumber == 0) {
+    const auto* device = qobject_cast<const device::DeviceSession*>(m_session);
+    if (!m_announceProbe || device == nullptr || device->probe().serialNumber == 0) {
         return;
     }
     m_announceProbe = false;
-    const auto probe = m_session->probe();
+    const auto probe = device->probe();
     qCInfo(lcCli) << "Using J-Link" << probe.serialNumber;
     printStatus(
         std::format("Using J-Link {} ({}{})", probe.serialNumber,
@@ -225,7 +229,7 @@ bool finishedByStopOrError(const Context& context, const ConsoleView& view, Tick
 // Sends lines to the session in order; a full command queue keeps the line for the next tick.
 class LineSender {
 public:
-    explicit LineSender(device::DeviceSession& session) : m_session(&session) {}
+    explicit LineSender(device::ConsoleSession& session) : m_session(&session) {}
 
     // Queues `line` after the pending one. False while a line is still pending.
     [[nodiscard]] bool hasPending() const noexcept { return m_pending.has_value(); }
@@ -251,7 +255,7 @@ public:
     [[nodiscard]] std::uint64_t sent() const noexcept { return m_sent; }
 
 private:
-    device::DeviceSession* m_session; // non-owning; outlives the sender
+    device::ConsoleSession* m_session; // non-owning; outlives the sender
     std::optional<std::string> m_pending;
     std::uint64_t m_sent = 0;
 };
@@ -259,7 +263,7 @@ private:
 // Plain mode: stdin lines (or NDJSON with --json), end of input ends the console.
 class PlainConsole {
 public:
-    PlainConsole(const Context& context, device::DeviceSession& session, const ConsoleView& view,
+    PlainConsole(const Context& context, device::ConsoleSession& session, const ConsoleView& view,
                  std::chrono::milliseconds linger)
         : m_context(&context), m_view(&view), m_sender(session), m_linger(linger) {}
 
@@ -315,7 +319,7 @@ private:
 // Interactive mode: replxx on an owned input thread, everything else on the main thread.
 class InteractiveConsole {
 public:
-    InteractiveConsole(const Context& context, device::DeviceSession& session, ConsoleView& view,
+    InteractiveConsole(const Context& context, device::ConsoleSession& session, ConsoleView& view,
                        const ConsoleUiOptions& options)
         : m_context(&context), m_session(&session), m_view(&view), m_options(&options),
           m_sender(session) {}
@@ -440,7 +444,7 @@ private:
     }
 
     const Context* m_context;
-    device::DeviceSession* m_session;
+    device::ConsoleSession* m_session;
     ConsoleView* m_view;
     const ConsoleUiOptions* m_options;
     replxx::Replxx m_rx;
@@ -455,7 +459,7 @@ private:
 
 } // namespace
 
-Status waitForConsoleConnection(const Context& context, device::DeviceSession& session,
+Status waitForConsoleConnection(const Context& context, device::ConsoleSession& session,
                                 ConsoleView& view, bool autoReconnect,
                                 std::chrono::milliseconds timeout) {
     // With --auto-reconnect a first attempt that ends Disconnected does not end the console: it
@@ -470,7 +474,7 @@ Status waitForConsoleConnection(const Context& context, device::DeviceSession& s
     return connected;
 }
 
-Status runConsole(const Context& context, device::DeviceSession& session, ConsoleView& view,
+Status runConsole(const Context& context, device::ConsoleSession& session, ConsoleView& view,
                   const ConsoleUiOptions& options) {
     if (options.interactive && context.mode == OutputMode::Human) {
         InteractiveConsole console(context, session, view, options);

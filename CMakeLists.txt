@@ -79,7 +79,7 @@ include(HioSanitizers)
 include(HioCxxFeatureChecks)
 include(HioBackendRules)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Network LinguistTools)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Network Bluetooth LinguistTools)
 qt_standard_project_setup(REQUIRES 6.8
     I18N_SOURCE_LANGUAGE en
     I18N_TRANSLATED_LANGUAGES cs)
@@ -96,6 +96,7 @@ add_subdirectory(libs/core)
 add_subdirectory(libs/firmware)
 add_subdirectory(libs/hw/jlink)
 add_subdirectory(libs/hw/nrfutil)
+add_subdirectory(libs/hw/ble)
 add_subdirectory(libs/device)
 add_subdirectory(libs/diag)
 add_subdirectory(app/cli)

@@ -31,6 +31,17 @@ std::vector<std::string> texts(const std::vector<ConsoleLine>& lines) {
     return result;
 }
 
+TEST(LineAssembler, PartialShowsTheIncompleteLine) {
+    LineAssembler assembler(Channel::Shell, false);
+    EXPECT_TRUE(assembler.partial().empty());
+    EXPECT_EQ(texts(feed(assembler, "line\nbt_nus")), std::vector<std::string>{"line"});
+    EXPECT_EQ(assembler.partial(), "bt_nus");
+    EXPECT_TRUE(feed(assembler, ":~$ ").empty());
+    EXPECT_EQ(assembler.partial(), "bt_nus:~$ ");
+    assembler.reset();
+    EXPECT_TRUE(assembler.partial().empty());
+}
+
 TEST(LineAssembler, SplitsLinesAndStripsCarriageReturn) {
     LineAssembler assembler(Channel::Shell, false);
     const auto lines = feed(assembler, "one\r\ntwo\nthree");

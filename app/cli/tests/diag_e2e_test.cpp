@@ -21,6 +21,7 @@
 #include <chrono>
 #include <cstddef>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifndef _WIN32
@@ -81,12 +82,22 @@ protected:
                    home() + QStringLiteral("/scenario.json"));
         env.insert(QStringLiteral("HIO_JLINK_LIBRARY"), QStringLiteral(HIO_FAKE_JLINK_LIBRARY));
         env.insert(QStringLiteral("HIO_NRFUTIL"), QStringLiteral(HIO_FAKE_NRFUTIL));
+        // M5: the `bluetooth` check on the fake BLE backend (HIO_TEST_OVERRIDES builds; others
+        // read the real adapter, the check is a warning at worst).
+        env.insert(QStringLiteral("HIO_FAKE_BLE_SCENARIO"),
+                   QStringLiteral(HIO_BLE_SCENARIOS_DIR) + QStringLiteral("/") + m_bleScenario);
         return env;
     }
+
+    // tests/ble_scenarios/<name> for the `bluetooth` check.
+    void useBleScenario(QString name) { m_bleScenario = std::move(name); }
 
     [[nodiscard]] RunResult hio(const QStringList& args) const {
         return run(args, fakeEnvironment());
     }
+
+private:
+    QString m_bleScenario = QStringLiteral("chester.json");
 };
 
 TEST_F(DiagCli, DoctorJson) {
@@ -97,7 +108,7 @@ TEST_F(DiagCli, DoctorJson) {
     ASSERT_EQ(all.size(), 1U);
     EXPECT_TRUE(all[0].value(QStringLiteral("ok")).toBool());
     const QJsonArray list = checks(all[0]);
-    ASSERT_EQ(list.size(), 7);
+    ASSERT_EQ(list.size(), 8);
     EXPECT_EQ(statusOf(list, QStringLiteral("jlink-software")), QStringLiteral("ok"));
     EXPECT_EQ(statusOf(list, QStringLiteral("nrfutil")), QStringLiteral("ok"));
     EXPECT_EQ(statusOf(list, QStringLiteral("probes")), QStringLiteral("ok"));
@@ -107,6 +118,28 @@ TEST_F(DiagCli, DoctorJson) {
         EXPECT_TRUE(first.contains(QString::fromLatin1(key))) << key;
     }
     EXPECT_TRUE(first.value(QStringLiteral("error")).isNull());
+}
+
+// M5 (ADR-0088): the bluetooth check; a Bluetooth problem is a warning and keeps exit 0.
+TEST_F(DiagCli, DoctorBluetooth) {
+#ifndef HIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_FAKE_BLE_SCENARIO)";
+#endif
+    const RunResult ready = hio({QStringLiteral("--json"), QStringLiteral("doctor")});
+    EXPECT_EQ(statusOf(checks(envelopes(ready.out).at(0)), QStringLiteral("bluetooth")),
+              QStringLiteral("ok"));
+    EXPECT_NE(ready.out.find("Adapter ready (fake0, 00:11:22:33:44:55)"), std::string::npos)
+        << ready.out;
+    useBleScenario(QStringLiteral("adapter_off.json"));
+    const RunResult off = hio({QStringLiteral("--json"), QStringLiteral("doctor")});
+    EXPECT_EQ(off.exitCode, 0) << off.out;
+    EXPECT_EQ(statusOf(checks(envelopes(off.out).at(0)), QStringLiteral("bluetooth")),
+              QStringLiteral("warning"));
+    EXPECT_NE(off.out.find("ble.adapter_off"), std::string::npos) << off.out;
+    useBleScenario(QStringLiteral("permission_undetermined.json"));
+    const RunResult undecided = hio({QStringLiteral("doctor")});
+    EXPECT_NE(undecided.out.find("Permission will be asked on first use"), std::string::npos)
+        << undecided.out;
 }
 
 TEST_F(DiagCli, DoctorHuman) {
@@ -131,7 +164,7 @@ TEST_F(DiagCli, DoctorWithoutJLinkExitsWithTheDependencyCode) {
     EXPECT_EQ(all[0].value(QStringLiteral("error")).toObject().value(QStringLiteral("code")),
               QStringLiteral("dependency.jlink_not_found"));
     const QJsonArray list = checks(all[0]); // ADR-0070: the full list also on failure
-    ASSERT_EQ(list.size(), 7);
+    ASSERT_EQ(list.size(), 8);
     EXPECT_EQ(statusOf(list, QStringLiteral("probes")), QStringLiteral("skipped"));
 
     const RunResult human =

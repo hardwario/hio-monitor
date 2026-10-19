@@ -5,6 +5,7 @@
 #include "hio/core/result.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
+#include "hio/device/console_session.h"
 #include "hio/device/device_session.h"
 #include "hio/device/operation.h"
 #include "hio/device/probe_lock.h"
@@ -212,6 +213,29 @@ TEST_F(Session, ConnectsAndDeliversLines) {
     ASSERT_EQ(logs.size(), 2U);
     EXPECT_EQ(session->log().lastSeq(), 3U);
     EXPECT_EQ(events->lines.back().seq, 3U);
+}
+
+// M5 (ADR-0079): DeviceSession is a ConsoleSession.
+TEST_F(Session, IsAConsoleSessionWithAllCapabilities) {
+    Recorder* events = nullptr;
+    auto session = openConnected(options(), events);
+    ASSERT_TRUE(session);
+    hio::device::ConsoleSession& console = *session;
+    const hio::device::SessionIdentity identity = console.identity();
+    EXPECT_EQ(identity.transport, hio::device::Transport::JLink);
+    EXPECT_EQ(identity.id, std::to_string(defaultSerial));
+    EXPECT_EQ(identity.displayName, "J-Link " + std::to_string(defaultSerial));
+    EXPECT_TRUE(console.capabilities().testFlag(hio::device::Capability::Reset));
+    EXPECT_TRUE(console.capabilities().testFlag(hio::device::Capability::LogChannel));
+    EXPECT_TRUE(console.capabilities().testFlag(hio::device::Capability::Operations));
+    EXPECT_EQ(console.consoleTargetId(), "app");
+    EXPECT_EQ(&console.profile(), &session->profile());
+    EXPECT_EQ(console.connection().state, ConnectionState::Connected);
+    EXPECT_EQ(console.connection().transport, hio::device::Transport::JLink);
+    EXPECT_FALSE(console.connection().mtu.has_value());
+    console.close();
+    console.close(); // idempotent
+    EXPECT_EQ(registry().sessionCount(), 0U);
 }
 
 TEST_F(Session, SendLineEchoesOnlyAfterTheWrite) {

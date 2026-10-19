@@ -6,10 +6,14 @@
 #include <QJsonValue>
 #include <QtEnvironmentVariables>
 
+#include <algorithm>
+#include <cstddef>
 #include <format>
 #include <functional>
 #include <ostream>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #ifdef _WIN32
 // NOMINMAX and WIN32_LEAN_AND_MEAN are set by app/cli/CMakeLists.txt.
@@ -120,6 +124,49 @@ StderrColor::~StderrColor() {
         SetConsoleMode(GetStdHandle(STD_ERROR_HANDLE), m_previousConsoleMode);
     }
 #endif
+}
+
+namespace {
+
+// Characters (UTF-8 code points) of `text`, for column alignment.
+std::size_t displayWidth(std::string_view text) {
+    return static_cast<std::size_t>(std::ranges::count_if(
+        text, [](char c) { return (static_cast<unsigned char>(c) & 0xC0U) != 0x80U; }));
+}
+
+std::string padded(std::string text, std::size_t width) {
+    const std::size_t current = displayWidth(text);
+    if (current < width) {
+        text.append(width - current, ' ');
+    }
+    return text;
+}
+
+} // namespace
+
+// A table with columns two spaces apart (widths in characters).
+std::string formatTable(const std::vector<std::string>& header,
+                        const std::vector<std::vector<std::string>>& rows) {
+    std::vector<std::size_t> widths;
+    for (std::size_t column = 0; column < header.size(); ++column) {
+        std::size_t width = displayWidth(header[column]);
+        for (const auto& row : rows) {
+            width = std::max(width, displayWidth(row[column]));
+        }
+        widths.push_back(width + 2);
+    }
+    const auto formatRow = [&](const std::vector<std::string>& row) {
+        std::string line;
+        for (std::size_t column = 0; column < row.size(); ++column) {
+            line += column + 1 < row.size() ? padded(row[column], widths[column]) : row[column];
+        }
+        return line + "\n";
+    };
+    std::string text = formatRow(header);
+    for (const auto& row : rows) {
+        text += formatRow(row);
+    }
+    return text;
 }
 
 } // namespace hio::cli

@@ -40,6 +40,7 @@ target_include_directories(hio_diag PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
 target_include_directories(hio_diag PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(hio_diag
     PUBLIC hio::diag_types hio::diag_usb hio::core hio::device hio::hw_jlink hio::hw_nrfutil
+           hio::hw_ble
            Qt6::Core
     PRIVATE hio::miniz hio::version_info)
 if(WIN32)

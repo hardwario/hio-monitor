@@ -6,10 +6,14 @@
 add_library(hio_cli_impl STATIC
     src/chester_commands.cpp
     src/chester_commands.h
+    src/ble_commands.cpp
+    src/ble_commands.h
     src/cli_app.cpp
     src/cli_app.h
     src/cli_log.cpp
     src/cli_log.h
+    src/command_collector.cpp
+    src/command_collector.h
     src/command_response.cpp
     src/command_response.h
     src/confirm.cpp
@@ -52,6 +56,15 @@ hio_apply_target_defaults(hio)
 target_link_libraries(hio PRIVATE hio_cli_impl)
 # A console application on every OS (no WIN32_EXECUTABLE, no MACOSX_BUNDLE).
 set_target_properties(hio PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+# ADR-0086: macOS needs NSBluetoothAlwaysUsageDescription before CoreBluetooth may be used; the
+# bare executable carries its Info.plist as the __TEXT,__info_plist section.
+if(APPLE)
+    set(HIO_CLI_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
+    configure_file(macos/Info.plist.in "${HIO_CLI_INFO_PLIST}" @ONLY)
+    target_link_options(hio PRIVATE
+        "LINKER:-sectcreate,__TEXT,__info_plist,${HIO_CLI_INFO_PLIST}")
+    set_property(TARGET hio APPEND PROPERTY LINK_DEPENDS "${HIO_CLI_INFO_PLIST}")
+endif()
 
 if(HIO_BUILD_TESTS)
     add_subdirectory(tests)

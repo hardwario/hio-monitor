@@ -41,6 +41,7 @@ Q_LOGGING_CATEGORY(lcDevice, "hio.device")
 Q_LOGGING_CATEGORY(lcFirmware, "hio.firmware")
 Q_LOGGING_CATEGORY(lcFlash, "hio.flash")
 Q_LOGGING_CATEGORY(lcDiag, "hio.diag")
+Q_LOGGING_CATEGORY(lcBle, "hio.ble")
 
 namespace {
 

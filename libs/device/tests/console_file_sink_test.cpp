@@ -2,6 +2,7 @@
 #include "hio/device/console_file_sink.h"
 #include "hio/device/console_line.h"
 #include "hio/device/probe_lock.h"
+#include "hio/device/session_key.h"
 #include "lock_holder.h"
 
 #include <QFile>
@@ -261,6 +262,49 @@ TEST_F(Sink, RetentionKeepsOnlyTheNewestFileOfAProbeLockedByAnotherProcess) {
     EXPECT_FALSE(fs::exists(live));
 }
 #endif
+
+#ifndef _WIN32
+// ADR-0128: a BLE session's newest file is live while another process holds its BleLock; the
+// sanitised id in the file name finds the lock.
+TEST_F(Sink, RetentionKeepsTheNewestFileOfABleDeviceLockedByAnotherProcess) {
+    makeOldFiles();
+    fs::create_directories(lockDir());
+    hio::device::test::LockHolder holder(
+        QString::fromStdString((lockDir() / "ble-F1-22-33-44-55-66.lock").string()));
+    ASSERT_TRUE(holder.waitUntilLocked());
+    const auto now = fs::file_time_type::clock::now();
+    fs::last_write_time(lockDir() / "ble-F1-22-33-44-55-66.lock", now - std::chrono::hours(300));
+    const fs::path live = dir() / "chester-ble-20260101-000000-F1-22-33-44-55-66.log";
+    const fs::path older = dir() / "chester-ble-20251201-000000-F1-22-33-44-55-66.log";
+    std::ofstream(live) << "x";
+    std::ofstream(older) << "x";
+    fs::last_write_time(live, now - std::chrono::hours(150));
+    fs::last_write_time(older, now - std::chrono::hours(160));
+
+    auto sink =
+        ConsoleFileSink::open(defaultConfig(), 1, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    EXPECT_TRUE(fs::exists(live));
+    EXPECT_FALSE(fs::exists(older)); // not the newest file of that device
+    holder.release();
+    auto next =
+        ConsoleFileSink::open(defaultConfig(), 2, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(next);
+    EXPECT_FALSE(fs::exists(live));
+}
+#endif
+
+TEST_F(Sink, BleFileNameUsesTheSanitisedId) {
+    const auto time = std::chrono::system_clock::now();
+    auto sink = ConsoleFileSink::open(
+        defaultConfig(), hio::device::SessionKey(hio::device::BleKey{.id = "F1:22:33:44:55:66"}),
+        "Console: CHESTER, Bluetooth", time);
+    ASSERT_TRUE(sink) << sink.error().detail;
+    const std::string name = (*sink)->currentFile().filename().string();
+    EXPECT_TRUE(
+        std::regex_match(name, std::regex(R"(chester-ble-\d{8}-\d{6}-F1-22-33-44-55-66\.log)")))
+        << name;
+}
 
 // Review R45: the files this process has open (another session's sink, here without any probe
 // lock) are never deleted, even when they are the oldest.

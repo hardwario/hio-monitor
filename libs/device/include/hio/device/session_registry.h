@@ -3,14 +3,17 @@
 // SessionRegistry - the sessions of this process (plan/features/0002-m1-jlink-rtt.md, ADR-0030,
 // ADR-0058). Owned by the application (GUI / CLI); must outlive its sessions.
 //
-// Bounds: at most maxSessions sessions (internal.session_limit), at most one per probe serial
-// number (probe.open_failed "already used by this application"). Probes used by other processes
-// are detected through their ProbeLock (ADR-0058).
+// Bounds: at most maxSessions sessions (internal.session_limit), J-Link and BLE together
+// (ADR-0083), at most one per SessionKey (probe.open_failed / ble.in_use_by_other_process
+// "already used by this application"). Probes and Bluetooth devices used by other processes are
+// detected through their ProbeLock (ADR-0058) / BleLock (ADR-0083).
 //
 // Thread safety: none; owner thread only (the thread of the sessions' facades).
 
 #include "hio/core/result.h"
 #include "hio/device/probe_lock.h"
+#include "hio/device/session_key.h"
+#include "hio/hw/ble/types.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/types.h"
 
@@ -22,9 +25,12 @@
 
 namespace hio::device {
 
+class BleSession;
+class ConsoleSession;
 class DeviceSession;
 
 namespace detail {
+struct BleSessionInternals;
 struct SessionInternals;
 } // namespace detail
 
@@ -42,6 +48,12 @@ struct ProbeStatus {
     jlink::ProbeInfo probe;
     const DeviceSession* usedBySession = nullptr;     // a session of this process (GUI: a tab)
     std::optional<ProbeLockOwner> usedByOtherProcess; // another process's lock owner
+};
+
+// Who uses a Bluetooth device (scan rows; plan 0011).
+struct BleUse {
+    const ConsoleSession* session = nullptr;    // a session of this process
+    std::optional<ProbeLockOwner> otherProcess; // another process's BleLock owner
 };
 
 struct ProbeStatusList {
@@ -71,22 +83,33 @@ public:
 
     [[nodiscard]] std::size_t sessionCount() const noexcept { return m_sessions.size(); }
     // The session of this process that uses (or asked for) the probe, or nullptr.
+    // (A thin wrapper of sessionFor(ProbeKey) for the M1-M4 call sites.)
     [[nodiscard]] const DeviceSession* sessionForProbe(std::uint32_t serialNumber) const;
+    // The session of this process with this key (a J-Link session also by its requested serial
+    // number), or nullptr.
+    [[nodiscard]] const ConsoleSession* sessionFor(const SessionKey& key) const;
+    // This process's session of the device, else the other process holding its BleLock.
+    [[nodiscard]] BleUse bleInUse(const ble::BleDeviceId& id) const;
     [[nodiscard]] const RegistryOptions& options() const noexcept { return m_options; }
 
     // Errors: internal.session_limit, probe.open_failed (the probe is used by a session of this
     // process). Used by DeviceSession::open() and the short-lived probe tools.
     [[nodiscard]] Status checkAvailable(std::optional<std::uint32_t> serialNumber) const;
+    // Errors: internal.session_limit, probe.open_failed (J-Link key used by this process),
+    // ble.in_use_by_other_process "already used by this application" (BLE key, Q3).
+    [[nodiscard]] Status checkAvailable(const std::optional<SessionKey>& key) const;
 
 private:
+    friend class BleSession;
     friend class DeviceSession;
+    friend struct detail::BleSessionInternals;
     friend struct detail::SessionInternals;
 
-    void add(DeviceSession* session);
-    void remove(DeviceSession* session) noexcept;
+    void add(ConsoleSession* session);
+    void remove(ConsoleSession* session) noexcept;
 
     RegistryOptions m_options;
-    std::vector<DeviceSession*> m_sessions; // non-owning; each removes itself in close()
+    std::vector<ConsoleSession*> m_sessions; // non-owning; each removes itself in close()
 };
 
 } // namespace hio::device

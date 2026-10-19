@@ -2,8 +2,7 @@
 
 #include "cli_app.h"
 #include "cli_log.h"
-#include "command_response.h"
-#include "console_events.h"
+#include "command_collector.h"
 #include "console_ui.h"
 #include "diag_commands.h"
 #include "flash_commands.h"
@@ -11,10 +10,9 @@
 #include "hio/core/json.h"
 #include "hio/core/result.h"
 #include "hio/device/command_history.h"
-#include "hio/device/console_line.h"
+#include "hio/device/console_session.h"
 #include "hio/device/device_session.h"
 #include "hio/device/profile.h"
-#include "hio/device/session_events.h"
 #include "hio/device/session_registry.h"
 #include "hio/hw/jlink/rtt_channel.h"
 #include "jlink_commands.h"
@@ -44,12 +42,10 @@
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <stop_token>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 namespace hio::cli {
 
@@ -59,9 +55,6 @@ namespace fs = std::filesystem;
 
 constexpr std::string_view profileId = "chester";
 constexpr std::string_view targetId = "app";
-// `chester app command`: margin on top of lines x RTT write timeout for the echoes (review R23).
-constexpr std::chrono::milliseconds writeBudgetMargin{500};
-
 const char* const powerCycleTip =
     "TIP: After a J-Link connection, power-cycle the device; otherwise the CPU stays in debug "
     "mode with increased power consumption.";
@@ -113,18 +106,6 @@ Result<device::SessionOptions> sessionOptions(const ProbeOptions& group, const P
         options.consoleFile = fs::path(toQString(consoleFile).toStdU16String());
     }
     return options;
-}
-
-std::vector<std::string> splitLines(const std::string& text) {
-    std::vector<std::string> lines;
-    std::istringstream stream(text);
-    for (std::string line; std::getline(stream, line);) {
-        if (line.ends_with('\r')) {
-            line.pop_back();
-        }
-        lines.push_back(std::move(line));
-    }
-    return lines;
 }
 
 // ADR-0110: before connecting at a fixed speed below 125 kHz, where the console may not be found
@@ -215,158 +196,6 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
 
 // ---- command --------------------------------------------------------------------------------
 
-// Collects the response of `chester app command` from the moment the command is sent.
-class ResponseCollector {
-public:
-    ResponseCollector(const Context& context, device::DeviceSession& session) {
-        QObject::connect(&session, &device::DeviceSession::linesReceived, &m_receiver,
-                         [this](const QList<device::ConsoleLine>& lines) { collect(lines); });
-        QObject::connect(&session, &device::DeviceSession::connectionChanged, &m_receiver,
-                         [this](const device::ConnectionEvent& event) {
-                             if (m_collecting && event.error &&
-                                 event.state != device::ConnectionState::Connected) {
-                                 m_failure = event.error;
-                             }
-                             if (m_collecting &&
-                                 event.state != device::ConnectionState::Connected) {
-                                 m_disconnected = true; // no further line will be written
-                             }
-                         });
-        QObject::connect(&session, &device::DeviceSession::warning, &m_receiver,
-                         [this, &context](const Error& error) {
-                             qCWarning(lcCli).noquote() << toQString(error.message);
-                             if (m_collecting && endsTheCommand(error.code)) {
-                                 m_failure = error; // the command was not written (review R16)
-                             } else if (context.mode == OutputMode::Human) {
-                                 std::cerr << humanWarning(error) << '\n';
-                             }
-                         });
-    }
-
-    void start() { m_collecting = true; }
-    // Sent lines echoed by the session, i.e. written to the device.
-    [[nodiscard]] std::size_t written() const { return m_written; }
-    // The collected output and log lines, bounded (review R42).
-    [[nodiscard]] const CommandResponse& response() const { return m_response; }
-    // A connection error while collecting (e.g. the write timed out).
-    [[nodiscard]] const std::optional<Error>& failure() const { return m_failure; }
-    // The session left Connected while collecting (with or without an error).
-    [[nodiscard]] bool disconnected() const { return m_disconnected; }
-
-private:
-    void collect(const QList<device::ConsoleLine>& lines) {
-        for (const device::ConsoleLine& line : lines) {
-            if (m_collecting && line.dir == device::Direction::In) {
-                ++m_written;
-            }
-            if (m_collecting && line.dir == device::Direction::Out) {
-                // Beyond the bound the first lines are kept and nothing more is collected.
-                if (line.channel == device::Channel::Log) {
-                    m_response.addLog(line.text);
-                } else {
-                    m_response.addOutput(line.text);
-                }
-            }
-        }
-    }
-
-    // Warnings that mean a command line did not reach the device.
-    static bool endsTheCommand(ErrorCode code) {
-        return code == ErrorCode::TargetNotConnected ||
-               code == ErrorCode::TargetRttBufferNotFound ||
-               code == ErrorCode::TargetRttWriteTimeout || code == ErrorCode::TargetRttWriteFailed;
-    }
-
-    bool m_collecting = false;
-    bool m_disconnected = false;
-    std::size_t m_written = 0;
-    CommandResponse m_response;
-    std::optional<Error> m_failure;
-    QObject m_receiver;
-};
-
-// Runs the event loop until `done` returns true or `duration` passed; cancelled on Ctrl+C /
-// SIGTERM.
-Status runEventsUntil(const std::function<bool()>& done, std::chrono::milliseconds duration,
-                      const std::stop_token& stop) {
-    Status result;
-    QEventLoop loop;
-    QTimer deadline;
-    deadline.setSingleShot(true);
-    QObject::connect(&deadline, &QTimer::timeout, &loop, &QEventLoop::quit);
-    QTimer stopPoll;
-    QObject::connect(&stopPoll, &QTimer::timeout, &loop, [&] {
-        if (stop.stop_requested()) {
-            result = fail(ErrorCode::Cancelled);
-            loop.quit();
-        } else if (done()) {
-            loop.quit();
-        }
-    });
-    deadline.start(duration);
-    stopPoll.start(std::chrono::milliseconds(20));
-    loop.exec();
-    return result;
-}
-
-// Queues the command lines in order; a full command queue keeps the rest for the next send()
-// (review R39, as the console's LineSender).
-class LineQueue {
-public:
-    LineQueue(device::DeviceSession& session, const std::vector<std::string>& lines)
-        : m_session(&session), m_lines(&lines) {}
-
-    void send() {
-        while (m_next < m_lines->size() && !m_error) {
-            Status sent = m_session->sendLine(m_lines->at(m_next));
-            if (!sent && sent.error().code == ErrorCode::InternalQueueFull) {
-                return; // the worker is busy writing; the rest goes in the next round
-            }
-            if (!sent) {
-                m_error = std::move(sent).error();
-                return;
-            }
-            ++m_next;
-        }
-    }
-
-    // A send error other than a full queue (e.g. the session was closed).
-    [[nodiscard]] const std::optional<Error>& error() const noexcept { return m_error; }
-
-private:
-    device::DeviceSession* m_session;        // non-owning; outlives the queue
-    const std::vector<std::string>* m_lines; // non-owning; outlives the queue
-    std::size_t m_next = 0;
-    std::optional<Error> m_error;
-};
-
-CommandResult commandResult(const Context& context, const std::string& command,
-                            const CommandResponse& response) {
-    QJsonArray outputJson;
-    std::string text;
-    for (const std::string& line : response.output()) {
-        outputJson.append(toQString(line));
-        text += text.empty() ? line : "\n" + line;
-    }
-    QJsonArray logJson;
-    for (const std::string& line : response.log()) {
-        logJson.append(toQString(line));
-    }
-    QJsonObject data;
-    data.insert(QStringLiteral("command"), toQString(command));
-    data.insert(QStringLiteral("output"), outputJson);
-    data.insert(QStringLiteral("log"), logJson);
-    data.insert(QStringLiteral("truncated"), response.truncated());
-    if (response.truncated()) {
-        qCWarning(lcCli) << "Command output truncated after" << response.lines() << "lines,"
-                         << response.bytes() << "bytes";
-        if (context.mode == OutputMode::Human) {
-            std::cerr << std::format("Output truncated after {} lines\n", response.lines());
-        }
-    }
-    return CommandResult{.data = data, .humanText = text, .streamed = false};
-}
-
 Result<CommandResult> command(const Context& context, const GlobalOptions& globals,
                               const ProbeOptions& group, const CommandOptions& options) {
     auto location = locateJLinkLibrary(globals);
@@ -401,61 +230,16 @@ Result<CommandResult> command(const Context& context, const GlobalOptions& globa
         }
     }
 
-    // py-hardwario: send every line, then collect for the timeout counted from when the last
-    // line was written (its echo arrived). The lines are queued while the event loop runs, a full
-    // command queue (more than 256 lines) keeps the rest for the next round (review R39, as the
-    // console's LineSender). The worker writes them one after another, each within the RTT write
-    // timeout, so the echoes are awaited for one write timeout per line, counted as the lines are
-    // written (line n+1 until start + (n + 1) x write timeout + 500 ms, n = lines written so
-    // far; at most lines x write timeout + 500 ms in total), or until the worker reports a failed
-    // write or the session leaves Connected; the command takes at most that + timeout (review
-    // fix 7, R23).
-    collector.start();
-    const std::vector<std::string> lines = splitLines(options.command);
-    const auto writeTimeout = jlink::RttTiming{}.writeTimeout;
-    const auto writeBudget =
-        (writeTimeout * static_cast<std::int64_t>(lines.size())) + writeBudgetMargin;
-    const auto started = std::chrono::steady_clock::now();
-    LineQueue queue(device, lines);
-    queue.send();
-    Status collected = runEventsUntil(
-        [&] {
-            queue.send();
-            const auto lineBudget =
-                (writeTimeout * static_cast<std::int64_t>(collector.written() + 1)) +
-                writeBudgetMargin;
-            return queue.error().has_value() || collector.written() >= lines.size() ||
-                   collector.failure().has_value() || collector.disconnected() ||
-                   std::chrono::steady_clock::now() - started >= lineBudget;
-        },
-        writeBudget, context.stop);
-    if (queue.error()) {
-        device.close();
-        return std::unexpected(*queue.error());
-    }
-    if (collected && !collector.failure() && collector.written() < lines.size()) {
-        // Not every line was written (review R16): the session disconnected, or the worker
-        // could not complete the writes within the budget.
-        device.close();
-        const std::string detail =
-            std::format("{} of {} command lines written", collector.written(), lines.size());
-        return std::unexpected(collector.disconnected()
-                                   ? makeError(ErrorCode::TargetNotConnected, detail)
-                                   : makeError(ErrorCode::TargetRttWriteTimeout, detail));
-    }
-    if (collected && !collector.failure()) {
-        // The collection ends early when the response bound is reached (review R42).
-        collected = runEventsUntil(
-            [&collector] { return collector.response().truncated(); },
-            std::chrono::milliseconds(static_cast<std::int64_t>(options.timeoutSeconds * 1000.0)),
-            context.stop);
-    }
+    const Status status =
+        runCommand(context, device, collector, splitLines(options.command),
+                   CommandTiming{.writeTimeout = jlink::RttTiming{}.writeTimeout,
+                                 .collect = std::chrono::milliseconds(
+                                     static_cast<std::int64_t>(options.timeoutSeconds * 1000.0)),
+                                 .endAtPrompt = false,
+                                 .writeTimeoutCode = ErrorCode::TargetRttWriteTimeout});
     device.close();
-    if (!collected) {
-        return std::unexpected(collected.error());
-    }
-    if (collector.failure()) {
-        return std::unexpected(*collector.failure());
+    if (!status) {
+        return std::unexpected(status.error());
     }
     return commandResult(context, options.command, collector.response());
 }

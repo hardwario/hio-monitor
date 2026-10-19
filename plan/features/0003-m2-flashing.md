@@ -3,7 +3,7 @@
 - **Status:** In progress (implementation started 2026-10-11; approved by Matej Strnad, 2026-10-11, in the text amended by ADR-0057 and ADR-0062; ADR-0069 is not part of this implementation); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010)
 - **Milestone:** M2
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062, 0069, 0094, 0114
+- **Related ADRs:** 0006, 0007, 0015, 0016, 0017, 0022, 0024, 0026, 0027, 0028–0032, 0034, 0035–0042, 0057, 0062, 0069, 0109, 0114
 - **Depends on:** 0001 (M0 skeleton), 0002 (M1 J-Link & RTT: library loading, `JLinkProbe`, `DeviceSession`, fake library)
 
 > **Amended by ADR-0057 and ADR-0062 (M3 planning, applied in this text):** every operation carries its

@@ -59,8 +59,9 @@ plan/
   J-Link flash download with our own Intel HEX parser (ADR-0015, ADR-0035). Modem firmware:
   `IModemUpdater` implemented by the nRF Util wrapper (ADR-0016, ADR-0042). Workflows (UICR rules ADR-0036,
   recover ADR-0039) live in `libs/device` and run as `DeviceSession` operations (features/0003).
-- `IConsoleTransport` — byte/line channels (shell, log) with open/close/reconnect;
-  implementations: J-Link RTT, BLE NUS (and serial in the future).
+- `ConsoleSession` (ADR-0079, replaces the earlier `IConsoleTransport` idea) — the console of a session (send
+  line, reconnect, close, `ConsoleLog`, connection events); implemented by `DeviceSession` (J-Link RTT) and
+  `BleSession` (BLE NUS), serial possible in the future.
 - `DeviceProfile` — compiled-in C++ data (ADR-0032) describing a device: MCU(s) and J-Link device names, expected family,
   RTT buffer names (`Terminal`, `Logger`), UICR/PIB layout, wizard illustrations,
   firmware catalog endpoints.

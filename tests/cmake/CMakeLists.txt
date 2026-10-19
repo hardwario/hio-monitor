@@ -21,3 +21,15 @@ set_tests_properties(cmake_backend_rule_accepts_core PROPERTIES
     PASS_REGULAR_EXPRESSION "backend link rule checked for 1 libraries"
     FAIL_REGULAR_EXPRESSION "ADR-0004;CMake Error"
     LABELS "cmake")
+
+# ADR-0086 (plan/features/0011 D1): on macOS both binaries carry the Bluetooth usage description.
+if(APPLE)
+    add_test(NAME macos_cli_info_plist
+        COMMAND "${CMAKE_COMMAND}" "-DHIO_BINARY=$<TARGET_FILE:hio>" -DHIO_KIND=cli
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/check_macos_plist.cmake")
+    add_test(NAME macos_gui_info_plist
+        COMMAND "${CMAKE_COMMAND}"
+            "-DHIO_BINARY=$<TARGET_BUNDLE_CONTENT_DIR:hio-monitor>/Info.plist" -DHIO_KIND=gui
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/check_macos_plist.cmake")
+    set_tests_properties(macos_cli_info_plist macos_gui_info_plist PROPERTIES LABELS "cmake")
+endif()

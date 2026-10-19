@@ -1,6 +1,7 @@
 #pragma once
 
-// The `hio chester app console` front end (ADR-0033, plan/features/0002-m1-jlink-rtt.md).
+// The console front end of `hio chester app console` and `hio ble console` (ADR-0033,
+// plan/features/0002-m1-jlink-rtt.md; M5: any ConsoleSession, ADR-0079, plan 0011 C1).
 //
 // Interactive (stdin and stdout are terminals, no --json): a scrolling line mode with replxx -
 // device output is printed above the prompt, Enter sends the line, Up/Down history, Ctrl+R
@@ -18,7 +19,7 @@
 #include "hio/core/error.h"
 #include "hio/core/result.h"
 #include "hio/device/console_line.h"
-#include "hio/device/device_session.h"
+#include "hio/device/console_session.h"
 #include "hio/device/session_events.h"
 
 #include <QJsonValue>
@@ -46,7 +47,8 @@ class ConsoleView {
 public:
     using Printer = std::function<void(ConsoleStream, std::string_view)>;
 
-    ConsoleView(const Context& context, device::DeviceSession& session, bool colors,
+    // `announceProbe`: print "Using J-Link ..." once the probe is known (J-Link sessions only).
+    ConsoleView(const Context& context, device::ConsoleSession& session, bool colors,
                 bool announceProbe);
     ~ConsoleView();
     ConsoleView(const ConsoleView&) = delete;
@@ -81,8 +83,8 @@ private:
     void checkOutput();
     void announceProbe();
 
-    const Context* m_context;         // non-owning; outlives the view
-    device::DeviceSession* m_session; // non-owning; outlives the view
+    const Context* m_context;          // non-owning; outlives the view
+    device::ConsoleSession* m_session; // non-owning; outlives the view
     bool m_colors;
     bool m_announceProbe;
     bool m_showEcho = true;
@@ -98,7 +100,7 @@ private:
 struct ConsoleUiOptions {
     bool interactive = false;
     std::optional<std::filesystem::path> historyFile; // interactive only
-    std::string prompt = "uart:~$ ";                  // the CHESTER shell prompt
+    std::string prompt = "uart:~$ "; // the local prompt (BLE: the profile's shell prompt)
     // Plain / --json mode: output is collected this long after the end of input (--linger).
     std::chrono::milliseconds linger{1000};
 };
@@ -108,13 +110,13 @@ struct ConsoleUiOptions {
 // session's error, timeout or cancelled) it closes the session and emits the --json console's one
 // terminal "stopped" event, so the caller only prints the error envelope (review R34).
 [[nodiscard]] Status waitForConsoleConnection(const Context& context,
-                                              device::DeviceSession& session, ConsoleView& view,
+                                              device::ConsoleSession& session, ConsoleView& view,
                                               bool autoReconnect,
                                               std::chrono::milliseconds timeout);
 
 // Runs the console until the user quits, input ends, Ctrl+C / SIGTERM (cancelled) or a fatal
 // session error (that error). The session must be connected already.
-[[nodiscard]] Status runConsole(const Context& context, device::DeviceSession& session,
+[[nodiscard]] Status runConsole(const Context& context, device::ConsoleSession& session,
                                 ConsoleView& view, const ConsoleUiOptions& options);
 
 } // namespace hio::cli

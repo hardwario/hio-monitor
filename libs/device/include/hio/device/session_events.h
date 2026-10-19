@@ -1,6 +1,7 @@
 #pragma once
 
-// Events of a DeviceSession (plan/features/0002-m1-jlink-rtt.md, ADR-0031).
+// Events of a console session (plan/features/0002-m1-jlink-rtt.md, ADR-0031; M5: the transport
+// and the BLE MTU, plan/features/0011, ADR-0079).
 
 #include "hio/core/error.h"
 #include "hio/device/console_line.h"
@@ -13,6 +14,9 @@
 #include <variant>
 
 namespace hio::device {
+
+// The transport of a console session (ADR-0079).
+enum class Transport : std::uint8_t { JLink, Ble };
 
 enum class ConnectionState : std::uint8_t {
     Connecting, // the worker loads the library, opens the probe, connects and attaches RTT
@@ -31,6 +35,10 @@ struct ConnectionEvent {
     // event was emitted (set at least on Connected); nullopt when not measured or unavailable
     // (no reading yet, the probe does not answer, or a probe that cannot measure VTref reads 0).
     std::optional<int> targetMillivolts;
+    // M5 (plan/features/0011): the session's transport; ProbeOpen is never used by BLE.
+    Transport transport = Transport::JLink;
+    // M5: the negotiated BLE ATT MTU, set on Connected of a BLE session; nullopt for J-Link.
+    std::optional<std::uint16_t> mtu = std::nullopt;
 };
 
 // Events were lost because the event queue was full (it drops the oldest, ADR-0031).
@@ -46,6 +54,8 @@ using SessionEvent = std::variant<ConsoleLine, ConnectionEvent, LinesDropped, Wa
 
 // "connecting", "probeOpen", "connected", "disconnected", "stopped" (JSON).
 [[nodiscard]] std::string_view connectionStateId(ConnectionState state) noexcept;
+// "jlink", "ble" (JSON).
+[[nodiscard]] std::string_view transportId(Transport transport) noexcept;
 
 } // namespace hio::device
 

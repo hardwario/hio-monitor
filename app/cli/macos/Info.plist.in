@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The `hio` CLI (ADR-0086, plan/features/0011 D1): embedded into the executable as the
+     __TEXT,__info_plist section (-sectcreate), so that macOS lets it use CoreBluetooth. macOS
+     attributes the permission to the responsible process (usually the terminal app). -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.hardwario.monitor.cli</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>hio</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@PROJECT_VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@PROJECT_VERSION@</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>HARDWARIO Monitor uses Bluetooth to connect to the console of your devices.</string>
+</dict>
+</plist>

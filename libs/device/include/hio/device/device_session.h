@@ -41,6 +41,10 @@
 // sessions opened with attachRtt = false. cancel() ends the operation with `cancelled` at its next
 // stop check (never inside an erase-all, a recover or one flash-loader download).
 //
+// M5 (ADR-0079, plan/features/0011): DeviceSession implements the transport-neutral ConsoleSession
+// (identity {JLink, "<sn>", "J-Link <sn>"}, all capabilities, consoleTargetId() = its target);
+// the J-Link operations, suspend/resume, probe(), diagnose and startConnection stay here.
+//
 // Thread safety: every member function must be called on the owner thread.
 
 #include "hio/core/bounded_queue.h"
@@ -48,6 +52,7 @@
 #include "hio/core/result.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
+#include "hio/device/console_session.h" // IWYU pragma: export (waitUntilConnected, M1 users)
 #include "hio/device/operation.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
@@ -127,7 +132,7 @@ inline constexpr int maxSpeedKhz = 50000;
 inline constexpr int minLatencyMs = 1;
 inline constexpr int maxLatencyMs = 1000;
 
-class DeviceSession : public QObject {
+class DeviceSession final : public ConsoleSession {
     Q_OBJECT
 
     struct Passkey {
@@ -147,7 +152,7 @@ public:
 
     DeviceSession(Passkey key, SessionRegistry& registry,
                   std::unique_ptr<detail::SessionInternals> internals);
-    ~DeviceSession() override; // close()
+    ~DeviceSession() override; // closes (closeSession())
     DeviceSession(const DeviceSession&) = delete;
     DeviceSession& operator=(const DeviceSession&) = delete;
     DeviceSession(DeviceSession&&) = delete;
@@ -155,8 +160,8 @@ public:
 
     // Queued for the worker; an Error only when the queue is full (internal.queue_full) or the
     // session is closed (cancelled). Results arrive as events (echo line, warning, connection).
-    [[nodiscard]] Status sendLine(std::string line);
-    [[nodiscard]] Status reconnect();
+    [[nodiscard]] Status sendLine(std::string line) override;
+    [[nodiscard]] Status reconnect() override;
     [[nodiscard]] Status suspend(); // detach and release the probe (M2 / nRF Util)
     [[nodiscard]] Status resume();  // allow attaching again and re-attach now
 
@@ -200,11 +205,11 @@ public:
     // a result the worker delivered after a waiter gave up (review R13).
     [[nodiscard]] std::optional<OperationResult> finishedResult(OperationId id) const;
 
-    // Stops and joins the worker, releases the probe lock and the registry slot. Idempotent.
-    void close();
+    // close() (ConsoleSession) stops and joins the worker, releases the probe lock and the
+    // registry slot. Idempotent.
 
     // Owner thread only; the provided or the session's own log.
-    [[nodiscard]] const ConsoleLog& log() const;
+    [[nodiscard]] const ConsoleLog& log() const override;
     // The probe; serialNumber is 0 until the worker has opened it (connectionChanged is emitted
     // after it is set).
     [[nodiscard]] jlink::ProbeInfo probe() const;
@@ -212,25 +217,35 @@ public:
     // opened it (after the probe is identified), without a console file and after a write failure
     // stopped it (the session's io.write_failed warning). Updated by the worker's events, like
     // probe(); a continuation file (.partN.log) replaces the name. Owner thread only.
-    [[nodiscard]] std::filesystem::path consoleFile() const;
+    [[nodiscard]] std::filesystem::path consoleFile() const override;
     // The last reported connection event (Connecting before the first one).
-    [[nodiscard]] const ConnectionEvent& connection() const noexcept { return m_connection; }
-    [[nodiscard]] const DeviceProfile& profile() const noexcept;
+    [[nodiscard]] const ConnectionEvent& connection() const noexcept override {
+        return m_connection;
+    }
+    // {JLink, "<sn>", "J-Link <sn>"}: the opened probe's serial number, before that the requested
+    // one ("" when the first free probe is used and not opened yet).
+    [[nodiscard]] SessionIdentity identity() const override;
+    // Reset, LogChannel and Operations.
+    [[nodiscard]] Capabilities capabilities() const override;
+    [[nodiscard]] const DeviceProfile& profile() const noexcept override;
+    [[nodiscard]] std::string_view consoleTargetId() const override;
     [[nodiscard]] const TargetProfile& target() const noexcept;
 
 signals:
-    void linesReceived(const QList<hio::device::ConsoleLine>& lines);
-    void connectionChanged(const hio::device::ConnectionEvent& event);
-    void linesDropped(quint64 count);
-    void warning(const hio::Error& error);
     void operationProgress(hio::device::OperationId id,
                            const hio::device::OperationProgress& progress);
     void operationFinished(hio::device::OperationId id, const hio::device::OperationResult& result);
     // M4: one per finished Diagnose step, in order, before operationFinished (queued; ADR-0069).
     void diagnoseStep(hio::device::OperationId id, const hio::device::DiagnoseStep& step);
 
+protected:
+    void closeSession() override;
+
 private:
     friend struct detail::SessionInternals;
+
+    // The close path of closeSession() and the destructor. Idempotent.
+    void closeNow();
 
     // Owner thread: invoked (queued, by name) by wakeUp().
     Q_INVOKABLE void drainEvents();
@@ -252,20 +267,6 @@ private:
     std::uint64_t m_reportedDrops = 0;
     bool m_closed = false;
 };
-
-// CLI helper (ADR-0053): runs a local QEventLoop until the first Connected (success), a
-// Disconnected or Stopped event with an error (that error), a Stopped event without an error
-// (cancelled: the session was stopped on purpose and does not connect by itself), `timeout`
-// (timeout) or a stop request (cancelled).
-[[nodiscard]] Status waitUntilConnected(DeviceSession& session, std::chrono::milliseconds timeout,
-                                        const std::stop_token& stop = {});
-
-// The console with --auto-reconnect (rttt behaviour, decided 2026-10-09): waits only for the
-// outcome of the first attempt. Success when it Connected or ended Disconnected (the session keeps
-// retrying); a Stopped event ends it with its error (or cancelled without one); also timeout and
-// cancelled (stop request) as in waitUntilConnected().
-[[nodiscard]] Status waitForFirstAttempt(DeviceSession& session, std::chrono::milliseconds timeout,
-                                         const std::stop_token& stop = {});
 
 // CLI helper: runs a local QEventLoop until operation `id` finished and returns its result.
 // `onProgress` gets every progress event. A stop request cancels the operation (DeviceSession::

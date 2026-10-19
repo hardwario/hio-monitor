@@ -1,0 +1,4 @@
+{
+  "adapter": {"state": "notFound"},
+  "devices": [{"id": "F1:22:33:44:55:66", "name": "CHESTER-ABC123", "rssi": -58}]
+}

@@ -3,7 +3,7 @@
 - **Status:** In progress (implementation started 2026-10-09; approved by Matej Strnad, 2026-10-09; re-approved 2026-10-09 with the ADR-0053/0058/0063 amendments); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010)
 - **Milestone:** M1
 - **Author:** Claude (with Matej Strnad), 2026-10-09
-- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063, 0064, 0069, 0072, 0090, 0095
+- **Related ADRs:** 0004, 0006, 0007, 0010, 0015, 0017, 0020, 0022–0026, 0027–0034, 0053, 0058, 0063, 0064, 0069, 0072, 0090, 0110
 - **Depends on:** 0001 (M0 skeleton, incl. the translation infrastructure)
 
 > **Amended by ADR-0053, ADR-0058 and ADR-0063 (M3 planning, applied in this text):** `DeviceSession::open()` is
@@ -17,6 +17,14 @@
 > and its `ProbeLock` stay held; the `Diagnose` operation itself is part of 0003. On Linux a failed probe open checks
 > USB access and reports `usb.access_denied` (ADR-0072) when that is the cause. `probe.in_use_by_other_process` gets
 > the Troubleshooting wizard. The implementation is tracked in 0007 (steps A3, B1, B2).
+
+> **Pending amendment from M5 (ADR-0079, ADR-0083, ADR-0128, specified in [0011](0011-m5-ble-backend-cli.md); approved
+> 2026-10-19 by Matej Strnad together with 0011; applied in the text by the 0011 implementation, 2026-10-19):** `DeviceSession` derives from the new
+> abstract `ConsoleSession` (identity, capabilities, `promptSeen`); `waitUntilConnected` / `waitForFirstAttempt` and
+> the CLI console take `ConsoleSession&`; `ConnectionEvent` gains `transport` and `mtu`; `SessionRegistry` is keyed by
+> `SessionKey = std::variant<ProbeKey, BleKey>` (J-Link and BLE share the 8-session limit); `ConsoleFileSink` opens by
+> `SessionKey` and its retention asks `ProbeLock` or `BleLock`; `LineAssembler` gains a read-only peek of the partial
+> line.
 
 ## Context
 
@@ -195,7 +203,8 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   incomplete line (max **4 KiB**, then force-emitted), decodes UTF-8 per complete line replacing invalid
   sequences with U+FFFD (so multi-byte characters split across reads survive), strips ANSI CSI sequences,
   parses the Zephyr level tag `<dbg|inf|wrn|err>`, and (profile rule) routes shell lines starting with `#` to
-  the Log channel.
+  the Log channel. *Amended by 0011 (M5):* `partial()` gives a read-only view of the incomplete line (BLE prompt
+  detection, ADR-0082).
 - **`ConsoleLog`** — bounded store with monotonically increasing cursors: **100 000 lines per channel**
   (`RingBuffer`), `linesSince(cursor)`, `last(n)`, `clear(channelMask)` (cursors stay monotonic),
   `appendMarker(Channel, std::string)` (ADR-0063: `Direction::Marker` lines added by the GUI on connection or busy
@@ -207,6 +216,8 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   probe-only session (`connectTarget = false`) until `startConnection()`; the CLI console never reports it.
   *Amended by ADR-0091 (2026-10-12):* `ConnectionEvent` also carries `std::optional<int> targetMillivolts`, the
   VTref of the worker's last power reading (set at least on Connected; empty when not measured).
+  *Amended by 0011 (M5, ADR-0079):* `ConnectionEvent` also carries `Transport transport` (`JLink` default, `Ble`) and
+  `std::optional<std::uint16_t> mtu` (BLE, set on Connected); `ProbeOpen` is never used by BLE.
   *Amended by ADR-0093 (2026-10-12):* `libs/hw/jlink` also offers `ProbeEnumerator`, a kept library copy for repeated
   enumerations (the GUI probe scanner, ADR-0050); `enumerateProbes()` is the one-shot form built on it.
 - **`DeviceSession`** (façade `QObject`, ADR-0031):
@@ -244,6 +255,13 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   // CLI helper: runs a local QEventLoop until the first Connected, or Disconnected/Stopped with an error, or timeout.
   [[nodiscard]] Status waitUntilConnected(DeviceSession&, std::chrono::milliseconds timeout);
   ```
+  *Amended by 0011 (M5, ADR-0079):* `DeviceSession` derives from the abstract `ConsoleSession` (`console_session.h`:
+  `sendLine`, `reconnect`, non-virtual idempotent `close()` → `closeSession()`, `log`, `connection`, `identity`
+  `{JLink, "<sn>", "J-Link <sn>"}`, `capabilities` (Reset, LogChannel, Operations), `profile`, `consoleTargetId`
+  (its target), `consoleFile`; the signals above plus `promptSeen()`, never emitted for J-Link). The J-Link
+  operations, `suspend`/`resume`, `probe()`, `diagnose` and `startConnection` stay on `DeviceSession`.
+  `waitUntilConnected` / `waitForFirstAttempt` and the CLI console (`ConsoleView`, `runConsole`,
+  `waitForConsoleConnection`, the command collector) take `ConsoleSession&`.
   *Amended by 0005 (2026-10-16, user decision):* `consoleFile()` returns the console log file the session writes now
   (empty before the worker opened it, without a console file, and after a write failure stopped it). The worker
   reports it with a `ConsoleFileChanged` event (opened, continued in a `.partN` file, stopped) that the owner thread
@@ -329,6 +347,11 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   rttt and are not differences.
 - **`SessionRegistry`** — owned by the application; max **8** sessions, one per probe SN
   (`internal.session_limit`, `probe.open_failed` "already used by this application").
+  *Amended by 0011 (M5, ADR-0083):* keyed by `SessionKey = std::variant<ProbeKey{sn}, BleKey{id}>`, storing
+  `ConsoleSession*`; J-Link and BLE sessions share the 8 slots; `checkAvailable(std::optional<SessionKey>)`,
+  `sessionFor(const SessionKey&)` and `bleInUse(id)`; `checkAvailable(std::optional<std::uint32_t>)` and
+  `sessionForProbe(sn)` stay as thin wrappers. A BLE device used by this process → `ble.in_use_by_other_process`
+  "already used by this application".
   `[[nodiscard]] Result<std::vector<ProbeStatus>> listProbes(const LibraryLocation&)` wraps `listProbes` and adds,
   per probe, `inUseBy` = this process's session (tab) or another process's lock owner.
 - **`ProbeLock`** (ADR-0058, RAII, move-only) — `[[nodiscard]] static Result<ProbeLock> acquire(std::uint32_t sn)`:
@@ -340,6 +363,8 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   mirrored per OS from the Qt 6.8.3 sources because QLockFile has no public non-acquiring stale check (R41), plus the
   own-PID rule. A lock file that exists but cannot be read is an unknown owner (`?`, PID 0), as `acquire()` reports it. The lock lives as long as the session (released in `close()` / the destructor). Creating the `locks/`
   directory fails → `io.write_failed` (the session is not opened, because locking cannot be guaranteed).
+  *Amended by 0011 (M5):* the lock-file implementation is shared with `BleLock` (`locks/ble-<sanitised id>.lock`,
+  same stale, own-PID and retry rules; string-keyed helper `src/lock_file.*`).
 - **`CommandHistory`** — max **1000** entries of max **4 KiB**, consecutive duplicates collapsed; default file
   `AppLocalDataLocation/console/history-<profile>-<target>.txt`; written atomically (`QSaveFile`) every 50 new
   entries and on close — never rewritten per command. `--history-file` overrides the path. Several processes may
@@ -355,6 +380,11 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   live owner in another process per `ProbeLock::owner()`, only the newest file of that SN, and only when it was written
   since that owner took the lock (the lock file's time; 2 s tolerance). Closed `.partN` files of a live session and
   older files are pruned like any other file, so the bounds hold apart from at most one live file per live session.
+  *Amended by 0011 (M5, ADR-0128):* `open()` takes a `SessionKey` (the J-Link form with the SN stays as a thin
+  overload; J-Link file names unchanged); a BLE session's default file is
+  `<profile>-ble-YYYYMMDD-HHMMSS-<sanitised id>.log`; the retention parses the key from the file name and asks
+  `ProbeLock::owner` or `BleLock::owner` with the same live-file rules. Owner: the session worker (J-Link) or the
+  BLE thread (BLE).
   Explicit `--console-file P`: append; when it exceeds **100 MiB** it is renamed
   to `P.1` (replacing an older `P.1`) and a new file starts. If that rename fails, the file is not rotated again
   in this session (one `Warning` `io.write_failed`) and is appended to up to **2 × 100 MiB**, then it is not

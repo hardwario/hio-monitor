@@ -4,8 +4,10 @@
 #include "hio/core/json.h"
 #include "hio/core/log.h"
 #include "hio/core/result.h"
+#include "hio/device/ble_lock.h"
 #include "hio/device/console_line.h"
 #include "hio/device/probe_lock.h"
+#include "hio/device/session_key.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -34,6 +36,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace hio::device {
@@ -118,31 +121,56 @@ OpenFiles& openFiles() {
     return files;
 }
 
-// The probe serial number of a default console file name,
-// <profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log or <...>-<sn>.partN.log; nullopt for other names.
-std::optional<std::uint32_t> serialNumberOf(const fs::path& file) {
+bool allDigits(std::string_view text) {
+    return !text.empty() && std::ranges::all_of(text, [](char c) { return c >= '0' && c <= '9'; });
+}
+
+// The session key of a default console file name (ADR-0128):
+// <profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log (J-Link) or <profile>-ble-YYYYMMDD-HHMMSS-<id>.log
+// (BLE, the sanitised id), optionally with .partN before .log; nullopt for other names.
+std::optional<SessionKey> sessionKeyOf(const fs::path& file) {
     std::string stem = file.stem().string(); // without ".log"
     if (const auto part = stem.rfind(".part"); part != std::string::npos) {
         stem.resize(part);
     }
-    const auto dash = stem.rfind('-');
-    if (dash == std::string::npos || dash + 1 >= stem.size()) {
-        return std::nullopt;
+    const std::string_view name = stem;
+    // Find "-YYYYMMDD-HHMMSS-" (the first one: the sanitised BLE id may contain dashes).
+    constexpr std::size_t stampSize = 17; // -YYYYMMDD-HHMMSS-
+    for (std::size_t at = name.find('-');
+         at != std::string_view::npos && at + stampSize < name.size();
+         at = name.find('-', at + 1)) {
+        const std::string_view stamp = name.substr(at, stampSize);
+        if (stamp[9] != '-' || stamp[16] != '-' || !allDigits(stamp.substr(1, 8)) ||
+            !allDigits(stamp.substr(10, 6))) {
+            continue;
+        }
+        const std::string_view prefix = name.substr(0, at);
+        const std::string_view id = name.substr(at + stampSize);
+        if (prefix.ends_with("-ble")) {
+            return SessionKey(BleKey{.id = std::string(id)});
+        }
+        constexpr std::size_t maxDigits = 10; // std::uint32_t
+        if (id.size() > maxDigits || !allDigits(id)) {
+            return std::nullopt;
+        }
+        std::uint64_t value = 0;
+        for (const char c : id) {
+            value = (value * 10) + static_cast<std::uint64_t>(c - '0');
+        }
+        if (value > std::numeric_limits<std::uint32_t>::max()) {
+            return std::nullopt;
+        }
+        return SessionKey(ProbeKey{.sn = static_cast<std::uint32_t>(value)});
     }
-    const std::string_view digits = std::string_view(stem).substr(dash + 1);
-    constexpr std::size_t maxDigits = 10; // std::uint32_t
-    if (digits.size() > maxDigits ||
-        !std::ranges::all_of(digits, [](char c) { return c >= '0' && c <= '9'; })) {
-        return std::nullopt;
+    return std::nullopt;
+}
+
+// A set key per session ("p<sn>", "b<id>").
+std::string keyText(const SessionKey& key) {
+    if (const auto* probe = std::get_if<ProbeKey>(&key)) {
+        return "p" + std::to_string(probe->sn);
     }
-    std::uint64_t value = 0;
-    for (const char c : digits) {
-        value = (value * 10) + static_cast<std::uint64_t>(c - '0');
-    }
-    if (value > std::numeric_limits<std::uint32_t>::max()) {
-        return std::nullopt;
-    }
-    return static_cast<std::uint32_t>(value);
+    return "b" + std::get<BleKey>(key).id;
 }
 
 // Coarse file-system timestamps (FAT: 2 s): a file written within this time before its probe's
@@ -167,7 +195,7 @@ fs::path ConsoleFileSink::defaultDirectory() {
 }
 
 Result<std::unique_ptr<ConsoleFileSink>>
-ConsoleFileSink::open(const ConsoleFileConfig& config, std::uint32_t probeSerialNumber,
+ConsoleFileSink::open(const ConsoleFileConfig& config, const SessionKey& key,
                       std::string_view headerText, std::chrono::system_clock::time_point now) {
     fs::path base;
     if (config.explicitFile) {
@@ -175,8 +203,14 @@ ConsoleFileSink::open(const ConsoleFileConfig& config, std::uint32_t probeSerial
     } else {
         const QString stamp =
             toDateTime(now).toTimeZone(QTimeZone::UTC).toString(QStringLiteral("yyyyMMdd-HHmmss"));
-        base = config.directory / std::format("{}-{}-{}-{}.log", config.profileId, config.targetId,
-                                              stamp.toStdString(), probeSerialNumber);
+        if (const auto* probe = std::get_if<ProbeKey>(&key)) {
+            base = config.directory / std::format("{}-{}-{}-{}.log", config.profileId,
+                                                  config.targetId, stamp.toStdString(), probe->sn);
+        } else {
+            base = config.directory / std::format("{}-ble-{}-{}.log", config.profileId,
+                                                  stamp.toStdString(),
+                                                  sanitisedBleId(std::get<BleKey>(key).id));
+        }
     }
     auto sink = std::make_unique<ConsoleFileSink>(Passkey{}, config, std::move(base));
     if (auto status = sink->openCurrent(); !status) {
@@ -190,6 +224,12 @@ ConsoleFileSink::open(const ConsoleFileConfig& config, std::uint32_t probeSerial
         sink->prune();
     }
     return sink;
+}
+
+Result<std::unique_ptr<ConsoleFileSink>>
+ConsoleFileSink::open(const ConsoleFileConfig& config, std::uint32_t probeSerialNumber,
+                      std::string_view headerText, std::chrono::system_clock::time_point now) {
+    return open(config, SessionKey(ProbeKey{.sn = probeSerialNumber}), headerText, now);
 }
 
 ConsoleFileSink::ConsoleFileSink(Passkey /*key*/, ConsoleFileConfig config, fs::path baseFile)
@@ -340,23 +380,28 @@ void ConsoleFileSink::prune() const {
     });
     // Only a file a live session is writing now is kept (review R45, R48): in this process the
     // files a sink has open; for a probe whose lock has a live owner in ANOTHER process
-    // (ProbeLock::owner() rules), only the newest file of that serial number, and only when it was
-    // written since the owner took the lock. The closed .partN files of a live session and the
+    // (ProbeLock / BleLock owner() rules), only the newest file of that session, and only when it
+    // was written since the owner took the lock. The closed .partN files of a live session and the
     // files of finished sessions are pruned as usual, so at most one file per live session is
     // kept beyond the bounds.
     const fs::path lockDirectory =
         m_config.lockDirectory.empty() ? ProbeLock::defaultDirectory() : m_config.lockDirectory;
     const qint64 ownPid = QCoreApplication::applicationPid();
-    std::set<std::uint32_t> newestSeen; // serial numbers whose newest file was seen; bounded
+    std::set<std::string> newestSeen; // session keys whose newest file was seen; bounded
     const auto isLive = [&](const FileInfo& file) {
         if (openFiles().contains(file.path)) {
             return true;
         }
-        const std::optional<std::uint32_t> serialNumber = serialNumberOf(file.path);
-        if (!serialNumber || !newestSeen.insert(*serialNumber).second) {
-            return false; // not a session file, or not the newest file of its probe
+        const std::optional<SessionKey> key = sessionKeyOf(file.path);
+        if (!key || !newestSeen.insert(keyText(*key)).second) {
+            return false; // not a session file, or not the newest file of its session
         }
-        const std::optional<ProbeLockOwner> owner = ProbeLock::owner(*serialNumber, lockDirectory);
+        // ADR-0128: the J-Link probe lock or the BLE device lock (the sanitised id from the name
+        // is a valid BleLock::owner() id: sanitising is idempotent).
+        const std::optional<ProbeLockOwner> owner =
+            std::holds_alternative<ProbeKey>(*key)
+                ? ProbeLock::owner(std::get<ProbeKey>(*key).sn, lockDirectory)
+                : BleLock::owner(std::get<BleKey>(*key).id, lockDirectory);
         // A lock of this process: its sessions' files are in the open-files list above.
         return owner.has_value() && owner->pid != ownPid &&
                (!owner->lockedAt || file.modified + lockTimeTolerance >= *owner->lockedAt);

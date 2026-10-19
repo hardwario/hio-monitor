@@ -38,6 +38,7 @@ Q_DECLARE_LOGGING_CATEGORY(
     lcFirmware)                     // "hio.firmware" (libs/firmware: images, zips, catalog, cache)
 Q_DECLARE_LOGGING_CATEGORY(lcFlash) // "hio.flash" (programming workflows, nRF Util; plan 0003)
 Q_DECLARE_LOGGING_CATEGORY(lcDiag)  // "hio.diag" (libs/diag: checks, report; plan 0007)
+Q_DECLARE_LOGGING_CATEGORY(lcBle)   // "hio.ble" (libs/hw/ble, BLE sessions; plan 0011)
 
 enum class AppKind : std::uint8_t {
     Gui,

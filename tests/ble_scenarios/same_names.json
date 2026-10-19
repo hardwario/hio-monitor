@@ -1,0 +1,6 @@
+{
+  "devices": [
+    {"id": "F1:00:00:00:00:01", "name": "CHESTER-SAME", "rssi": -70},
+    {"id": "F1:00:00:00:00:02", "name": "CHESTER-SAME", "rssi": -60}
+  ]
+}

@@ -38,6 +38,8 @@ jobs:
           lfs: false
       - name: Git LFS rule
         run: tools/check-lfs.sh
+      - name: Portable includes (no <bits/...>)
+        run: tools/check-includes.sh
       - name: Install LLVM ${{ env.LLVM_MAJOR }}
         run: |
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
@@ -55,6 +57,7 @@ jobs:
           version: ${{ env.QT_VERSION }}
           arch: linux_gcc_64
           aqtversion: ${{ env.AQT_VERSION }}
+          modules: qtconnectivity # Qt Bluetooth (plan 0011, ADR-0080)
           cache: true
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -109,6 +112,7 @@ jobs:
           version: ${{ env.QT_VERSION }}
           arch: linux_gcc_64
           aqtversion: ${{ env.AQT_VERSION }}
+          modules: qtconnectivity # Qt Bluetooth (plan 0011, ADR-0080)
           cache: true
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -182,6 +186,7 @@ jobs:
           version: ${{ env.QT_VERSION }}
           arch: clang_64
           aqtversion: ${{ env.AQT_VERSION }}
+          modules: qtconnectivity # Qt Bluetooth (plan 0011, ADR-0080)
           cache: true
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -236,6 +241,7 @@ jobs:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
           aqtversion: ${{ env.AQT_VERSION }}
+          modules: qtconnectivity # Qt Bluetooth (plan 0011, ADR-0080)
           cache: true
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

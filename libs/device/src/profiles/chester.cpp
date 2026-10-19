@@ -61,6 +61,24 @@ constexpr std::array lteGuide{
     },
 };
 
+// BLE (ADR-0089, plan 0011 decisions Q8): the Zephyr shell over the Nordic UART Service.
+constexpr std::array blePairingGuide{
+    ConnectionGuideStep{
+        .id = "bluetooth",
+        .illustrationSlot = "ble-enable",
+        .titleSourceText = QT_TRANSLATE_NOOP("hio::device", "Bluetooth"),
+        .bodySourceText = QT_TRANSLATE_NOOP(
+            "hio::device", "Make sure the device is powered and its Bluetooth is on."),
+    },
+    ConnectionGuideStep{
+        .id = "pair",
+        .illustrationSlot = "ble-pair-os",
+        .titleSourceText = QT_TRANSLATE_NOOP("hio::device", "Pairing"),
+        .bodySourceText = QT_TRANSLATE_NOOP(
+            "hio::device", "When the system asks for the passkey, enter it in the system dialog."),
+    },
+};
+
 constexpr std::array chesterTargets{
     // Application MCU: the RTT console of `hio chester app console` / `command`.
     TargetProfile{.id = "app",
@@ -112,6 +130,18 @@ constinit const DeviceProfile chester{
     .targets = chesterTargets,
     .firmwareCatalogUrl = "https://firmware.hardwario.com/chester",
     .powerHintSourceText =
-        QT_TRANSLATE_NOOP("hio::device", "Power CHESTER with batteries or the USB-C power input.")};
+        QT_TRANSLATE_NOOP("hio::device", "Power CHESTER with batteries or the USB-C power input."),
+    .ble = BleProfile{
+        .namePattern = "CHESTER",
+        .serviceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+        .rxUuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+        .txUuid = "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+        .shellPrompt = "bt_nus:~$ ",
+        .consoleTargetId = "app",
+        .passkeyHintSourceText = QT_TRANSLATE_NOOP(
+            "hio::device",
+            "The passkey is 123456 unless it was changed when the device was configured."),
+        .pairingGuide = blePairingGuide,
+    }};
 
 } // namespace hio::device::profiles

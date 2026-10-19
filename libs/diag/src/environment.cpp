@@ -12,6 +12,8 @@
 #include "hio/diag/check.h"
 #include "hio/diag/process_scan.h"
 #include "hio/diag/usb_access.h"
+#include "hio/hw/ble/ble_host.h"
+#include "hio/hw/ble/types.h"
 #include "hio/hw/jlink/jlink_library.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/probe_enumerator.h"
@@ -58,6 +60,10 @@ const char* const nrfUtilTitle = QT_TRANSLATE_NOOP("hio::diag", "nRF Util");
 const char* const usbTitle = QT_TRANSLATE_NOOP("hio::diag", "USB access to J-Link");
 const char* const holdersTitle = QT_TRANSLATE_NOOP("hio::diag", "Other programs using J-Link");
 const char* const probesTitle = QT_TRANSLATE_NOOP("hio::diag", "J-Link probes");
+const char* const bluetoothTitle = QT_TRANSLATE_NOOP("hio::diag", "Bluetooth");
+
+// The `bluetooth` check's wait for the BLE thread, within the check's 5 s timeout.
+constexpr milliseconds bluetoothQueryTimeout{4500};
 const char* const firmwareTitle = QT_TRANSLATE_NOOP("hio::diag", "J-Link firmware");
 const char* const dirsTitle = QT_TRANSLATE_NOOP("hio::diag", "Settings and log folders");
 
@@ -399,6 +405,41 @@ CheckResult checkDirs(const Check& check, const EnvironmentContext& context) {
     return okResult(check, QCoreApplication::translate("hio::diag", "Writable").toStdString());
 }
 
+// ---- bluetooth (M5, ADR-0088)
+// ---------------------------------------------------------------------
+
+CheckResult checkBluetooth(const Check& check, const EnvironmentContext& context) {
+    std::shared_ptr<ble::BleHost> host = context.ble;
+    if (!host) {
+        host = std::make_shared<ble::BleHost>(); // short-lived: stopped when the check returns
+    }
+    auto adapter = host->queryAdapter(bluetoothQueryTimeout);
+    if (!adapter) {
+        Error error = adapter.error().code == ErrorCode::Timeout
+                          ? makeError(ErrorCode::DiagCheckTimeout, adapter.error().detail)
+                          : std::move(adapter).error();
+        return problemResult(check, CheckStatus::Warning, std::move(error));
+    }
+    if (adapter->state == ble::AdapterState::PermissionUndetermined) {
+        return okResult(
+            check, QCoreApplication::translate("hio::diag", "Permission will be asked on first use")
+                       .toStdString());
+    }
+    if (auto problem = ble::adapterError(*adapter)) {
+        // Never Failed: Bluetooth is optional (ADR-0088).
+        return problemResult(check, CheckStatus::Warning, std::move(*problem));
+    }
+    QString result = QCoreApplication::translate("hio::diag", "Adapter ready");
+    if (!adapter->name.empty() && !adapter->address.empty()) {
+        result +=
+            QStringLiteral(" (%1, %2)").arg(toQString(adapter->name), toQString(adapter->address));
+    } else if (!adapter->name.empty() || !adapter->address.empty()) {
+        result += QStringLiteral(" (%1)").arg(
+            toQString(adapter->name.empty() ? adapter->address : adapter->name));
+    }
+    return okResult(check, result.toStdString());
+}
+
 } // namespace
 
 QJsonObject toJson(const EnvironmentFacts& facts) {
@@ -450,7 +491,7 @@ EnvironmentContext defaultEnvironment(std::optional<fs::path> jlinkOption,
 
 std::vector<std::string> environmentCheckIds() {
     return {"jlink-software", "nrfutil",        "usb-access", "probe-holders",
-            "probes",         "probe-firmware", "app-dirs"};
+            "probes",         "probe-firmware", "app-dirs",   "bluetooth"};
 }
 
 std::vector<Check> environmentChecks(const EnvironmentContext& context) {
@@ -514,6 +555,14 @@ std::vector<Check> environmentChecks(const EnvironmentContext& context) {
                            .run = {}});
     checks.back().run = [check = checks.back(), ctx](const std::stop_token&) {
         return checkDirs(check, *ctx);
+    };
+    checks.push_back(Check{.id = "bluetooth",
+                           .titleSourceText = bluetoothTitle,
+                           .timeout = milliseconds(5000),
+                           .dependsOn = {},
+                           .run = {}});
+    checks.back().run = [check = checks.back(), ctx](const std::stop_token&) {
+        return checkBluetooth(check, *ctx);
     };
     return checks;
 }

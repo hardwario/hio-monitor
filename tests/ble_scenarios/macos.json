@@ -1,0 +1,8 @@
+{
+  "pairingSupported": false,
+  "adapter": {"state": "ready", "name": "fake0"},
+  "devices": [
+    {"id": "6A0B3F1C-1D2E-4F50-8A9B-0C1D2E3F4A5B", "name": "CHESTER-ABC123", "rssi": -58,
+     "paired": false, "prompt": "bt_nus:~$ "}
+  ]
+}

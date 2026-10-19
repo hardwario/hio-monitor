@@ -18,7 +18,9 @@
 #include <cstdint>
 #include <functional>
 #include <ostream>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace hio::cli {
 
@@ -26,6 +28,11 @@ enum class OutputMode : std::uint8_t {
     Human,
     Json,
 };
+
+// A table with columns two spaces apart (widths in UTF-8 characters), one line per row, each
+// ending with "\n" (`hio jlink list`, `hio ble scan`).
+[[nodiscard]] std::string formatTable(const std::vector<std::string>& header,
+                                      const std::vector<std::vector<std::string>>& rows);
 
 class Output {
 public:

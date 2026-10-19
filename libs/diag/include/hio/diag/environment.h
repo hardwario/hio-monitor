@@ -15,9 +15,13 @@
 // `probe-firmware` (or when the checks are destroyed).
 //
 // The checks run on one caller-owned thread (CheckRunner); they use no Qt objects across threads.
+// `bluetooth` asks the BLE thread of EnvironmentContext::ble (or of a short-lived BleHost) for the
+// adapter state (IBleApi::adapter(): it never scans, so no macOS permission prompt) and waits for
+// the reply; it never touches QtBluetooth itself (plan 0011 E1).
 
 #include "hio/diag/check.h"
 #include "hio/diag/process_scan.h"
+#include "hio/hw/ble/ble_host.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/types.h"
 #include "hio/hw/nrfutil/nrfutil.h"
@@ -66,6 +70,9 @@ struct EnvironmentContext {
     std::filesystem::path usbDevRoot = "/dev";
     // Filled by the checks when set (diagnostic report).
     std::shared_ptr<EnvironmentFacts> facts;
+    // M5 (ADR-0088): the application's BLE thread; nullptr = the `bluetooth` check creates a
+    // short-lived host.
+    std::shared_ptr<ble::BleHost> ble;
 };
 
 // The context of this user: the given CLI overrides, the environment, the settings, the default

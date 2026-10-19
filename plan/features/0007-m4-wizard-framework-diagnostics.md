@@ -13,6 +13,12 @@
   0004.
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M5 ([0011](0011-m5-ble-backend-cli.md), ADR-0088; approved 2026-10-19 by Matej Strnad
+> together with 0011; applied in the text by the 0011 implementation, 2026-10-19):** environment check `bluetooth` (after `app-dirs`, Warning only, 5 s) with
+> `EnvironmentContext::ble`. The GUI parts ([0012](0012-m5-ble-gui-pairing.md): `WizardStep::embedded` value
+> `ble-picker`, illustration slots `ble-enable` / `ble-pair-os`, Help item "Pair a Bluetooth device…") follow with
+> 0012.
+
 ## Context
 
 Every `hio::Error` already names a wizard (`WizardId`, M0) and the M1/M2 error tables map about 25 error codes to
@@ -123,6 +129,7 @@ Items whose wizard is not registered are hidden.
 | `probes` | J-Link probes | "2 found: 683012345, 801004417" | Warning: `probe.not_found` (not Failed: doctor also runs without a probe) |
 | `probe-firmware` | J-Link firmware | "Current" | Warning: `probe.firmware_outdated` |
 | `app-dirs` | Settings and log folders | "Writable" | Failed: `io.write_failed` |
+| `bluetooth` | Bluetooth (M5, ADR-0088) | "Adapter ready (hci0, 00:11:22:33:44:55)"; macOS permission not asked yet: "Permission will be asked on first use" | Warning only: `ble.adapter_not_found`, `ble.adapter_off`, `ble.permission_denied`, `ble.stack_unavailable`; `diag.check_timeout` (5 s) |
 
 Order of execution = order of the table. `jlink-software` Failed → `probes` and `probe-firmware` Skipped.
 
@@ -246,6 +253,9 @@ struct EnvironmentContext {                  // overrides as in M1/M2 (CLI optio
     hw::nrfutil::LocatorOptions nrfutil;
     std::filesystem::path settingsDir, logDir;
     std::shared_ptr<IProcessSource> processes;   // nullptr = the platform source
+    std::shared_ptr<ble::BleHost> ble;           // M5 (ADR-0088): nullptr = the `bluetooth` check uses a
+                                                 // short-lived BleHost; it asks the BLE thread for
+                                                 // IBleApi::adapter() (never scans) and waits ≤ 5 s
 };
 [[nodiscard]] std::vector<Check> environmentChecks(const EnvironmentContext&);
 

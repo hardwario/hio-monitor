@@ -7,6 +7,9 @@
 #include "hio/diag/check.h"
 #include "hio/diag/environment.h"
 #include "hio/diag/process_scan.h"
+#include "hio/hw/ble/ble_api.h"
+#include "hio/hw/ble/ble_host.h"
+#include "hio/hw/ble/types.h"
 
 #include <QFile>
 #include <QIODevice>
@@ -21,12 +24,16 @@
 #include <unistd.h>
 #endif
 
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stop_token>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -50,6 +57,40 @@ public:
 private:
     std::vector<Process> m_processes;
 };
+
+// An adapter in a fixed state (the `bluetooth` check reads only IBleApi::adapter()).
+class StubBleApi final : public hio::ble::IBleApi {
+public:
+    explicit StubBleApi(hio::ble::AdapterInfo adapter) : m_adapter(std::move(adapter)) {}
+    void setListener(hio::ble::IBleListener* /*listener*/) override {}
+    hio::ble::AdapterInfo adapter() override { return m_adapter; }
+    hio::Status startScan(std::chrono::milliseconds /*duration*/) override {
+        ADD_FAILURE() << "the bluetooth check must not scan (macOS prompt, ADR-0088)";
+        return {};
+    }
+    void stopScan() override {}
+    hio::Result<hio::ble::LinkId> connect(const hio::ble::BleDeviceId& /*device*/,
+                                          const hio::ble::NusUuids& /*uuids*/) override {
+        return hio::fail(ErrorCode::BleConnectFailed);
+    }
+    hio::Status write(hio::ble::LinkId /*link*/, std::span<const std::byte> /*chunk*/,
+                      hio::ble::WriteMode /*mode*/, std::uint64_t /*token*/) override {
+        return hio::fail(ErrorCode::BleWriteFailed);
+    }
+    void disconnect(hio::ble::LinkId /*link*/) override {}
+    hio::Status requestPairing(const hio::ble::BleDeviceId& /*device*/) override { return {}; }
+    bool isPaired(const hio::ble::BleDeviceId& /*device*/) override { return false; }
+
+private:
+    hio::ble::AdapterInfo m_adapter;
+};
+
+std::shared_ptr<hio::ble::BleHost> bleHost(hio::ble::AdapterState state) {
+    return std::make_shared<hio::ble::BleHost>([state]() -> std::unique_ptr<hio::ble::IBleApi> {
+        return std::make_unique<StubBleApi>(
+            hio::ble::AdapterInfo{.state = state, .name = "hci0", .address = "00:11:22:33:44:55"});
+    });
+}
 
 constexpr const char* oneProbe = R"({"libraryVersion": 81000, "probes": [
     {"serialNumber": 801000001, "product": "Test Probe",
@@ -86,6 +127,7 @@ protected:
         context.usbSysfsRoot = root() / "sys"; // empty: no SEGGER device
         context.usbDevRoot = root() / "dev";
         context.facts = std::make_shared<hio::diag::EnvironmentFacts>();
+        context.ble = bleHost(hio::ble::AdapterState::Ready);
         return context;
     }
 
@@ -114,7 +156,7 @@ TEST_F(Environment, AllGood) {
     fs::create_directories(root() / "sys/bus/usb/devices");
     const auto context = this->context();
     const auto results = run(context);
-    ASSERT_EQ(results.size(), 7U);
+    ASSERT_EQ(results.size(), 8U);
     std::vector<std::string> ids;
     ids.reserve(results.size());
     for (const auto& result : results) {
@@ -135,6 +177,9 @@ TEST_F(Environment, AllGood) {
     EXPECT_EQ(find(results, "probes").result, "1 found: 801000001");
     EXPECT_EQ(find(results, "probe-firmware").status, CheckStatus::Ok);
     EXPECT_EQ(find(results, "app-dirs").status, CheckStatus::Ok);
+    EXPECT_EQ(find(results, "bluetooth").status, CheckStatus::Ok);
+    EXPECT_EQ(find(results, "bluetooth").title, "Bluetooth");
+    EXPECT_EQ(find(results, "bluetooth").result, "Adapter ready (hci0, 00:11:22:33:44:55)");
     ASSERT_EQ(context.facts->probes.size(), 1U);
     EXPECT_EQ(context.facts->jlinkVersion, 81000U);
     EXPECT_EQ(context.facts->nrfUtilVersion, "7.13.0");
@@ -146,6 +191,32 @@ TEST_F(Environment, AllGood) {
         }
     }
     EXPECT_EQ(left, 0U);
+}
+
+// M5 (ADR-0088): Bluetooth problems are warnings only; an undecided macOS permission is Ok.
+TEST_F(Environment, BluetoothStates) {
+    for (const auto& [state, status, code] :
+         {std::tuple{hio::ble::AdapterState::NotFound, CheckStatus::Warning,
+                     ErrorCode::BleAdapterNotFound},
+          std::tuple{hio::ble::AdapterState::PoweredOff, CheckStatus::Warning,
+                     ErrorCode::BleAdapterOff},
+          std::tuple{hio::ble::AdapterState::PermissionDenied, CheckStatus::Warning,
+                     ErrorCode::BlePermissionDenied},
+          std::tuple{hio::ble::AdapterState::StackUnavailable, CheckStatus::Warning,
+                     ErrorCode::BleStackUnavailable}}) {
+        auto context = this->context();
+        context.ble = bleHost(state);
+        const auto results = run(context);
+        const auto& bluetooth = find(results, "bluetooth");
+        EXPECT_EQ(bluetooth.status, status);
+        ASSERT_TRUE(bluetooth.error.has_value());
+        EXPECT_EQ(bluetooth.error.value_or(hio::Error{}).code, code);
+    }
+    auto context = this->context();
+    context.ble = bleHost(hio::ble::AdapterState::PermissionUndetermined);
+    const auto results = run(context);
+    EXPECT_EQ(find(results, "bluetooth").status, CheckStatus::Ok);
+    EXPECT_EQ(find(results, "bluetooth").result, "Permission will be asked on first use");
 }
 
 TEST_F(Environment, MissingJLinkFailsAndSkipsTheProbeChecks) {

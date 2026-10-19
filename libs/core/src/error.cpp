@@ -106,6 +106,20 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::ProbeHeldByProgram:
     case ErrorCode::DiagReportWriteFailed:
     case ErrorCode::DiagCheckTimeout:
+    case ErrorCode::BleAdapterNotFound:
+    case ErrorCode::BleAdapterOff:
+    case ErrorCode::BlePermissionDenied:
+    case ErrorCode::BleStackUnavailable:
+    case ErrorCode::BleDeviceNotFound:
+    case ErrorCode::BleConnectFailed:
+    case ErrorCode::BleServiceNotFound:
+    case ErrorCode::BleNotPaired:
+    case ErrorCode::BlePairingFailed:
+    case ErrorCode::BlePairingNotSupported:
+    case ErrorCode::BleWriteFailed:
+    case ErrorCode::BleWriteTimeout:
+    case ErrorCode::BleDisconnected:
+    case ErrorCode::BleInUseByOtherProcess:
         return true;
     }
     return false;
@@ -706,6 +720,176 @@ constexpr std::array defaultTexts{
                                     "diag.check_timeout cause"),
         .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Run the checks again.",
                                          "diag.check_timeout suggestion"),
+    },
+    // ---- M5 (plan/features/0011-m5-ble-backend-cli.md) ----
+    DefaultTexts{
+        .code = ErrorCode::BleAdapterNotFound,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "No Bluetooth adapter was found.",
+                                      "ble.adapter_not_found message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The computer has no Bluetooth or it is disabled in the system.",
+            "ble.adapter_not_found cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Enable Bluetooth or connect a USB Bluetooth adapter.",
+                               "ble.adapter_not_found suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleAdapterOff,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "Bluetooth is turned off.", "ble.adapter_off message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Bluetooth is turned off in the system settings or with a hardware switch.",
+            "ble.adapter_off cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Turn Bluetooth on in the system settings.",
+                                         "ble.adapter_off suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BlePermissionDenied,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "HARDWARIO Monitor is not allowed to use Bluetooth.",
+                               "ble.permission_denied message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "Bluetooth access was denied in the privacy settings.",
+                               "ble.permission_denied cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core",
+                                         "Allow Bluetooth for HARDWARIO Monitor (or your terminal) "
+                                         "in System Settings → Privacy & Security → Bluetooth.",
+                                         "ble.permission_denied suggestion"),
+        .wizard = WizardId::FirstRunSetup,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleStackUnavailable,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The Bluetooth service of the system is not available.",
+                               "ble.stack_unavailable message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The Bluetooth service of the system (BlueZ on Linux) is not running.",
+            "ble.stack_unavailable cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Start the Bluetooth service: `sudo systemctl start bluetooth`.",
+            "ble.stack_unavailable suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleDeviceNotFound,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The Bluetooth device was not found.",
+                                      "ble.device_not_found message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The device is out of range, turned off or its Bluetooth is disabled.",
+            "ble.device_not_found cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Bring the device closer and make sure its Bluetooth is on.",
+            "ble.device_not_found suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleConnectFailed,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "Could not connect to the device over Bluetooth.",
+                               "ble.connect_failed message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The signal is weak or the device is busy with another connection.",
+            "ble.connect_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Move closer, disconnect other phones or computers from the device and try again.",
+            "ble.connect_failed suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleServiceNotFound,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The device does not offer the console service (NUS).",
+                               "ble.service_not_found message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The firmware has no Bluetooth shell.",
+                                    "ble.service_not_found cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Use firmware with the Bluetooth console enabled.",
+                               "ble.service_not_found suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleNotPaired,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The device is not paired with this computer.",
+                                      "ble.not_paired message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "Pairing was cancelled, failed or was removed on one side.",
+                                    "ble.not_paired cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core",
+                                         "Pair the device: enter its passkey when the system asks.",
+                                         "ble.not_paired suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BlePairingFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Pairing with the device failed.",
+                                      "ble.pairing_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "A wrong passkey, a timeout or a stale bond on one side.",
+                                    "ble.pairing_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Remove the device in the system Bluetooth settings and pair again.",
+            "ble.pairing_failed suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BlePairingNotSupported,
+        .message = QT_TRANSLATE_NOOP3("hio::core",
+                                      "This system pairs Bluetooth devices only when connecting.",
+                                      "ble.pairing_not_supported message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "macOS pairs a device automatically when it connects.",
+                               "ble.pairing_not_supported cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Connect to the device; macOS asks for the passkey.",
+                               "ble.pairing_not_supported suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleWriteFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Sending to the device over Bluetooth failed.",
+                                      "ble.write_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The link was lost during the write.",
+                                    "ble.write_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Reconnect.", "ble.write_failed suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleWriteTimeout,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The device is not reading commands.",
+                                      "ble.write_timeout message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core", "The firmware is busy or the link is stalled.",
+                                    "ble.write_timeout cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Reconnect; if it repeats, restart the device.",
+                               "ble.write_timeout suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleDisconnected,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The Bluetooth connection to the device was lost.",
+                               "ble.disconnected message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The device is out of range, was restarted or turned off.",
+                                    "ble.disconnected cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Bring the device closer; the console reconnects automatically if enabled.",
+            "ble.disconnected suggestion"),
+        .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleInUseByOtherProcess,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The device is used by another program.",
+                                      "ble.in_use_by_other_process message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "Another HARDWARIO Monitor window or `hio` command is connected to it.",
+            "ble.in_use_by_other_process cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Close the other program.",
+                                         "ble.in_use_by_other_process suggestion"),
     },
 };
 
