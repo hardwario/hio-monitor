@@ -33,6 +33,12 @@ set(HIO_GUI_QML_FILES
     qml/components/WarningBanner.qml
     qml/components/WizardDialog.qml
     qml/components/WizardStepList.qml
+    qml/console/Banners.qml
+    qml/console/ConsoleRow.qml
+    qml/console/ConsoleSearchBar.qml
+    qml/console/ConsoleView.qml
+    qml/console/HistoryPopup.qml
+    qml/console/ShellInput.qml
     qml/dialogs/ReportDialog.qml
     qml/flash/FlashBar.qml
     qml/flash/FlashCard.qml
@@ -43,6 +49,7 @@ set(HIO_GUI_QML_FILES
     qml/flash/ResultCard.qml
     qml/flash/SourceCard.qml
     qml/pages/ChooseDevicePage.qml
+    qml/pages/ConsolePage.qml
     qml/pages/FlashPage.qml
     qml/pages/PlaceholderPage.qml
     qml/pages/SettingsPage.qml
@@ -57,6 +64,7 @@ set(HIO_GUI_QML_FILES
     qml/shell/HelpMenu.qml
     qml/shell/NavRail.qml
     qml/shell/PageHost.qml
+    qml/settings/ConsoleSection.qml
     qml/shell/TabView.qml)
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
@@ -85,6 +93,8 @@ qt_add_qml_module(hio_gui
         src/language_manager.h
         src/pages/builtin_pages.cpp
         src/pages/builtin_pages.h
+        src/pages/console_page.cpp
+        src/pages/console_page.h
         src/pages/firmware_services.cpp
         src/pages/firmware_services.h
         src/pages/flash_settings_pages.cpp
@@ -101,6 +111,12 @@ qt_add_qml_module(hio_gui
         src/viewmodels/app_view_model.h
         src/viewmodels/connection_view_model.cpp
         src/viewmodels/connection_view_model.h
+        src/viewmodels/console_line_model.cpp
+        src/viewmodels/console_line_model.h
+        src/viewmodels/console_settings.cpp
+        src/viewmodels/console_settings.h
+        src/viewmodels/console_view_model.cpp
+        src/viewmodels/console_view_model.h
         src/viewmodels/dependency_status.cpp
         src/viewmodels/dependency_status.h
         src/viewmodels/device_tab_list_model.cpp
@@ -109,10 +125,14 @@ qt_add_qml_module(hio_gui
         src/viewmodels/device_tab_view_model.h
         src/viewmodels/error_info.cpp
         src/viewmodels/error_info.h
+        src/viewmodels/find_filter_engine.cpp
+        src/viewmodels/find_filter_engine.h
         src/viewmodels/firmware_source_view_model.cpp
         src/viewmodels/firmware_source_view_model.h
         src/viewmodels/flash_view_model.cpp
         src/viewmodels/flash_view_model.h
+        src/viewmodels/history_store.cpp
+        src/viewmodels/history_store.h
         src/viewmodels/page_list_model.cpp
         src/viewmodels/page_list_model.h
         src/viewmodels/page_registry.cpp
@@ -137,6 +157,8 @@ qt_add_qml_module(hio_gui
         src/wizard/wizard_registry.h
         src/wizard/wizard_view_model.cpp
         src/wizard/wizard_view_model.h
+        src/workers/batch_runner.cpp
+        src/workers/batch_runner.h
         src/workers/diag_worker.cpp
         src/workers/diag_worker.h
         src/workers/firmware_loader.cpp
@@ -148,7 +170,8 @@ target_include_directories(hio_gui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_include_directories(hio_gui PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/pages"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/wizard")
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/wizard"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/workers")
 target_link_libraries(hio_gui PUBLIC
     hio::core
     hio::device

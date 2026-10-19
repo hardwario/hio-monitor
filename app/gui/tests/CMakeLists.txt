@@ -45,8 +45,11 @@ endforeach()
 add_executable(hio_gui_tests
     viewmodels/app_view_model_test.cpp
     viewmodels/connection_view_model_test.cpp
+    viewmodels/console_line_model_test.cpp
+    viewmodels/console_view_model_test.cpp
     viewmodels/device_tab_view_model_test.cpp
     viewmodels/error_info_test.cpp
+    viewmodels/find_filter_engine_test.cpp
     viewmodels/flash_view_model_test.cpp
     viewmodels/gui_test_support.h
     viewmodels/main.cpp
@@ -84,4 +87,27 @@ gtest_discover_tests(hio_gui_tests
     ${_hio_gui_test_filter}
     PROPERTIES
         LABELS "unit"
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_IM_MODULE=none;QT_IM_MODULES=none")
+
+# Console HIL (plan/features/0005-m3-console.md): skipped unless HIO_HIL=1 and HIO_HIL_SN is set
+# (a CHESTER with the RTT shell on that J-Link probe). Label "hil" like tests/integration.
+add_executable(hio_gui_hil_tests
+    console_hil_test.cpp
+    viewmodels/gui_test_support.h
+    viewmodels/main.cpp
+    viewmodels/single_instance_helper.h
+    ${HIO_GUI_TEST_SUPPORT})
+hio_apply_target_defaults(hio_gui_hil_tests)
+target_include_directories(hio_gui_hil_tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/viewmodels")
+target_link_libraries(hio_gui_hil_tests PRIVATE hio_gui Qt6::Test GTest::gmock)
+target_compile_definitions(hio_gui_hil_tests PRIVATE
+    "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\"")
+set_target_properties(hio_gui_hil_tests PROPERTIES AUTOMOC ON)
+gtest_discover_tests(hio_gui_hil_tests
+    DISCOVERY_TIMEOUT 60
+    PROPERTIES
+        LABELS "hil"
+        TIMEOUT 300
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_IM_MODULE=none;QT_IM_MODULES=none")

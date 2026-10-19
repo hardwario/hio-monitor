@@ -18,25 +18,36 @@ these files. SVG is text and is not stored in Git LFS. The icons are compiled in
 | File | Upstream glyph | Used for | SHA-256 |
 |---|---|---|---|
 | `add.svg` | `add` | new device tab | `e9532de2b9be01ce951e899e98ee673bb97acd574f0db118feb72fe074a1c376` |
+| `batch.svg` | `playlist_play` | Batch… (console) | `64dcbd388d4b67ffc9c9deb5b11b4b1fdfd34bf80fdf75158b18c5941bd7ca4e` |
 | `check.svg` | `check` | done phase (PhaseStepper) | `01edd53418816632be08e9565b8ca40d9028c230a8a67baaf4b8a1de20db00e6` |
+| `clear.svg` | `delete_sweep` | Clear (console) | `2dd920f38f138003e2c6d180143e9ef5bfec1f0219523f70b5b185392d4d485e` |
 | `close.svg` | `close` | close tab, dismiss | `a82592b0faa0b104a4d4b0530bb05c6a4bfed5728f5aad03ae8e7a19f32b5511` |
 | `collapse.svg` | `expand_less` | collapse (Details) | `c226790222367980dcb9366768440a1bdbc778f6f957f6de878d39b523632528` |
 | `console.svg` | `terminal` | Console page | `02d50185ce66a04950f8b7eed976005aec13442b818e693247c2d3a791febaa8` |
 | `copy.svg` | `content_copy` | copy details | `3575c3fdb035a66097bed9a7597620e313ed1efa051eb586a7335348c3fdff35` |
 | `device.svg` | `developer_board` | device | `6248e2ccac1676e75cf648eafc8028c1427c8277b77ad7b5173aeee58ac2294f` |
+| `down.svg` | `keyboard_arrow_down` | next match | `0ede97ad33e3ca035e14c7219a78e37b0cfad9e215420b3c2926e121bdba7230` |
 | `error.svg` | `error` | ErrorPanel, failed check | `f02b30c23e0c004e47a128526ab417832b2fd475c4cfbcdfff58e9df8f6c30ab` |
 | `expand.svg` | `expand_more` | expand (Details) | `6760bd2307f7ec3c1a5f2905af907aa7a12ad5ad7448289c8624f5d5ec6057e4` |
 | `flash.svg` | `bolt` | Flash page | `efc632df3302b78537d07d8fd674a66cb911b132515cd4f84c6a6a995ecff8e7` |
+| `follow.svg` | `vertical_align_bottom` | Follow (console) | `6adb1ace91102847d6f08c257c3ec9dce0299cf4e935cec6ed22af9f10b694a7` |
 | `help.svg` | `help` | Help (shortcut overlay) | `9f2bdd969cefc5843f95ccbd560c4281b1eec87c78b68bd4daf694d19fc9c5f9` |
 | `info.svg` | `info` | information | `33c77c7a4f193445d0136b970ad4b5a80ba8cc340603465d4cb46a1f8abec4ec` |
 | `keyboard.svg` | `keyboard` | keyboard shortcuts | `2c3e09a5bbc5122b64cb3c0d351708b94d6c68c68378ab2cd70d37c0426b2679` |
 | `more.svg` | `more_horiz` | ⋯ Advanced, overflow menus | `498ade89fbbdd4f4ab9b90bb49bae4cc6b2dc0ff0f019b6b051ac641a7bd5872` |
+| `pause.svg` | `pause` | Pause the console view | `ccd6c3a92f3c4f8b5b59e1e35ccbdd4fb27c5afed311abbee4225800f4c2e567` |
 | `pending.svg` | `radio_button_unchecked` | open check (empty state) | `adf550b8d06942c7a6d77e650b0279ccdb6cc888761dcb4d1e860105c623fcaf` |
 | `placeholder.svg` | `construction` | placeholder pages | `0e767ed70b73835986f715e33373b125a65816f66842756ba1bbc4fc36c2c5f6` |
 | `probe.svg` | `usb` | J-Link probe, no-probe state | `dded90bd9f5080293d7e6a79ab516eebc58c7567e9175a176a2824fb8e7db4e4` |
+| `reconnect.svg` | `sync` | Reconnect (console) | `1b47b89b3d9dde46cf7d2329286f95ddcfa7f060dabc740f22169c53c72f624c` |
 | `refresh.svg` | `refresh` | refresh the probe list | `e56d7ee330abd6d410cca7778419c524cebacf300c3b6e1b97ca9d0f3c3c1f7c` |
+| `reset.svg` | `restart_alt` | Reset (console) | `3a6c6c3ebcfe7f5c4bdf85d3c67f50c557d69b49c409ed001177d818a396c18d` |
+| `resume.svg` | `play_arrow` | paused console view | `56b40dffbc6830b7b506f42e6f6e230189d52924bca018ae8ac8f99c4110cd85` |
+| `save.svg` | `save` | Save view… (console) | `3d34bab9e571f0fc0f840662d178377237f5906e87e8ff295dd04e07b8ceea35` |
 | `settings.svg` | `settings` | Settings page | `6aebb4a88b40a5bf1ce378ca532e4a885aedc402a0574562c6ed4ded03360fd2` |
+| `stop.svg` | `stop` | stop the batch | `34b51c2ec96ced6f87cd63fef4adb93bfe0add1d08846a2e9cea787678f6e356` |
 | `success.svg` | `check_circle` | passed check | `42bf0950bc12ecf7952a8c3be86e0131f225095a7dc6c824a659a13df442e373` |
+| `up.svg` | `keyboard_arrow_up` | previous match | `b607540fa7d3fb3d1d051a62da7108b7b6f8af9c7d1d9270d9b8e2b3a3c0bd25` |
 | `warning.svg` | `warning` | WarningBanner | `0212c59cfa1e2da887b0b36c7d89886de94b019feaaba5c063ec8dc7d32be436` |
 
 Adding an icon: copy `<glyph>_24px.svg` from the same commit as `<function>.svg`, add a row here (glyph, use,

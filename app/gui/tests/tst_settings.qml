@@ -72,8 +72,9 @@ TestCase {
 
     function test_sectionsAndDetection() {
         const sections = findAll(window.contentItem, "sectionLoader").filter(effectivelyVisible);
-        compare(sections.length, 4);
+        compare(sections.length, 5); // General, Console (0005), J-Link, nRF Util, About
         verify(find("section_general") !== null);
+        verify(find("section_console") !== null);
         verify(find("section_about") !== null);
         verify(!find("readOnlyBanner"));
         tryVerify(() => find("jlinkDetected").text.indexOf("fake_jlink") >= 0, 10000);

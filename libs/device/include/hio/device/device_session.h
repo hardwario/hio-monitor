@@ -208,6 +208,11 @@ public:
     // The probe; serialNumber is 0 until the worker has opened it (connectionChanged is emitted
     // after it is set).
     [[nodiscard]] jlink::ProbeInfo probe() const;
+    // The console log file the session writes now (amended by plan 0005): empty before the worker
+    // opened it (after the probe is identified), without a console file and after a write failure
+    // stopped it (the session's io.write_failed warning). Updated by the worker's events, like
+    // probe(); a continuation file (.partN.log) replaces the name. Owner thread only.
+    [[nodiscard]] std::filesystem::path consoleFile() const;
     // The last reported connection event (Connecting before the first one).
     [[nodiscard]] const ConnectionEvent& connection() const noexcept { return m_connection; }
     [[nodiscard]] const DeviceProfile& profile() const noexcept;
@@ -243,6 +248,7 @@ private:
     std::atomic<bool> m_wakePending{false};
     ConnectionEvent m_connection;
     jlink::ProbeInfo m_probe;
+    std::filesystem::path m_consoleFile;
     std::uint64_t m_reportedDrops = 0;
     bool m_closed = false;
 };

@@ -268,6 +268,22 @@ TEST_F(ConnectionTest, SlowSpeedWarningBelow125Khz) {
     EXPECT_TRUE(connection().speedWarning().isEmpty());
 }
 
+// Plan 0005 amendment (2026-10-16): the console file's write failure has the console's text in
+// the shell banner; the backend detail stays for [Details]. Other warnings keep their text.
+TEST_F(ConnectionTest, ConsoleFileWarningText) {
+    connection().setWarning(hio::makeError(ErrorCode::IoWriteFailed, "/x/console.log: disk full"));
+    EXPECT_EQ(connection().warning().message(),
+              QStringLiteral("The console log file could not be written; logging to file is off "
+                             "for this session."));
+    EXPECT_EQ(connection().warning().code(), QStringLiteral("io.write_failed"));
+    EXPECT_EQ(connection().warning().detail(), QStringLiteral("/x/console.log: disk full"));
+    hio::Error outdated = hio::makeError(ErrorCode::ProbeFirmwareOutdated, "firmware: 2020");
+    outdated.message = "The J-Link firmware is outdated.";
+    connection().setWarning(outdated);
+    EXPECT_EQ(connection().warning().message(), QStringLiteral("The J-Link firmware is outdated."));
+    EXPECT_FALSE(connection().warning().detailsText().isEmpty());
+}
+
 TEST_F(ConnectionTest, OptionsAreRememberedPerProbe) {
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
     connection().setAutoSpeed(false);

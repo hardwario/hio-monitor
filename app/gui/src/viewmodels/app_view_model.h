@@ -19,6 +19,7 @@
 #include "settings_store.h"
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
+#include "viewmodels/history_store.h"
 #include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
@@ -166,6 +167,8 @@ public:
     [[nodiscard]] DiagWorker& diagWorker() { return *m_diagWorker; }
     // The environment of the checks (settings, overrides; GUI thread).
     [[nodiscard]] diag::EnvironmentContext diagEnvironment() const;
+    // The console command histories, shared by the tabs per (profile, target) (plan 0005).
+    [[nodiscard]] HistoryStore& historyStore() { return *m_history; }
     // Environment, the jlink/libraryPath setting and the search paths of this OS.
     [[nodiscard]] jlink::LocatorOptions locatorOptions() const;
 
@@ -261,7 +264,9 @@ private:
     WizardViewModel* m_wizard = nullptr;  // child; deleted first by the destructor
     WizardLauncher* m_launcher = nullptr; // child
     ReportViewModel* m_report = nullptr;  // child
-    DeviceTabListModel* m_tabs = nullptr; // child
+    // Console histories (plan 0005): saved when destroyed, after the tabs.
+    std::unique_ptr<HistoryStore> m_history;
+    DeviceTabListModel* m_tabs = nullptr;                         // child
     std::vector<std::pair<QString, QObject*>> m_globalViewModels; // children
     QPointer<LanguageManager> m_languageManager;                  // non-owning, owned by main()
     QPointer<QWindow> m_window; // non-owning, owned by the QML engine

@@ -234,6 +234,7 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
       void close();                                          // stop + join, idempotent
       [[nodiscard]] const ConsoleLog& log() const;           // owner thread only; the provided or own log
       [[nodiscard]] ProbeInfo probe() const;
+      [[nodiscard]] std::filesystem::path consoleFile() const; // amended by 0005, see below
   signals:
       void linesReceived(const QList<hio::device::ConsoleLine>&);
       void connectionChanged(const hio::device::ConnectionEvent&);
@@ -243,6 +244,10 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   // CLI helper: runs a local QEventLoop until the first Connected, or Disconnected/Stopped with an error, or timeout.
   [[nodiscard]] Status waitUntilConnected(DeviceSession&, std::chrono::milliseconds timeout);
   ```
+  *Amended by 0005 (2026-10-16, user decision):* `consoleFile()` returns the console log file the session writes now
+  (empty before the worker opened it, without a console file, and after a write failure stopped it). The worker
+  reports it with a `ConsoleFileChanged` event (opened, continued in a `.partN` file, stopped) that the owner thread
+  applies like `ProbeIdentified`; owner thread only. The GUI's "Open log file" uses it.
   **Open sequence (ADR-0053).** `open()` does only the cheap, synchronous steps:
   1. validate the options (profile, target, speed and latency ranges) → `usage.invalid_argument`;
   2. take the in-process registry slot (`internal.session_limit`; same SN already open in this process →

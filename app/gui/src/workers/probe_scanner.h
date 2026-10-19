@@ -73,7 +73,7 @@ public:
 
     ProbeScanner(std::filesystem::path instanceRoot, std::filesystem::path lockDirectory,
                  std::chrono::milliseconds interval = defaultInterval, QObject* parent = nullptr);
-    ~ProbeScanner() override; // stops and joins the worker
+    ~ProbeScanner() override; // stop()
     ProbeScanner(const ProbeScanner&) = delete;
     ProbeScanner& operator=(const ProbeScanner&) = delete;
     ProbeScanner(ProbeScanner&&) = delete;
@@ -95,6 +95,12 @@ public:
 
     // Scans as soon as possible (Refresh), also when no picker is visible.
     void scanNow();
+
+    // Stops and joins the worker (idempotent; one enumeration in progress finishes first). No
+    // scan runs afterwards. Used by the destructor and by the Qt Quick test runner, which stops
+    // the scanner when a test file has finished, before QtQuickTest tears down its result
+    // objects (a scan logs through the test's message handler).
+    void stop();
 
     // The last result (nullopt before the first scan finished).
     [[nodiscard]] const std::optional<ProbeScan>& last() const noexcept { return m_last; }

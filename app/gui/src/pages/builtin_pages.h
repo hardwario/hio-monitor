@@ -1,7 +1,7 @@
 #pragma once
 
-// The pages that plan 0004 registers itself (plan/features/0004-m3-gui-shell.md, B1): placeholders
-// for Console (replaced by 0005); the Flash page and the global Settings page of plan 0006
+// The built-in pages (plan/features/0004-m3-gui-shell.md, B1): the console page of plan 0005
+// (registerConsolePage) and the Flash page and the global Settings page of plan 0006
 // (registerFlashAndSettingsPages).
 
 namespace hio::gui {

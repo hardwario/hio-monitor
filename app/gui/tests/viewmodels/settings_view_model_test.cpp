@@ -76,9 +76,11 @@ TEST_F(SettingsTest, SectionsInRegistryOrder) {
     for (const QVariant& section : settings().sections()) {
         ids.append(section.toMap().value(QStringLiteral("sectionId")).toString());
     }
-    EXPECT_EQ(ids, (QStringList{QStringLiteral("general"), QStringLiteral("jlink"),
-                                QStringLiteral("nrfutil"), QStringLiteral("about")}));
-    EXPECT_EQ(settings().sections().at(1).toMap().value(QStringLiteral("title")).toString(),
+    // Console (order 20) is contributed by plan 0005.
+    EXPECT_EQ(ids, (QStringList{QStringLiteral("general"), QStringLiteral("console"),
+                                QStringLiteral("jlink"), QStringLiteral("nrfutil"),
+                                QStringLiteral("about")}));
+    EXPECT_EQ(settings().sections().at(2).toMap().value(QStringLiteral("title")).toString(),
               QStringLiteral("J-Link"));
 }
 
