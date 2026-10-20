@@ -119,6 +119,23 @@ TEST(LegacyBle, PairingFailureWithoutAgent) {
               ErrorCode::BlePermissionDenied);
 }
 
+// HIL H1 rework: a later failure names both causes on Linux (BlueZ may connect first without an
+// agent); elsewhere the default texts stay.
+TEST(LegacyBle, LatePairingFailureNamesBothCauses) {
+    using hio::ble::detail::pairingFailure;
+    using namespace std::chrono_literals;
+    const hio::Error error = pairingFailure(QBluetoothLocalDevice::PairingError, 24s);
+    EXPECT_EQ(error.code, ErrorCode::BlePairingFailed);
+    EXPECT_EQ(error.message, hio::makeError(ErrorCode::BlePairingFailed).message);
+#ifdef Q_OS_LINUX
+    EXPECT_NE(error.cause.find("No passkey dialog appeared"), std::string::npos) << error.cause;
+    EXPECT_NE(error.suggestion.find("bluetoothctl"), std::string::npos) << error.suggestion;
+    EXPECT_EQ(hio::ble::detail::pairingFailed("still unpaired").cause, error.cause);
+#else
+    EXPECT_EQ(error.cause, hio::makeError(ErrorCode::BlePairingFailed).cause);
+#endif
+}
+
 TEST(LegacyBle, DiscoveryErrors) {
     using hio::ble::detail::mapDiscoveryError;
     EXPECT_EQ(mapDiscoveryError(QBluetoothDeviceDiscoveryAgent::PoweredOffError, {}).code,

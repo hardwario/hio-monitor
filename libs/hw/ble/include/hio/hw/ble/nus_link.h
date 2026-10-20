@@ -8,9 +8,11 @@
 //  - connect(): IBleApi::connect; Connecting until TX notifications are enabled (onLinkReady). The
 //    attempt must finish within connectDeadline (ble.connect_failed); an attempt that fails with
 //    ble.connect_failed before the CCCD write is tried again after connectRetryDelay while the
-//    deadline allows it, and only the final failure is reported (HIL H6); once the CCCD write is
-//    pending (an unbonded link pairs) the deadline becomes pairingDeadline from then
-//    (ble.not_paired when it passes, Q6) and onPairingPrompt() follows after pairingPromptDelay.
+//    deadline allows it, and only the final failure is reported (HIL H6); after an attempt that
+//    suggests BlueZ is still busy with an earlier one (H8) the delay grows (2 s, 4 s, ...); once
+//    the CCCD write is pending (an unbonded link pairs) the deadline becomes pairingDeadline from
+//    then (ble.not_paired when it passes, Q6) and onPairingPrompt() follows after
+//    pairingPromptDelay.
 //  - sendLine(): line + "\n" in chunks of MTU - 3 bytes. Write-with-response: one chunk in flight;
 //    write-without-response (only when the RX characteristic has that property bit): up to
 //    maxChunksInFlight chunks handed to the stack. The handler's onLineWritten (the echo) follows
@@ -52,6 +54,13 @@ struct LinkTiming {
     // HIL H6: a failed connect attempt (ble.connect_failed before the CCCD write, e.g. BlueZ's
     // UnknownError) is tried again after this delay while the connect deadline allows it.
     std::chrono::milliseconds connectRetryDelay{1000};
+    // HIL H8: Qt reports BlueZ's D-Bus NoReply (Device1.Connect gave up after ~25 s, BlueZ keeps
+    // connecting) and the following InProgress only as UnknownError. An attempt that failed after
+    // at least connectBusyAttempt, or within connectImmediateFailure, suggests BlueZ is still busy:
+    // the next attempt waits connectBusyRetryDelay, doubled for each further such failure.
+    std::chrono::milliseconds connectBusyAttempt{20000};
+    std::chrono::milliseconds connectImmediateFailure{1000};
+    std::chrono::milliseconds connectBusyRetryDelay{2000};
 };
 
 class NusLink {
@@ -129,6 +138,8 @@ private:
     std::chrono::steady_clock::time_point m_deadlineAt; // of the running connect (H6)
     std::optional<Error> m_lastAttemptError;            // reported if the deadline ends retrying
     int m_attempts = 0;
+    std::chrono::steady_clock::time_point m_attemptStarted; // H8
+    int m_busyRetries = 0;                                  // H8: backoff exponent
 };
 
 } // namespace hio::ble

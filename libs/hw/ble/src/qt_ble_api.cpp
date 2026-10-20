@@ -123,6 +123,26 @@ Error mapLinkError(const QtLinkError& error) {
     return failed;
 }
 
+Error pairingFailed(std::string detail) {
+    Error error = makeError(ErrorCode::BlePairingFailed, std::move(detail));
+#ifdef Q_OS_LINUX
+    // HIL H1 rework: with the host's bond removed and no agent, BlueZ connects first and fails
+    // after ~24 s, so only the instant failure is known to be "no agent".
+    error.cause = QCoreApplication::translate(
+                      "hio::ble", "No passkey dialog appeared (no pairing agent is running), or "
+                                  "the passkey was wrong, or one side still has an old bond.")
+                      .toStdString();
+    error.suggestion =
+        QCoreApplication::translate(
+            "hio::ble",
+            "Pair from the system Bluetooth settings, or with bluetoothctl (scan le, pair <id>). "
+            "If a dialog appeared, check the passkey, remove the device in the system Bluetooth "
+            "settings and pair again.")
+            .toStdString();
+#endif
+    return error;
+}
+
 Error pairingFailure(QBluetoothLocalDevice::Error error, std::chrono::milliseconds sinceRequest) {
     const std::string detail = std::format("QBluetoothLocalDevice error {} after {} ms",
                                            static_cast<int>(error), sinceRequest.count());
@@ -138,7 +158,7 @@ Error pairingFailure(QBluetoothLocalDevice::Error error, std::chrono::millisecon
         return makeError(ErrorCode::BleNoPairingAgent, detail);
     }
 #endif
-    return makeError(ErrorCode::BlePairingFailed, detail);
+    return pairingFailed(detail);
 }
 
 // The discovery agent's errors; only the agent is used (legacy null-dereference bug).
@@ -247,10 +267,9 @@ QBluetoothLocalDevice& QtBleApi::local() {
                     return;
                 }
                 m_listener->onPairingFinished(
-                    id,
-                    pairing == QBluetoothLocalDevice::Unpaired
-                        ? std::unexpected(makeError(ErrorCode::BlePairingFailed, "still unpaired"))
-                        : Status{});
+                    id, pairing == QBluetoothLocalDevice::Unpaired
+                            ? std::unexpected(detail::pairingFailed("still unpaired"))
+                            : Status{});
             });
         QObject::connect(
             m_local.get(), &QBluetoothLocalDevice::errorOccurred, this,

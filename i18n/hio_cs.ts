@@ -1773,6 +1773,16 @@
         <source>Wait a few seconds and try again. If it repeats, disconnect the device in the system Bluetooth settings or restart it.</source>
         <translation>Počkejte několik sekund a zkuste to znovu. Pokud se to opakuje, odpojte zařízení v systémovém nastavení Bluetooth nebo ho restartujte.</translation>
     </message>
+    <message>
+        <location filename="../libs/hw/ble/src/qt_ble_api.cpp" line="131"/>
+        <source>No passkey dialog appeared (no pairing agent is running), or the passkey was wrong, or one side still has an old bond.</source>
+        <translation>Neobjevil se dialog pro přístupový klíč (neběží žádný párovací agent), nebo byl přístupový klíč chybný, nebo má jedna strana ještě staré spárování.</translation>
+    </message>
+    <message>
+        <location filename="../libs/hw/ble/src/qt_ble_api.cpp" line="136"/>
+        <source>Pair from the system Bluetooth settings, or with bluetoothctl (scan le, pair &lt;id&gt;). If a dialog appeared, check the passkey, remove the device in the system Bluetooth settings and pair again.</source>
+        <translation>Spárujte zařízení v systémovém nastavení Bluetooth, nebo pomocí bluetoothctl (scan le, pair &lt;id&gt;). Pokud se dialog objevil, zkontrolujte přístupový klíč, odeberte zařízení v systémovém nastavení Bluetooth a spárujte ho znovu.</translation>
+    </message>
 </context>
 <context>
     <name>hio::core</name>

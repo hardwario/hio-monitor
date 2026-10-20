@@ -238,13 +238,14 @@ TEST(FakeBleApi, ConnectErrorAndUnknownDevice) {
                                              .uuids = {},
                                              .handler = std::make_unique<LogHandler>(paired),
                                              .timing = {}}));
-    ASSERT_TRUE(host.post(
-        hio::ble::OpenLink{.client = 2,
-                           .device = "00:00:00:00:00:00",
-                           .uuids = {},
-                           .handler = std::make_unique<LogHandler>(unknown),
-                           // H6: retried until this deadline
-                           .timing = {.connectDeadline = 300ms, .connectRetryDelay = 50ms}}));
+    ASSERT_TRUE(host.post(hio::ble::OpenLink{.client = 2,
+                                             .device = "00:00:00:00:00:00",
+                                             .uuids = {},
+                                             .handler = std::make_unique<LogHandler>(unknown),
+                                             // H6: retried until this deadline
+                                             .timing = {.connectDeadline = 300ms,
+                                                        .connectRetryDelay = 50ms,
+                                                        .connectBusyRetryDelay = 50ms}}));
     EXPECT_TRUE(runUntil([&] { return hasEvent(*paired, "down ble.not_paired"); }));
     EXPECT_TRUE(runUntil([&] { return hasEvent(*unknown, "down ble.connect_failed"); }));
 }

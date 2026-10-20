@@ -57,6 +57,9 @@ struct QtLinkError {
 // ble.not_paired only with the platform's authentication/encryption detail (ADR-0084, review B7).
 [[nodiscard]] Error mapLinkError(const QtLinkError& error);
 
+// ble.pairing_failed; on Linux with a text that names both causes (H1 rework): no agent (BlueZ
+// may connect first, so a missing agent is not always instant) or a wrong passkey / stale bond.
+[[nodiscard]] Error pairingFailed(std::string detail);
 // A pairing request failed (HIL H1): on Linux a PairingError within noAgentWindow of the request
 // is ble.no_pairing_agent (BlueZ cancels at once without an agent), otherwise ble.pairing_failed;
 // MissingPermissionsError is ble.permission_denied. The one place of that rule.

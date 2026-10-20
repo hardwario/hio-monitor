@@ -110,6 +110,7 @@ void NusLink::connect(bool automatic) {
     m_ready = LinkReady{};
     m_handler->onConnecting(automatic);
     m_attempts = 0;
+    m_busyRetries = 0;
     m_lastAttemptError.reset();
     m_deadlineAt = std::chrono::steady_clock::now() + m_timing.connectDeadline;
     m_deadline.start(m_timing.connectDeadline);
@@ -118,6 +119,7 @@ void NusLink::connect(bool automatic) {
 
 void NusLink::startAttempt() {
     ++m_attempts;
+    m_attemptStarted = std::chrono::steady_clock::now();
     auto link = m_api->connect(m_device, m_uuids);
     if (!link) {
         attemptFailed(std::move(link).error());
@@ -130,15 +132,29 @@ void NusLink::startAttempt() {
 // Such an attempt is retried while the connect deadline allows; the pairing wait, other codes and
 // the deadline itself end the connect.
 void NusLink::attemptFailed(Error error) {
-    m_link.reset();
-    const bool retry = error.code == ErrorCode::BleConnectFailed && !m_pairingWait &&
-                       std::chrono::steady_clock::now() + m_timing.connectRetryDelay < m_deadlineAt;
+    m_link.reset(); // QtBleApi releases the controller through ControllerCloser (H2)
+    const auto now = std::chrono::steady_clock::now();
+    const auto ran = now - m_attemptStarted;
+    // HIL H8: Qt does not expose BlueZ's error name (NoReply / InProgress are both UnknownError),
+    // so the attempt's duration decides: BlueZ's D-Bus timeout or an instant failure means BlueZ
+    // may still be connecting; a new attempt then would only fail with InProgress.
+    const bool busy = ran >= m_timing.connectBusyAttempt || ran < m_timing.connectImmediateFailure;
+    constexpr int maxBackoffShift = 4; // at most 16x connectBusyRetryDelay
+    const std::chrono::milliseconds delay =
+        busy ? m_timing.connectBusyRetryDelay * (1 << std::min(m_busyRetries, maxBackoffShift))
+             : m_timing.connectRetryDelay;
+    const bool retry =
+        error.code == ErrorCode::BleConnectFailed && !m_pairingWait && now + delay < m_deadlineAt;
     if (retry) {
+        if (busy) {
+            ++m_busyRetries;
+        }
         qCInfo(log::lcBle).noquote()
-            << "Connect attempt" << m_attempts << "to" << toQString(m_device)
-            << "failed, trying again:" << toQString(error.detail);
+            << "Connect attempt" << m_attempts << "to" << toQString(m_device) << "failed after"
+            << std::chrono::duration_cast<std::chrono::milliseconds>(ran).count()
+            << "ms, trying again in" << delay.count() << "ms:" << toQString(error.detail);
         m_lastAttemptError = std::move(error);
-        m_retry.start(m_timing.connectRetryDelay);
+        m_retry.start(delay);
         return;
     }
     stopTimers();

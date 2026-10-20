@@ -341,7 +341,7 @@ cross threads.
 BLE command queue 256 · event queue 10 000 per subscriber (DropOldest + `LinesDropped`) · scan list 256 devices,
 name 64 B · outgoing line 4 KiB · chunks in flight 1 (with-response) / 16 (without) · partial line 4 KiB ·
 ConsoleLog 100 000 lines/channel · console files and history as M1 · sessions 8 total · timeouts: scan default 5 s
-(1–60), connect 30 s (HIL H3; 60 s while pairing; a failed attempt retried after 1 s within it, H6), controller close wait 3 s (H2), write 2 s, reconnect 3 s while seen in 15 s, `ble command` 3 s,
+(1–60), connect 30 s (HIL H3; 60 s while pairing; a failed attempt retried after 1 s within it, H6; after an attempt of ≥ 20 s or < 1 s after 2 s, 4 s, … , H8), controller close wait 3 s (H2), write 2 s, reconnect 3 s while seen in 15 s, `ble command` 3 s,
 `BleHost::stop` 3 s, doctor check 5 s, scanner signal ≤ 4/s.
 
 ## Decisions requiring user confirmation
@@ -474,6 +474,20 @@ retry gets `org.bluez.Error.InProgress` at once. With discovery off: **20/20 OK,
 
 User decision 2026-10-20: fix H8 (after `NoReply` / `InProgress`, wait for BlueZ's pending attempt instead of
 starting new ones, within the 30 s deadline).
+
+HIL 2026-10-20 (continued): auto-reconnect across a J-Link reset works (`ble.disconnected`, reconnected ~15 s
+later, uptime restarted). H1 re-test after removing the host bond: `ble pair` without an agent failed after 24 s
+(BlueZ connects first) as `ble.pairing_failed`, not `ble.no_pairing_agent`; pairing with `bluetoothctl` right after
+worked, so the CHESTER accepted a new bond and the 2 s timing heuristic is not reliable.
+
+User decision 2026-10-20 (H1 rework): on Linux every pairing failure that is not the reliable instant case is
+`ble.pairing_failed` with a text naming both causes — no passkey dialog appeared (no pairing agent: pair from the
+system Bluetooth settings or with `bluetoothctl`: `scan le`, `pair <id>`) or a wrong passkey / stale bond.
+`ble.no_pairing_agent` stays only for the instant failure.
+
+HIL after the H8 / H1-rework fixes (2026-10-20): 10/10 connects without discovery (2–23 s) and 10/10 with
+`bluetoothctl scan le` running (6–13 s); the H8 back-off did not trigger (the GNOME-panel failure could not be
+reproduced), so H8 is covered by unit tests only.
 
 Not yet run: console interactive keys (tty), reconnect after device restart, out of range, pairing from a fresh bond via the app.
 
