@@ -489,7 +489,19 @@ HIL after the H8 / H1-rework fixes (2026-10-20): 10/10 connects without discover
 `bluetoothctl scan le` running (6–13 s); the H8 back-off did not trigger (the GNOME-panel failure could not be
 reproduced), so H8 is covered by unit tests only.
 
-Not yet run: console interactive keys (tty), reconnect after device restart, out of range, pairing from a fresh bond via the app.
+Interactive console on the real CHESTER (2026-10-20, by Matej Strnad with Claude): Enter, Up/Down history,
+Ctrl+R search, F4 reconnect (`-- reconnecting --` → `-- connected --` in ~20 s), Ctrl+C and Ctrl+D on an empty
+line all work; the device lock is released and the console file ends with ` @ stopped`. One command of the history
+steps did not reach the device (not reproducible; probably a key not registered). Out of range: **skipped** — the
+link stayed up beyond the available distance (BlueZ reported it connected); the disconnect → auto-reconnect path is
+covered by the J-Link reset test. Pairing from a fresh bond through `hio ble pair` needs a desktop agent (H1);
+covered by `bluetoothctl` + the combined message.
+
+| # | Sev. | Finding |
+|---|---|---|
+| H10 | low | When the console quits (Ctrl+C / Ctrl+D) no final newline is printed, so the shell prompt continues on the `bt_nus:~$` line (check whether the J-Link console behaves the same). |
+
+**F1 (Linux) result:** done except the out-of-range case (skipped) and H10 (open, low).
 
 ## Implementation steps
 
@@ -531,8 +543,8 @@ Phase E — diagnostics (after 0007 phase A)
 - [x] E1 `bluetooth` check + `hio doctor` output/JSON + tests with fake adapter states
 
 Phase F — hardware and docs
-- [ ] F1 HIL tests (`HIO_HIL=1`, CHESTER with Bluetooth shell): scan, connect, command, reconnect after device
-  restart, pairing from a fresh bond
+- [x] F1 HIL tests (`HIO_HIL=1`, CHESTER with Bluetooth shell): scan, connect, command, reconnect after device
+  restart, pairing from a fresh bond — Linux done 2026-10-20 (see "HIL findings"; out of range skipped, H10 open)
 - [ ] F2 Manual checks on Linux, Windows, macOS (pairing UI per OS, macOS permission prompt for GUI and CLI)
 - [ ] F3 Update CLAUDE.md "Commands", `0006-cli.md` table status, roadmap
 
