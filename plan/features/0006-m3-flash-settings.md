@@ -29,6 +29,17 @@
 > settings sections get the link "Run the setup wizard" (0008). In the error table, `FirstRunSetup` is the C++
 > enumerator name; QML/JSON use the kebab id `first-run-setup` (ADR-0067, 0007).
 
+> **Pending amendment from M5 ([0012](0012-m5-ble-gui-pairing.md), ADR-0081; applied when 0012 is approved):** the
+> Flash rail item is disabled on Bluetooth tabs with the tooltip "Flashing needs a J-Link. Open a J-Link tab to
+> flash this device."
+
+> **Pending amendment from M6 ([0014](0014-m6-mcp-gui.md)):** contributed Settings section "AI assistants (MCP)".
+
+> **Pending amendment from M7 ([0016](0016-m7-update-check.md), ADR-0116, ADR-0119, ADR-0122; applied when 0016 is
+> approved — then this plan needs re-approval):** Settings › About gains the update block (automatic check,
+> pre-releases, [Check now]), the CLI path of this installation and the licence list read from the installed
+> `licenses/` directory; the version line shows the package kind.
+
 ## Context
 
 Flashing by catalog ID or by a local `.hex` is the second core workflow of the old app. Its problems:

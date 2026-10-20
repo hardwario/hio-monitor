@@ -1,6 +1,6 @@
 # ADR-0050 — Adding a device: probe picker in a new tab with background enumeration
 
-- **Status:** Accepted
+- **Status:** Accepted (amended by ADR-0081: the picker gets a J-Link | Bluetooth switch)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M3 GUI planning session)
 

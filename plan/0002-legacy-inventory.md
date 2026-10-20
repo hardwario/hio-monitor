@@ -19,7 +19,7 @@ which holds the RTT console / MCP logic and is not in that repo).
 | Command history (persisted, Up/Down, Ctrl+R search) | [ ] | |
 | Batch commands from a text file (200 ms spacing) | [ ] | fix Linux/macOS path bug |
 | Open log file | [ ] | |
-| BLE scan (CHESTER filter, RSSI sort, search), connect, NUS shell | [ ] | |
+| BLE scan (CHESTER filter, RSSI sort, search), connect, NUS shell | [ ] | M5: [0011](features/0011-m5-ble-backend-cli.md), [0012](features/0012-m5-ble-gui-pairing.md) |
 | Flash local .hex | [ ] | |
 | Flash by firmware ID from catalog (`https://firmware.hardwario.com/chester/<id>/hex`), cache | [ ] | |
 | Flash log | [ ] | |

@@ -33,6 +33,18 @@
 - **Can run in parallel with:** [0006](0006-m3-flash-settings.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from M5 ([0012](0012-m5-ble-gui-pairing.md), ADR-0079; applied when 0012 is approved — then
+> this plan needs re-approval):** `ConsoleViewModel` binds to `DeviceTabViewModel::consoleSession()` (J-Link or
+> BLE); Reset is hidden without the `Reset` capability; the log pane is hidden while the Log channel is empty for
+> BLE tabs.
+
+
+> **Pending amendment from M6 (ADR-0105, specified in [0014](0014-m6-mcp-gui.md)):** AI activity marker rows and the
+> input placeholder "AI is running a command…" while an AI `send_command` collects output.
+
+> **Pending amendment from M8 ([0017](0017-m8-parity.md) item A3):** in the log view (focus not in a text field) with an
+> active search, `n` / Shift+`n` go to the next / previous match, as in v1.
+
 ## Context
 
 The console is the screen users spend most of their time on. The old app's workflows must be kept:

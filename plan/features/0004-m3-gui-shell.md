@@ -19,6 +19,24 @@
 > and the page gets the links "Not sure how to connect? Guide me" and "Flash firmware with a guide" (0010).
 > `probe.in_use_by_other_process` opens Troubleshooting. The work is done in 0007 (C2, C5), 0009 (T4) and 0010 (W4).
 
+> **Pending amendment from M5 ([0012](0012-m5-ble-gui-pairing.md), ADR-0081, ADR-0083; applied when 0012 is approved
+> — then this plan needs re-approval):** the Choose-device page gets a J-Link | Bluetooth switch and a BLE device
+> list; `DeviceTabViewModel` gains `transport`, `consoleSession()`, `openBle()`, `bleSession()`; BLE tabs have a BLE
+> device bar and title; `ui/tabs` entries gain `transport`; settings `ui/lastTransport`, `ble/*`.
+
+> **Pending amendment from M6 (ADR-0105, specified in [0014](0014-m6-mcp-gui.md)):** an "MCP" indicator on the rail
+> above Settings; an "AI" badge on tabs opened by an AI assistant (not restored); busy page id `ai` for AI
+> operations; `AppViewModel::openTab` overload for programmatic opening.
+
+> **Pending amendment from M7 ([0015](0015-m7-packaging-release.md), [0016](0016-m7-update-check.md); applied when
+> they are approved — then this plan needs re-approval):** the shell banner area hosts `UpdateBanner` (below error
+> banners) and `CrashNoticeBanner` (ADR-0123); `setDesktopFileName("com.hardwario.monitor")`, window icon and the
+> Windows AppUserModelID are set in `main()`; single instance on Windows is verified on the MSI install (Flatpak is
+> deferred, ADR-0118).
+
+> **Pending amendment from M8 ([0017](0017-m8-parity.md), ADR-0132):** the device bar shows the "J-Link firmware is
+> outdated" warning banner with [Update] / [Not now]; error panels' "More help" link uses `docsUrl()` (ADR-0138).
+
 ## Context
 
 M0–M2 deliver the backend (J-Link sessions, RTT console, flashing, catalog download) and the CLI. The GUI is still

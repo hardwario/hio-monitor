@@ -26,6 +26,12 @@
 > `SessionKey` and its retention asks `ProbeLock` or `BleLock`; `LineAssembler` gains a read-only peek of the partial
 > line.
 
+> **Pending amendment from M6 (ADR-0099, ADR-0104, specified in [0013](0013-m6-mcp-core-cli.md) § New `libs/device`
+> operations; applied to this text when 0013 is approved — then this plan needs re-approval):** new JLinkARM
+> declarations (halt/go/IsHalted/GetId/WriteMem/WriteU16/U32/ReadMemU16/U32/register list, names and reads,
+> GetMemZones); `TargetProfile::ram`, `peripherals`, `shellPrompt` and RTT prompt detection (`promptSeen` also for
+> J-Link); `SessionOptions::rttAddress`; `releaseProbe` / `reacquireProbe`.
+
 ## Context
 
 The J-Link RTT console (interactive shell + device log) is the core feature of HARDWARIO Monitor. The old

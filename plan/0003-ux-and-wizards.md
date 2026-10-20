@@ -31,15 +31,16 @@ M4 plans: [0007 framework + diagnostics](features/0007-m4-wizard-framework-diagn
 [0008 first-run setup](features/0008-m4-first-run-setup.md),
 [0009 connect + troubleshooting](features/0009-m4-connect-and-troubleshooting.md),
 [0010 flash](features/0010-m4-flash-wizard.md). Wizards open in a modal dialog (ADR-0066) driven by C++ step
-machines (ADR-0067). The macOS Bluetooth permission step and the BLE pairing wizard move to M5.
+machines (ADR-0067). The macOS Bluetooth permission step and the BLE pairing wizard are M5: [0012](features/0012-m5-ble-gui-pairing.md)
+(ADR-0084, ADR-0088).
 
 | Wizard | Trigger | Steps (sketch) |
 |---|---|---|
-| First-run setup | first start, or J-Link missing at start (ADR-0071) | detect J-Link Software (and optional nRF Util, needed only for modem firmware) → guide download/install → Linux udev rule (ADR-0072) → test probe (macOS Bluetooth permission: M5) |
-| Connect device | "Connect" or connection error | choose device (CHESTER) → choose connection (J-Link / BLE) → illustrated cabling ("connect the J-Link flat cable to connector …", "power the device") → live checks (probe found? target voltage? MCU detected?) → done |
+| First-run setup | first start, or J-Link missing at start (ADR-0071) | detect J-Link Software (and optional nRF Util, needed only for modem firmware) → guide download/install → Linux udev rule (ADR-0072) → test probe → optional Bluetooth step: adapter, macOS permission (M5, ADR-0088) |
+| Connect device | "Connect" or connection error | choose device (CHESTER) → illustrated cabling (J-Link only; Bluetooth is chosen in the Choose-device picker, ADR-0081, and helped by the BLE pairing wizard) ("connect the J-Link flat cable to connector …", "power the device") → live checks (probe found? target voltage? MCU detected?) → done |
 | Flash firmware | Flash page "Guide me", FlashFirmware errors (ADR-0074) | device and probe → kind → cable + live check → file / catalog ID (no catalog browsing, open question 15) → confirm → progress → offer to open console |
 | Troubleshooting | from an `hio::Error` with `wizardId` | targeted checks per error (USB cable, flat cable, power, other app holding the probe, outdated J-Link firmware) |
-| BLE pairing (M5) | BLE connect failure / "probably unpaired" | explain pairing/passkey, OS-specific steps, macOS Bluetooth permission |
+| BLE pairing (M5, ADR-0084) | every `ble.*` error naming BlePairing; Help menu | Bluetooth checks (adapter, permission) → device (BLE list) → pair (OS-specific; [Pair] on Linux/Windows; passkey hint 123456 / PIB) → test (connected, NUS, encrypted, shell answers) → done |
 
 Illustrations and photos are stored under `app/gui/assets/` via **Git LFS**. They contain no embedded
 text (text goes into translatable captions), so they work in every language.

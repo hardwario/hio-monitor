@@ -1,6 +1,6 @@
 # ADR-0021 — Toolchain pins and CI hosts
 
-- **Status:** Accepted
+- **Status:** Accepted (amended by ADR-0121: glibc baseline 2.35, packaging jobs in a Ubuntu 22.04 container)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M0 planning session)
 

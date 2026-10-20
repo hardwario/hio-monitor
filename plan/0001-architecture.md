@@ -61,7 +61,8 @@ plan/
   recover ADR-0039) live in `libs/device` and run as `DeviceSession` operations (features/0003).
 - `ConsoleSession` (ADR-0079, replaces the earlier `IConsoleTransport` idea) — the console of a session (send
   line, reconnect, close, `ConsoleLog`, connection events); implemented by `DeviceSession` (J-Link RTT) and
-  `BleSession` (BLE NUS), serial possible in the future.
+  `BleSession` (BLE NUS), serial possible in the future. CLI console, GUI
+  console page and MCP use only this interface.
 - `DeviceProfile` — compiled-in C++ data (ADR-0032) describing a device: MCU(s) and J-Link device names, expected family,
   RTT buffer names (`Terminal`, `Logger`), UICR/PIB layout, wizard illustrations,
   firmware catalog endpoints.
@@ -74,6 +75,9 @@ plan/
 - Each `DeviceSession` runs on its own owned `std::jthread`; all vendor-DLL calls for that probe happen
   there. Commands and events travel through bounded queues; a `QObject` façade on the owner thread emits
   batched queued signals (ADR-0031). GUI thread never blocks on hardware.
+- Bluetooth (ADR-0080): QtBluetooth needs an event loop, so one application-owned `BleHost` thread (an owned
+  `std::jthread` with a `QEventLoop`, ADR-0141) hosts the scanner and every BLE link; `BleSession` façades talk to it through the same bounded
+  queues and coalesced wake-ups.
 - Results/events travel to the UI via queued Qt signals; MCP and CLI use the same events.
 - Every long operation takes a `std::stop_token` and has a timeout.
 - Threads are owned (`std::jthread` / owned `QThread`) and joined on shutdown.

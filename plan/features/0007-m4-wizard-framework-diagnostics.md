@@ -19,6 +19,14 @@
 > `ble-picker`, illustration slots `ble-enable` / `ble-pair-os`, Help item "Pair a Bluetooth device…") follow with
 > 0012.
 
+> **Pending amendment from M7 ([0015](0015-m7-packaging-release.md), ADR-0123, ADR-0118; applied when 0015 is
+> approved — then this plan needs re-approval):** the diagnostic report adds `crashes/` (newest 3 crash files, plus
+> macOS DiagnosticReports `hio*`), within the 16 MiB bound; the summary shows the package kind. The Flatpak note in
+> "Risks" no longer applies to v2.0 (Flatpak deferred).
+
+> **Pending amendment from M8 ([0017](0017-m8-parity.md), ADR-0132):** the doctor row `probe-firmware` gets an [Update]
+> fix action in the GUI; new error code `probe.firmware_update_failed`.
+
 ## Context
 
 Every `hio::Error` already names a wizard (`WizardId`, M0) and the M1/M2 error tables map about 25 error codes to

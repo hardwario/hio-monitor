@@ -1,6 +1,6 @@
 # ADR-0031 — DeviceSession threading: owned jthread, bounded queues, QObject façade
 
-- **Status:** Accepted
+- **Status:** Accepted (BLE sessions use the shared BLE thread of ADR-0080 instead)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M1 planning session)
 
