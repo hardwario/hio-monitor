@@ -344,6 +344,12 @@ public:
             m_rx.emulate_key_press(Key::control('Q'));
         }
         input.join();
+        // HIL H10: replxx ends input() without a new line when it bails (Ctrl+D / Ctrl+C on an
+        // empty line, the emulated Ctrl+Q): end the prompt line, so the shell's prompt starts on
+        // its own line. Only here - plain and --json consoles show no prompt.
+        if (m_promptOpen) {
+            m_rx.write("\n", 1);
+        }
         m_view->setPrinter({}, true);
         return result;
     }
@@ -401,11 +407,13 @@ private:
 
     void readLines(const std::stop_token& stop) {
         while (!stop.stop_requested()) {
+            m_promptOpen = true;
             const char* text = m_rx.input(m_options->prompt);
             if (text == nullptr) {
                 m_quit.store(true);
                 return;
             }
+            m_promptOpen = false; // replxx ended the line (Enter)
             std::string line(text);
             if (!line.empty()) {
                 m_rx.history_add(line);
@@ -453,6 +461,8 @@ private:
     BoundedQueue<std::string> m_entered{64, OverflowPolicy::Block};
     std::atomic<bool> m_quit{false};
     std::atomic<bool> m_reconnect{false};
+    // Written by the input thread only, read by the main thread after joining it (H10).
+    bool m_promptOpen = false;
     LineSender m_sender;
     TickLoop m_loop;
 };

@@ -501,7 +501,8 @@ covered by `bluetoothctl` + the combined message.
 |---|---|---|
 | H10 | low | When the console quits (Ctrl+C / Ctrl+D) no final newline is printed, so the shell prompt continues on the `bt_nus:~$` line (check whether the J-Link console behaves the same). |
 
-**F1 (Linux) result:** done except the out-of-range case (skipped) and H10 (open, low).
+**F1 (Linux) result:** done except the out-of-range case (skipped) and H10 (low; fixed 2026-10-20, not yet
+re-checked on hardware).
 
 ## Implementation steps
 
@@ -544,9 +545,9 @@ Phase E — diagnostics (after 0007 phase A)
 
 Phase F — hardware and docs
 - [x] F1 HIL tests (`HIO_HIL=1`, CHESTER with Bluetooth shell): scan, connect, command, reconnect after device
-  restart, pairing from a fresh bond — Linux done 2026-10-20 (see "HIL findings"; out of range skipped, H10 open)
+  restart, pairing from a fresh bond — Linux done 2026-10-20 (see "HIL findings"; out of range skipped, H10 fixed, not yet re-checked on hardware)
 - [ ] F2 Manual checks on Linux, Windows, macOS (pairing UI per OS, macOS permission prompt for GUI and CLI)
-- [ ] F3 Update CLAUDE.md "Commands", `0006-cli.md` table status, roadmap
+- [x] F3 Update CLAUDE.md "Commands", `0006-cli.md` table status, roadmap
 
 ## Tests and verification
 

@@ -110,6 +110,8 @@ git ls-files -z -- '*.h' '*.cpp' | xargs -0 clang-format-21 --dry-run --Werror  
 tools/check-lfs.sh [--untracked]                # Git LFS rule (binary, generated text > 100 KB)
 tools/check-includes.sh                         # no <bits/...> includes (libc++ / MSVC STL)
 build/linux-debug/app/cli/hio --help            # CLI; GUI: build/linux-debug/app/gui/hio-monitor
+build/linux-debug/app/cli/hio ble scan          # nearby CHESTERs (--all: every device); then pick one by -a ID or --name N:
+build/linux-debug/app/cli/hio ble console -a F1:22:33:44:55:66   # also `ble command CMD`, `ble pair` (Linux/Windows)
 HIO_FAKE_BLE_SCENARIO=tests/ble_scenarios/chester.json build/linux-debug/app/cli/hio ble scan   # fake BLE (test builds)
 build/linux-debug/app/cli/hio jlink list        # probes (J-Link Software 8.x: auto-discovered, or
                                                 # --jlink-library PATH / $HIO_JLINK_LIBRARY)

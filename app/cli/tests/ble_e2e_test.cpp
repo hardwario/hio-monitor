@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QProcessEnvironment>
+#include <QStandardPaths>
 #include <QString>
 #include <QStringList>
 
@@ -365,6 +366,44 @@ TEST_F(FakeBleCli, EmptyLineInsideCommandOutputIsKept) {
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_EQ(data(envelopes(result.out).at(0)).value(QStringLiteral("output")).toArray(),
               QJsonArray({QStringLiteral("line 1"), QString(), QStringLiteral("line 3")}));
+}
+
+// HIL H10: quitting the interactive console (a terminal: here util-linux script(1) provides the
+// pty) ends the prompt line, so the shell's prompt starts on its own line. The console code is
+// shared with the J-Link console.
+TEST_F(FakeBleCli, InteractiveQuitEndsThePromptLine) {
+#ifndef Q_OS_LINUX
+    GTEST_SKIP() << "script(1) with util-linux options is Linux only";
+#else
+    const QString script = QStandardPaths::findExecutable(QStringLiteral("script"));
+    if (script.isEmpty()) {
+        GTEST_SKIP() << "script(1) not installed";
+    }
+    for (const char key : {'\x04', '\x03'}) { // Ctrl+D, Ctrl+C on an empty line
+        QProcess process;
+        QProcessEnvironment env = scenario("chester.json");
+        env.insert(QStringLiteral("TERM"), QStringLiteral("xterm"));
+        process.setProcessEnvironment(env);
+        const QString command = QStringLiteral("'%1' ble console -a %2")
+                                    .arg(QStringLiteral(HIO_CLI_EXECUTABLE), device);
+        process.start(script, {QStringLiteral("-qfec"), command, QStringLiteral("/dev/null")});
+        ASSERT_TRUE(process.waitForStarted(10000));
+        QByteArray out;
+        const auto deadline = std::chrono::steady_clock::now() + 20s;
+        while (!out.contains("bt_nus:~$ ") && std::chrono::steady_clock::now() < deadline) {
+            process.waitForReadyRead(100);
+            out += process.readAllStandardOutput();
+        }
+        ASSERT_TRUE(out.contains("bt_nus:~$ ")) << out.toStdString();
+        process.write(QByteArray(1, key));
+        ASSERT_TRUE(process.waitForFinished(20000)) << out.toStdString();
+        out += process.readAllStandardOutput();
+        EXPECT_EQ(process.exitCode(), 0) << out.toStdString();
+        // The prompt line is ended once: no prompt left open, no stray empty line.
+        EXPECT_TRUE(out.endsWith("bt_nus:~$ \r\n"))
+            << QString::fromUtf8(out.toPercentEncoding()).toStdString();
+    }
+#endif
 }
 
 TEST_F(FakeBleCli, DeviceIsRequired) {
