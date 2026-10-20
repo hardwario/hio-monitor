@@ -8,6 +8,8 @@
 //   "adapter": {"state": "ready" | "notFound" | "poweredOff" | "permissionDenied" |
 //               "permissionUndetermined" | "stackUnavailable", "name": "hci0",
 //               "address": "00:11:22:33:44:55"}
+//   "adapterLater": {"state": ...}    the adapter from the second adapter() call on (e.g. after a
+//                                     permission request)
 //   "pairingSupported": true          false = macOS: requestPairing -> ble.pairing_not_supported
 //   "scanError": "<error id>"         startScan fails with it
 //   "advertiseIntervalMs": 1000       every advertising device is reported this often
@@ -92,6 +94,7 @@ struct FakeDevice {
 
 struct FakeScenario {
     AdapterInfo adapter{.state = AdapterState::Ready, .name = "fake0", .address = ""};
+    std::optional<AdapterInfo> adapterLater;
     bool pairingSupported = true;
     std::optional<ErrorCode> scanError;
     int advertiseIntervalMs = 1000;
@@ -148,6 +151,7 @@ private:
     std::map<std::size_t, int> m_attempts;  // connect attempts per device
     std::map<std::size_t, bool> m_dropped;  // the scripted drop happened
     LinkId m_nextLink = 1;
+    int m_adapterQueries = 0;
 };
 
 // Calls on (or destruction from) a thread other than the creating one, in this process.

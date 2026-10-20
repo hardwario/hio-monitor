@@ -97,8 +97,10 @@ struct SendLine {
     std::string line;
 };
 // Closes the link; `done` (optional) receives one element when the handler was closed. Uses the
-// space its OpenLink reserved (never internal.queue_full); the worker handles closes after the
-// commands it drained, and a close that overtakes its OpenLink still closes the link (B3).
+// space its OpenLink reserved (never internal.queue_full); the worker handles closes before each
+// command it takes (N1), so a close posted before another command is processed before it; a close
+// that overtakes its own OpenLink still closes the link (B3). A close for a client that has no
+// reservation (its OpenLink failed, or it was closed already) is accepted without effect (N2).
 struct CloseLink {
     ClientId client = 0;
     std::shared_ptr<BoundedQueue<bool>> done;
@@ -113,8 +115,16 @@ struct QueryAdapter {
     std::shared_ptr<BoundedQueue<AdapterInfo>> reply;
 };
 
+// Ends the link with `error` as if its attempt had failed with it (the owner's handler reports it;
+// a fatal code is Stopped) and ignores automatic ConnectLinks until a non-automatic one (review
+// N3, N4: the owner found the adapter unusable during auto-reconnect).
+struct StopLink {
+    ClientId client = 0;
+    Error error;
+};
+
 using BleCommand = std::variant<StartScan, StopScan, OpenLink, ConnectLink, SendLine, CloseLink,
-                                PairDevice, QueryAdapter>;
+                                PairDevice, QueryAdapter, StopLink>;
 
 namespace detail {
 struct HostShared;

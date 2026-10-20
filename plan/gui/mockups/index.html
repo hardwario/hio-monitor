@@ -362,7 +362,7 @@ Object.assign(T.en, {
  cUsb:'USB access to J-Link', cUsbF:'J-Link 683012345 on bus 003 device 007 is not accessible',
  connTitle:'Connect your CHESTER', sDevice:'Device', sProbe:'Probe', sCable:'Cable', sPower:'Power', sCheck:'Check',
  chkHead:'Checking the connection', chkBody:'The checks run on the application MCU through J-Link 683012345.',
- dProbe:'J-Link probe', dProbeOk:'J-Link EDU Mini · 683012345', dPower:'Device power', dPowerOk:'3.30 V',
+ dProbe:'J-Link probe', dProbeOk:'J-Link probe · 683012345', dPower:'Device power', dPowerOk:'3.30 V',
  dConn:'Connection to the application MCU', dConnF:'Could not connect to the device’s application MCU.',
  dConnCause:'Probably: the flat cable is not connected, or it is on the other MCU’s connector.',
  dConnTodo:'What to do: check the flat cable between the J-Link and the device.', showMe:'Show me how',
@@ -392,7 +392,7 @@ Object.assign(T.cs, {
  cUsb:'Přístup k J-Linku přes USB', cUsbF:'J-Link 683012345 na sběrnici 003, zařízení 007 není přístupný',
  connTitle:'Připojte svůj CHESTER', sDevice:'Zařízení', sProbe:'Programátor', sCable:'Kabel', sPower:'Napájení', sCheck:'Kontrola',
  chkHead:'Kontrola připojení', chkBody:'Kontroly běží na aplikačním MCU přes J-Link 683012345.',
- dProbe:'Programátor J-Link', dProbeOk:'J-Link EDU Mini · 683012345', dPower:'Napájení zařízení', dPowerOk:'3,30 V',
+ dProbe:'Programátor J-Link', dProbeOk:'J-Link · 683012345', dPower:'Napájení zařízení', dPowerOk:'3,30 V',
  dConn:'Spojení s aplikačním MCU', dConnF:'Nelze se připojit k aplikačnímu MCU zařízení.',
  dConnCause:'Pravděpodobně: plochý kabel není připojen nebo je na konektoru druhého MCU.',
  dConnTodo:'Co udělat: zkontrolujte plochý kabel mezi J-Linkem a zařízením.', showMe:'Ukázat jak',
@@ -435,7 +435,7 @@ function devbar(state, extra='') {
     busy:[`<span class="dot busy"></span>${t('flashing')}`, `<button class="btn" disabled>${t('disconnect')}</button>`],
     choose:[`<span class="muted">${t('chooseDevice')}</span>`, ''],
   }[state];
-  const probe = state==='choose' ? '' : `<span class="chip"><span class="k">${t('probe')}</span> J-Link EDU Mini · <span class="mono">683012345</span></span>
+  const probe = state==='choose' ? '' : `<span class="chip"><span class="k">${t('probe')}</span> J-Link · <span class="mono">683012345</span></span>
     <span class="chip"><span class="k">${t('target')}</span> CHESTER · app ▾</span>`;
   return `<div class="devbar">${probe}<span class="state">${map[0]}</span><span class="grow"></span>${map[1]}
     ${state==='choose'?'':`<button class="btn ghost" title="${t('advanced')}" aria-label="${t('advanced')}">⋯</button>`}</div>${extra}`;
@@ -517,9 +517,9 @@ const SCREENS = {
   render:() => frame({page:'choose', dev:'choose', tabState:'', content:`<div class="scroll"><div class="cards">
    <div><p class="big">${t('chooseTitle')}</p><p class="muted" style="margin:0">${t('chooseSub')}</p></div>
    <div class="card"><h2>${t('probe')} <span class="grow"></span><button class="tb small">↻ ${t('refresh')}</button></h2><div class="list">
-    <div class="li sel"><span class="radio"></span><b>J-Link EDU Mini</b><span class="mono">683012345</span><span class="muted small">FW 2024-03-07</span></div>
+    <div class="li sel"><span class="radio"></span><b>J-Link probe</b><span class="mono">683012345</span><span class="muted small">FW 2024-03-07</span></div>
     <div class="li"><span class="radio"></span><b>J-Link OB-SAM3U128</b><span class="mono">801004417</span><span class="muted small">FW 2023-11-02</span><span class="grow"></span><span class="tag">${t('inUse')}</span></div>
-    <div class="li"><span class="radio"></span><b>J-Link PLUS</b><span class="mono">600109876</span><span class="muted small">FW 2025-01-15</span></div></div></div>
+    <div class="li"><span class="radio"></span><b>J-Link probe</b><span class="mono">600109876</span><span class="muted small">FW 2025-01-15</span></div></div></div>
    <div class="card"><h2>${t('device')}</h2><div class="row"><span class="sel-box">CHESTER ▾</span><span class="segc"><span class="on">${t('appMcu')}</span><span>${t('lteMcu')}</span></span><span class="grow"></span><button class="btn primary">${t('connect')}</button></div></div>
   </div></div>`}) },
  noprobe: { label:'No probe (empty state)', note:'Empty state shows the next step and simple checks. “Help me fix this” is disabled until the M4 Connect wizard.',
@@ -686,7 +686,7 @@ Object.assign(SCREENS, {
 OS: Ubuntu 24.04 (x86_64) · language: ${S.lang}
 J-Link Software: 8.10 · /opt/SEGGER/JLink
 nRF Util: not found
-Probes: J-Link EDU Mini 683012345 (FW 2024-03-07, tab 1)
+Probes: J-Link probe 683012345 (FW 2024-03-07, tab 1)
 Tabs: CHESTER app 683012345 Connected
 Settings: ~/.config/HARDWARIO/Monitor.ini
 Logs: ~/.local/share/HARDWARIO/Monitor/logs/gui-20261009-101500-4711.log

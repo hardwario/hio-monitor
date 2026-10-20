@@ -130,7 +130,7 @@ Screens are drawn in the mockups (`plan/gui/mockups/`, with light/dark and EN/CS
 
 ### Device bar
 
-`[Probe J-Link EDU Mini · 683012345] [Target: app ▾] State text … [Connect | Disconnect | Cancel] [⋯]`
+`[Probe J-Link probe · 683012345] [Target: app ▾] State text … [Connect | Disconnect | Cancel] [⋯]`
 
 - **Connection states:**
   - *Disconnected*: "Disconnected", with a Connect button.

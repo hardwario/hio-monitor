@@ -422,6 +422,10 @@ B1, B2, B4–B7, B9, B10 verified fixed; B3 introduced N1/N2; B12 OK apart from 
 | N5 | low (plausible) | B5 window: a write between `lost()` and the deferred report returns `ble.write_failed` and can hide the real code (e.g. `ble.not_paired`) | `qt_ble_api.cpp:373-387, 556` |
 | N6 | low | B8: `readyAdapter` returns the pre-request `AdapterInfo` after a granted permission; an adapter that is off is reported only later | `ble_commands.cpp:199-212` |
 
+User decision 2026-10-20: fix all N1–N6 before HIL (verify, no further full review). Also remove the pre-existing
+J-Link model names (plans 0003/0004/0007, `plan/gui/mockups/index.html`, `tst_layout.qml`,
+`connection_view_model_test.cpp`) on this branch; use "J-Link probe" / neutral fixture strings.
+
 ## Implementation steps
 
 Phase A — BLE library

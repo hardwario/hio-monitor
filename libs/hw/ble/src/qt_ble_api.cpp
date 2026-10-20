@@ -378,10 +378,13 @@ void QtBleApi::lost(LinkId id, Error error) {
     release(*link);
     m_links.erase(id);
     // Review B5: reported from the event loop, never from inside an IBleApi call (a controller may
-    // emit errorOccurred synchronously inside connectToDevice()).
-    QTimer::singleShot(0, this, [this, id, error = std::move(error)]() mutable {
-        if (m_listener != nullptr) {
-            m_listener->onLinkLost(id, std::move(error));
+    // emit errorOccurred synchronously inside connectToDevice()). N5: until then write() returns
+    // this error; disconnect() cancels the report.
+    m_pendingLoss.insert_or_assign(id, std::move(error));
+    QTimer::singleShot(0, this, [this, id] {
+        auto pending = m_pendingLoss.extract(id);
+        if (pending && m_listener != nullptr) {
+            m_listener->onLinkLost(id, std::move(pending.mapped()));
         }
     });
 }
@@ -553,6 +556,10 @@ void QtBleApi::detailsDiscovered(LinkId id) {
 Status QtBleApi::write(LinkId id, std::span<const std::byte> chunk, WriteMode mode,
                        std::uint64_t token) {
     Link* link = find(id);
+    if (const auto pending = m_pendingLoss.find(id);
+        link == nullptr && pending != m_pendingLoss.end()) {
+        return std::unexpected(pending->second); // N5: the real reason, not ble.write_failed
+    }
     if (link == nullptr || !link->ready || !link->service) {
         return std::unexpected(makeError(ErrorCode::BleWriteFailed, "the link is not ready"));
     }
@@ -575,6 +582,7 @@ Status QtBleApi::write(LinkId id, std::span<const std::byte> chunk, WriteMode mo
 }
 
 void QtBleApi::disconnect(LinkId id) {
+    m_pendingLoss.erase(id); // no onLinkLost after disconnect()
     if (Link* link = find(id)) {
         release(*link);
         m_links.erase(id);

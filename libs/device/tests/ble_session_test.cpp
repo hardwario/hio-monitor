@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -38,6 +39,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -111,6 +113,20 @@ struct Driver {
                 ++actionsDone;
             },
             Qt::QueuedConnection);
+    }
+    // Blocks the BLE thread until the returned function is called: commands queue up meanwhile
+    // (deterministic ordering tests, review N1).
+    std::function<void()> block() {
+        auto gate = std::make_shared<std::promise<void>>();
+        auto started = std::make_shared<std::atomic<bool>>(false);
+        run([future = gate->get_future().share(), started](IBleListener& /*listener*/) {
+            started->store(true);
+            future.wait();
+        });
+        while (!started->load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return [gate] { gate->set_value(); };
     }
     int count(int Driver::* field) {
         const std::scoped_lock lock(mutex);
@@ -655,9 +671,13 @@ TEST_F(BleSessionTest, ReopenRightAfterCloseIsSafe) {
     data("first\n");
     ASSERT_TRUE(waitFor([first] { return !first->lines.empty(); }));
     driver()->setNextConnect(2);
+    // N1: the close and the new open are both queued before the BLE thread runs again, so the
+    // order below does not depend on timing.
+    const std::function<void()> release = driver()->block();
     dropLastSession(); // close() + destruction, no wait
     Events* second = nullptr;
     BleSession* again = openRecorded(opts, second);
+    release();
     ASSERT_NE(again, nullptr) << "the same device right after close() must open";
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 2; }));
     EXPECT_EQ(driver()->history(),
@@ -776,6 +796,84 @@ TEST_F(BleSessionTest, DeviceIdIsCanonical) {
     ASSERT_FALSE(again);
     EXPECT_EQ(again.error().code, ErrorCode::BleInUseByOtherProcess);
     EXPECT_TRUE(fs::exists(root() / "locks" / "ble-F1-22-33-44-55-66.lock"));
+}
+
+// Review N3: a fatal background-scan error reaches the BLE-thread handler: the console file gets
+// the stopped line and a line sent afterwards is not told to wait for a reconnect.
+TEST_F(BleSessionTest, ScanFatalStopReachesTheHandler) {
+    Events* events = nullptr;
+    BleSessionOptions opts = options(true);
+    opts.consoleFile = std::nullopt;
+    BleSession* session = openRecorded(std::move(opts), events);
+    ASSERT_NE(session, nullptr);
+    ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 1; }));
+    driver()->run([](IBleListener& l) {
+        l.onLinkReady(1, LinkReady{.mtu = 247, .writeMode = WriteMode::WithResponse});
+    });
+    ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Connected); }));
+    {
+        const std::scoped_lock lock(driver()->mutex);
+        driver()->scanError = ErrorCode::BleAdapterOff;
+    }
+    driver()->run(
+        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+    ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Stopped); }));
+    ASSERT_TRUE(session->sendLine("version"));
+    ASSERT_TRUE(waitFor([events] {
+        return std::ranges::any_of(events->warnings, [](const hio::Error& error) {
+            return error.code == ErrorCode::TargetNotConnected;
+        });
+    }));
+    for (const hio::Error& error : events->warnings) {
+        EXPECT_EQ(error.suggestion.find("Wait for the console to reconnect"), std::string::npos);
+    }
+    const fs::path file = session->consoleFile();
+    ASSERT_FALSE(file.empty());
+    dropLastSession();
+    stopHost();
+    std::ifstream input(file);
+    std::stringstream content;
+    content << input.rdbuf();
+    EXPECT_NE(content.str().find(" @ stopped: Bluetooth is turned off."), std::string::npos)
+        << content.str();
+}
+
+// Review N4: an automatic attempt in flight when the scan finds the adapter unusable cannot turn
+// Stopped back into Disconnected; an explicit reconnect still works.
+TEST_F(BleSessionTest, ScanFatalStopIsNotUndoneByAnAutomaticAttempt) {
+    Events* events = nullptr;
+    BleSession* session = connected(events, true);
+    ASSERT_NE(session, nullptr);
+    driver()->setNextConnect(2);
+    driver()->run(
+        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+    ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Disconnected); }));
+    driver()->run([](IBleListener& l) {
+        l.onAdvertisement(hio::ble::Advertisement{.id = deviceId,
+                                                  .name = {},
+                                                  .rssi = -60,
+                                                  .serviceUuids = {},
+                                                  .seen = std::chrono::steady_clock::now()});
+    });
+    ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 2; })); // in flight
+    driver()->run(
+        [](IBleListener& l) { l.onScanFinished(hio::makeError(ErrorCode::BleAdapterOff)); });
+    ASSERT_TRUE(
+        waitFor([session] { return session->connection().state == ConnectionState::Stopped; }));
+    // The in-flight attempt was cancelled (disconnected); a late result of it changes nothing.
+    driver()->run(
+        [](IBleListener& l) { l.onLinkLost(2, hio::makeError(ErrorCode::BleConnectFailed)); });
+    spin(300ms);
+    EXPECT_EQ(session->connection().state, ConnectionState::Stopped);
+    EXPECT_EQ(driver()->count(&Driver::connects), 2);
+    {
+        const std::scoped_lock lock(driver()->mutex);
+        driver()->scanError.reset();
+    }
+    driver()->setNextConnect(3);
+    ASSERT_TRUE(session->reconnect());
+    ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 3; }));
+    EXPECT_EQ(events->connections.back().state, ConnectionState::Connecting);
 }
 
 // ---- registry (B2)

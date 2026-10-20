@@ -96,7 +96,7 @@ TestCase {
     function test_deviceBar(data) {
         window.width = data.width;
         window.height = data.height;
-        verify(testSupport.configureTab(0, "app", 801000001, "J-Link EDU Mini"));
+        verify(testSupport.configureTab(0, "app", 801000001, "Test Probe"));
         testSupport.setConnectionError(0, "probe.not_found");
         waitForRendering(window.contentItem);
         compare(AppViewModel.railCompact, true);

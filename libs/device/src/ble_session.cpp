@@ -581,12 +581,21 @@ void BleSession::scanFailed(const Error& error) {
     case ErrorCode::BleStackUnavailable:
         qCWarning(log::lcBle).noquote() << "Background scan failed:" << toQString(error.detail);
         m_retryTimer.stop();
-        m_connection = ConnectionEvent{.state = ConnectionState::Stopped,
-                                       .error = error,
-                                       .targetMillivolts = std::nullopt,
-                                       .transport = Transport::Ble,
-                                       .mtu = std::nullopt};
-        emit connectionChanged(m_connection);
+        // Review N3, N4: the BLE thread ends the link with it, so the handler reports Stopped
+        // (console file line, no "wait for the console to reconnect") and an automatic attempt
+        // still in flight or queued cannot turn it into Disconnected again.
+        if (Status posted =
+                m_host->post(ble::StopLink{.client = m_internals->client, .error = error});
+            !posted) {
+            qCWarning(log::lcBle).noquote()
+                << "Link stop not posted:" << toQString(posted.error().detail);
+            m_connection = ConnectionEvent{.state = ConnectionState::Stopped,
+                                           .error = error,
+                                           .targetMillivolts = std::nullopt,
+                                           .transport = Transport::Ble,
+                                           .mtu = std::nullopt};
+            emit connectionChanged(m_connection);
+        }
         return;
     default:
         break;

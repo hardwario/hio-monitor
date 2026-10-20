@@ -132,6 +132,7 @@ private:
     void openLink(OpenLink command);
     void closeLink(const CloseLink& command);
     void drainCloses();
+    static void acknowledge(const std::shared_ptr<BoundedQueue<bool>>& done);
     void connectLink(ClientId client, bool automatic);
     void pair(PairDevice command);
     void deliverPairing(const PairingRequest& request, const Status& status, bool alreadyPaired);
@@ -148,7 +149,8 @@ private:
     std::vector<PairingRequest> m_pairings;               // bounded by the links + subscribers
     // Clients whose CloseLink was processed before their OpenLink (B3); <= BleHost::maxLinks
     // (only reserved clients).
-    std::set<ClientId> m_closedEarly;
+    // The close's acknowledgement is sent when the link was closed.
+    std::map<ClientId, std::shared_ptr<BoundedQueue<bool>>> m_closedEarly;
     // Review B5: onLinkLost() for a LinkId no link owns yet (reported from inside
     // IBleApi::connect()); delivered when connect() returned that id. Bounded: maxOrphanLost.
     std::map<LinkId, Error> m_orphanLost;

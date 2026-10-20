@@ -108,8 +108,15 @@ Status BleHost::post(BleCommand command) {
     ensureStarted();
     // Review B3: a close never competes with other commands for space.
     if (auto* close = std::get_if<CloseLink>(&command)) {
+        if (!m_shared->isReserved(close->client)) {
+            // Review N2: no reservation, nothing to close; it must not take a reserved slot.
+            if (close->done && !close->done->push(true)) {
+                qCDebug(log::lcBle) << "Close acknowledgement not delivered";
+            }
+            return {};
+        }
         if (Status pushed = m_shared->closes.push(std::move(*close)); !pushed) {
-            return pushed; // only after stop() (closed) or a close without its OpenLink
+            return pushed; // only after stop() (closed)
         }
         m_shared->wake();
         return {};

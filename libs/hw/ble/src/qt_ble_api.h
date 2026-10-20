@@ -117,6 +117,9 @@ private:
     std::map<BleDeviceId, QBluetoothDeviceInfo> m_known; // <= maxKnownDevices
     std::deque<BleDeviceId> m_knownOrder;                // oldest first
     std::map<LinkId, Link> m_links;
+    // Review N5: a lost link's error until its deferred report (bounded by the links): a write()
+    // in between returns it instead of hiding it behind ble.write_failed.
+    std::map<LinkId, Error> m_pendingLoss;
     std::vector<BleDeviceId> m_pairing; // devices with a pairing request in progress
     LinkId m_nextLink = 1;
 };

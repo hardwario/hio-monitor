@@ -74,6 +74,8 @@ public:
     void pairingFinished(Status status, bool alreadyPaired);
     // Reports `error` as onDown without a connect attempt (e.g. the adapter is off).
     void fail(Error error);
+    // fail(), and automatic connect() calls are ignored until a non-automatic one (N4).
+    void stop(Error error);
 
     // IBleApi events of this link (the worker routes them by LinkId).
     [[nodiscard]] std::optional<LinkId> link() const noexcept { return m_link; }
@@ -103,6 +105,7 @@ private:
     State m_state = State::Idle;
     std::optional<LinkId> m_link;
     bool m_pairingWait = false;
+    bool m_automaticBlocked = false; // stop(): until a non-automatic connect()
     LinkReady m_ready;
 
     std::deque<std::string> m_lines;      // <= maxQueuedLines; front = being written

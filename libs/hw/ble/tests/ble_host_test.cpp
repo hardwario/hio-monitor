@@ -284,6 +284,37 @@ TEST(BleHost, CloseLinkIsNeverRefusedWhenTheCommandQueueIsFull) {
     }
 }
 
+// Review N2: closes without a reservation (a failed open, a second close) take no reserved slot.
+TEST(BleHost, CloseWithoutReservationTakesNoSlot) {
+    auto record = std::make_shared<ApiRecord>();
+    BleHost host(recordedFactory(record));
+    std::vector<std::shared_ptr<SyncLog>> logs;
+    std::vector<hio::ble::ClientId> clients;
+    for (std::size_t i = 0; i < BleHost::maxLinks; ++i) {
+        logs.push_back(std::make_shared<SyncLog>());
+        clients.push_back(host.newClientId());
+        ASSERT_TRUE(
+            host.post(hio::ble::OpenLink{.client = clients.back(),
+                                         .device = "F1:00:00:00:00:0" + std::to_string(i),
+                                         .uuids = {},
+                                         .handler = std::make_unique<SyncHandler>(logs.back()),
+                                         .timing = {}}));
+    }
+    for (int i = 0; i < 20; ++i) {
+        EXPECT_TRUE(host.post(hio::ble::CloseLink{
+            .client = 10000 + static_cast<hio::ble::ClientId>(i), .done = nullptr}));
+    }
+    for (const auto client : clients) {
+        ASSERT_TRUE(host.post(hio::ble::CloseLink{.client = client, .done = nullptr}));
+    }
+    for (const auto& log : logs) {
+        EXPECT_TRUE(waitFor([&log] {
+            const std::scoped_lock lock(log->mutex);
+            return log->closed;
+        }));
+    }
+}
+
 // Review B3: a close that overtakes its OpenLink still closes the link.
 TEST(BleHost, CloseBeforeItsOpenIsProcessedClosesTheLink) {
     auto record = std::make_shared<ApiRecord>();
@@ -367,7 +398,8 @@ TEST(BleHost, CloseLinkAcknowledges) {
     ASSERT_TRUE(done->pop({}, 5s).has_value());
     const std::scoped_lock lock(log->mutex);
     EXPECT_TRUE(log->closed);
-    EXPECT_EQ(log->events.front(), "connecting");
+    // The close may overtake the open (closes are drained first, N1): then it never connected.
+    EXPECT_TRUE(log->events.empty() || log->events.front() == "connecting");
 }
 
 TEST(BleHost, AdapterOffFailsTheLink) {

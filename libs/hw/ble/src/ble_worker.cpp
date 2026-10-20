@@ -76,8 +76,16 @@ BleWorker::~BleWorker() { shutdown(); }
 
 void BleWorker::drainCommands() {
     m_shared->drainPending.store(false);
-    // Bounded per call; anything left is drained by the next (rescheduled) call.
+    // Bounded per call; anything left is drained by the next (rescheduled) call. Closes go first,
+    // before every command (review N1): a close posted before a new OpenLink of the same device
+    // is always processed before it, so the old link and console file are closed before the new
+    // link connects and opens its file. A close that overtakes its own OpenLink is remembered
+    // (m_closedEarly).
     for (std::size_t i = 0; i < BleHost::commandQueueCapacity && !m_shutDown; ++i) {
+        drainCloses();
+        if (m_shutDown) {
+            break;
+        }
         auto command = m_shared->commands.pop({}, std::chrono::milliseconds(0));
         if (!command) {
             break;
@@ -115,6 +123,11 @@ void BleWorker::handle(BleCommand command) {
                    },
                    [this](const CloseLink& item) { closeLink(item); },
                    [this](PairDevice& item) { pair(std::move(item)); },
+                   [this](StopLink& item) {
+                       if (const auto it = m_links.find(item.client); it != m_links.end()) {
+                           it->second->stop(std::move(item.error));
+                       }
+                   },
                    [this](const QueryAdapter& item) {
                        if (item.reply && !item.reply->push(m_api->adapter())) {
                            qCDebug(log::lcBle) << "Adapter state not delivered (no waiter)";
@@ -247,16 +260,22 @@ void BleWorker::drainCloses() {
 }
 
 void BleWorker::closeLink(const CloseLink& command) {
-    if (m_links.erase(command.client) == 0 && m_shared->isReserved(command.client)) {
-        // The close overtook its OpenLink (it uses the reserved close path): the link is closed
-        // when the OpenLink arrives (B3).
-        m_closedEarly.insert(command.client);
-    }
-    m_shared->releaseClose(command.client);
     std::erase_if(m_pairings, [&command](const PairingRequest& request) {
         return request.client == command.client && !request.subscriber;
     });
-    if (command.done && !command.done->push(true)) {
+    if (m_links.erase(command.client) == 0 && m_shared->isReserved(command.client)) {
+        // The close overtook its OpenLink (it uses the reserved close path): the link is closed,
+        // and the close acknowledged, when the OpenLink arrives (B3, N1).
+        m_closedEarly.insert_or_assign(command.client, command.done);
+        m_shared->releaseClose(command.client);
+        return;
+    }
+    m_shared->releaseClose(command.client);
+    acknowledge(command.done);
+}
+
+void BleWorker::acknowledge(const std::shared_ptr<BoundedQueue<bool>>& done) {
+    if (done && !done->push(true)) {
         qCDebug(log::lcBle) << "Link closed after the owner stopped waiting";
     }
 }
@@ -265,8 +284,9 @@ void BleWorker::openLink(OpenLink command) {
     if (!command.handler) {
         return;
     }
-    if (m_closedEarly.erase(command.client) > 0) {
+    if (auto early = m_closedEarly.extract(command.client)) {
         command.handler->onClosed(); // closed before it was opened (B3)
+        acknowledge(early.mapped());
         return;
     }
     if (m_links.contains(command.client) || m_links.size() >= BleHost::maxLinks) {
@@ -412,10 +432,12 @@ void BleWorker::shutdown() {
     m_scanTimer.stop();
     m_links.clear(); // each link disconnects and closes its handler (console file flushed)
     while (auto close = m_shared->closes.pop({}, std::chrono::milliseconds(0))) {
-        if (close->done && !close->done->push(true)) {
-            qCDebug(log::lcBle) << "Link closed after the owner stopped waiting";
-        }
+        acknowledge(close->done);
     }
+    for (auto& [client, done] : m_closedEarly) {
+        acknowledge(done);
+    }
+    m_closedEarly.clear();
     if (m_scanning) {
         m_api->stopScan();
         m_scanning = false;

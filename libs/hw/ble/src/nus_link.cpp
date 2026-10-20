@@ -93,6 +93,11 @@ void NusLink::disconnect() {
 }
 
 void NusLink::connect(bool automatic) {
+    if (automatic && m_automaticBlocked) {
+        qCDebug(log::lcBle) << "Automatic connect ignored: the link was stopped";
+        return;
+    }
+    m_automaticBlocked = false;
     disconnect();
     m_state = State::Connecting;
     m_ready = LinkReady{};
@@ -110,6 +115,11 @@ void NusLink::connect(bool automatic) {
 void NusLink::fail(Error error) {
     disconnect();
     m_handler->onDown(std::move(error));
+}
+
+void NusLink::stop(Error error) {
+    m_automaticBlocked = true;
+    fail(std::move(error));
 }
 
 void NusLink::connectDeadlinePassed() {

@@ -205,6 +205,11 @@ Result<ble::AdapterInfo> readyAdapter(const Context& context, ble::BleHost& host
         if (Status asked = requestBluetoothPermission(context); !asked) {
             return std::unexpected(std::move(asked).error());
         }
+        // Review N6: granted - the adapter itself may still be off or missing.
+        adapter = host.queryAdapter(adapterTimeout);
+        if (!adapter) {
+            return std::unexpected(std::move(adapter).error());
+        }
     }
     if (auto problem = ble::adapterError(*adapter)) {
         return std::unexpected(std::move(*problem));

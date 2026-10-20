@@ -64,9 +64,9 @@ private:
 
 TEST_F(ConnectionTest, StateTextForEveryConnectionEvent) {
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345,
-                                QStringLiteral("J-Link EDU Mini")));
+                                QStringLiteral("Test Probe")));
     ConnectionViewModel& vm = connection();
-    EXPECT_EQ(vm.probeLabel(), QStringLiteral("J-Link EDU Mini · 683012345"));
+    EXPECT_EQ(vm.probeLabel(), QStringLiteral("Test Probe · 683012345"));
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("idle"));
     EXPECT_EQ(vm.action(), QStringLiteral("connect"));

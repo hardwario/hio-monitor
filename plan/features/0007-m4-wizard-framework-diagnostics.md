@@ -137,7 +137,7 @@ Order of execution = order of the table. `jlink-software` Failed → `probes` an
 
 | Id | Title | Ok text | Not ok |
 |---|---|---|---|
-| `probe` | J-Link probe | "J-Link EDU Mini · 683012345" | `probe.*` error |
+| `probe` | J-Link probe | "J-Link probe · 683012345" | `probe.*` error |
 | `power` | Device power | "3.30 V" | `target.no_power` |
 | `connect` | Connection to the %1 MCU | "Connected (SWD 4000 kHz)" | `target.connect_failed` |
 | `identify` | MCU type | "nRF52840, not protected" | `target.wrong_family`; Warning `target.protected` |

@@ -129,6 +129,13 @@ Result<FakeScenario> loadFakeScenario(const std::filesystem::path& file) {
     scenario.adapter.name =
         adapter.value(QStringLiteral("name")).toString(QStringLiteral("fake0")).toStdString();
     scenario.adapter.address = adapter.value(QStringLiteral("address")).toString().toStdString();
+    if (root.contains(QStringLiteral("adapterLater"))) {
+        const QJsonObject later = root.value(QStringLiteral("adapterLater")).toObject();
+        scenario.adapterLater =
+            AdapterInfo{.state = adapterStateOf(later.value(QStringLiteral("state")).toString()),
+                        .name = scenario.adapter.name,
+                        .address = scenario.adapter.address};
+    }
     scenario.pairingSupported = root.value(QStringLiteral("pairingSupported")).toBool(true);
     scenario.scanError = errorCodeOf(root, QStringLiteral("scanError"));
     scenario.advertiseIntervalMs =
@@ -179,6 +186,10 @@ void FakeBleApi::setListener(IBleListener* listener) {
 
 AdapterInfo FakeBleApi::adapter() {
     checkThread();
+    if (++m_adapterQueries > 1 && m_scenario.adapterLater) {
+        m_scenario.adapter = *m_scenario.adapterLater;
+        m_scenario.adapterLater.reset();
+    }
     return m_scenario.adapter;
 }
 

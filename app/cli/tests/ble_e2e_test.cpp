@@ -328,6 +328,16 @@ TEST_F(FakeBleCli, UndecidedPermissionIsAskedForFirst) {
     EXPECT_EQ(result.exitCode, 0) << result.out << result.err;
 }
 
+// Review N6: after the permission was granted the adapter is read again (here it is off).
+TEST_F(FakeBleCli, AdapterIsReadAgainAfterThePermission) {
+    const RunResult result =
+        hio("permission_then_off.json",
+            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
+             QStringLiteral("--timeout"), QStringLiteral("1")});
+    EXPECT_EQ(result.exitCode, 4) << result.out;
+    EXPECT_EQ(errorCode(result), QStringLiteral("ble.adapter_off"));
+}
+
 TEST_F(FakeBleCli, DeviceIsRequired) {
     const RunResult result = hio("chester.json", {QStringLiteral("ble"), QStringLiteral("command"),
                                                   QStringLiteral("version")});
