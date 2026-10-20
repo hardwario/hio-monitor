@@ -20,6 +20,8 @@ called_from_lib:libQt6Quick.so.6
 thread:QThread::start
 race:QObject::moveToThread
 race:QMetaObject::invokeMethod
+# glibc tzset_internal under Qt's environmentMutex: see tsan.supp (plan/features/0019).
+race:tzset_internal
 
 # The QML type loader thread registers the metatype converters of our value types
 # (QList<ErrorInfo>, ...) while the GUI thread reads the registry; QMetaType's registry is

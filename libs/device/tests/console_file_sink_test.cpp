@@ -5,6 +5,7 @@
 #include "hio/device/session_key.h"
 #include "lock_holder.h"
 
+#include <QDateTime>
 #include <QFile>
 #include <QIODevice>
 #include <QString>
@@ -24,6 +25,7 @@
 #include <sstream>
 #include <string>
 #include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -434,6 +436,43 @@ TEST_F(Sink, ConsoleFileDirKeepsForeignFiles) {
     }
     EXPECT_EQ(sessionFiles, ConsoleFileSink::maxDefaultFiles);
     EXPECT_FALSE(fs::exists(dir())); // the default directory was not used
+}
+
+// Plan 0019: Qt converts local time through tzset() (glibc frees and re-duplicates its TZ copy on
+// every call) under locks TSan cannot see, so the console file's timestamps on the session worker
+// and a local-time conversion on another thread (the GUI's time column) were reported as a race.
+// Under linux-tsan this fails without the race:tzset_internal entry in tools/sanitizers/tsan.supp;
+// in the other presets it is a smoke test of a sink written on a worker thread.
+TEST_F(Sink, LocalTimeOnAnotherThreadWhileTheWorkerWrites) {
+    auto sink =
+        ConsoleFileSink::open(defaultConfig(), 1, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(sink) << sink.error().detail;
+    constexpr int iterations = 2000;
+    bool written = true;
+    qsizetype formatted = 0;
+    {
+        std::jthread worker([&sink, &written] {
+            for (int i = 0; i < iterations && written; ++i) {
+                written = static_cast<bool>(
+                    (*sink)->write(line(Channel::Shell, Direction::Out, std::format("tz {}", i))));
+            }
+            written = written && static_cast<bool>((*sink)->flush());
+        });
+        for (int i = 0; i < iterations; ++i) {
+            formatted += QDateTime::fromMSecsSinceEpoch(1'700'000'000'000 + (i * 1000LL))
+                             .toString(QStringLiteral("HH:mm:ss.zzz"))
+                             .size();
+        }
+    }
+    EXPECT_TRUE(written);
+    EXPECT_EQ(formatted, qsizetype{iterations} * 12);
+    const std::string content = readAll((*sink)->currentFile());
+    std::size_t lines = 0;
+    for (std::size_t pos = content.find(" > tz "); pos != std::string::npos;
+         pos = content.find(" > tz ", pos + 1)) {
+        ++lines;
+    }
+    EXPECT_EQ(lines, std::size_t{iterations});
 }
 
 TEST(ConsoleFilePrefix, RtttPrefixes) {

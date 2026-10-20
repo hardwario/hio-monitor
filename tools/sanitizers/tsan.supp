@@ -32,6 +32,15 @@ race:QObject::moveToThread
 # through hio::BoundedQueue (std::mutex, instrumented) and stays checked.
 race:QMetaObject::invokeMethod
 
+# Local-time conversion (QDateTime local time, QML Date, ...): Qt calls tzset()/localtime_r()/mktime()
+# only under its global environmentMutex (qtenvironmentvariables.cpp: qTzSet/qLocalTime/qMkTime), and
+# glibc locks tzset_lock inside them as well; both locks are futexes in uninstrumented libQt6Core / libc,
+# so TSan misses the happens-before edge. What it sees is the free(old_tz) / strdup(tz) that glibc's
+# tzset_internal() does on every tzset(), reported as a race between two threads formatting local time
+# (seen: ConsoleFileSink timestamp() on a session worker vs. ConsoleLineModel time column on the GUI
+# thread, plan/features/0019). Matches only reports with a frame inside glibc's tzset_internal.
+race:tzset_internal
+
 # Not a suppression: the tests that use QNetworkAccessManager (firmware catalog) are not run under
 # TSan at all - see libs/firmware/tests/CMakeLists.txt and app/cli/tests/CMakeLists.txt (Qt's HTTP
 # thread is uninstrumented; plan/features/0003, review R11).
