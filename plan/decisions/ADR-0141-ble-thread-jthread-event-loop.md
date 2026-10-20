@@ -1,4 +1,4 @@
-# ADR-0131 — The BLE thread is an owned `std::jthread` running a `QEventLoop`
+# ADR-0141 — The BLE thread is an owned `std::jthread` running a `QEventLoop`
 
 - **Status:** Accepted
 - **Date:** 2026-10-19

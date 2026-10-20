@@ -77,7 +77,7 @@ struct TargetProfile {
     std::span<const ConnectionGuideStep> connectionGuide; // cabling steps, in order
 };
 
-// BLE facts of a device (ADR-0089, plan 0011 B3). Matching rule (ADR-0132, amends ADR-0083): the
+// BLE facts of a device (ADR-0089, plan 0011 B3). Matching rule (ADR-0142, amends ADR-0083): the
 // advertised name contains namePattern (case-sensitive); the service UUID is not a match.
 struct BleProfile {
     std::string_view namePattern;     // substring of the advertised name; CHESTER: "CHESTER"
@@ -111,7 +111,7 @@ public:
     // nullptr when no profile has this id.
     [[nodiscard]] static const DeviceProfile* find(std::string_view id) noexcept;
     [[nodiscard]] static std::span<const DeviceProfile* const> all() noexcept;
-    // The profile a BLE advertisement belongs to, by the name pattern only (ADR-0132); nullptr for
+    // The profile a BLE advertisement belongs to, by the name pattern only (ADR-0142); nullptr for
     // none. `serviceUuids` is not used for matching (kept from ADR-0089's signature).
     [[nodiscard]] static const DeviceProfile*
     findByAdvertisement(std::string_view name, std::span<const std::string> serviceUuids) noexcept;

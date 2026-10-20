@@ -125,7 +125,7 @@ Result<const device::DeviceProfile*> bleProfile(const std::string& id) {
     return profile;
 }
 
-// Scan rows of `profile` only (ADR-0083, ADR-0132: by the name pattern).
+// Scan rows of `profile` only (ADR-0083, ADR-0142: by the name pattern).
 ble::ProfileMatcher matcherFor(const device::DeviceProfile& profile) {
     return [&profile](const ble::Advertisement& advertisement) {
         const device::DeviceProfile* found = device::ProfileRegistry::findByAdvertisement(

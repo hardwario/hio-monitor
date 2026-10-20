@@ -69,7 +69,7 @@ void BleHost::ensureStarted() {
     if (m_thread.joinable() || m_stopped) {
         return;
     }
-    // ADR-0131: an owned std::jthread running a QEventLoop (Qt adopts the thread).
+    // ADR-0141: an owned std::jthread running a QEventLoop (Qt adopts the thread).
     m_thread = std::jthread([this] { runThread(); });
     m_threadId = m_thread.get_id();
     qCDebug(log::lcBle) << "BLE thread started";

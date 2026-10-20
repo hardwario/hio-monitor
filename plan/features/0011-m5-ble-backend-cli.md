@@ -6,7 +6,7 @@
 - **Author:** Matej Strnad (with Claude), 2026-10-10; revised 2026-10-19 to match the M1–M4 code on `v2/m4-wizards`
 - **Related ADRs:** ADR-0002, ADR-0004, ADR-0007, ADR-0009, ADR-0012, ADR-0020, ADR-0022, ADR-0024, ADR-0026,
   ADR-0027, ADR-0031, ADR-0032, ADR-0033, ADR-0053, ADR-0058, ADR-0063, ADR-0068, ADR-0070, ADR-0077,
-  ADR-0078–ADR-0089, ADR-0127–ADR-0132
+  ADR-0078–ADR-0089, ADR-0127–ADR-0130, ADR-0141, ADR-0142
 - **Depends on:** 0002 (M1: `DeviceSession`, `ConsoleLog`, `LineAssembler`, CLI console) and
   [0007](0007-m4-wizard-framework-diagnostics.md) phase A (`libs/diag`), both implemented on `v2/m4-wizards`.
   Implemented on branch `v2/m5-ble`. [0012](0012-m5-ble-gui-pairing.md) follows after 0008/0009.
@@ -90,7 +90,7 @@ The CLI is English only (ADR-0027).
 
 | Command | Behaviour |
 |---|---|
-| `hio ble scan [--timeout S=5] [--all] [--profile ID=chester]` | One scan of `S` seconds (1–60). Rows matching the profile by name (ADR-0083, ADR-0132: name pattern only; `nusAdvertised` is information) or all with `--all` (devices without a profile have `"profile": null`), sorted by RSSI. Human: table as above. `--json`: `data = {"adapter":{"name","address"}, "devices":[{"id","name","rssi","nusAdvertised","profile":"chester"\|null,"inUseBy":{"app","pid"}\|null}]}`. No device → empty list, exit 0. Adapter or permission problem → error, exit 4. |
+| `hio ble scan [--timeout S=5] [--all] [--profile ID=chester]` | One scan of `S` seconds (1–60). Rows matching the profile by name (ADR-0083, ADR-0142: name pattern only; `nusAdvertised` is information) or all with `--all` (devices without a profile have `"profile": null`), sorted by RSSI. Human: table as above. `--json`: `data = {"adapter":{"name","address"}, "devices":[{"id","name","rssi","nusAdvertised","profile":"chester"\|null,"inUseBy":{"app","pid"}\|null}]}`. No device → empty list, exit 0. Adapter or permission problem → error, exit 4. |
 | `hio ble console (-a/--address ID \| --name N) [--profile ID] [--auto-reconnect] [--history-file P] [--console-file P]` | Interactive console (M1 UI). `--name N`: 5 s scan, case-insensitive substring of the advertised name among profile matches; exactly one match required (else `ble.device_not_found` or `usage.invalid_argument` listing the ids). `--json`: the M1 NDJSON stream (`line`, `connection`, `dropped`, `warning`) plus `{"type":"connection",…,"transport":"ble","mtu":247}`. |
 | `hio ble command CMD (-a ID \| --name N) [-t/--timeout S=3.0] [--console-file P]` | Connect, send each line of `CMD`, collect shell output until the prompt is seen after the last line, or the timeout — with the **same semantics as the M1 J-Link `command`** (timeout counted from the last echo, `"truncated"` in `--json`), sharing its collector (`ResponseCollector` / `LineQueue` moved out of `chester_commands.cpp`). The prompt only ends collection early; without it the timeout ends it as for J-Link. Disconnect. Human: output lines; `--json`: `data = {"command","output":[…],"log":[…],"truncated"}` (M1 shape). Connect failure → that error's exit code. |
 | `hio ble pair (-a ID \| --name N)` | App-initiated pairing (ADR-0084). Human: "Paired." / "Already paired."; `--json`: `data = {"id","paired":true}`. macOS → `ble.pairing_not_supported` (exit 2). |
@@ -351,7 +351,7 @@ ConsoleLog 100 000 lines/channel · console files and history as M1 · sessions 
 | Session API | common `ConsoleSession` / transport inside DeviceSession / separate | common `ConsoleSession` interface | ADR-0079 |
 | BLE threading | one shared BLE QThread / per session / owner thread | one shared BLE QThread | ADR-0080 |
 | NUS content | shell only / shell + logs / both | follow the old app: shell only, routing rules kept | ADR-0082 |
-| Scan filter | profile name + NUS UUID / name only / UUID only | profile name pattern or NUS UUID, `--all`; amended 2026-10-19: name pattern only | ADR-0083, ADR-0132 |
+| Scan filter | profile name + NUS UUID / name only / UUID only | profile name pattern or NUS UUID, `--all`; amended 2026-10-19: name pattern only | ADR-0083, ADR-0142 |
 | Identity, lock, restore | address/UUID + lock + restore / no lock / no restore | address/UUID + `BleLock` + tab restore | ADR-0083 |
 | Pairing | OS + wizard / + app-initiated / error only | OS + app-initiated (Linux/Windows) + wizard | ADR-0084 |
 | Passkey hint | default 123456 via PIB / label / PIB only | default 123456, changeable via PIB | ADR-0084 |
@@ -380,8 +380,8 @@ Answers to the implementation agent's questions; they override the text above wh
 | Q7 | Linux "stack unavailable" | `/sys/class/bluetooth/hci*` exists but Qt sees no adapter → `ble.stack_unavailable`, else `ble.adapter_not_found`; no D-Bus | — |
 | Q8 | Texts | passkey hint = "The passkey is 123456 unless it was changed when the device was configured."; pairing guide steps `bluetooth`/`ble-enable` ("Make sure the device is powered and its Bluetooth is on.") and `pair`/`ble-pair-os` ("When the system asks for the passkey, enter it in the system dialog."); causes: adapter_off "Bluetooth is turned off in the system settings or with a hardware switch.", stack_unavailable "The Bluetooth service of the system (BlueZ on Linux) is not running.", permission_denied "Bluetooth access was denied in the privacy settings.", pairing_not_supported "macOS pairs a device automatically when it connects."; CLI prompt "Pairing: enter the passkey in the system dialog." + profile passkey hint; "-- connected (Bluetooth, MTU 247) --"; disconnect line shows the error message (M1 rule) | — |
 | Q9 | First-connect failure | as `DeviceSession` (Stopped without `--auto-reconnect`, Disconnected + retry with it); always fatal: `ble.adapter_*`, `ble.permission_denied`, `ble.stack_unavailable`, `ble.service_not_found`, `ble.not_paired`, `ble.pairing_failed`, `ble.in_use_by_other_process` | — |
-| — | BLE thread type (after A–E, TSan) | owned `std::jthread` running a `QEventLoop` instead of `QThread` | ADR-0131 |
-| — | NUS-only devices listed as CHESTER on a real adapter | profile match by name pattern only; NUS-only devices only with `--all` | ADR-0132 |
+| — | BLE thread type (after A–E, TSan) | owned `std::jthread` running a `QEventLoop` instead of `QThread` | ADR-0141 |
+| — | NUS-only devices listed as CHESTER on a real adapter | profile match by name pattern only; NUS-only devices only with `--all` | ADR-0142 |
 | — | `BleSession::close()` blocked up to 1 s for the console file | non-blocking: `close()` returns at once, the file is closed on the BLE thread | — |
 | — | Agent's own choices accepted | `BleLock` mirrors `ProbeLock` (shared string-keyed helper, `ProbeLockOwner` reused); retention passes the sanitised id to `BleLock::owner`; `SessionRegistry::bleInUse` returns `{session, otherProcess}`; BLE file header "Console: CHESTER, Bluetooth <id> (<name>), hio <version>"; fake scenario field names modelled on `tests/fake_jlink`; line > 4 KiB → `usage.invalid_argument`; `ble command` write budget 2 s per line + 500 ms; pairing prompt only logged in `--json`; doctor check adds no report facts; CI installs `qtconnectivity` | — |
 

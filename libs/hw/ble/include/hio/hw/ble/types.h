@@ -62,7 +62,7 @@ struct NusUuids {
 };
 
 // The standard Nordic UART Service; shown as `nusAdvertised` in scan rows (information only,
-// ADR-0132).
+// ADR-0142).
 inline constexpr std::string_view nusServiceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 
 // ATT_MTU default and the ATT write header (ADR-0082).

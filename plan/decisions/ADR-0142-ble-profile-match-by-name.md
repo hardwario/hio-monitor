@@ -1,4 +1,4 @@
-# ADR-0132 — A BLE device matches a profile by its advertised name only
+# ADR-0142 — A BLE device matches a profile by its advertised name only
 
 - **Status:** Accepted
 - **Date:** 2026-10-19

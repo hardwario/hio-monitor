@@ -100,7 +100,7 @@ TEST_F(FakeBleCli, ScanListsProfileDevicesByRssi) {
         data(envelopes(all.out).at(0)).value(QStringLiteral("devices")).toArray();
     ASSERT_EQ(every.size(), 4);
     EXPECT_TRUE(every.at(0).toObject().value(QStringLiteral("profile")).isNull());
-    // ADR-0132: a device that only advertises NUS has no profile; it is listed with --all only.
+    // ADR-0142: a device that only advertises NUS has no profile; it is listed with --all only.
     const QJsonObject ruuvi = every.at(2).toObject();
     EXPECT_EQ(ruuvi.value(QStringLiteral("name")).toString(), QStringLiteral("Ruuvi 1234"));
     EXPECT_TRUE(ruuvi.value(QStringLiteral("nusAdvertised")).toBool());

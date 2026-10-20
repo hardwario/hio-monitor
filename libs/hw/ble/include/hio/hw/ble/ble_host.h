@@ -1,10 +1,10 @@
 #pragma once
 
 // BleHost - the one application-owned BLE thread with an event loop (ADR-0080, ADR-0129,
-// ADR-0130, ADR-0131; plan/features/0011-m5-ble-backend-cli.md).
+// ADR-0130, ADR-0141; plan/features/0011-m5-ble-backend-cli.md).
 //
 // The host owns the BLE thread (started on first use) running a QEventLoop and a BleWorker.
-// ADR-0131: the thread is an owned std::jthread (Qt adopts it; QEventLoop, QTimer and
+// ADR-0141: the thread is an owned std::jthread (Qt adopts it; QEventLoop, QTimer and
 // QtBluetooth work there), not a QThread. The BleWorker owns the IBleApi (QtBleApi: all QtBluetooth
 // objects are created, used and destroyed on that thread) and the NusLinks. Owners talk to it with
 // commands (post(), any thread) through a BoundedQueue (commandQueueCapacity, Reject ->

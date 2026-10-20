@@ -34,7 +34,7 @@ std::span<const DeviceProfile* const> ProfileRegistry::all() noexcept { return r
 
 const DeviceProfile* ProfileRegistry::findByAdvertisement(
     std::string_view name, [[maybe_unused]] std::span<const std::string> serviceUuids) noexcept {
-    // ADR-0132: by the name pattern only; an advertised NUS UUID is no profile match (Ruuvi tags
+    // ADR-0142: by the name pattern only; an advertised NUS UUID is no profile match (Ruuvi tags
     // and other Nordic devices advertise it too).
     for (const DeviceProfile* profile : registeredProfiles) {
         if (!profile->ble) {

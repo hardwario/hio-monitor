@@ -1,7 +1,7 @@
 # ADR-0080 — One application-owned BLE thread with an event loop (`BleHost`)
 
 - **Status:** Accepted (complements ADR-0031 for Bluetooth); amended by ADR-0128 (line assembly and console file
-  on the BLE thread) and ADR-0130 (stop waits after the 3 s warning); `QThread` superseded by ADR-0131 (owned `std::jthread`
+  on the BLE thread) and ADR-0130 (stop waits after the 3 s warning); `QThread` superseded by ADR-0141 (owned `std::jthread`
   with a `QEventLoop`)
 - **Date:** 2026-10-10
 - **Decided by:** Matej Strnad (M5 planning session)

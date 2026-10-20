@@ -1,6 +1,6 @@
 # ADR-0130 — `BleHost::stop()` warns after 3 s, then keeps waiting for the thread
 
-- **Status:** Accepted; thread type superseded by ADR-0131 (`std::jthread`)
+- **Status:** Accepted; thread type superseded by ADR-0141 (`std::jthread`)
 - **Date:** 2026-10-19
 - **Decided by:** Matej Strnad
 
