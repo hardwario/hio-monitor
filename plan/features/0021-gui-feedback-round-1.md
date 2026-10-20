@@ -1,6 +1,7 @@
 # 0021 — GUI feedback round 1: flash page, target picker, console, Settings tab
 
-- **Status:** Draft
+- **Status:** Approved (2026-10-20 by Matej Strnad, with all minor defaults as proposed; amendments applied to
+  0004, 0005, 0006 and 0010 the same day)
 - **Milestone:** M3 follow-up (changes the implemented plans 0004, 0005, 0006 and the flash wizard 0010)
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0164, ADR-0165, ADR-0166, ADR-0167, ADR-0168, ADR-0169, ADR-0170, ADR-0171, ADR-0172;
@@ -108,7 +109,7 @@ switch to LTE firmware?" [Switch]; an `app` hex on LTE → "This is application 
   demand), then matching history entries (clock icon); 8 rows visible, max 50; each command row shows its help text
   muted. Keys while the list is open: ↑ ↓ move the highlight, Tab or → accepts the highlighted row, Esc closes the list
   until the next keystroke. **Enter always sends the typed line** unless the user moved the highlight with ↑ ↓ — then
-  Enter accepts the row (pending minor default). With an empty input, ↑ ↓ walk the history as today. While the
+  Enter accepts the row. With an empty input, ↑ ↓ walk the history as today. While the
   command list is being learned, the list shows "Reading commands from the device…".
 - **Tab completion:** Tab completes the current word with the highlighted row, or with the common prefix when the
   list is closed.
@@ -120,7 +121,7 @@ switch to LTE firmware?" [Switch]; an `app` hex on LTE → "This is application 
 
 ## CLI
 
-| Command | Change | Default (pending confirmation) |
+| Command | Change | Confirmed |
 |---|---|---|
 | `hio chester lte flash [FILE] [--allow-uicr] [--no-cache]` | FILE becomes optional; without it the designated LTE firmware is downloaded (SHA-256 verified, cached) and flashed. Human output names it: "HARDWARIO LTE firmware 1.7.0". py-hardwario compatible (it requires FILE). | yes |
 | `hio chester app catalog-info ID [--json]` (new) | Name, version, upload time, SHA-256 from the public catalog page. | name `catalog-info` |
@@ -174,8 +175,8 @@ switch to LTE firmware?" [Switch]; an `app` hex on LTE → "This is application 
 - `ConsoleView.qml`: a `WheelHandler` that consumes wheel events and moves the view by whole rows
   (`wheelScrollLines`, pixel deltas accumulated), so the Flickable never coasts on wheel input (touch drag kept);
   row alignment via `positionViewAtIndex(row, ListView.Beginning)`; key handling per ADR-0169.
-- `ShellInput.qml`: ghost-text overlay, Tab handling (`Keys.onTabPressed`; leaving the field per the pending
-  minor default in § Decisions), `SuggestionList.qml` (above the input, opens on typing); `ConsoleViewModel::suggestion(text)`,
+- `ShellInput.qml`: ghost-text overlay, Tab handling (`Keys.onTabPressed`; the field is left with Shift+Tab, or Esc
+  then Tab), `SuggestionList.qml` (above the input, opens on typing); `ConsoleViewModel::suggestion(text)`,
   `complete(text)` → `{replacement, candidates}`; tree learning through `ShellQuery`.
 - `ConsoleLineModel::levelMask`: new bit `level_bits::hexdump`, default mask = D|I|W|E.
 - Shell: `DeviceTabListModel` gets a non-device entry kind `Settings` (one at most, excluded from the limit and from
@@ -225,13 +226,13 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 | Completion source | history / history + device commands / Tab to device | History + device commands, GUI and CLI (2026-10-20) | ADR-0170 |
 | Hexdump lines | inherit level / own level hidden by default | Own level, hidden by default (2026-10-20) | ADR-0171 |
 | Settings | rail page / tab in tab strip | Rail item stays; it opens Settings as a tab that exists only while open (2026-10-20) | ADR-0172 |
-| Plan form | new plan + notes / edit 0004–0006 | New plan 0021 + pending notes (2026-10-20) | — |
+| Plan form | new plan + notes / edit 0004–0006 | New plan 0021; amendments applied to 0004/0005/0006/0010 on approval (2026-10-20) | — |
 | When to send `help` / `info show` | on connect / lazily | `help` on connect, configurable in Settings (`console/readCommandsOnConnect`) (2026-10-20); `info show` on connect | ADR-0170, ADR-0166 |
 | Suggestions without Tab | Tab only / automatic list | Automatic list above the input, can be switched off (2026-10-20) | ADR-0170 |
-| *Minor defaults (pending):* Enter sends the typed line; it accepts a suggestion only after the user moved the highlight with ↑ ↓ | as proposed / Enter always accepts | _pending_ | ADR-0170 |
-| *Minor defaults (pending):* CLI names `catalog-info`, `info`; `lte flash` without FILE | as proposed / other | _pending_ | — |
-| *Minor defaults (pending):* Tab in the shell input completes instead of moving focus; the focus leaves the field with Shift+Tab, or Esc then Tab (Ctrl+Tab keeps switching tabs) | as proposed / other | _pending_ | ADR-0170 |
-| *Minor defaults (pending):* designated LTE download starts automatically when the LTE kind is chosen | automatic / on [Download] | _pending_ (proposed: automatic) | ADR-0165 |
+| Enter sends the typed line; it accepts a suggestion only after the user moved the highlight with ↑ ↓ | as proposed / Enter always accepts | As proposed (2026-10-20) | ADR-0170 |
+| CLI names `catalog-info`, `info`; `lte flash` without FILE | as proposed / other | As proposed (2026-10-20) | — |
+| Tab in the shell input completes instead of moving focus; the focus leaves the field with Shift+Tab, or Esc then Tab (Ctrl+Tab keeps switching tabs) | as proposed / other | As proposed (2026-10-20) | ADR-0170 |
+| Designated LTE download starts automatically when the LTE kind is chosen | automatic / on [Download] | Automatic (2026-10-20) | ADR-0165 |
 
 ## Implementation steps
 

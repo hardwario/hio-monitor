@@ -9,10 +9,10 @@
 > "— resumed —"); this plan never appends markers. F4 is a global shell shortcut only; page shortcut descriptions use
 > the "Shortcuts" translation context. See plan 0004, "Fixes of review round 1".
 
-- **Status:** In progress (implementation started 2026-10-16 on `v2/m4-wizards`; approved 2026-10-16 by Matej Strnad, with the amendment from the 0004 review and the 0007/0008/0010 amendments applied)
+- **Status:** In progress (implementation started 2026-10-16 on `v2/m4-wizards`; approved 2026-10-16 by Matej Strnad, with the amendment from the 0004 review and the 0007/0008/0010 amendments applied); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
 - **Milestone:** M3 (plan 3 of 3, ADR-0059)
 - **Author:** Matej Strnad (with Claude)
-- **Related ADRs:** ADR-0016, ADR-0025, ADR-0027, ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0047, ADR-0049,
+- **Related ADRs:** ADR-0164, ADR-0165, ADR-0166, ADR-0167, ADR-0172 (0021), ADR-0016, ADR-0025, ADR-0027, ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0047, ADR-0049,
   ADR-0054, ADR-0055, ADR-0057, ADR-0059, ADR-0060, ADR-0062, ADR-0067, ADR-0114
 - **Depends on:** [0004](0004-m3-gui-shell.md) (shell, page-extension contract, `SettingsStore`), 0003 (M2 with the
   ADR-0057 / ADR-0062 amendments applied: operations with a target, `flashLteBundle`, `reset` as an operation)
@@ -40,8 +40,8 @@
 > pre-releases, [Check now]), the CLI path of this installation and the licence list read from the installed
 > `licenses/` directory; the version line shows the package kind.
 
-> **Pending amendment from [0021](0021-gui-feedback-round-1.md) (ADR-0164 … ADR-0167, ADR-0172; applied when 0021 is
-> approved — then this plan needs re-approval):** two kind cards (Application firmware, LTE firmware; the modem is
+> **Amended by [0021](0021-gui-feedback-round-1.md) (approved 2026-10-20; ADR-0164 … ADR-0167, ADR-0172; applied in
+> this text, marked *amended by 0021*):** two kind cards (Application firmware, LTE firmware; the modem is
 > part of the LTE card); the LTE card downloads the designated LTE firmware (pinned in the profile, SHA-256
 > verified) with "Use your own file…" as the alternative; a catalog ID shows the firmware name and version, the
 > Application card shows the firmware in the device (`info show`); "Find firmware IDs ↗" and About › Firmware
@@ -63,13 +63,15 @@ The old app also had no settings page at all. M2 delivers the backend and the CL
 
 **Goals**
 - Flash page (ADR-0055, ADR-0049, ADR-0054, ADR-0057), registered as page `flash`:
-  - choose what to flash first (application / LTE / modem firmware), then a file, a catalog ID or a recent entry,
+  - choose what to flash first (application / LTE firmware; *amended by 0021*: the modem is part of LTE), then a
+    file, a catalog ID, the designated LTE firmware or a recent entry,
     then the options; a sticky Flash bar;
   - phase progress (`plannedPhases`, step 1/2 for LTE bundles) with Cancel, and a result card;
   - maintenance actions (Reset, Erase, Erase all, Recover) with ADR-0038 confirmation;
   - works whether or not the tab is connected, and for another MCU than the console's (ADR-0057).
 - `FirmwareLoader` worker: HEX/zip parsing and LTE classification off the GUI thread.
-- Settings page (global, Ctrl+,), registered as page `settings` with `global = true`:
+- Settings page (global, Ctrl+,), registered as page `settings` with `global = true`; *amended by 0021 (ADR-0172)*:
+  hosted by the Settings tab that the rail item opens:
   - General: language (live), theme (live), reopen tabs at start;
   - J-Link: library path and defaults; nRF Util path;
   - log-file folder;
@@ -91,26 +93,38 @@ Per ADR-0055 (kind first) and ADR-0049 (progress, result, maintenance). *Amended
 header has a small ghost button **"Guide me"** that opens the flash wizard (`tab.openWizard("flash-firmware")`, 0004).
 The cards are:
 
-1. **What do you want to flash?** — three radio cards. The default comes from the tab's target.
+1. **What do you want to flash?** — *amended by 0021 (ADR-0164)*: two radio cards. The default comes from the tab's
+   target.
 
-   | Kind | MCU | Accepts |
+   | Kind | MCU | Source |
    |---|---|---|
    | **Application firmware** | Application MCU (nRF52840) | `.hex` or catalog ID |
-   | **LTE firmware** | LTE MCU (nRF91) | `.hex`, LTE bundle `.zip` or catalog ID |
-   | **LTE modem firmware** | Modem core via nRF Util | `mfw_nrf91*.zip` only |
+   | **LTE firmware** | LTE MCU (nRF91) + modem | the designated LTE firmware (default) or an own `.hex`, LTE bundle `.zip` or `mfw_nrf91*.zip` |
 
    Prerequisites are shown inline in this card as soon as a kind is chosen. For example: "nRF Util was not found. It is
-   needed only for LTE modem firmware." [Set path in Settings] [How to install ↗].
-2. **Firmware file** — a drop zone and [Browse…], with the file dialog filtered to the kind.
-   - The field "or firmware ID from the catalog" (not for modem): 32 hex digits, with the inline validator "The ID has
-     32 characters 0–9 a–f". [Download] shows progress in the card.
-   - **Recent**: 10 items filtered to the kind (name, type, date; × removes).
+   needed for LTE firmware." [Set path in Settings] [How to install ↗] (the designated LTE firmware always contains
+   modem firmware). *Amended by 0021 (ADR-0166):* the Application card shows "In the device: hio-chester-push-fm
+   v4.0.1" when the tab's `app` console is attached and `info show` answered.
+2. **Firmware** — depends on the kind:
+   - **Application firmware:** a drop zone and [Browse…] (`*.hex`); the field "or firmware ID from the catalog": 32 hex
+     digits, with the inline validator "The ID has 32 characters 0–9 a–f". [Download] shows progress in the card.
+     *Amended by 0021 (ADR-0166, ADR-0167):* after a valid ID the card shows "hio-chester-push-fm v4.0.1 · uploaded
+     2026-09-07" ("Looking up the firmware…"; "Unknown firmware — it can still be flashed." when the catalog page is
+     unreachable); the link **"Find firmware IDs ↗"** opens the docs page of application firmware in the UI language.
+   - **LTE firmware** (*amended by 0021, ADR-0165*): radio **"HARDWARIO LTE firmware 1.7.0 (recommended)"** — "LTE
+     application and modem firmware"; choosing the LTE kind starts the download at once when it is not cached
+     ("Downloading… 2.1 / 6.1 MB" [Cancel]); a cached, verified copy shows "Ready"; errors `network.download_failed`
+     [Try again] and `firmware.checksum_mismatch` "The downloaded file is damaged. Try again." [Try again].
+     Radio **"Use your own file…"** — drop zone, [Browse…] (`*.hex *.zip`); no catalog ID.
+   - **Recent**: 10 items filtered to the kind (name, type, date; × removes); stored `modem` entries count as LTE.
    - After loading, a summary appears: "app.hex · Intel HEX · 412 kB · 0x00000–0x64F20" / "LTE bundle (application +
-     modem 1.3.7)".
-   - A file of another kind (classified per ADR-0040) shows a hint: "This is LTE modem firmware — switch to LTE modem
-     firmware?" [Switch]. The kind never changes silently.
-   - Modem and LTE bundle: the note "Modem update takes 1–3 minutes. The console is disconnected meanwhile."
-3. **Options** — "Halt the CPU after flashing" (not for modem), and "Allow writing UICR" with a warning, only when the
+     modem 1.3.7)" / "Modem firmware 1.3.7 (modem only)".
+   - A file of the other kind (classified per ADR-0040) shows a hint: "This is LTE firmware — switch to LTE
+     firmware?" / "This is application firmware — switch to application firmware?" [Switch]. The kind never changes
+     silently.
+   - Modem file and LTE bundle (incl. the designated firmware): the note "Modem update takes 1–3 minutes. The console
+     is disconnected meanwhile."
+3. **Options** — "Halt the CPU after flashing" (not for a modem-only file), and "Allow writing UICR" with a warning, only when the
    image has UICR records (ADR-0036).
 4. **Sticky bottom bar** — a summary ("Application firmware · app.hex") and **[Flash]** (Ctrl+Enter). While Flash is
    disabled, the bar says why (e.g. "Choose a firmware file", "nRF Util was not found", "Another operation is
@@ -123,7 +137,8 @@ The cards are:
     close the tab?", cancel)`).
   - The device bar shows "Flashing…".
 - **Result:**
-  - Success: "Firmware flashed and verified in 14 s." plus the identified chip [Open console] [Flash again]. A toast is
+  - Success: "Firmware flashed and verified in 14 s." plus the identified chip [Open console] [Flash again].
+    *Amended by 0021:* after an application flash, "Now in the device: … v4.0.2" when `info show` answers within 10 s. A toast is
     also shown when the user is on another tab.
   - Failure: an ErrorPanel (e.g. `firmware.verify_failed`) with [Try again].
   - Cancel (`cancelled`): "Flashing was cancelled. The device may not start until you flash it again." [Flash again].
@@ -134,7 +149,7 @@ The cards are:
   - [Erase everything…] (app all / lte erase) and [Recover…] — ConfirmDialog (ADR-0038), e.g. "Erase everything on
     the application MCU?" • Firmware (flash) • UICR configuration • **Product Information Block (serial number,
     hardware version …)** — "This cannot be undone." [Cancel] [Erase everything].
-  - Maintenance acts on the MCU of the selected kind (application firmware → app; LTE / modem → lte). The section
+  - Maintenance acts on the MCU of the selected kind (application firmware → app; LTE firmware → lte). The section
     title names it: "Maintenance — application MCU".
 - **Not connected is fine.** Flash calls `tab.ensureSession()` (*amended by the 0004 review*: the tab's console
   target, with RTT when it has a console) when the tab has no working session, then starts the operation with the
@@ -145,6 +160,9 @@ The cards are:
 
 ### Settings page (global, Ctrl+,)
 
+*Amended by 0021 (ADR-0172):* the rail's Settings item and Ctrl+, open the page as a special Settings tab in the tab
+strip (0004), which exists only while open; `openSettings(sectionId)` scrolls to a section.
+
 Changes apply immediately (no OK/Cancel). Invalid input shows an inline error and is not saved.
 
 | Section | Items | Owner |
@@ -152,8 +170,8 @@ Changes apply immediately (no OK/Cancel). Invalid input shows an inline error an
 | General | Language: System / English / Čeština (live) · Theme: System / Light / Dark (live) · Reopen tabs at start | 0006 |
 | Console | Font size (8–24) · Show timestamps · Wrap long lines · Save console to log files (default on) · Log folder [Open] · Retention info "Last 50 files, max. 200 MB" | 0005 (section component) |
 | J-Link | Library: Automatic (detected: `/opt/SEGGER/JLink/libjlinkarm.so` 8.10) / Custom path [Browse…] · Default speed (kHz) · RTT latency (ms) · Auto-reconnect · Reset on connect · link "Run the setup wizard" (*amended by 0008, 2026-10-16*) | 0006 |
-| nRF Util | Path: Automatic (detected 7.x / "not found — needed only for LTE modem firmware") / Custom [Browse…] · link "Run the setup wizard" (*amended by 0008, 2026-10-16*) | 0006 |
-| About | Version, build info, Qt, J-Link and nRF Util versions [Copy] · Licences (Qt LGPL, fonts OFL, Material Symbols Apache 2.0, miniz, replxx, …) · Links: documentation, firmware catalog, source | 0006 |
+| nRF Util | Path: Automatic (detected 7.x / "not found — needed for LTE firmware", *amended by 0021*) / Custom [Browse…] · link "Run the setup wizard" (*amended by 0008, 2026-10-16*) | 0006 |
+| About | Version, build info, Qt, J-Link and nRF Util versions [Copy] · Licences (Qt LGPL, fonts OFL, Material Symbols Apache 2.0, miniz, replxx, …) · Links: documentation, firmware catalog (*amended by 0021, ADR-0167*: the docs page of application firmware in the UI language), source | 0006 |
 
 *Amended by 0008 (2026-10-16):* "Run the setup wizard" opens `first-run-setup` (0008), text link only. Saving a path in
 the setup wizard invalidates the cached `dependency_status` so this page updates.
@@ -211,12 +229,17 @@ class FirmwareSourceViewModel : public QObject {   // amended by 0010; child of 
     Q_PROPERTY(bool hasUicr ...) Q_PROPERTY(bool allowUicr ...)
     Q_PROPERTY(QString kindHint ...) Q_PROPERTY(int suggestedKind ...)
     Q_PROPERTY(QAbstractListModel* recent ...)
+    // amended by 0021: LTE source, designated download, catalog info, docs link
+    Q_PROPERTY(LteSource lteSource ...)            // Designated, OwnFile
+    Q_PROPERTY(DesignatedState designatedState ...) // Idle, Downloading, Ready, Failed
+    Q_PROPERTY(QVariantMap catalogInfo ...)         // name, version, uploaded, lookupState
+    Q_PROPERTY(QUrl docsUrl ...)                    // by UI language (ADR-0167)
     Q_INVOKABLE void loadFile(const QUrl&); Q_INVOKABLE void loadCatalogId(const QString&); Q_INVOKABLE void loadRecent(int row);
 };
 
 class FlashViewModel : public QObject {             // source properties and invokables forward to `source`
     Q_PROPERTY(FirmwareSourceViewModel* source READ source CONSTANT)   // amended by 0010
-    Q_PROPERTY(Kind kind READ kind WRITE setKind NOTIFY kindChanged)   // AppFirmware, LteFirmware, ModemFirmware
+    Q_PROPERTY(Kind kind READ kind WRITE setKind NOTIFY kindChanged)   // AppFirmware, LteFirmware (ModemFirmware removed by 0021)
     Q_PROPERTY(QString targetId ...)                                   // derived from kind: "app" | "lte"
     Q_PROPERTY(SourceState sourceState ...)  // None, Loading, Downloading, Ready, Invalid
     Q_PROPERTY(QString sourceSummary ...) Q_PROPERTY(qreal downloadProgress ...) Q_PROPERTY(bool hasUicr ...)
@@ -246,14 +269,15 @@ class SettingsViewModel : public QObject {    // one typed property per item; wr
 };
 ```
 
-Operation mapping (ADR-0057, ADR-0062; all on the tab's session, `targetId` from the kind):
+Operation mapping (ADR-0057, ADR-0062; all on the tab's session, `targetId` from the kind; *amended by 0021*: the LTE
+operation follows the ADR-0040 classification of the LTE source):
 
 | Kind / action | Session call |
 |---|---|
 | Application firmware, `.hex` / ID | `flash("app", image, {halt, allowUicr})` |
-| LTE firmware, `.hex` / ID | `flash("lte", image, …)` |
-| LTE firmware, bundle `.zip` | `flashLteBundle("lte", bundle, …)` |
-| LTE modem firmware | `updateModem("lte", zip)` |
+| LTE firmware, own `.hex` | `flash("lte", image, …)` |
+| LTE firmware, designated or own bundle `.zip` | `flashLteBundle("lte", bundle, …)` |
+| LTE firmware, own `mfw_nrf91*.zip` (modem only) | `updateModem("lte", zip)` |
 | Reset / Reset and halt | `reset(target, Go \| Halt)` |
 | Erase application / Erase everything | `erase(target, Code \| All)` (lte default: All, per profile) |
 | Recover | `recover(target)` |
@@ -284,7 +308,8 @@ Operation mapping (ADR-0057, ADR-0062; all on the tab's session, `targetId` from
 | Situation | Code | Message / cause / suggestion | Wizard |
 |---|---|---|---|
 | Invalid catalog ID | (inline validator, not an error) | "The ID has 32 characters 0–9 a–f." | — |
-| File of another kind | (hint, not an error) | "This is LTE modem firmware — switch to LTE modem firmware?" | — |
+| File of another kind | (hint, not an error) | "This is LTE firmware — switch to LTE firmware?" (*amended by 0021*) | — |
+| Designated / catalog file hash differs (*0021*) | `firmware.checksum_mismatch` | "The downloaded firmware is damaged (checksum mismatch). Try again; if it repeats, report it to HARDWARIO." | — |
 | Settings path not writable / invalid | `io.write_failed` / `usage.invalid_argument` | inline at the control | — |
 | Custom J-Link path invalid | `dependency.jlink_load_failed` (existing) | shown inline in Settings | FirstRunSetup (C++ enumerator; QML/JSON `first-run-setup`, ADR-0067; *amended by 0007, 2026-10-16*) |
 | Flash while another operation runs | `internal.busy` (existing) | Flash disabled, the bar says "Another operation is running" | — |
@@ -318,7 +343,7 @@ session.
 |---|---|---|---|
 | Flash page | single form / wizard | Single form + in-place progress | ADR-0049 |
 | Catalog in GUI | ID only / browser now | ID field + recent + web link | ADR-0054 |
-| Flash page first step (review) | firmware kind cards / target MCU / operation first | Kind cards: app / LTE / modem | ADR-0055 |
+| Flash page first step (review) | firmware kind cards / target MCU / operation first | Kind cards: app / LTE / modem; *changed by 0021*: app / LTE | ADR-0055, ADR-0164 |
 | Flashing another MCU than the console's | operation carries target / retarget tab / second session | Operation carries its target | ADR-0057 |
 | Session operation API | concrete types; bundle one op / caller sequences; reset op / keep both | Bundle = one operation, reset = operation, cancel = `cancelled` | ADR-0062 |
 | Settings sections of other plans | page hosts contributed sections / 0006 owns all | Contributed sections (Console by 0005) | ADR-0059 |

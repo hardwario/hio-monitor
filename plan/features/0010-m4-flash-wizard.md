@@ -1,9 +1,9 @@
 # 0010 — M4 flash firmware wizard
 
-- **Status:** Approved (2026-10-16, by Matej Strnad; without the pending M5 amendments)
+- **Status:** Approved (2026-10-16, by Matej Strnad; without the pending M5 amendments); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
 - **Milestone:** M4 (plan 4 of 4, ADR-0065)
 - **Author:** Matej Strnad (with Claude)
-- **Related ADRs:** ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0049, ADR-0054, ADR-0055, ADR-0057, ADR-0062,
+- **Related ADRs:** ADR-0164, ADR-0165, ADR-0166 (0021), ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0049, ADR-0054, ADR-0055, ADR-0057, ADR-0062,
   ADR-0066, ADR-0067, ADR-0069, ADR-0074, ADR-0076, ADR-0077
 - **Depends on:** [0007](0007-m4-wizard-framework-diagnostics.md) (wizard contract, `Diagnose`, connection guide),
   [0006](0006-m3-flash-settings.md) (`FirmwareLoader`, `RecentSourcesModel`, Flash page). The hand-off to
@@ -11,8 +11,8 @@
 - **Can run in parallel with:** [0008](0008-m4-first-run-setup.md), [0009](0009-m4-connect-and-troubleshooting.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
-> **Pending amendment from [0021](0021-gui-feedback-round-1.md) (ADR-0164 … ADR-0166; applied when 0021 is approved —
-> then this plan needs re-approval):** step 2 shows the two kind cards of the Flash page (Application firmware, LTE
+> **Amended by [0021](0021-gui-feedback-round-1.md) (approved 2026-10-20; ADR-0164 … ADR-0166; applied in this text,
+> marked *amended by 0021*):** step 2 shows the two kind cards of the Flash page (Application firmware, LTE
 > firmware); the Firmware step for LTE offers the designated LTE firmware (default) or an own file; catalog IDs show
 > the firmware name and version.
 
@@ -44,8 +44,8 @@ Step list: Device · Firmware kind · Cable · Firmware · Confirm · Flash · D
 
 1. **Device and probe** [Embedded `probe-picker`] — as the Connect wizard's probe step (0009) without the target
    (the kind decides it). Skipped when the tab already has a probe.
-2. **What do you want to flash?** [Choice] — the three kind cards of the Flash page (ADR-0055): Application
-   firmware · LTE firmware · LTE modem firmware, with the same prerequisites inline (nRF Util for modem, with
+2. **What do you want to flash?** [Choice] — the kind cards of the Flash page (ADR-0055; *amended by 0021, ADR-0164*:
+   two cards, Application firmware · LTE firmware), with the same prerequisites inline (nRF Util for LTE firmware, with
    [Set up nRF Util…] → setup wizard at its nRF Util step, 0008).
 3. **Cable** [Info + Checks] — the profile guide for the kind's MCU (ADR-0077) and the `Diagnose` steps `probe` …
    `identify` (RTT steps are not needed for flashing and are not run). `target.protected` is shown as information:
@@ -54,7 +54,9 @@ Step list: Device · Firmware kind · Cable · Firmware · Confirm · Flash · D
 4. **Firmware** [Embedded `firmware-source`] — the Flash page's source card (drop zone, Browse, catalog ID with
    [Download], recent list, summary, kind-mismatch hint with [Switch] — which changes step 2's choice and repeats
    step 3 if the MCU changes). Options under it: "Allow writing UICR" only when the image has UICR records
-   (ADR-0036). "Halt after flashing" is not offered (expert option, Flash page only).
+   (ADR-0036). "Halt after flashing" is not offered (expert option, Flash page only). *Amended by 0021 (ADR-0165,
+   ADR-0166):* for LTE firmware the step offers the designated LTE firmware (default, downloaded and SHA-256 verified)
+   or "Use your own file…"; a catalog ID shows the firmware name and version.
 5. **Confirm** [Info] — "Ready to flash" summary: "chester-clime-v3.2.1.hex (Intel HEX, 412 kB) → Application MCU
    (nRF52840) of CHESTER via J-Link 683012345. The current application firmware is replaced. Configuration and the
    Product Information Block are kept." (UICR option on: "The UICR configuration is also written; the Product

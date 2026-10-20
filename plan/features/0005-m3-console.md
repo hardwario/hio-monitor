@@ -21,11 +21,11 @@
 > - Open log file uses `DeviceSession::consoleFile()` (0002 amendment) instead of a file lookup (§ Data flow).
 > - Selection is whole rows only in M3 (ADR-0113 supersedes ADR-0045's partial selection within a row).
 
-- **Status:** In progress (implementation started 2026-10-16; approved by Matej Strnad, 2026-10-16, with the amendment
+- **Status:** In progress (implementation started 2026-10-16; approved by Matej Strnad, 2026-10-16, with the amendment; amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
   from the 0004 review applied)
 - **Milestone:** M3 (plan 2 of 3, ADR-0059)
 - **Author:** Matej Strnad (with Claude)
-- **Related ADRs:** ADR-0003, ADR-0025, ADR-0027, ADR-0031, ADR-0033, ADR-0034, ADR-0045, ADR-0046, ADR-0051,
+- **Related ADRs:** ADR-0169, ADR-0170, ADR-0171 (0021), ADR-0003, ADR-0025, ADR-0027, ADR-0031, ADR-0033, ADR-0034, ADR-0045, ADR-0046, ADR-0051,
   ADR-0056, ADR-0058, ADR-0059, ADR-0061, ADR-0062, ADR-0063, ADR-0113
 - **Depends on:** [0004](0004-m3-gui-shell.md) (shell, page-extension contract), 0002 (M1: `DeviceSession`,
   `ConsoleLog`, `CommandHistory`). It uses the M2 `reset(targetId, ResetMode)` operation (ADR-0062) when 0003 has
@@ -45,8 +45,8 @@
 > **Pending amendment from M8 ([0017](0017-m8-parity.md) item A3):** in the log view (focus not in a text field) with an
 > active search, `n` / Shift+`n` go to the next / previous match, as in v1.
 
-> **Pending amendment from [0021](0021-gui-feedback-round-1.md) (ADR-0169, ADR-0170, ADR-0171; applied when 0021 is
-> approved — then this plan needs re-approval):** console views scroll by whole rows (no coasting); the shell input
+> **Amended by [0021](0021-gui-feedback-round-1.md) (approved 2026-10-20; ADR-0169, ADR-0170, ADR-0171; applied in
+> this text, marked *amended by 0021*):** console views scroll by whole rows (no coasting); the shell input
 > gets an automatic suggestion list above the input (device commands learned from `help` sent on connect, plus
 > history), ghost text and Tab completion, with the settings `console/suggestions` and
 > `console/readCommandsOnConnect`; the log level chips gain **H** (hexdump
@@ -99,9 +99,22 @@ Its pain points must be fixed:
   At 960 px in Czech, actions that do not fit move into ⋯ (ADR-0061).
 - **Split:** Shell (left) | Log (right), resizable. The ratio is remembered (`console/splitRatio`). Below 1000 px
   page width the split stacks vertically, shell on top.
+- *Amended by 0021 (ADR-0169):* both views scroll by **whole rows**: a wheel notch = the system's lines per scroll
+  (default 3), no kinetic coasting, touchpad deltas accumulated to rows, the top row always aligned; Up/Down,
+  PgUp/PgDn and Ctrl+Home/End in the focused view (Ctrl+End turns Follow on).
 - **Shell view:** echoed commands `> cmd` in the accent colour, then the device output. The input row
   `> [_____] [Send]` sits under the shell view.
   - Enter sends; Up/Down walk the history; Ctrl+R opens the history popup.
+  - *Amended by 0021 (ADR-0170):* as soon as the input is non-empty, a **suggestion list opens above the input**: the
+    matching device commands for the current word (with their help text, muted), then matching history entries
+    (clock icon); 8 rows visible, max 50. ↑ ↓ move the highlight while the list is open, Tab or → accepts the
+    highlighted row, Esc closes the list until the next keystroke. Enter sends the typed line, unless the user moved
+    the highlight with ↑ ↓ — then Enter accepts the row. With an empty input ↑ ↓ walk the history. The rest of the
+    highlighted suggestion is shown as ghost text after the cursor (→ or End accepts). Tab never moves the focus out
+    of the input (Shift+Tab, or Esc then Tab, does). The device commands are learned by silent shell queries: `help`
+    right after the console attaches (setting `console/readCommandsOnConnect`; off → on the first suggestion),
+    `<command> -h` the first time the user types past a command; cached per firmware (`fw-name`, `fw-version`).
+    While learning, the list shows "Reading commands from the device…".
   - While disconnected or while another page is busy, the input is disabled with a placeholder: "Not connected" /
     "Flashing — the console resumes automatically".
 - **Log view:** columns time (optional), level tag (D I W E, coloured) and text.
@@ -109,7 +122,8 @@ Its pain points must be fixed:
   - a **Search | Filter** switch;
   - the field with Aa and .\* toggles;
   - in Search mode: "3 / 128", ↑ ↓, ×; in Filter mode: "Showing X of Y lines", Clear filter;
-  - the level chips D I W E.
+  - the level chips D I W E; *amended by 0021 (ADR-0171):* plus **H** ("Hexdump lines", `LogLevel::Hexdump`), off
+    by default; shown hexdump rows use the muted text colour.
 
   Ctrl+F opens it in Search mode and Ctrl+L in Filter mode. An active filter stays visible as a chip while the bar is
   in Search mode. Enter / Shift+Enter go to the next / previous match. Esc closes the bar; a second Esc clears the
@@ -263,10 +277,13 @@ class ConsoleLineModel : public QAbstractListModel {   // one channel, filtered 
 | `console/splitRatio` | int 20–80 (%) | 50 |
 | `console/stacked` | bool | `false` |
 | `console/logToFile` | bool | `true` |
+| `console/suggestions` (*0021*) | bool | `true` |
+| `console/readCommandsOnConnect` (*0021*) | bool | `true` |
 
 This plan contributes the **Console** section of the Settings page (`ConsoleSection.qml`, registered with
 `addSettingsSection`): font size (8–24), show timestamps, wrap long lines, save console to log files, log folder
-[Open], and the retention info "Last 50 files, max. 200 MB". The page itself is 0006's. The console reacts to
+[Open], and the retention info "Last 50 files, max. 200 MB"; *amended by 0021*: "Suggest commands while typing" and
+"Read the command list from the device on connect (sends `help`)". The page itself is 0006's. The console reacts to
 `SettingsStore::valueChanged`.
 
 ### Limits

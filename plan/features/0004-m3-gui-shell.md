@@ -1,9 +1,9 @@
 # 0004 — M3 GUI shell: theme, components, device tabs, probe picker, device bar
 
-- **Status:** In progress (implementation started 2026-10-12; approved by Matej Strnad, 2026-10-12, without the pending M4/M5 amendments; implemented on `v2/m3-gui`, based on the M2 WIP commit 7f371c6); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010)
+- **Status:** In progress (implementation started 2026-10-12; approved by Matej Strnad, 2026-10-12, without the pending M4/M5 amendments; implemented on `v2/m3-gui`, based on the M2 WIP commit 7f371c6); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
 - **Milestone:** M3 (plan 1 of 3, ADR-0059; followed by [0005](0005-m3-console.md) and [0006](0006-m3-flash-settings.md))
 - **Author:** Matej Strnad (with Claude)
-- **Related ADRs:** ADR-0002, ADR-0003, ADR-0004, ADR-0018, ADR-0025, ADR-0027, ADR-0031, ADR-0043, ADR-0044,
+- **Related ADRs:** ADR-0168, ADR-0172 (0021), ADR-0002, ADR-0003, ADR-0004, ADR-0018, ADR-0025, ADR-0027, ADR-0031, ADR-0043, ADR-0044,
   ADR-0047, ADR-0048, ADR-0050, ADR-0051, ADR-0052, ADR-0053, ADR-0058, ADR-0059, ADR-0060, ADR-0061, ADR-0063, ADR-0066, ADR-0067, ADR-0069, ADR-0111
 - **Depends on:** 0001 (M0). 0002 (M1, with the ADR-0053 / ADR-0058 amendments applied) for real sessions; until
   M1 lands, the shell runs against the fake J-Link library.
@@ -37,8 +37,8 @@
 > **Pending amendment from M8 ([0017](0017-m8-parity.md), ADR-0132):** the device bar shows the "J-Link firmware is
 > outdated" warning banner with [Update] / [Not now]; error panels' "More help" link uses `docsUrl()` (ADR-0138).
 
-> **Pending amendment from [0021](0021-gui-feedback-round-1.md) (ADR-0168, ADR-0172; applied when 0021 is approved —
-> then this plan needs re-approval):** target pickers (device bar, Choose device) show only `app` / `lte`, the long
+> **Amended by [0021](0021-gui-feedback-round-1.md) (approved 2026-10-20; ADR-0168, ADR-0172; applied in this text,
+> marked *amended by 0021*):** target pickers (device bar, Choose device) show only `app` / `lte`, the long
 > title moves to the tooltip; the rail's Settings item (and Ctrl+,) opens Settings as a special tab in the tab
 > strip that exists only while open, not counted in the 8-tab limit and not restored; `openSettings(sectionId)`.
 
@@ -125,7 +125,10 @@ Screens are drawn in the mockups (`plan/gui/mockups/`, with light/dark and EN/CS
 - **Quitting** while an operation runs asks the same question.
 - **Rail:** the pages registered for a tab (Console, Flash), each with an icon and a label. Below 1100 px window width
   it shows icons only, with the labels as tooltips. A page can show a busy badge. Settings (Ctrl+,) and Help (F1)
-  sit at the bottom of the rail and are global. *Amended by 0007 (2026-10-16):* the Help item opens the Help menu
+  sit at the bottom of the rail and are global. *Amended by 0021 (ADR-0172):* the Settings item (and Ctrl+,) opens
+  Settings as a special **Settings tab** in the tab bar (gear icon, title "Settings", at most one) or switches to it;
+  the tab exists only while open (×, Ctrl+W, middle-click close it), has no rail and no device bar, is not counted in
+  the 8-tab limit, is not stored in `ui/tabs` and is cycled by Ctrl+Tab like any tab. *Amended by 0007 (2026-10-16):* the Help item opens the Help menu
   (Keyboard shortcuts (F1), Setup wizard…, Connect a device…, Troubleshoot connection…, Flash firmware (guided)…,
   Create diagnostic report…, Documentation ↗; items whose wizard is not registered are hidden); F1 / Ctrl+/ still
   open the shortcut overlay directly.
@@ -136,8 +139,9 @@ Screens are drawn in the mockups (`plan/gui/mockups/`, with light/dark and EN/CS
   when the probe is used elsewhere:
   - "In use (tab 2)" — selecting it switches to that tab;
   - "In use by another program (hio, PID 1234)" — the row is disabled (ADR-0058).
-- Below the list are the device (CHESTER) and target (Application MCU `app` / LTE modem MCU `lte`) pickers, plus
-  **Connect**.
+- Below the list are the device (CHESTER) and target pickers, plus **Connect**. *Amended by 0021 (ADR-0168):* the
+  target buttons show only `app` / `lte`; the long title ("Application MCU (nRF52840)") is the tooltip and the
+  accessible description.
 - Exactly one free probe → it is preselected.
 - **No probes:** the empty state says "No J-Link probe found — Connect the J-Link to USB and to the device.",
   followed by a check list:
@@ -167,7 +171,8 @@ Screens are drawn in the mockups (`plan/gui/mockups/`, with light/dark and EN/CS
   (ADR-0052), with the note "Changes apply on the next connect." Speed (ADR-0111): an **Automatic speed** switch,
   on by default (ADR-0090), and the kHz spin box, disabled while automatic (it keeps the last fixed value; 4000 kHz
   when none was stored). A fixed speed below 125 kHz shows the ADR-0110 warning (`device::slowSpeedWarning`).
-- The target picker is disabled while connected.
+- The target picker is disabled while connected. *Amended by 0021 (ADR-0168):* its items are `app` / `lte` only (the
+  closed box shows "Target: app"); the long title is the tooltip and the accessible description.
 
 ### Shortcuts (ADR-0051)
 
@@ -243,7 +248,8 @@ struct PageDescriptor {                         // registered once at startup, b
     QString icon;                               // icon file name, ADR-0060
     QUrl qml;                                   // page root component, gets `tab` and `vm` properties
     int order;
-    bool global = false;                        // true: one instance for the app (Settings), shown at the rail bottom
+    bool global = false;                        // true: one instance for the app (Settings); its rail item opens the
+                                                // Settings tab (amended by 0021)
     // Creates the page view model; parent = tab (or AppViewModel for global pages) — Qt parent ownership.
     std::function<QObject*(DeviceTabViewModel* tab /*nullptr for global*/)> createViewModel;
 };
@@ -344,7 +350,8 @@ public:
   warning as "The console log file could not be written; logging to file is off for this session." (the backend
   detail stays for [Details]). Pages do not repeat session warnings. `ProbeScanner::stop()` (stop and join, also
   used by the destructor) lets the Qt Quick test runner stop the scanner when a test file has finished.
-- Settings is a global page (`global = true`). 0006 registers it. Until then 0004 ships `PlaceholderPage.qml` for
+- Settings is a global page (`global = true`). 0006 registers it. *Amended by 0021:* it is hosted by the Settings tab
+  (`DeviceTabListModel` entry kind `Settings`), opened by `AppViewModel::openSettings(QString sectionId = {})`. Until then 0004 ships `PlaceholderPage.qml` for
   the "settings" id.
 - The test page (`tests/qml/TestPage.qml` + a fake VM) exercises the contract: registration, busy, close
   confirmation, session changes and shortcut registration.
@@ -448,6 +455,8 @@ are registered by 0005 and 0006 through `SettingsStore::registerKeys`.
 | Window organisation | left rail + device bar / top tabs / console-centric | Left rail + device bar | ADR-0043 |
 | Devices per window | one / device tabs | Device tabs (≤ 8) | ADR-0043 |
 | Tabs vs rail | device tabs on top, rail per tab / rail on top, tabs inside | Device tabs on top, rail per tab | ADR-0043 |
+| Settings placement (0021) | rail page / tab opened from the rail | Rail item opens a Settings tab that exists only while open | ADR-0172 |
+| Target picker labels (0021) | long titles / ids | `app` / `lte`, long title in tooltip | ADR-0168 |
 | Qt Quick Controls style | Basic + own / Material / Fusion-native | Material (Dense) + Theme singleton | ADR-0044 |
 | Themes | light+dark+system / dark only | Light + Dark + System; palette proposed (brand colours: open question 16) | ADR-0047 |
 | Fonts | Inter + JetBrains Mono / system / Inter + Ubuntu Mono | Inter + JetBrains Mono (LFS) | ADR-0048 |
