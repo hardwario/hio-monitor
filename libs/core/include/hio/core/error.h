@@ -98,6 +98,7 @@ enum class ErrorCode : std::uint8_t {
     BleWriteTimeout,
     BleDisconnected,
     BleInUseByOtherProcess,
+    BleNoPairingAgent, // HIL finding H1, 2026-10-20
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -302,6 +303,9 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::BleInUseByOtherProcess,
               .id = "ble.in_use_by_other_process",
               .category = ErrorCategory::Probe},
+    ErrorInfo{.code = ErrorCode::BleNoPairingAgent,
+              .id = "ble.no_pairing_agent",
+              .category = ErrorCategory::Dependency},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every

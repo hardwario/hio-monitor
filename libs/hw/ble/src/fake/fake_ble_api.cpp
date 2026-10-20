@@ -18,8 +18,10 @@
 #include <QString>
 #include <QThread>
 #include <QTimer>
+#include <QtCore/qnamespace.h>
 #include <QtLogging>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -91,8 +93,10 @@ FakeDevice deviceOf(const QJsonObject& object) {
     device.writeStall = object.value(QStringLiteral("writeStall")).toBool();
     device.writeError = errorCodeOf(object, QStringLiteral("writeError"));
     device.echo = object.value(QStringLiteral("echo")).toBool();
+    device.newlineAfterCommand = object.value(QStringLiteral("newlineAfterCommand")).toBool();
     device.prompt = object.value(QStringLiteral("prompt")).toString().toStdString();
     device.greeting = object.value(QStringLiteral("greeting")).toString().toStdString();
+    device.promptOnConnect = object.value(QStringLiteral("promptOnConnect")).toBool(true);
     const QJsonObject responses = object.value(QStringLiteral("responses")).toObject();
     for (auto it = responses.begin(); it != responses.end(); ++it) {
         device.responses.emplace(it.key().toStdString(), it.value().toString().toStdString());
@@ -314,9 +318,7 @@ void FakeBleApi::linkReady(LinkId id) {
     if (find(id) == nullptr) {
         return;
     }
-    if (!item.greeting.empty() || !item.prompt.empty()) {
-        send(id, item.greeting + item.prompt);
-    }
+    send(id, item.greeting + (item.promptOnConnect ? item.prompt : std::string()));
     for (const FakeOutput& output : item.output) {
         QTimer::singleShot(std::chrono::milliseconds(output.atMs), link->context.get(),
                            [this, id, text = output.text] { send(id, text); });
@@ -372,15 +374,27 @@ void FakeBleApi::received(LinkId id, std::string_view bytes) {
         std::string reply;
         if (item.echo) {
             reply += line + "\r\n";
+        } else if (item.newlineAfterCommand) {
+            // HIL H5: CHESTER moves to a new line after Enter at once (about 13 ms after the
+            // send), in its own notification and with no prompt before it.
+            answer(*link, std::chrono::milliseconds(5), "\r\n");
         }
         if (const auto it = item.responses.find(line); it != item.responses.end()) {
             reply += it->second;
         }
         reply += item.prompt;
         // Like a device: the answer comes a little later, after the write was confirmed.
-        QTimer::singleShot(std::chrono::milliseconds(5), link->context.get(),
-                           [this, id, reply = std::move(reply)] { send(id, reply); });
+        answer(*link, std::chrono::milliseconds(15), std::move(reply));
     }
+}
+
+void FakeBleApi::answer(Link& link, std::chrono::milliseconds delay, std::string text) {
+    const auto now = std::chrono::steady_clock::now();
+    link.nextAnswer = std::max(now + delay, link.nextAnswer);
+    // Qt fires timers with the same deadline in the order they were started.
+    QTimer::singleShot(std::chrono::ceil<std::chrono::milliseconds>(link.nextAnswer - now),
+                       Qt::PreciseTimer, link.context.get(),
+                       [this, id = link.id, text = std::move(text)] { send(id, text); });
 }
 
 Status FakeBleApi::write(LinkId id, std::span<const std::byte> chunk, WriteMode /*mode*/,
@@ -437,8 +451,11 @@ Status FakeBleApi::requestPairing(const BleDeviceId& deviceId) {
         return {};
     }
     const bool ok = item->pairing == "ok";
+    const ErrorCode failure =
+        item->pairing == "noAgent" ? ErrorCode::BleNoPairingAgent : ErrorCode::BlePairingFailed;
     QTimer::singleShot(
-        std::chrono::milliseconds(pairingResultDelayMs), m_context.get(), [this, deviceId, ok] {
+        std::chrono::milliseconds(pairingResultDelayMs), m_context.get(),
+        [this, deviceId, ok, failure] {
             if (ok) {
                 if (FakeDevice* paired = device(deviceId)) {
                     paired->paired = true;
@@ -446,9 +463,8 @@ Status FakeBleApi::requestPairing(const BleDeviceId& deviceId) {
             }
             if (m_listener != nullptr) {
                 m_listener->onPairingFinished(
-                    deviceId, ok ? Status{}
-                                 : std::unexpected(makeError(ErrorCode::BlePairingFailed,
-                                                             "fake pairing failure")));
+                    deviceId,
+                    ok ? Status{} : std::unexpected(makeError(failure, "fake pairing failure")));
             }
         });
     return {};

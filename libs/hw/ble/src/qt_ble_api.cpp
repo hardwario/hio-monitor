@@ -43,6 +43,7 @@
 #include <expected>
 #include <filesystem>
 #include <format>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <span>
@@ -103,7 +104,41 @@ Error mapLinkError(const QtLinkError& error) {
     if (ready) {
         return makeError(ErrorCode::BleWriteFailed, detail);
     }
-    return makeError(ErrorCode::BleConnectFailed, detail);
+    Error failed = makeError(ErrorCode::BleConnectFailed, detail);
+    if (error.phase == LinkPhase::PairingPending) {
+        // HIL H2: a rejected CCCD write is not a weak signal; the device refused the console
+        // (still connected from an earlier link or another computer, or the pairing failed).
+        failed.cause = QCoreApplication::translate(
+                           "hio::ble", "The device refused to start the console: it may still "
+                                       "be connected (to this or another computer) or the "
+                                       "pairing was not completed.")
+                           .toStdString();
+        failed.suggestion =
+            QCoreApplication::translate("hio::ble",
+                                        "Wait a few seconds and try again. If it repeats, "
+                                        "disconnect the device in the system Bluetooth settings "
+                                        "or restart it.")
+                .toStdString();
+    }
+    return failed;
+}
+
+Error pairingFailure(QBluetoothLocalDevice::Error error, std::chrono::milliseconds sinceRequest) {
+    const std::string detail = std::format("QBluetoothLocalDevice error {} after {} ms",
+                                           static_cast<int>(error), sinceRequest.count());
+    if (error == QBluetoothLocalDevice::MissingPermissionsError) {
+        return makeError(ErrorCode::BlePermissionDenied, detail);
+    }
+#ifdef Q_OS_LINUX
+    // HIL H1: without a running pairing agent BlueZ cancels the pairing at once (Qt: PairingError,
+    // BlueZ org.bluez.Error.AuthenticationCanceled) and no dialog appears. A user who cancels or
+    // types a wrong passkey takes longer than noAgentWindow. To be confirmed in HIL: the timing
+    // with an agent and a quick cancel, and other desktops (KDE, headless).
+    if (error == QBluetoothLocalDevice::PairingError && sinceRequest < noAgentWindow) {
+        return makeError(ErrorCode::BleNoPairingAgent, detail);
+    }
+#endif
+    return makeError(ErrorCode::BlePairingFailed, detail);
 }
 
 // The discovery agent's errors; only the agent is used (legacy null-dereference bug).
@@ -191,6 +226,8 @@ QtBleApi::~QtBleApi() {
         QObject::disconnect(m_agent.get(), nullptr, this, nullptr);
         m_agent->stop();
     }
+    // H2: the released controllers are deleted only once unconnected (bounded wait; BleHost::stop).
+    m_closer.waitAll();
     // m_agent, m_local and (as children) the released controllers go on this, the BLE, thread.
 }
 
@@ -203,8 +240,8 @@ QBluetoothLocalDevice& QtBleApi::local() {
             m_local.get(), &QBluetoothLocalDevice::pairingFinished, this,
             [this](const QBluetoothAddress& address, QBluetoothLocalDevice::Pairing pairing) {
                 const BleDeviceId id = address.toString().toUpper().toStdString();
-                std::erase_if(m_pairing, [&id](const BleDeviceId& pending) {
-                    return sameDeviceId(pending, id);
+                std::erase_if(m_pairing, [&id](const PendingPairing& pending) {
+                    return sameDeviceId(pending.device, id);
                 });
                 if (m_listener == nullptr) {
                     return;
@@ -215,23 +252,22 @@ QBluetoothLocalDevice& QtBleApi::local() {
                         ? std::unexpected(makeError(ErrorCode::BlePairingFailed, "still unpaired"))
                         : Status{});
             });
-        QObject::connect(m_local.get(), &QBluetoothLocalDevice::errorOccurred, this,
-                         [this](QBluetoothLocalDevice::Error error) {
-                             // The error names no device: every pending request failed.
-                             const auto pending = std::exchange(m_pairing, {});
-                             for (const BleDeviceId& id : pending) {
-                                 if (m_listener != nullptr) {
-                                     m_listener->onPairingFinished(
-                                         id,
-                                         std::unexpected(makeError(
-                                             error == QBluetoothLocalDevice::MissingPermissionsError
-                                                 ? ErrorCode::BlePermissionDenied
-                                                 : ErrorCode::BlePairingFailed,
-                                             "QBluetoothLocalDevice error " +
-                                                 enumName(static_cast<int>(error)))));
-                                 }
-                             }
-                         });
+        QObject::connect(
+            m_local.get(), &QBluetoothLocalDevice::errorOccurred, this,
+            [this](QBluetoothLocalDevice::Error error) {
+                // The error names no device: every pending request failed.
+                const auto pending = std::exchange(m_pairing, {});
+                const auto now = std::chrono::steady_clock::now();
+                for (const PendingPairing& request : pending) {
+                    if (m_listener != nullptr) {
+                        m_listener->onPairingFinished(
+                            request.device,
+                            std::unexpected(detail::pairingFailure(
+                                error, std::chrono::duration_cast<std::chrono::milliseconds>(
+                                           now - request.requested))));
+                    }
+                }
+            });
     }
     return *m_local;
 }
@@ -355,9 +391,22 @@ void QtBleApi::release(Link& link) {
         QObject::disconnect(link.service, nullptr, this, nullptr);
     }
     if (link.controller) {
-        QObject::disconnect(link.controller, nullptr, this, nullptr);
-        link.controller->disconnectFromDevice();
-        link.controller->deleteLater(); // the service object is its child
+        QLowEnergyController* controller = link.controller;
+        QObject::disconnect(controller, nullptr, this, nullptr);
+        controller->disconnectFromDevice();
+        // H2: deleted (with its service object, a child) only once it is unconnected, at most
+        // after ControllerCloser::defaultBound; a new connect to the device waits for that.
+        m_closer.close(
+            controller, link.device, controller->state() == QLowEnergyController::UnconnectedState,
+            [controller](QObject* context, std::function<void()> onGone) {
+                return QObject::connect(
+                    controller, &QLowEnergyController::stateChanged, context,
+                    [onGone = std::move(onGone)](QLowEnergyController::ControllerState state) {
+                        if (state == QLowEnergyController::UnconnectedState) {
+                            onGone();
+                        }
+                    });
+            });
     }
     link.controller.clear();
     link.service.clear();
@@ -404,14 +453,10 @@ Result<LinkId> QtBleApi::connect(const BleDeviceId& device, const NusUuids& uuid
         info.setCoreConfigurations(QBluetoothDeviceInfo::LowEnergyCoreConfiguration);
     }
     const LinkId id = m_nextLink++;
-    // Qt parent ownership: a child of this object, released with deleteLater() (release()).
-    QLowEnergyController* controller = QLowEnergyController::createCentral(info, this);
-    if (controller == nullptr) {
-        return std::unexpected(makeError(ErrorCode::BleConnectFailed, "no controller"));
-    }
     m_links.emplace(id, Link{.device = device,
+                             .info = info,
                              .uuids = uuids,
-                             .controller = controller,
+                             .controller = nullptr,
                              .service = nullptr,
                              .rx = {},
                              .tx = {},
@@ -419,6 +464,25 @@ Result<LinkId> QtBleApi::connect(const BleDeviceId& device, const NusUuids& uuid
                              .cccdPending = false,
                              .ready = false,
                              .writes = {}});
+    // H2: after the controller of an earlier link to this device is gone (a reopen right after a
+    // close), at once otherwise.
+    m_closer.whenClosed(device, [this, id] { startController(id); });
+    return id;
+}
+
+void QtBleApi::startController(LinkId id) {
+    Link* link = find(id);
+    if (link == nullptr) {
+        return; // disconnected meanwhile
+    }
+    // Qt parent ownership: a child of this object, released through m_closer (release()).
+    QLowEnergyController* controller = QLowEnergyController::createCentral(link->info, this);
+    if (controller == nullptr) {
+        lost(id, makeError(ErrorCode::BleConnectFailed, "no controller"));
+        return;
+    }
+    link->controller = controller;
+    const BleDeviceId device = link->device;
     QObject::connect(controller, &QLowEnergyController::connected, this, [this, id] {
         if (Link* link = find(id); link != nullptr && link->controller) {
             link->controller->discoverServices();
@@ -443,7 +507,6 @@ Result<LinkId> QtBleApi::connect(const BleDeviceId& device, const NusUuids& uuid
     });
     qCInfo(log::lcBle) << "Connecting to" << toQString(device);
     controller->connectToDevice();
-    return id;
 }
 
 void QtBleApi::servicesDiscovered(LinkId id) {
@@ -514,6 +577,11 @@ void QtBleApi::servicesDiscovered(LinkId id) {
             }
             item->cccdPending = false;
             item->ready = true;
+            // H4 (HIL, BlueZ 5.85): Qt's BlueZ D-Bus backend reports 23 here - the negotiated ATT
+            // MTU is only a D-Bus property (GattCharacteristic1.MTU) that Qt does not read, and
+            // this project uses no D-Bus of its own. Lines then go in 20-byte chunks (correct,
+            // only slower). CoreBluetooth and WinRT should report the real value (to confirm in
+            // F2).
             const int mtu = item->controller ? item->controller->mtu() : -1;
             const LinkReady ready{.mtu = std::cmp_greater_equal(mtu, defaultMtu)
                                              ? static_cast<std::uint16_t>(mtu)
@@ -602,10 +670,11 @@ Status QtBleApi::requestPairing(const BleDeviceId& device) {
         return std::unexpected(
             makeError(ErrorCode::UsageInvalidArgument, "not a Bluetooth address: " + device));
     }
-    if (std::ranges::none_of(m_pairing, [&device](const BleDeviceId& pending) {
-            return sameDeviceId(pending, device);
+    if (std::ranges::none_of(m_pairing, [&device](const PendingPairing& pending) {
+            return sameDeviceId(pending.device, device);
         })) {
-        m_pairing.push_back(device);
+        m_pairing.push_back(
+            PendingPairing{.device = device, .requested = std::chrono::steady_clock::now()});
     }
     local().requestPairing(address, QBluetoothLocalDevice::Paired);
     return {};

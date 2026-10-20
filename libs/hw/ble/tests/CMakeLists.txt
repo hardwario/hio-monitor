@@ -4,6 +4,7 @@
 
 add_executable(hio_hw_ble_tests
     ble_host_test.cpp
+    controller_closer_test.cpp
     legacy_regression_test.cpp
     main.cpp
     mock_ble_api.h

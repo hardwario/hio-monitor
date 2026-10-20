@@ -2,8 +2,9 @@
   "adapter": {"state": "ready", "name": "fake0", "address": "00:11:22:33:44:55"},
   "devices": [
     {"id": "F1:22:33:44:55:66", "name": "CHESTER-ABC123", "rssi": -58, "nus": true,
-     "prompt": "bt_nus:~$ ",
-     "responses": {"version": "Firmware version: v3.1.0\n", "status": "line 1\nline 2\n"}},
+     "prompt": "bt_nus:~$ ", "promptOnConnect": false, "newlineAfterCommand": true,
+     "responses": {"version": "Firmware version: v3.1.0\n", "status": "line 1\nline 2\n",
+                   "lines": "line 1\n\nline 3\n"}},
     {"id": "C0:11:22:33:44:55", "name": "CHESTER-XYZ789", "rssi": -81, "nus": true,
      "prompt": "bt_nus:~$ "},
     {"id": "AA:BB:CC:DD:EE:01", "name": "Phone", "rssi": -40, "nus": false},

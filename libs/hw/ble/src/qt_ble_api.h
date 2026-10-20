@@ -8,6 +8,7 @@
 // Covered by HIL and manual checks only (ADR-0087); the link error mapping is in one function,
 // detail::mapLinkError(), so it can be adjusted in one place after HIL (review B7).
 
+#include "controller_closer.h"
 #include "hio/core/error.h"
 #include "hio/core/result.h"
 #include "hio/hw/ble/ble_api.h"
@@ -15,6 +16,7 @@
 
 #include <QBluetoothDeviceDiscoveryAgent>
 #include <QBluetoothDeviceInfo>
+#include <QBluetoothLocalDevice>
 #include <QLowEnergyCharacteristic>
 #include <QLowEnergyController>
 #include <QLowEnergyService>
@@ -32,8 +34,6 @@
 #include <span>
 #include <string>
 #include <vector>
-
-class QBluetoothLocalDevice;
 
 namespace hio::ble {
 
@@ -56,6 +56,13 @@ struct QtLinkError {
 };
 // ble.not_paired only with the platform's authentication/encryption detail (ADR-0084, review B7).
 [[nodiscard]] Error mapLinkError(const QtLinkError& error);
+
+// A pairing request failed (HIL H1): on Linux a PairingError within noAgentWindow of the request
+// is ble.no_pairing_agent (BlueZ cancels at once without an agent), otherwise ble.pairing_failed;
+// MissingPermissionsError is ble.permission_denied. The one place of that rule.
+inline constexpr std::chrono::milliseconds noAgentWindow{2000};
+[[nodiscard]] Error pairingFailure(QBluetoothLocalDevice::Error error,
+                                   std::chrono::milliseconds sinceRequest);
 [[nodiscard]] Error mapDiscoveryError(QBluetoothDeviceDiscoveryAgent::Error error,
                                       const QString& text);
 } // namespace detail
@@ -89,6 +96,7 @@ public:
 private:
     struct Link {
         BleDeviceId device;
+        QBluetoothDeviceInfo info;
         NusUuids uuids;
         QPointer<QLowEnergyController> controller; // child of this; deleteLater on disconnect
         QPointer<QLowEnergyService> service;       // child of the controller
@@ -105,6 +113,7 @@ private:
     void servicesDiscovered(LinkId id);
     void detailsDiscovered(LinkId id);
     void lost(LinkId id, Error error);
+    void startController(LinkId id);
     [[nodiscard]] static detail::LinkPhase phaseOf(const Link& link);
     void release(Link& link);
     [[nodiscard]] Link* find(LinkId id);
@@ -117,10 +126,17 @@ private:
     std::map<BleDeviceId, QBluetoothDeviceInfo> m_known; // <= maxKnownDevices
     std::deque<BleDeviceId> m_knownOrder;                // oldest first
     std::map<LinkId, Link> m_links;
+    // H2: released controllers are deleted only when unconnected (bounded); declared after the
+    // links, destroyed before them is irrelevant: the destructor waits for it explicitly.
+    ControllerCloser m_closer;
     // Review N5: a lost link's error until its deferred report (bounded by the links): a write()
     // in between returns it instead of hiding it behind ble.write_failed.
     std::map<LinkId, Error> m_pendingLoss;
-    std::vector<BleDeviceId> m_pairing; // devices with a pairing request in progress
+    struct PendingPairing {
+        BleDeviceId device;
+        std::chrono::steady_clock::time_point requested;
+    };
+    std::vector<PendingPairing> m_pairing; // pairing requests in progress (bounded: the worker's)
     LinkId m_nextLink = 1;
 };
 

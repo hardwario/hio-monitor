@@ -101,9 +101,14 @@ TEST(ProcessScan, FindsHoldersAndExcludesOurOwnProcesses) {
 }
 
 TEST(ProcessScan, BoundOfInspectedProcesses) {
+    // findProbeHolders() skips this process, so no fake may use its PID (it can fall in the
+    // range on a long-running machine).
+    const qint64 self = QCoreApplication::applicationPid();
     std::vector<IProcessSource::Process> many;
-    for (qint64 pid = 1; pid <= 5000; ++pid) {
-        many.push_back({.pid = pid + 100000, .name = "JLinkExe", .executablePath = ""});
+    for (qint64 pid = 100001; many.size() < 5000; ++pid) {
+        if (pid != self) {
+            many.push_back({.pid = pid, .name = "JLinkExe", .executablePath = ""});
+        }
     }
     FakeSource source(std::move(many));
     const auto holders = hio::diag::findProbeHolders(source, {});

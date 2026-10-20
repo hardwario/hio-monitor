@@ -327,6 +327,7 @@ the text without them (e.g. "The Bluetooth device was not found."). `WizardId::B
 | `ble.write_timeout` | Target | "The device is not reading commands." / firmware busy or link stalled / "Reconnect; if it repeats, restart the device." | BlePairing |
 | `ble.disconnected` | Target | "The Bluetooth connection to %1 was lost." / out of range, device restarted or turned off / "Bring the device closer; the console reconnects automatically if enabled." | BlePairing |
 | `ble.in_use_by_other_process` | Probe | "The device %1 is used by another program (%2, PID %3)." / another HARDWARIO Monitor window or `hio` command / "Close the other program." | — |
+| `ble.no_pairing_agent` (HIL H1, 2026-10-20) | Dependency | "No program is ready to ask for the Bluetooth passkey." / no pairing agent is running (on GNOME the agent may only be active in Settings → Bluetooth) / "Pair the device from the system Bluetooth settings, or with bluetoothctl: `agent KeyboardOnly`, `default-agent`, `pair <id>`." Linux only: a pairing request failing with Qt `PairingError` within 2 s (`detail::pairingFailure`, `qt_ble_api.cpp`); HIL must confirm the timing with an agent and a quick cancel, and other desktops (KDE, headless). | BlePairing |
 
 ### Threading summary
 
@@ -340,7 +341,7 @@ cross threads.
 BLE command queue 256 · event queue 10 000 per subscriber (DropOldest + `LinesDropped`) · scan list 256 devices,
 name 64 B · outgoing line 4 KiB · chunks in flight 1 (with-response) / 16 (without) · partial line 4 KiB ·
 ConsoleLog 100 000 lines/channel · console files and history as M1 · sessions 8 total · timeouts: scan default 5 s
-(1–60), connect 20 s (60 s while pairing), write 2 s, reconnect 3 s while seen in 15 s, `ble command` 3 s,
+(1–60), connect 30 s (HIL H3; 60 s while pairing; a failed attempt retried after 1 s within it, H6), controller close wait 3 s (H2), write 2 s, reconnect 3 s while seen in 15 s, `ble command` 3 s,
 `BleHost::stop` 3 s, doctor check 5 s, scanner signal ≤ 4/s.
 
 ## Decisions requiring user confirmation
@@ -376,7 +377,7 @@ Answers to the implementation agent's questions; they override the text above wh
 | Q3 | BLE device already used in this process | `ble.in_use_by_other_process` (exit 5), message "The device … is already used by this application." | — |
 | Q4 | `hio ble pair` | pairs through `BleHost` without connecting, takes the `BleLock` (busy → exit 5); `IBleApi::isPaired(id)` added for "Already paired." | — |
 | Q5 | NDJSON connection events | `"transport"` on every connection event (J-Link `"jlink"`, additive); `"mtu"` on BLE events only | — |
-| Q6 | Connect deadlines | 20 s → `ble.connect_failed`; CCCD pending 60 s (no passkey) → `ble.not_paired`; CLI safety timeout 65 s | — |
+| Q6 | Connect deadlines | 20 s → `ble.connect_failed`; CCCD pending 60 s (no passkey) → `ble.not_paired`; CLI safety timeout 65 s (amended by H3, 2026-10-20: connect 30 s; CLI safety timeouts `ble console`/`command`/`pair` 95 s) | — |
 | Q7 | Linux "stack unavailable" | `/sys/class/bluetooth/hci*` exists but Qt sees no adapter → `ble.stack_unavailable`, else `ble.adapter_not_found`; no D-Bus | — |
 | Q8 | Texts | passkey hint = "The passkey is 123456 unless it was changed when the device was configured."; pairing guide steps `bluetooth`/`ble-enable` ("Make sure the device is powered and its Bluetooth is on.") and `pair`/`ble-pair-os` ("When the system asks for the passkey, enter it in the system dialog."); causes: adapter_off "Bluetooth is turned off in the system settings or with a hardware switch.", stack_unavailable "The Bluetooth service of the system (BlueZ on Linux) is not running.", permission_denied "Bluetooth access was denied in the privacy settings.", pairing_not_supported "macOS pairs a device automatically when it connects."; CLI prompt "Pairing: enter the passkey in the system dialog." + profile passkey hint; "-- connected (Bluetooth, MTU 247) --"; disconnect line shows the error message (M1 rule) | — |
 | Q9 | First-connect failure | as `DeviceSession` (Stopped without `--auto-reconnect`, Disconnected + retry with it); always fatal: `ble.adapter_*`, `ble.permission_denied`, `ble.stack_unavailable`, `ble.service_not_found`, `ble.not_paired`, `ble.pairing_failed`, `ble.in_use_by_other_process` | — |
@@ -425,6 +426,56 @@ B1, B2, B4–B7, B9, B10 verified fixed; B3 introduced N1/N2; B12 OK apart from 
 User decision 2026-10-20: fix all N1–N6 before HIL (verify, no further full review). Also remove the pre-existing
 J-Link model names (plans 0003/0004/0007, `plan/gui/mockups/index.html`, `tst_layout.qml`,
 `connection_view_model_test.cpp`) on this branch; use "J-Link probe" / neutral fixture strings.
+
+## HIL findings (Linux, BlueZ 5.85, GNOME, one CHESTER with Bluetooth shell, 2026-10-20)
+
+Passed: `ble scan` (15 CHESTERs, name-only filter), `doctor` bluetooth row, `ble pair` "Already paired." (also with a
+lower-case address), `ble command` (human + `--json`), J-Link RTT + BLE to the same CHESTER at once. The CHESTER
+advertises a vendor UUID, not NUS; NUS is present after connecting (confirms ADR-0142).
+
+| # | Sev. | Finding |
+|---|---|---|
+| H1 | med | Without an active desktop pairing agent (GNOME, Settings closed; also with Settings → Bluetooth open) `ble pair` and a direct BlueZ `Device1.Pair` fail at once with no dialog (BlueZ "Authentication Canceled", Qt `PairingError`); the CLI reports `ble.pairing_failed` "wrong passkey / stale bond". Pairing in `bluetoothctl` with its own agent worked. Needs: a distinct message/suggestion (no agent → pair with `bluetoothctl` or the system Bluetooth settings), possibly a CLI-registered BlueZ agent (decision). |
+| H2 | high | On close the `QLowEnergyController` is deleted in `ClosingState` ("not Unconnected when deleted") on every run; afterwards connects failed repeatedly within 0.12 s with `QLowEnergyService error 3` (descriptor write) → `ble.connect_failed` "weak signal", while BlueZ still showed the device connected. The BLE thread must wait (bounded) for `disconnected` before deleting the controller. |
+| H3 | med | BlueZ connect + service resolution takes 6–20 s here (busy office); the 20 s connect deadline fails `ble console` and some `ble command` runs ("not connected within 20000 ms"). Deadline/retry needs a decision. |
+| H4 | low | MTU reported as 23 on BlueZ (Qt's D-Bus backend), so lines go in 20-byte chunks; check whether the real ATT MTU is available. |
+| H5 | low | `ble command --json` output starts with an empty string (`"output": ["", "Uptime: …"]`). |
+
+User decisions 2026-10-20: fix H1–H5. H1 → detect the immediate "Authentication Canceled" / `PairingError` without a
+dialog on Linux and report a distinct "no pairing agent" error (new code `ble.no_pairing_agent`, Dependency) with
+the suggestion to pair from the system Bluetooth settings or with `bluetoothctl` (`agent KeyboardOnly`,
+`default-agent`, `pair <id>`); no own BlueZ agent, no Qt6::DBus. H3 → connect deadline 30 s (pairing wait stays
+60 s; CLI safety timeouts adjusted). H2 → the BLE thread waits (bounded) for `disconnected` before deleting the
+controller. H4 → use the real ATT MTU if BlueZ exposes it, otherwise document 23. H5 → no empty first output line.
+
+HIL re-run 2026-10-20 after the H1–H5 fixes: H2 confirmed fixed (8/8 back-to-back `ble command` runs OK, no
+"not Unconnected when deleted"); connects take 2–25 s, so H3's 30 s is needed. New / reopened:
+
+| # | Sev. | Finding |
+|---|---|---|
+| H5 | low | **Reopened:** the real CHESTER answers each command with an empty line first (13 ms after the send, no prompt before it); the fix only drops an empty line after a detected prompt. `ble command --json` still gives `["", "Uptime: …"]`. |
+| H6 | med | About 1 in 4 BlueZ connects fail with `QLowEnergyController::UnknownError` (error 1): after ~25 s (BlueZ's own connect timeout), or at once when started right after a failed attempt; reported as `ble.connect_failed` and the session stops (no `--auto-reconnect`). |
+| H7 | low | With `-a`, the console-file header repeats the address as the name: "Bluetooth D2:…:C9 (D2:…:C9)". |
+
+User decisions 2026-10-20: H6 → a controller `UnknownError` / connection error during connect is retried after 1 s
+while the 30 s connect deadline has not passed; only the final failure is reported. H5 → drop one empty line that is
+the first response after a sent line (the fake CHESTER behaves like the real one). H7 → the header shows the name
+only when it is known.
+
+HIL re-run 2026-10-20 after the H5–H7 fixes: H5 and H7 confirmed fixed. H6: with BlueZ discovering in the background
+(GNOME Settings → Bluetooth and `bluetoothctl` open) 2 of 6 and 1 of 2 runs failed; the log shows Qt's D-Bus
+`Device1.Connect` giving up after 25 s (`org.freedesktop.DBus.Error.NoReply`) while BlueZ keeps the attempt, so every
+retry gets `org.bluez.Error.InProgress` at once. With discovery off: **20/20 OK, no retries, connect 2–21 s.**
+
+| # | Sev. | Finding |
+|---|---|---|
+| H8 | low | Retrying every 1 s on `org.bluez.Error.InProgress` is useless: BlueZ is still working on the earlier attempt. Better: after a `NoReply`/`InProgress`, wait for BlueZ instead of starting new attempts (Qt reports both only as `UnknownError`; detail text needed). |
+| H9 | note for 0012 | Continuous discovery slows LE connects a lot in busy places; the GUI picker (ADR-0081, continuous scan) must stop scanning while a BLE tab connects. |
+
+User decision 2026-10-20: fix H8 (after `NoReply` / `InProgress`, wait for BlueZ's pending attempt instead of
+starting new ones, within the 30 s deadline).
+
+Not yet run: console interactive keys (tty), reconnect after device restart, out of range, pairing from a fresh bond via the app.
 
 ## Implementation steps
 
@@ -509,6 +560,9 @@ Phase F — hardware and docs
   all three OSes and kept in one function.
 - **Firmware facts** (advertised name, NUS in the advertisement, prompt, passkey default) come from the old app and
   py-hardwario only; confirm with the CHESTER firmware team before Done (open question 23).
+- **MTU on Linux (HIL H4, 2026-10-20):** Qt's BlueZ D-Bus backend reports the ATT MTU as 23 (the negotiated MTU is
+  only the D-Bus property `GattCharacteristic1.MTU`, which Qt does not read; no own D-Bus, ADR-0004/0080), so lines
+  go in 20-byte chunks on Linux - correct, only slower. macOS/Windows values are checked in F2.
 - **Scanning while connected** may reduce throughput on some adapters; reconnect scans run only while disconnected.
 - **Flatpak** needs D-Bus access to `org.bluez` (open question 7, M7).
 - **macOS CLI permission** is attributed to the terminal app; behaviour under hardened runtime is checked in M7.

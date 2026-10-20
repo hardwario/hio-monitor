@@ -120,6 +120,7 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::BleWriteTimeout:
     case ErrorCode::BleDisconnected:
     case ErrorCode::BleInUseByOtherProcess:
+    case ErrorCode::BleNoPairingAgent:
         return true;
     }
     return false;
@@ -890,6 +891,23 @@ constexpr std::array defaultTexts{
             "ble.in_use_by_other_process cause"),
         .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Close the other program.",
                                          "ble.in_use_by_other_process suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::BleNoPairingAgent,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "No program is ready to ask for the Bluetooth passkey.",
+                               "ble.no_pairing_agent message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "No pairing agent is running (on GNOME the agent may only be active in Settings → "
+            "Bluetooth).",
+            "ble.no_pairing_agent cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Pair the device from the system Bluetooth settings, or with bluetoothctl: "
+            "`agent KeyboardOnly`, `default-agent`, `pair <id>`.",
+            "ble.no_pairing_agent suggestion"),
+        .wizard = WizardId::BlePairing,
     },
 };
 

@@ -219,7 +219,8 @@ TEST(FakeBleApi, ShellAnswersWithThePrompt) {
         ASSERT_TRUE(host.post(hio::ble::SendLine{.client = client, .line = "version"}));
         ASSERT_TRUE(runUntil([&] {
             const std::scoped_lock lock(log->mutex);
-            return log->data == "bt_nus:~$ Firmware version: v3.1.0\nbt_nus:~$ ";
+            // chester.json is CHESTER: no prompt on connect, a new line first (HIL H5).
+            return log->data == "\r\nFirmware version: v3.1.0\nbt_nus:~$ ";
         }));
         EXPECT_TRUE(hasEvent(*log, "written version"));
     }
@@ -237,11 +238,13 @@ TEST(FakeBleApi, ConnectErrorAndUnknownDevice) {
                                              .uuids = {},
                                              .handler = std::make_unique<LogHandler>(paired),
                                              .timing = {}}));
-    ASSERT_TRUE(host.post(hio::ble::OpenLink{.client = 2,
-                                             .device = "00:00:00:00:00:00",
-                                             .uuids = {},
-                                             .handler = std::make_unique<LogHandler>(unknown),
-                                             .timing = {}}));
+    ASSERT_TRUE(host.post(
+        hio::ble::OpenLink{.client = 2,
+                           .device = "00:00:00:00:00:00",
+                           .uuids = {},
+                           .handler = std::make_unique<LogHandler>(unknown),
+                           // H6: retried until this deadline
+                           .timing = {.connectDeadline = 300ms, .connectRetryDelay = 50ms}}));
     EXPECT_TRUE(runUntil([&] { return hasEvent(*paired, "down ble.not_paired"); }));
     EXPECT_TRUE(runUntil([&] { return hasEvent(*unknown, "down ble.connect_failed"); }));
 }

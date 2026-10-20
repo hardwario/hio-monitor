@@ -33,6 +33,12 @@ NusLink::NusLink(IBleApi& api, BleDeviceId device, NusUuids uuids,
     m_deadline.setSingleShot(true);
     m_prompt.setSingleShot(true);
     m_write.setSingleShot(true);
+    m_retry.setSingleShot(true);
+    QObject::connect(&m_retry, &QTimer::timeout, &m_retry, [this] {
+        if (m_state == State::Connecting) {
+            startAttempt();
+        }
+    });
     QObject::connect(&m_deadline, &QTimer::timeout, &m_deadline,
                      [this] { connectDeadlinePassed(); });
     QObject::connect(&m_prompt, &QTimer::timeout, &m_prompt, [this] {
@@ -62,6 +68,7 @@ NusLink::~NusLink() {
 
 void NusLink::stopTimers() {
     m_deadline.stop();
+    m_retry.stop();
     m_prompt.stop();
     m_write.stop();
 }
@@ -102,14 +109,47 @@ void NusLink::connect(bool automatic) {
     m_state = State::Connecting;
     m_ready = LinkReady{};
     m_handler->onConnecting(automatic);
+    m_attempts = 0;
+    m_lastAttemptError.reset();
+    m_deadlineAt = std::chrono::steady_clock::now() + m_timing.connectDeadline;
+    m_deadline.start(m_timing.connectDeadline);
+    startAttempt();
+}
+
+void NusLink::startAttempt() {
+    ++m_attempts;
     auto link = m_api->connect(m_device, m_uuids);
     if (!link) {
-        m_state = State::Down;
-        m_handler->onDown(std::move(link).error());
+        attemptFailed(std::move(link).error());
         return;
     }
     m_link = *link;
-    m_deadline.start(m_timing.connectDeadline);
+}
+
+// HIL H6: BlueZ fails about one connect in four (UnknownError), at once or after its own timeout.
+// Such an attempt is retried while the connect deadline allows; the pairing wait, other codes and
+// the deadline itself end the connect.
+void NusLink::attemptFailed(Error error) {
+    m_link.reset();
+    const bool retry = error.code == ErrorCode::BleConnectFailed && !m_pairingWait &&
+                       std::chrono::steady_clock::now() + m_timing.connectRetryDelay < m_deadlineAt;
+    if (retry) {
+        qCInfo(log::lcBle).noquote()
+            << "Connect attempt" << m_attempts << "to" << toQString(m_device)
+            << "failed, trying again:" << toQString(error.detail);
+        m_lastAttemptError = std::move(error);
+        m_retry.start(m_timing.connectRetryDelay);
+        return;
+    }
+    stopTimers();
+    m_pairingWait = false;
+    m_state = State::Down;
+    if (m_attempts > 1) {
+        error.detail += std::format(" ({} attempts)", m_attempts);
+    }
+    const Error lineError = error;
+    m_handler->onDown(std::move(error));
+    rejectQueued(lineError);
 }
 
 void NusLink::fail(Error error) {
@@ -126,6 +166,16 @@ void NusLink::connectDeadlinePassed() {
     if (m_state != State::Connecting) {
         return;
     }
+    if (m_retry.isActive() && m_lastAttemptError) {
+        // The deadline ended the retries (H6): the last attempt's error is the final one.
+        m_retry.stop();
+        Error error = std::move(*m_lastAttemptError);
+        m_lastAttemptError.reset();
+        error.detail += std::format(" ({} attempts within {} ms)", m_attempts,
+                                    m_timing.connectDeadline.count());
+        linkFailed(std::move(error));
+        return;
+    }
     // Q6: the CCCD write still pending = the passkey was never entered.
     Error error =
         m_pairingWait
@@ -133,6 +183,9 @@ void NusLink::connectDeadlinePassed() {
                                                              m_timing.pairingDeadline.count()))
             : makeError(ErrorCode::BleConnectFailed, std::format("not connected within {} ms",
                                                                  m_timing.connectDeadline.count()));
+    if (!m_pairingWait && m_attempts > 1) {
+        error.detail += std::format(" ({} attempts)", m_attempts);
+    }
     linkFailed(std::move(error));
 }
 
@@ -170,6 +223,10 @@ void NusLink::onLinkData(std::span<const std::byte> data) {
 }
 
 void NusLink::onLinkLost(Error error) {
+    if (m_state == State::Connecting) {
+        attemptFailed(std::move(error)); // H6: maybe retried
+        return;
+    }
     stopTimers();
     m_link.reset(); // gone already: no disconnect()
     m_pairingWait = false;

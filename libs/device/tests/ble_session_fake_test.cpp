@@ -81,9 +81,8 @@ TEST_F(BleSessionFake, CommandIsAnsweredBeforeThePrompt) {
     QObject::connect(session->get(), &BleSession::promptSeen, session->get(),
                      [&prompts] { ++prompts; });
     ASSERT_TRUE(hio::device::waitUntilConnected(**session, 5s));
-    ASSERT_TRUE(waitFor([&prompts] { return prompts == 1; })); // after connecting
-    ASSERT_TRUE((*session)->sendLine("version"));
-    ASSERT_TRUE(waitFor([&prompts] { return prompts == 2; }));
+    ASSERT_TRUE((*session)->sendLine("version")); // chester.json: no prompt on connect (H5)
+    ASSERT_TRUE(waitFor([&prompts] { return prompts == 1; }));
     EXPECT_EQ(lines, (std::vector<std::string>{"version", "Firmware version: v3.1.0"}));
     EXPECT_EQ((*session)->log().lastSeq(), 2U);
 }

@@ -17,6 +17,8 @@ hio_add_backend_library(hio_hw_ble
     src/ble_scanner.cpp
     src/ble_worker.cpp
     src/ble_worker.h
+    src/controller_closer.cpp
+    src/controller_closer.h
     src/nus_link.cpp
     src/qt_ble_api.cpp
     src/qt_ble_api.h

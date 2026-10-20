@@ -338,6 +338,35 @@ TEST_F(FakeBleCli, AdapterIsReadAgainAfterThePermission) {
     EXPECT_EQ(errorCode(result), QStringLiteral("ble.adapter_off"));
 }
 
+// HIL H1: no pairing agent is a dependency problem (exit 4) with its own code.
+TEST_F(FakeBleCli, PairWithoutAgent) {
+    const RunResult result =
+        hio("no_agent.json", {QStringLiteral("--json"), QStringLiteral("ble"),
+                              QStringLiteral("pair"), QStringLiteral("-a"), device});
+    EXPECT_EQ(result.exitCode, 4) << result.out;
+    EXPECT_EQ(errorCode(result), QStringLiteral("ble.no_pairing_agent"));
+}
+
+// HIL H5: no empty first output line (the shell's new line after Enter).
+TEST_F(FakeBleCli, CommandOutputHasNoLeadingEmptyLine) {
+    const RunResult result = hio(
+        "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
+                         QStringLiteral("status"), QStringLiteral("-a"), device});
+    ASSERT_EQ(result.exitCode, 0) << result.err;
+    EXPECT_EQ(data(envelopes(result.out).at(0)).value(QStringLiteral("output")).toArray(),
+              QJsonArray({QStringLiteral("line 1"), QStringLiteral("line 2")}));
+}
+
+// HIL H5: only the first empty line is the shell's; an empty output line later is kept.
+TEST_F(FakeBleCli, EmptyLineInsideCommandOutputIsKept) {
+    const RunResult result = hio(
+        "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
+                         QStringLiteral("lines"), QStringLiteral("-a"), device});
+    ASSERT_EQ(result.exitCode, 0) << result.err;
+    EXPECT_EQ(data(envelopes(result.out).at(0)).value(QStringLiteral("output")).toArray(),
+              QJsonArray({QStringLiteral("line 1"), QString(), QStringLiteral("line 3")}));
+}
+
 TEST_F(FakeBleCli, DeviceIsRequired) {
     const RunResult result = hio("chester.json", {QStringLiteral("ble"), QStringLiteral("command"),
                                                   QStringLiteral("version")});

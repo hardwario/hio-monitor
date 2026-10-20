@@ -111,6 +111,8 @@ private:
     std::shared_ptr<BleEventChannel> m_channel;
     LineAssembler m_shell;
     std::string m_prompt;
+    bool m_afterPrompt = false; // the next shell line ends the (not emitted) prompt line (H5)
+    bool m_afterWrite = false;  // the next shell line is the answer to a written line (H5)
     std::unique_ptr<ConsoleFileSink> m_sink;
     bool m_sinkOpened = false;
     std::filesystem::path m_reportedConsoleFile;

@@ -21,6 +21,7 @@
 #include "qt_ble_api.h"
 
 #include <QBluetoothDeviceDiscoveryAgent>
+#include <QBluetoothLocalDevice>
 #include <QLowEnergyCharacteristic>
 #include <QLowEnergyController>
 #include <QLowEnergyService>
@@ -28,7 +29,9 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <optional>
+#include <string>
 
 namespace {
 
@@ -85,6 +88,34 @@ TEST(LegacyBle, NotPairedOnlyWithAnAuthenticationDetail) {
     EXPECT_EQ(controller(QLowEnergyController::UnknownError, LinkPhase::Ready),
               ErrorCode::BleDisconnected);
     EXPECT_EQ(controller(QLowEnergyController::MissingPermissionsError, LinkPhase::Connecting),
+              ErrorCode::BlePermissionDenied);
+}
+
+// HIL H2: a rejected CCCD write is not reported as a weak signal.
+TEST(LegacyBle, RejectedCccdWriteIsNotAWeakSignal) {
+    using hio::ble::detail::LinkPhase;
+    const hio::Error error = hio::ble::detail::mapLinkError(
+        hio::ble::detail::QtLinkError{.controller = std::nullopt,
+                                      .service = QLowEnergyService::DescriptorWriteError,
+                                      .phase = LinkPhase::PairingPending});
+    EXPECT_EQ(error.code, ErrorCode::BleConnectFailed);
+    EXPECT_NE(error.cause, hio::makeError(ErrorCode::BleConnectFailed).cause);
+    EXPECT_NE(error.cause.find("still be connected"), std::string::npos) << error.cause;
+}
+
+// HIL H1: an immediate PairingError on Linux means no pairing agent.
+TEST(LegacyBle, PairingFailureWithoutAgent) {
+    using hio::ble::detail::pairingFailure;
+    using namespace std::chrono_literals;
+#ifdef Q_OS_LINUX
+    EXPECT_EQ(pairingFailure(QBluetoothLocalDevice::PairingError, 120ms).code,
+              ErrorCode::BleNoPairingAgent);
+#endif
+    EXPECT_EQ(pairingFailure(QBluetoothLocalDevice::PairingError, 15s).code,
+              ErrorCode::BlePairingFailed);
+    EXPECT_EQ(pairingFailure(QBluetoothLocalDevice::UnknownError, 100ms).code,
+              ErrorCode::BlePairingFailed);
+    EXPECT_EQ(pairingFailure(QBluetoothLocalDevice::MissingPermissionsError, 100ms).code,
               ErrorCode::BlePermissionDenied);
 }
 

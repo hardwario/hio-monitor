@@ -176,10 +176,14 @@ void BleConsoleHandler::openSink() {
         return;
     }
     m_sinkOpened = true;
-    const std::string name = m_config.deviceName.empty() ? m_config.deviceId : m_config.deviceName;
+    // HIL H7: the name in parentheses only when it is known and is not the id itself (-a).
+    const bool named =
+        !m_config.deviceName.empty() && !ble::sameDeviceId(m_config.deviceName, m_config.deviceId);
+    const std::string device =
+        named ? std::format("{} ({})", m_config.deviceId, m_config.deviceName) : m_config.deviceId;
     const std::string header =
-        std::format("Console: {}, Bluetooth {} ({}), hio {}", m_config.profile->displayName,
-                    m_config.deviceId, name, buildInfo().version);
+        std::format("Console: {}, Bluetooth {}, hio {}", m_config.profile->displayName, device,
+                    buildInfo().version);
     auto sink = ConsoleFileSink::open(*m_config.consoleFile, BleKey{.id = m_config.deviceId},
                                       header, std::chrono::system_clock::now());
     if (!sink) {
@@ -194,6 +198,8 @@ void BleConsoleHandler::onConnecting(bool automatic) {
     openSink();
     ++m_attempts;
     m_shell.reset(); // a new link starts from scratch
+    m_afterPrompt = false;
+    m_afterWrite = false;
     if (!automatic) {
         m_fatal = false;
         report(ConnectionState::Connecting);
@@ -220,11 +226,22 @@ void BleConsoleHandler::onData(std::span<const std::byte> data) {
                 line.level = level;
             }
         }
+        if (line.channel == Channel::Shell) {
+            // HIL H5: the shell (no echo) answers a command with a new line first; that one empty
+            // line - the first shell line after a written line, or after a prompt that was not
+            // emitted - is not output. Later empty lines are.
+            const bool afterWrite = std::exchange(m_afterWrite, false);
+            const bool afterPrompt = std::exchange(m_afterPrompt, false);
+            if ((afterWrite || afterPrompt) && line.text.empty()) {
+                continue;
+            }
+        }
         emitLine(std::move(line));
     }
     // ADR-0082: the prompt is not a line; the session reports it instead.
     if (isPrompt(m_shell.partial(), m_prompt)) {
         m_shell.reset();
+        m_afterPrompt = true;
         emitEvent(BlePromptSeen{});
     }
 }
@@ -235,6 +252,7 @@ void BleConsoleHandler::onLineWritten(std::string line) {
     echo.dir = Direction::In;
     echo.time = std::chrono::system_clock::now();
     echo.text = std::move(line);
+    m_afterWrite = true;       // H5: the shell's new line after Enter follows
     emitLine(std::move(echo)); // only after it was written (ADR-0082)
 }
 

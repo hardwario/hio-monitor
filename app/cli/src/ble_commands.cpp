@@ -66,11 +66,13 @@ using namespace std::chrono_literals;
 constexpr std::string_view defaultProfile = "chester";
 // `--name`: one scan of this length (ADR-0085).
 constexpr std::chrono::milliseconds nameScan{5000};
-// Safety bound of the CLI's wait for a connection: the session's own deadlines are 20 s, 60 s
-// while pairing (Q6).
-constexpr std::chrono::milliseconds connectSafetyTimeout{65000};
-// `ble pair`: the pairing may wait for the passkey (60 s, ADR-0084) plus a margin.
-constexpr std::chrono::milliseconds pairTimeout{65000};
+// Safety bound of the CLI's wait for a connection: the session's own deadlines are 30 s to the
+// CCCD write (HIL H3), then 60 s while pairing (Q6), plus the up to 3 s wait for an earlier
+// controller of the device (H2) and a margin.
+constexpr std::chrono::milliseconds connectSafetyTimeout{95000};
+// `ble pair`: BlueZ may connect first (as long as a connect, H3), then waits for the passkey
+// (60 s, ADR-0084), plus a margin.
+constexpr std::chrono::milliseconds pairTimeout{95000};
 constexpr std::chrono::milliseconds adapterTimeout{5000};
 // B8: the user answers the system's permission prompt.
 constexpr std::chrono::milliseconds permissionTimeout{120000};

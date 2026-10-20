@@ -6,7 +6,9 @@
 // business (libs/device).
 //
 //  - connect(): IBleApi::connect; Connecting until TX notifications are enabled (onLinkReady). The
-//    attempt must finish within connectDeadline (ble.connect_failed); once the CCCD write is
+//    attempt must finish within connectDeadline (ble.connect_failed); an attempt that fails with
+//    ble.connect_failed before the CCCD write is tried again after connectRetryDelay while the
+//    deadline allows it, and only the final failure is reported (HIL H6); once the CCCD write is
 //    pending (an unbonded link pairs) the deadline becomes pairingDeadline from then
 //    (ble.not_paired when it passes, Q6) and onPairingPrompt() follows after pairingPromptDelay.
 //  - sendLine(): line + "\n" in chunks of MTU - 3 bytes. Write-with-response: one chunk in flight;
@@ -42,11 +44,14 @@
 namespace hio::ble {
 
 struct LinkTiming {
-    std::chrono::milliseconds connectDeadline{20000};
+    std::chrono::milliseconds connectDeadline{30000}; // HIL H3: BlueZ needs 6-20 s
     std::chrono::milliseconds pairingDeadline{60000};
     std::chrono::milliseconds pairingPromptDelay{2000};
     std::chrono::milliseconds writeTimeout{2000};
     std::chrono::milliseconds flushInterval{250};
+    // HIL H6: a failed connect attempt (ble.connect_failed before the CCCD write, e.g. BlueZ's
+    // UnknownError) is tried again after this delay while the connect deadline allows it.
+    std::chrono::milliseconds connectRetryDelay{1000};
 };
 
 class NusLink {
@@ -94,6 +99,8 @@ private:
     void linkFailed(Error error);
     void rejectQueued(const Error& error);
     void connectDeadlinePassed();
+    void startAttempt();
+    void attemptFailed(Error error);
     void stopTimers();
 
     IBleApi* m_api; // non-owning; the worker's, outlives the link
@@ -114,10 +121,14 @@ private:
     std::deque<std::uint64_t> m_inFlight; // tokens of unfinished writes
     std::uint64_t m_nextToken = 1;
 
-    QTimer m_deadline; // connect / pairing deadline
-    QTimer m_prompt;   // pairing prompt delay
-    QTimer m_write;    // write timeout
-    QTimer m_flush;    // periodic handler flush
+    QTimer m_deadline;                                  // connect / pairing deadline
+    QTimer m_prompt;                                    // pairing prompt delay
+    QTimer m_write;                                     // write timeout
+    QTimer m_flush;                                     // periodic handler flush
+    QTimer m_retry;                                     // the next connect attempt (H6)
+    std::chrono::steady_clock::time_point m_deadlineAt; // of the running connect (H6)
+    std::optional<Error> m_lastAttemptError;            // reported if the deadline ends retrying
+    int m_attempts = 0;
 };
 
 } // namespace hio::ble

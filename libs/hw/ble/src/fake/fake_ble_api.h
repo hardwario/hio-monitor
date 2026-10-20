@@ -19,7 +19,8 @@
 //     "nus": true,                    advertises the NUS service UUID
 //     "advertise": true,              seen by scans
 //     "paired": true,                 IBleApi::isPaired
-//     "pairing": "ok" | "fail" | "never",   result of requestPairing (after 100 ms)
+//     "pairing": "ok" | "fail" | "noAgent" | "never",   result of requestPairing (after 100 ms;
+//                                     noAgent = ble.no_pairing_agent, HIL H1)
 //     "connectDelayMs": 20,           until the CCCD write starts
 //     "connectError": "<error id>",   the connect attempt fails with it (after the delay)
 //     "connectErrorOnce": false,      only the first attempt fails
@@ -28,7 +29,10 @@
 //     "writeStall": false,            writes are never confirmed
 //     "writeError": "<error id>",     every write fails with it
 //     "echo": false,                  echo written lines
+//     "newlineAfterCommand": false,   "\r\n" after each received line, in its own notification
+//                                     before the response (a shell without echo, CHESTER, H5)
 //     "prompt": "bt_nus:~$ ",         sent after the greeting and after every line's response
+//     "promptOnConnect": true,        false: no prompt when the link is ready (CHESTER, H5)
 //     "greeting": "",                 sent when the link is ready
 //     "responses": {"version": "Firmware version: v3.1.0\n"},
 //     "output": [{"atMs": 100, "text": "..."}],   sent after ready
@@ -84,7 +88,9 @@ struct FakeDevice {
     bool writeStall = false;
     std::optional<ErrorCode> writeError;
     bool echo = false;
+    bool newlineAfterCommand = false;
     std::string prompt;
+    bool promptOnConnect = true;
     std::string greeting;
     std::map<std::string, std::string> responses;
     std::vector<FakeOutput> output;
@@ -131,6 +137,8 @@ private:
         std::unique_ptr<QObject> context; // owns the link's pending timers
         std::string input;                // received bytes of the current line
         bool ready = false;
+        // The shell answers lines in order: no answer is sent before an earlier one (H5).
+        std::chrono::steady_clock::time_point nextAnswer{};
     };
 
     void checkThread() const;
@@ -138,6 +146,7 @@ private:
     void startLink(LinkId id);
     void linkReady(LinkId id);
     void send(LinkId id, const std::string& text);
+    void answer(Link& link, std::chrono::milliseconds delay, std::string text);
     void received(LinkId id, std::string_view bytes);
     [[nodiscard]] Link* find(LinkId id);
     [[nodiscard]] FakeDevice* device(const BleDeviceId& id);

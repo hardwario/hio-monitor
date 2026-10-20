@@ -287,13 +287,88 @@ TEST_F(NusLinkTest, QuickCccdShowsNoPrompt) {
     EXPECT_EQ(log().events, (std::vector<std::string>{"connecting", "ready 247"}));
 }
 
+// No time for a retry before the deadline (H6): the first error is the final one, at once.
 TEST_F(NusLinkTest, ConnectErrorIsReported) {
     EXPECT_CALL(api(), connect(_, _))
         .WillOnce(Return(hio::Result<LinkId>(hio::fail(ErrorCode::BleConnectFailed))));
-    auto link = makeLink();
+    auto link = makeLink(LinkTiming{.connectDeadline = 500ms,
+                                    .pairingDeadline = 60s,
+                                    .pairingPromptDelay = 2s,
+                                    .writeTimeout = 2s,
+                                    .flushInterval = 250ms,
+                                    .connectRetryDelay = 1s});
     link->connect(false);
     EXPECT_EQ(log().events.back(), "down ble.connect_failed");
     EXPECT_EQ(link->state(), NusLink::State::Down);
+}
+
+// HIL H6: a failed attempt (BlueZ UnknownError, at once or as a lost link) is tried again after
+// connectRetryDelay; the handler sees only the final result.
+TEST_F(NusLinkTest, FailedConnectAttemptIsRetried) {
+    EXPECT_CALL(api(), connect(_, _))
+        .WillOnce(Return(hio::Result<LinkId>(hio::fail(ErrorCode::BleConnectFailed))))
+        .WillOnce(Return(hio::Result<LinkId>(7)))
+        .WillOnce(Return(hio::Result<LinkId>(8)));
+    auto link = makeLink(LinkTiming{.connectDeadline = 20s,
+                                    .pairingDeadline = 60s,
+                                    .pairingPromptDelay = 2s,
+                                    .writeTimeout = 2s,
+                                    .flushInterval = 250ms,
+                                    .connectRetryDelay = 10ms});
+    link->connect(false);
+    EXPECT_EQ(link->state(), NusLink::State::Connecting);
+    ASSERT_TRUE(runUntil([&] { return link->link() == LinkId{7}; }));
+    link->onLinkLost(hio::makeError(ErrorCode::BleConnectFailed, "UnknownError"));
+    EXPECT_EQ(link->state(), NusLink::State::Connecting);
+    ASSERT_TRUE(runUntil([&] { return link->link() == LinkId{8}; }));
+    link->onLinkConnecting(true);
+    link->onLinkReady(LinkReady{.mtu = 247, .writeMode = WriteMode::WithResponse});
+    EXPECT_EQ(log().events, (std::vector<std::string>{"connecting", "ready 247"}));
+}
+
+TEST_F(NusLinkTest, ConnectRetriesRunOutAtTheDeadline) {
+    int attempts = 0;
+    EXPECT_CALL(api(), connect(_, _)).WillRepeatedly([&attempts](auto&&...) {
+        ++attempts;
+        return hio::Result<LinkId>(hio::fail(ErrorCode::BleConnectFailed));
+    });
+    auto link = makeLink(LinkTiming{.connectDeadline = 100ms,
+                                    .pairingDeadline = 60s,
+                                    .pairingPromptDelay = 2s,
+                                    .writeTimeout = 2s,
+                                    .flushInterval = 250ms,
+                                    .connectRetryDelay = 20ms});
+    const auto started = std::chrono::steady_clock::now();
+    link->connect(false);
+    ASSERT_TRUE(runUntil([&] { return link->state() == NusLink::State::Down; }));
+    EXPECT_GE(std::chrono::steady_clock::now() - started, 80ms);
+    EXPECT_GE(attempts, 2);
+    EXPECT_EQ(log().events, (std::vector<std::string>{"connecting", "down ble.connect_failed"}));
+    const int final = attempts;
+    runFor(60ms);
+    EXPECT_EQ(attempts, final); // nothing after the final failure
+}
+
+// Q9-fatal codes and a failure during the pairing wait (the CCCD write) end the connect at once.
+TEST_F(NusLinkTest, FatalConnectErrorsAndThePairingWaitAreNotRetried) {
+    const LinkTiming timing{.connectDeadline = 20s,
+                            .pairingDeadline = 60s,
+                            .pairingPromptDelay = 2s,
+                            .writeTimeout = 2s,
+                            .flushInterval = 250ms,
+                            .connectRetryDelay = 10ms};
+    EXPECT_CALL(api(), connect(_, _)).Times(2);
+    auto link = makeLink(timing);
+    link->connect(false);
+    link->onLinkLost(hio::makeError(ErrorCode::BleServiceNotFound));
+    EXPECT_EQ(log().events.back(), "down ble.service_not_found");
+    link->connect(false);
+    link->onLinkConnecting(true);
+    link->onLinkLost(hio::makeError(ErrorCode::BleConnectFailed, "CCCD write refused"));
+    EXPECT_EQ(log().events.back(), "down ble.connect_failed");
+    runFor(50ms);
+    EXPECT_EQ(link->state(), NusLink::State::Down);
+    ::testing::Mock::VerifyAndClearExpectations(&api());
 }
 
 TEST_F(NusLinkTest, LostLinkIsNotDisconnectedAgain) {

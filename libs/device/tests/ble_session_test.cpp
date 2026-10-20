@@ -398,6 +398,49 @@ TEST_F(BleSessionTest, LinesPromptAndRouting) {
     }
 }
 
+// HIL H5: the empty line that ends the (not emitted) prompt line is dropped; other empty lines
+// stay.
+TEST_F(BleSessionTest, EmptyLineAfterThePromptIsDropped) {
+    Events* events = nullptr;
+    ASSERT_NE(connected(events), nullptr);
+    data("bt_nus:~$ ");
+    ASSERT_TRUE(waitFor([events] { return events->prompts == 1; }));
+    data("\r\nUptime: 1\r\n\r\nend\r\nbt_nus:~$ ");
+    ASSERT_TRUE(waitFor([events] { return events->prompts == 2; }));
+    EXPECT_EQ(events->texts(Channel::Shell, Direction::Out),
+              (std::vector<std::string>{"Uptime: 1", "", "end"}));
+}
+
+// HIL H5 (re-run): CHESTER sends no prompt on connect and answers every command with an empty line
+// first. That one line is dropped after each written line; later empty lines are output, and a log
+// line in between does not use up the rule.
+TEST_F(BleSessionTest, FirstEmptyLineAfterAWrittenLineIsDropped) {
+    Events* events = nullptr;
+    BleSession* session = connected(events);
+    ASSERT_NE(session, nullptr);
+    data("\r\nboot\r\n"); // nothing written yet: kept
+    ASSERT_TRUE(
+        waitFor([events] { return events->texts(Channel::Shell, Direction::Out).size() == 2; }));
+    for (const std::string command : {"status", "status"}) {
+        const std::size_t before = driver()->written().size();
+        ASSERT_TRUE(session->sendLine(command));
+        ASSERT_TRUE(waitFor([&] { return driver()->written().size() == before + 1; }));
+        driver()->run([token = driver()->written().back().second](IBleListener& l) {
+            l.onWriteDone(1, token, std::nullopt);
+        });
+        ASSERT_TRUE(waitFor(
+            [&] { return events->texts(Channel::Shell, Direction::In).size() == (before + 1); }));
+        data("[00:00:01.000,000] <inf> app: tick\r\n");
+        data("\r\n");
+        data("line 1\r\n\r\nline 2\r\nbt_nus:~$ ");
+    }
+    ASSERT_TRUE(waitFor([events] { return events->prompts == 2; }));
+    EXPECT_EQ(
+        events->texts(Channel::Shell, Direction::Out),
+        (std::vector<std::string>{"", "boot", "line 1", "", "line 2", "line 1", "", "line 2"}));
+    EXPECT_EQ(events->texts(Channel::Log, Direction::Out).size(), 2U);
+}
+
 TEST_F(BleSessionTest, EchoOnlyAfterTheLastChunk) {
     Events* events = nullptr;
     BleSession* session = connected(events, false, 23);
@@ -464,8 +507,11 @@ TEST_F(BleSessionTest, FirstFailureWithoutAutoReconnectIsStopped) {
     Events* events = nullptr;
     ASSERT_NE(openRecorded(options(false), events), nullptr);
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 1; }));
-    driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleConnectFailed)); });
+    // During the CCCD write: not retried by NusLink (H6), so the first failure is final.
+    driver()->run([](IBleListener& l) {
+        l.onLinkConnecting(1, true);
+        l.onLinkLost(1, hio::makeError(ErrorCode::BleConnectFailed));
+    });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Stopped); }));
     EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).message,
               "Could not connect to CHESTER-ABC123 over Bluetooth.");
@@ -511,12 +557,17 @@ TEST_F(BleSessionTest, ExplicitReconnectAlwaysTries) {
     BleSession* session = openRecorded(options(false), events);
     ASSERT_NE(session, nullptr);
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 1; }));
-    driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleConnectFailed)); });
+    // During the CCCD write: not retried by NusLink (H6), so the first failure is final.
+    driver()->run([](IBleListener& l) {
+        l.onLinkConnecting(1, true);
+        l.onLinkLost(1, hio::makeError(ErrorCode::BleConnectFailed));
+    });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Stopped); }));
     ASSERT_TRUE(session->reconnect());
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 2; }));
-    EXPECT_EQ(events->connections.back().state, ConnectionState::Connecting);
+    // The Connecting event reaches the owner thread after the connect call (no timing assumption).
+    EXPECT_TRUE(waitFor(
+        [events] { return events->connections.back().state == ConnectionState::Connecting; }));
 }
 
 TEST_F(BleSessionTest, SameFailureIsReportedOnce) {
@@ -622,6 +673,33 @@ TEST_F(BleSessionTest, ConsoleFileWithConnectionLines) {
     EXPECT_NE(text.find(" @ connected"), std::string::npos);
     EXPECT_NE(text.find(" > hello"), std::string::npos);
     EXPECT_NE(text.find(" @ stopped"), std::string::npos);
+}
+
+// HIL H7: with -a the name is the id (or unknown): no "(id)" after the id.
+TEST_F(BleSessionTest, ConsoleFileHeaderWithoutAKnownName) {
+    Events* events = nullptr;
+    BleSessionOptions opts = options();
+    opts.deviceName = "f1:22:33:44:55:66"; // the id, other case
+    opts.consoleFile = std::nullopt;
+    BleSession* session = openRecorded(std::move(opts), events);
+    ASSERT_NE(session, nullptr);
+    ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 1; }));
+    driver()->run([](IBleListener& l) {
+        l.onLinkReady(1, LinkReady{.mtu = 247, .writeMode = WriteMode::WithResponse});
+    });
+    data("hello\nbt_nus:~$ ");
+    ASSERT_TRUE(waitFor([events] { return events->prompts == 1; }));
+    const fs::path file = session->consoleFile();
+    ASSERT_FALSE(file.empty());
+    session->close();
+    stopHost();
+    std::ifstream input(file);
+    std::stringstream content;
+    content << input.rdbuf();
+    const std::string text = content.str();
+    EXPECT_NE(text.find("Console: CHESTER, Bluetooth F1:22:33:44:55:66, hio "), std::string::npos)
+        << text;
+    EXPECT_EQ(text.find("(f1:22"), std::string::npos) << text;
 }
 
 // close() does not wait (plan 0011 decisions, 2026-10-19): destroying the session right after it
@@ -873,7 +951,8 @@ TEST_F(BleSessionTest, ScanFatalStopIsNotUndoneByAnAutomaticAttempt) {
     driver()->setNextConnect(3);
     ASSERT_TRUE(session->reconnect());
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 3; }));
-    EXPECT_EQ(events->connections.back().state, ConnectionState::Connecting);
+    EXPECT_TRUE(waitFor(
+        [events] { return events->connections.back().state == ConnectionState::Connecting; }));
 }
 
 // ---- registry (B2)
