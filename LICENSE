@@ -26,6 +26,27 @@ are permitted provided that the following conditions are met:
 5. Any software provided in binary form under this license must not be reverse
    engineered, decompiled, modified and/or disassembled.
 
+Exception for libraries licensed under the GNU Lesser General Public License:
+
+This software is distributed together with, and dynamically linked against,
+third-party libraries licensed under the GNU Lesser General Public License,
+version 3 ("LGPLv3"), in particular the Qt framework. To the extent required
+by Section 4 of the LGPLv3 for such libraries, nothing in this license,
+including conditions 4 and 5 above, prohibits or restricts:
+
+  a) modifying this software for your own use;
+
+  b) replacing such libraries with modified or other compatible versions of
+     them, and running this software with the replaced libraries; or
+
+  c) reverse engineering this software for the purpose of debugging such
+     modifications.
+
+Third-party components distributed with this software remain subject to their
+own license terms, which are provided with the distribution. Conditions 1 to 5
+above apply only to the parts of this software owned by HARDWARIO a.s. and do
+not limit any rights granted by those third-party licenses.
+
 THIS SOFTWARE IS PROVIDED BY HARDWARIO A.S. "AS IS" AND ANY EXPRESS
 OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
