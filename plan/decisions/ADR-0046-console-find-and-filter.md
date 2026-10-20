@@ -1,6 +1,6 @@
 # ADR-0046 — Console find bar and filter
 
-- **Status:** Accepted; layout superseded by ADR-0056
+- **Status:** Accepted; layout superseded by ADR-0056 (amended by ADR-0171, 2026-10-20)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M3 GUI planning session)
 

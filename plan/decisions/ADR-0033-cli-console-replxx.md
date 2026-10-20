@@ -1,6 +1,6 @@
 # ADR-0033 — CLI interactive console: line mode with replxx
 
-- **Status:** Accepted
+- **Status:** Accepted (amended by ADR-0170, 2026-10-20)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M1 planning session)
 

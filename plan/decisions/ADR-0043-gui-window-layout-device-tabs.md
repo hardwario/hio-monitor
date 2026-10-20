@@ -1,6 +1,6 @@
 # ADR-0043 — GUI window layout: device tabs, per-tab rail and device bar
 
-- **Status:** Accepted (rail item "BLE added in M5" superseded by ADR-0081: Bluetooth is a connection type of a tab)
+- **Status:** Accepted; Settings placement superseded by ADR-0172 (2026-10-20)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M3 GUI planning session)
 

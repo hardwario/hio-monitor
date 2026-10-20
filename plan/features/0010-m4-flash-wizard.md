@@ -11,6 +11,11 @@
 - **Can run in parallel with:** [0008](0008-m4-first-run-setup.md), [0009](0009-m4-connect-and-troubleshooting.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
+> **Pending amendment from [0021](0021-gui-feedback-round-1.md) (ADR-0164 … ADR-0166; applied when 0021 is approved —
+> then this plan needs re-approval):** step 2 shows the two kind cards of the Flash page (Application firmware, LTE
+> firmware); the Firmware step for LTE offers the designated LTE firmware (default) or an own file; catalog IDs show
+> the firmware name and version.
+
 ## Context
 
 The M3 Flash page (ADR-0049, ADR-0055) is a single form for everyday flashing. First-time users still fail before

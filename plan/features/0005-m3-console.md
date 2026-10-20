@@ -45,6 +45,13 @@
 > **Pending amendment from M8 ([0017](0017-m8-parity.md) item A3):** in the log view (focus not in a text field) with an
 > active search, `n` / Shift+`n` go to the next / previous match, as in v1.
 
+> **Pending amendment from [0021](0021-gui-feedback-round-1.md) (ADR-0169, ADR-0170, ADR-0171; applied when 0021 is
+> approved — then this plan needs re-approval):** console views scroll by whole rows (no coasting); the shell input
+> gets an automatic suggestion list above the input (device commands learned from `help` sent on connect, plus
+> history), ghost text and Tab completion, with the settings `console/suggestions` and
+> `console/readCommandsOnConnect`; the log level chips gain **H** (hexdump
+> lines, `LogLevel::Hexdump`), off by default.
+
 ## Context
 
 The console is the screen users spend most of their time on. The old app's workflows must be kept:

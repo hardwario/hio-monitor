@@ -40,6 +40,13 @@
 > pre-releases, [Check now]), the CLI path of this installation and the licence list read from the installed
 > `licenses/` directory; the version line shows the package kind.
 
+> **Pending amendment from [0021](0021-gui-feedback-round-1.md) (ADR-0164 … ADR-0167, ADR-0172; applied when 0021 is
+> approved — then this plan needs re-approval):** two kind cards (Application firmware, LTE firmware; the modem is
+> part of the LTE card); the LTE card downloads the designated LTE firmware (pinned in the profile, SHA-256
+> verified) with "Use your own file…" as the alternative; a catalog ID shows the firmware name and version, the
+> Application card shows the firmware in the device (`info show`); "Find firmware IDs ↗" and About › Firmware
+> catalog open the docs page in the UI language; the Settings page is hosted by the Settings tab.
+
 ## Context
 
 Flashing by catalog ID or by a local `.hex` is the second core workflow of the old app. Its problems:

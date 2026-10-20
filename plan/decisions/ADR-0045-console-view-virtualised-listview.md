@@ -1,6 +1,6 @@
 # ADR-0045 — Console views: virtualised ListView over a C++ line model
 
-- **Status:** Accepted; the partial selection within a row is superseded by ADR-0113 (2026-10-16)
+- **Status:** Accepted; the partial selection within a row is superseded by ADR-0113 (2026-10-16) (amended by ADR-0169, 2026-10-20)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M3 GUI planning session)
 
