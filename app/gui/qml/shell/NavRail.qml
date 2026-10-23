@@ -142,8 +142,8 @@ Rectangle {
                 text: globalItem.title
                 shortcutId: globalItem.pageId === "settings" ? "settings.open" : ""
                 selected: AppViewModel.globalPage === globalItem.pageId
-                onClicked: AppViewModel.globalPage === globalItem.pageId ? AppViewModel.closeGlobalPage()
-                                                                        : AppViewModel.openGlobalPage(globalItem.pageId)
+                // 0021 (ADR-0172): opens the Settings tab (or switches to it).
+                onClicked: AppViewModel.openGlobalPage(globalItem.pageId)
             }
         }
 

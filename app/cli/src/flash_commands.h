@@ -4,7 +4,9 @@
 //   hio chester app flash [HEX_FILE_OR_ID] [--halt] [--allow-uicr] [--no-cache]
 //   hio chester app erase [--all] [--yes] | reset [--halt] | recover [--yes]
 //   hio chester app pib read | uicr read --format hex|bin FILE
-//   hio chester lte flash FILE [--allow-uicr] | erase [--yes] | reset | recover [--yes]
+//   hio chester app catalog-info ID (plan 0021)
+//   hio chester lte flash [FILE] [--allow-uicr] [--no-cache] | erase [--yes] | reset |
+//                         recover [--yes]   (plan 0021: no FILE = the designated LTE firmware)
 // Each opens a session with attachRtt = false on the command's target and runs one operation;
 // progress through ProgressUi, confirmations through confirmDestructive (ADR-0038).
 

@@ -33,6 +33,8 @@ std::optional<std::string_view> levelId(LogLevel level) noexcept {
         return "wrn";
     case LogLevel::Error:
         return "err";
+    case LogLevel::Hexdump:
+        return "hex";
     }
     return std::nullopt;
 }

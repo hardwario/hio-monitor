@@ -1,7 +1,8 @@
 # 0021 — GUI feedback round 1: flash page, target picker, console, Settings tab
 
-- **Status:** Approved (2026-10-20 by Matej Strnad, with all minor defaults as proposed; amendments applied to
-  0004, 0005, 0006 and 0010 the same day); amendment N10 (log scroll bars, ADR-0173) approved 2026-10-23
+- **Status:** In progress (phase 1 implemented 2026-10-23 on `v2/gui-feedback-1`, see § Phase 2 for what waits for
+  the M6 merge). Approved 2026-10-20 by Matej Strnad, with all minor defaults as proposed; amendments applied to
+  0004, 0005, 0006 and 0010 the same day; amendment N10 (log scroll bars, ADR-0173) approved 2026-10-23
 - **Milestone:** M3 follow-up (changes the implemented plans 0004, 0005, 0006 and the flash wizard 0010)
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0164, ADR-0165, ADR-0166, ADR-0167, ADR-0168, ADR-0169, ADR-0170, ADR-0171, ADR-0172,
@@ -82,12 +83,15 @@ Answers to the clarifying questions are recorded in the ADRs listed above and in
    of the console re-attaching.
 
 Kind-mismatch hint only between the two cards: an LTE bundle or modem zip on Application → "This is LTE firmware —
-switch to LTE firmware?" [Switch]; an `app` hex on LTE → "This is application firmware — switch?" [Switch].
+switch to LTE firmware?" [Switch]. *Changed 2026-10-23 (user decision, review of phase 1):* there is no hint for a
+HEX file on the LTE card ("This is application firmware — switch?" was dropped) — the ADR-0040 classification cannot
+tell which MCU a HEX file is for, so a HEX file fits both kinds.
 
 ### Target pickers (N5; ADR-0168)
 
 - Device bar combo box: items `app`, `lte`; the closed box shows "Target: app" (unchanged). Choose-device buttons:
-  `app`, `lte`. Tooltip and accessible description: the long title ("Application MCU (nRF52840)").
+  `app`, `lte`. Tooltip and accessible description: the long title with the profile's chips ("Application MCU
+  (nRF52840)", "LTE MCU (nRF9151 / nRF9160)").
 
 ### Settings tab (N8; ADR-0172)
 
@@ -119,7 +123,9 @@ switch to LTE firmware?" [Switch]; an `app` hex on LTE → "This is application 
   list from the device on connect (sends `help`)" (`console/readCommandsOnConnect`, default on; off → `help` is sent
   the first time a suggestion is needed).
 - **Hexdump chip:** the level chips become D I W E **H**; H ("Hexdump lines") is off by default; tooltip "Show hexdump
-  lines". Hexdump rows use the muted text colour when shown.
+  lines". Hexdump rows use the muted text colour when shown. *Clarified 2026-10-23 (user decision):* the default
+  chips (H off) are no active filter — "Showing X of Y lines", the filter chip and "Clear filter" appear only when
+  the user changed the filter from the default; "Clear filter" returns to the default chips.
 - **Scroll bars beside the rows (N10, ADR-0173; amendment approved 2026-10-23):** cause found — the
   Material horizontal scroll bar (16 px) is attached over the list and covers the whole last row at the end of the
   log, so the row cannot be clicked, selected or copied (reproduced offscreen: 0 presses reach the row). Both bars move
@@ -189,7 +195,10 @@ switch to LTE firmware?" [Switch]; an `app` hex on LTE → "This is application 
 - `ConsoleLineModel::levelMask`: new bit `level_bits::hexdump`, default mask = D|I|W|E.
 - Shell: `DeviceTabListModel` gets a non-device entry kind `Settings` (one at most, excluded from the limit and from
   `ui/tabs`); `AppViewModel::openSettings(QString sectionId = {})`; the rail's global Settings item calls
-  `openSettings()` instead of showing the page in place; `PageHost` for the Settings entry hosts the `global` page.
+  `openSettings()` instead of showing the page in place. *As implemented (2026-10-23):* the Settings page is hosted by
+  `Main.qml`'s global page loader (no rail, no device bar), which stays alive while the Settings tab is open and is
+  shown while it is current; `AppViewModel::globalPage()` is `"settings"` while the Settings tab is current; a used
+  `settingsSection` is cleared.
 
 ### Threading
 
@@ -245,25 +254,52 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 
 ## Implementation steps
 
-- [ ] A1 Profile: `designatedFirmware`, `firmwareDocsUrl`; `firmware.checksum_mismatch` (+ texts, CS) + tests
-- [ ] A2 `FirmwareCatalog::downloadDesignated` + SHA-256 verify + cache; `lookup` + `parseCatalogPage` + fuzz; ID
-      download verified by the lookup hash; local HTTP fixture extended
-- [ ] A3 `LogLevel::Hexdump` classification + tests on recorded output; `levelId` "hex" in console files / JSON
+- [x] A1 Profile: `designatedFirmware`, `firmwareDocsUrl`; `firmware.checksum_mismatch` (+ texts, CS) + tests
+- [x] A2 `FirmwareCatalog::downloadDesignated` + SHA-256 verify + cache; `lookup` + `parseCatalogPage` + fuzz; ID
+      download verified by the lookup hash; local HTTP fixture extended *(the fuzz target `catalog_page_fuzz` is
+      written for the `linux-fuzz` preset of ADR-0152, which comes with M6; until then a deterministic mutation test
+      runs in every preset)*
+- [x] A3 `LogLevel::Hexdump` classification + tests on recorded output; `levelId` "hex" in console files / JSON
 - [ ] A4 `ShellQuery`, `parseInfoShow`, `CommandTree` + `parseHelp`, `CommandTreeCache` (lock, LRU, bounds),
-      `Completer` + tests (fake J-Link scenario with a Zephyr shell)
+      `Completer` + tests (fake J-Link scenario with a Zephyr shell) *(phase 1: everything but `ShellQuery` and the
+      fake-shell scenario - see § Phase 2)*
 - [ ] B1 CLI: `lte flash` without FILE, `app catalog-info`, `app info`, ID info before `app flash`, replxx hints and
-      completion + CLI end-to-end tests
+      completion + CLI end-to-end tests *(phase 1: all but `app info`; Tab completion is wired to the cached tree,
+      which phase 2 fills)*
 - [ ] C1 Flash page two kinds, LTE source (designated / own file), catalog info, device info, docs link, kind hints;
-      flash wizard 0010 step 2 + Firmware step aligned
-- [ ] C2 Target pickers ids only (device bar, Choose device, wizards)
-- [ ] C3 Settings tab (tab model entry, rail item + Ctrl+, open/switch, `openSettings(section)`)
+      flash wizard 0010 step 2 + Firmware step aligned *(phase 1: all but the device info ("In the device" / "Now in
+      the device"); the flash wizard 0010 is not implemented yet - it reuses `FirmwareSourceViewModel`, which has
+      the two kinds and the LTE sources)*
+- [x] C2 Target pickers ids only (device bar, Choose device, wizards) *(no wizard has a target picker yet)*
+- [x] C3 Settings tab (tab model entry, rail item + Ctrl+, open/switch, `openSettings(section)`)
 - [ ] C4 Console: line scrolling, ghost suggestion, automatic suggestion list above the input, Tab completion, the
-      two console settings, H chip default off
-- [ ] C5 Console scroll bars beside the rows, Follow suspended while a row is pressed, drag auto-scroll (N10,
+      two console settings, H chip default off *(phase 1: all; the device command tree is learned in phase 2, so
+      the list shows history only until then)*
+- [x] C5 Console scroll bars beside the rows, Follow suspended while a row is pressed, drag auto-scroll (N10,
       ADR-0173)
-- [ ] D1 `update_translations`, Czech for every new string; `check_translations`
+- [x] D1 `update_translations`, Czech for every new string; `check_translations`
 - [ ] D2 Docs: `docs/` user guide sections for Flash (LTE), console completion, Settings tab; plan notes in
-      0004/0005/0006/0010 marked applied; 0006-cli table updated
+      0004/0005/0006/0010 marked applied; 0006-cli table updated *(phase 1: plan notes and the 0006-cli table;
+      the user-guide part moves to M8 (0017, `docs/` and ADR-0138), user decision 2026-10-23)*
+
+## Phase 2 (after M6 merge)
+
+`ShellQuery` needs the ADR-0104 send-command end rule, which exists only in the M6 code. Left for phase 2:
+
+- **A4** `ShellQuery` on `DeviceSession` (silent query: captured lines, 2 s / 2 000 lines, a user `sendLine` waits,
+  refused while busy, lines not in the console log but in the app log at debug) + tests with a fake J-Link
+  scenario that runs a Zephyr shell (`help`, `<cmd> -h`, `info show`).
+- **Device info:** `DeviceTabViewModel::deviceInfo` (`fwName`, `fwVersion`, valid) filled by `info show` after the
+  `app` console attaches and after a flash (cleared on disconnect); the Application card's "In the device: …" and
+  the result card's "Now in the device: …" (within 10 s after the console re-attaches).
+- **Command tree learning:** `help` on connect when `console/readCommandsOnConnect` is on (else at the first
+  suggestion), `<cmd> -h` for `Completer::pathToLearn()`, the tree kept per firmware in `CommandTreeCache`
+  (key from `info show`), `ConsoleViewModel::readingCommands` while a query runs. Marked in the code with
+  `TODO(plan 0021 phase 2)` (`hio chester app console`); the GUI already uses `ConsoleViewModel::setCommandTree`.
+- **CLI:** `hio chester app info [--json]` (`info show`, parsed fields); the CLI console learns and loads the
+  tree the same way (`ConsoleUiOptions::commandTree`).
+- **Tests:** ViewModel tests "device info after attach and after flash", Qt Quick test "`help` sent on connect or
+  lazily per setting", CLI end-to-end `app info --json` with the fake shell.
 
 ## Tests and verification
 

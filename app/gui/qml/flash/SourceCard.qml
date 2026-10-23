@@ -1,6 +1,10 @@
-// Flash step 2: the firmware file (drop zone, Browse…), the catalog ID (not for modem firmware;
+// Flash step 2: the firmware file (drop zone, Browse…), the catalog ID (application firmware only;
 // ADR-0054), the recent list filtered to the kind, the summary, the kind hint (ADR-0040) and load
 // errors. Binds to a FirmwareSourceViewModel (also used by the flash wizard, 0010).
+// Amended by 0021: LTE firmware offers the designated HARDWARIO LTE firmware (default; downloaded
+// and verified when its row is shown, ADR-0165) or "Use your own file…"; a valid catalog ID shows
+// the firmware's name, version and upload date (ADR-0166); "Find firmware IDs ↗" opens the
+// documentation in the UI language (ADR-0167).
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -13,18 +17,127 @@ FlashCard {
 
     required property FirmwareSourceViewModel source
     property errorInfo noError // default-constructed: invalid (no error)
-    readonly property bool busy: card.source !== null
+    readonly property bool designatedShown: card.source !== null
+                                            && card.source.kind === FirmwareSourceViewModel.LteFirmware
+                                            && card.source.designatedAvailable
+    readonly property bool designatedActive: card.designatedShown
+                                             && card.source.lteSource === FirmwareSourceViewModel.Designated
+    // The own-file controls (drop zone, catalog ID, recent, summary, hints).
+    readonly property bool ownFile: card.source !== null && !card.designatedActive
+    readonly property bool busy: card.ownFile
                                  && (card.source.sourceState === FirmwareSourceViewModel.Loading
                                      || card.source.sourceState === FirmwareSourceViewModel.Downloading)
+    // The designated download starts when its row is on screen (ADR-0165, automatic).
+    readonly property bool wantsDesignated: card.visible && card.designatedActive
 
     signal browseRequested
 
     number: 2
-    title: qsTr("Firmware file")
+    title: qsTr("Firmware")
+    onWantsDesignatedChanged: if (card.wantsDesignated) card.source.prepareDesignated()
+    Component.onCompleted: if (card.wantsDesignated) card.source.prepareDesignated()
+
+    // 0021 (ADR-0165): the designated LTE firmware or an own file.
+    ColumnLayout {
+        objectName: "lteSources"
+        Layout.fillWidth: true
+        visible: card.designatedShown
+        spacing: Theme.spacingXs
+
+        RadioButton {
+            objectName: "designatedRadio"
+            Layout.fillWidth: true
+            checked: card.designatedActive
+            text: card.source ? card.source.designatedTitle : ""
+            font: Theme.fontUiStrong
+            onClicked: card.source.lteSource = FirmwareSourceViewModel.Designated
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.spacingXl
+            visible: card.designatedActive
+            spacing: Theme.spacingXs
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("LTE application and modem firmware")
+                color: Theme.textMuted
+                wrapMode: Text.Wrap
+            }
+
+            RowLayout {
+                objectName: "designatedStatus"
+                Layout.fillWidth: true
+                visible: card.source ? card.source.designatedState === FirmwareSourceViewModel.DesignatedDownloading
+                                       || card.source.designatedState === FirmwareSourceViewModel.DesignatedReady : false
+                spacing: Theme.spacingS
+
+                Icon {
+                    visible: card.source ? card.source.designatedState === FirmwareSourceViewModel.DesignatedReady : false
+                    symbol: "success"
+                    color: Theme.success
+                }
+
+                Label {
+                    objectName: "designatedStatusText"
+                    text: card.source ? card.source.designatedStatus : ""
+                    color: Theme.text
+                }
+
+                ProgressBar {
+                    objectName: "designatedProgress"
+                    Layout.fillWidth: true
+                    visible: card.source ? card.source.designatedState === FirmwareSourceViewModel.DesignatedDownloading : false
+                    from: 0
+                    to: 1
+                    value: card.source ? Math.max(0, card.source.designatedProgress) : 0
+                    indeterminate: card.source ? card.source.designatedProgress < 0 : false
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    visible: card.source ? card.source.designatedState === FirmwareSourceViewModel.DesignatedReady : false
+                }
+
+                HButton {
+                    objectName: "designatedCancel"
+                    visible: card.source ? card.source.designatedState === FirmwareSourceViewModel.DesignatedDownloading : false
+                    text: qsTr("Cancel")
+                    onClicked: card.source.cancelDesignated()
+                }
+            }
+
+            HButton {
+                objectName: "designatedDownload"
+                visible: card.source ? card.source.designatedState === FirmwareSourceViewModel.DesignatedIdle : false
+                text: qsTr("Download")
+                onClicked: card.source.retryDesignated()
+            }
+
+            ErrorPanel {
+                objectName: "designatedError"
+                Layout.fillWidth: true
+                visible: card.source ? card.source.designatedError.valid : false
+                error: card.source ? card.source.designatedError : card.noError
+                primaryAction: ErrorAction.Retry
+                onActionTriggered: card.source.retryDesignated()
+            }
+        }
+
+        RadioButton {
+            objectName: "ownFileRadio"
+            Layout.fillWidth: true
+            checked: !card.designatedActive
+            text: qsTr("Use your own file…")
+            onClicked: card.source.lteSource = FirmwareSourceViewModel.OwnFile
+        }
+    }
 
     // Drop zone (the whole page accepts drops) and Browse…
     Rectangle {
         Layout.fillWidth: true
+        visible: card.ownFile
         implicitHeight: dropRow.implicitHeight + 2 * Theme.spacingM
         radius: Theme.radiusM
         color: Theme.surface
@@ -62,7 +175,7 @@ FlashCard {
     // Catalog ID (ADR-0054).
     ColumnLayout {
         Layout.fillWidth: true
-        visible: card.source ? card.source.catalogAvailable : false
+        visible: card.source ? card.source.catalogAvailable && card.ownFile : false
         spacing: Theme.spacingXs
 
         Flow {
@@ -98,9 +211,41 @@ FlashCard {
             }
 
             HButton {
+                objectName: "docsLink"
                 kind: "ghost"
-                text: qsTr("Open firmware catalog ↗")
-                onClicked: Qt.openUrlExternally(card.source.catalogUrl)
+                text: qsTr("Find firmware IDs ↗")
+                toolTipText: card.source ? card.source.docsUrl.toString() : ""
+                onClicked: Qt.openUrlExternally(card.source.docsUrl)
+            }
+        }
+
+        // 0021 (ADR-0166): what the catalog says about the ID.
+        RowLayout {
+            objectName: "catalogInfo"
+            Layout.fillWidth: true
+            visible: card.source ? card.source.catalogInfo.lookupState !== "none" : false
+            spacing: Theme.spacingS
+
+            BusyIndicator {
+                visible: card.source ? card.source.catalogInfo.lookupState === "loading" : false
+                running: visible && !AppViewModel.reducedMotion
+                implicitWidth: 16
+                implicitHeight: 16
+            }
+
+            Icon {
+                visible: card.source ? card.source.catalogInfo.lookupState !== "loading" : false
+                symbol: card.source && card.source.catalogInfo.lookupState === "found" ? "info" : "warning"
+                color: card.source && card.source.catalogInfo.lookupState === "found" ? Theme.textMuted : Theme.warning
+                size: 18
+            }
+
+            Label {
+                objectName: "catalogInfoText"
+                Layout.fillWidth: true
+                text: card.source ? card.source.catalogInfo.text ?? "" : ""
+                color: Theme.text
+                wrapMode: Text.Wrap
             }
         }
 
@@ -154,7 +299,7 @@ FlashCard {
     RowLayout {
         objectName: "sourceSummary"
         Layout.fillWidth: true
-        visible: card.source ? card.source.sourceState === FirmwareSourceViewModel.Ready : false
+        visible: card.source ? card.ownFile && card.source.sourceState === FirmwareSourceViewModel.Ready : false
         spacing: Theme.spacingS
 
         Icon {
@@ -243,7 +388,7 @@ FlashCard {
         Label {
             objectName: "modemNote"
             Layout.fillWidth: true
-            text: qsTr("Modem update takes 1–3 minutes. The console is disconnected meanwhile.")
+            text: qsTr("Updating the modem takes 1–3 minutes. The console is disconnected meanwhile.")
             font: Theme.fontUiSmall
             color: Theme.textMuted
             wrapMode: Text.Wrap
@@ -253,7 +398,7 @@ FlashCard {
     // Recent sources of this kind.
     ColumnLayout {
         Layout.fillWidth: true
-        visible: card.source ? card.source.recent.count > 0 : false
+        visible: card.source ? card.ownFile && card.source.recent.count > 0 : false
         spacing: 0
 
         Label {

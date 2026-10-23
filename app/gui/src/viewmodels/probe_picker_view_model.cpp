@@ -17,6 +17,7 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QString>
+#include <QStringList>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
@@ -147,18 +148,31 @@ QVariantList ProbePickerViewModel::targets() const {
     }
     for (const device::TargetProfile& target : profile->targets) {
         const QString id = toQString(target.id);
-        list.append(
-            QVariantMap{{QStringLiteral("id"), id}, {QStringLiteral("title"), targetTitle(id)}});
+        // 0021 (ADR-0168): pickers show the id ("label"); the long title is the tooltip.
+        list.append(QVariantMap{{QStringLiteral("id"), id},
+                                {QStringLiteral("label"), id},
+                                {QStringLiteral("title"), targetTitle(m_profileId, id)}});
     }
     return list;
 }
 
-QString ProbePickerViewModel::targetTitle(const QString& targetId) {
+QString ProbePickerViewModel::targetTitle(const QString& profileId, const QString& targetId) {
+    const device::DeviceProfile* profile = device::ProfileRegistry::find(toStdString(profileId));
+    const device::TargetProfile* target =
+        profile != nullptr ? device::findTarget(*profile, toStdString(targetId)) : nullptr;
+    QStringList chips;
+    if (target != nullptr) {
+        for (const device::ChipPart& part : target->parts) {
+            chips.append(toQString(part.displayName));
+        }
+    }
+    const QString chipText = chips.join(QStringLiteral(" / "));
     if (targetId == QStringLiteral("app")) {
-        return tr("Application MCU (app)");
+        return chipText.isEmpty() ? tr("Application MCU")
+                                  : tr("Application MCU (%1)").arg(chipText);
     }
     if (targetId == QStringLiteral("lte")) {
-        return tr("LTE modem MCU (lte)");
+        return chipText.isEmpty() ? tr("LTE MCU") : tr("LTE MCU (%1)").arg(chipText);
     }
     return targetId;
 }

@@ -454,9 +454,11 @@ QVariantList SettingsViewModel::licences() {
 
 QString SettingsViewModel::documentationUrl() { return AppViewModel::documentationUrl(); }
 
-QString SettingsViewModel::catalogUrl() {
+QString SettingsViewModel::catalogUrl() const {
     const device::DeviceProfile* chester = device::ProfileRegistry::find("chester");
-    return chester != nullptr ? toQString(chester->firmwareCatalogUrl) : QString();
+    return chester != nullptr ? toQString(device::firmwareDocsUrlFor(
+                                    *chester, toStdString(m_services.uiLanguage())))
+                              : QString();
 }
 
 QString SettingsViewModel::sourceUrl() {

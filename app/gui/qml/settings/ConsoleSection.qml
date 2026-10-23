@@ -1,6 +1,8 @@
 // The Console section of the Settings page (plan/features/0005-m3-console.md, C5b), registered with
 // PageRegistry::addSettingsSection and rendered by the Settings page (plan 0006): font size,
-// timestamps, line wrapping, console log files, the log folder and the retention of the files.
+// timestamps, line wrapping, console log files, the log folder and the retention of the files;
+// amended by 0021 (ADR-0170): command suggestions while typing and reading the command list on
+// connect.
 // Binds to ConsoleSettings (the console/* keys of the SettingsStore).
 import QtQuick
 import QtQuick.Controls
@@ -51,6 +53,22 @@ ColumnLayout {
         text: qsTr("Wrap long lines")
         checked: ConsoleSettings.wrapLines
         onToggled: ConsoleSettings.wrapLines = checked
+    }
+
+    Switch {
+        objectName: "consoleSuggestions"
+        Layout.fillWidth: true
+        text: qsTr("Suggest commands while typing")
+        checked: ConsoleSettings.suggestions
+        onToggled: ConsoleSettings.suggestions = checked
+    }
+
+    Switch {
+        objectName: "consoleReadCommands"
+        Layout.fillWidth: true
+        text: qsTr("Read the command list from the device on connect (sends “help”)")
+        checked: ConsoleSettings.readCommandsOnConnect
+        onToggled: ConsoleSettings.readCommandsOnConnect = checked
     }
 
     Switch {

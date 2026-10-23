@@ -8,10 +8,14 @@ hio_add_backend_library(hio_device
     include/hio/device/ble_lock.h
     include/hio/device/ble_session.h
     include/hio/device/command_history.h
+    include/hio/device/command_tree.h
+    include/hio/device/command_tree_cache.h
+    include/hio/device/completer.h
     include/hio/device/console_file_sink.h
     include/hio/device/console_line.h
     include/hio/device/console_log.h
     include/hio/device/console_session.h
+    include/hio/device/device_info.h
     include/hio/device/device_session.h
     include/hio/device/line_assembler.h
     include/hio/device/operation.h
@@ -26,10 +30,14 @@ hio_add_backend_library(hio_device
     src/ble_session.cpp
     src/ble_session_internal.h
     src/command_history.cpp
+    src/command_tree.cpp
+    src/command_tree_cache.cpp
+    src/completer.cpp
     src/console_file_sink.cpp
     src/console_line.cpp
     src/console_log.cpp
     src/console_session.cpp
+    src/device_info.cpp
     src/device_session.cpp
     src/flash_workflows.cpp
     src/flash_workflows.h

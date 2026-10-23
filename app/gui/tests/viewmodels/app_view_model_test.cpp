@@ -9,6 +9,7 @@
 
 #include <QAbstractItemModel>
 #include <QByteArray>
+#include <QModelIndex>
 #include <QRect>
 #include <QSettings>
 #include <QSignalSpy>
@@ -208,6 +209,115 @@ TEST_F(AppViewModelTest, PagesAndGlobalPages) {
     EXPECT_EQ(app->globalPage(), QStringLiteral("settings"));
     app->showPage(QStringLiteral("console"));
     EXPECT_TRUE(app->globalPage().isEmpty());
+}
+
+// 0021 (ADR-0172): Settings opens as a tab after the device tabs, only while open; not counted in
+// the limit, not stored in ui/tabs, cycled with Ctrl+Tab, closed like a tab.
+TEST_F(AppViewModelTest, SettingsTab) {
+    {
+        const auto app = makeApp();
+        hio::gui::DeviceTabListModel& tabs = *app->tabs();
+        ASSERT_TRUE(app->currentTabViewModel()->configure(QStringLiteral("chester"),
+                                                          QStringLiteral("app"), 801000001));
+        app->newTab();
+        ASSERT_EQ(tabs.count(), 2);
+        EXPECT_FALSE(tabs.settingsOpen());
+        EXPECT_EQ(tabs.rowCount(), 2);
+
+        QSignalSpy section(app.get(), &AppViewModel::settingsSectionRequested);
+        app->openSettings(QStringLiteral("nrfutil"));
+        EXPECT_TRUE(tabs.settingsOpen());
+        ASSERT_EQ(tabs.rowCount(), 3);
+        EXPECT_EQ(tabs.count(), 2); // not a device tab
+        EXPECT_EQ(tabs.settingsRow(), 2);
+        EXPECT_EQ(app->currentTab(), 2);
+        EXPECT_EQ(app->currentTabViewModel(), nullptr);
+        EXPECT_EQ(app->globalPage(), QStringLiteral("settings"));
+        EXPECT_EQ(app->settingsSection(), QStringLiteral("nrfutil"));
+        ASSERT_EQ(section.count(), 1);
+        EXPECT_EQ(section.at(0).at(0).toString(), QStringLiteral("nrfutil"));
+        const QModelIndex row = tabs.index(2);
+        EXPECT_EQ(tabs.data(row, hio::gui::DeviceTabListModel::KindRole).toString(),
+                  QStringLiteral("settings"));
+        EXPECT_EQ(tabs.data(row, hio::gui::DeviceTabListModel::TitleRole).toString(),
+                  QStringLiteral("Settings"));
+        EXPECT_EQ(tabs.data(tabs.index(0), hio::gui::DeviceTabListModel::KindRole).toString(),
+                  QStringLiteral("device"));
+
+        // At most one: opening again switches to it.
+        app->setCurrentTab(0);
+        EXPECT_TRUE(app->globalPage().isEmpty());
+        app->openGlobalPage(QStringLiteral("settings"));
+        EXPECT_EQ(tabs.rowCount(), 3);
+        EXPECT_EQ(app->currentTab(), 2);
+
+        // Cycled like any tab.
+        app->nextTab();
+        EXPECT_EQ(app->currentTab(), 0);
+        app->previousTab();
+        EXPECT_EQ(app->currentTab(), 2);
+
+        // Review F2: Ctrl+T while Settings is current switches to the new device tab (with the
+        // notifications), Settings stays open after it.
+        {
+            QSignalSpy currentChanged(app.get(), &AppViewModel::currentTabChanged);
+            QSignalSpy pageChanged(app.get(), &AppViewModel::globalPageChanged);
+            app->newTab();
+            EXPECT_EQ(tabs.count(), 3);
+            EXPECT_EQ(app->currentTab(), 2);
+            EXPECT_EQ(tabs.settingsRow(), 3);
+            EXPECT_NE(app->currentTabViewModel(), nullptr);
+            EXPECT_TRUE(app->globalPage().isEmpty());
+            EXPECT_EQ(currentChanged.count(), 1);
+            EXPECT_EQ(pageChanged.count(), 1);
+            app->openSettings();
+            EXPECT_EQ(app->currentTab(), 3);
+        }
+
+        // Not counted in the limit: eight device tabs fit; new ones go before Settings.
+        for (int i = tabs.count(); i < AppViewModel::maxTabs(); ++i) {
+            app->newTab();
+        }
+        EXPECT_EQ(tabs.count(), 8);
+        EXPECT_EQ(tabs.rowCount(), 9);
+        EXPECT_EQ(tabs.settingsRow(), 8);
+        EXPECT_NE(tabs.at(7), nullptr);
+
+        // A per-tab page from the Settings tab goes back to the last device tab.
+        app->openSettings();
+        app->showPage(QStringLiteral("console"));
+        EXPECT_EQ(app->currentTab(), 7);
+
+        // Closing a device tab before it keeps Settings current.
+        app->openSettings();
+        app->closeTab(1);
+        EXPECT_EQ(tabs.count(), 7);
+        EXPECT_EQ(app->currentTab(), tabs.settingsRow());
+        EXPECT_EQ(app->globalPage(), QStringLiteral("settings"));
+
+        // Not stored in ui/tabs (the current device tab is stored instead).
+        app->saveState();
+        EXPECT_TRUE(
+            readRaw(QStringLiteral("ui/tabs")).startsWith(QStringLiteral(R"({"current":0,)")));
+
+        // Ctrl+W / × closes it: back to the last device tab.
+        app->closeTab(tabs.settingsRow());
+        EXPECT_FALSE(tabs.settingsOpen());
+        EXPECT_EQ(tabs.rowCount(), 7);
+        EXPECT_TRUE(app->globalPage().isEmpty());
+        EXPECT_NE(app->currentTabViewModel(), nullptr);
+        app->openSettings();
+        app->closeGlobalPage();
+        EXPECT_FALSE(tabs.settingsOpen());
+        app->openSettings(); // open when the app ends
+        app->saveState();
+        spin(std::chrono::milliseconds(20));
+    }
+    // Not restored at start.
+    const auto app = makeApp();
+    EXPECT_FALSE(app->tabs()->settingsOpen());
+    EXPECT_TRUE(app->globalPage().isEmpty());
+    EXPECT_EQ(app->tabs()->rowCount(), app->tabs()->count());
 }
 
 TEST_F(AppViewModelTest, PageModelUpdatesTitlesOnly) {

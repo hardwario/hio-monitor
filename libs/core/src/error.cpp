@@ -121,6 +121,7 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::BleDisconnected:
     case ErrorCode::BleInUseByOtherProcess:
     case ErrorCode::BleNoPairingAgent:
+    case ErrorCode::FirmwareChecksumMismatch:
         return true;
     }
     return false;
@@ -908,6 +909,19 @@ constexpr std::array defaultTexts{
             "`agent KeyboardOnly`, `default-agent`, `pair <id>`.",
             "ble.no_pairing_agent suggestion"),
         .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::FirmwareChecksumMismatch,
+        .message = QT_TRANSLATE_NOOP3("hio::core",
+                                      "The downloaded firmware is damaged (checksum mismatch).",
+                                      "firmware.checksum_mismatch message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "The file was changed or damaged during the download.",
+                               "firmware.checksum_mismatch cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Try again; if it repeats, report it to HARDWARIO.",
+                               "firmware.checksum_mismatch suggestion"),
+        .wizard = std::nullopt,
     },
 };
 

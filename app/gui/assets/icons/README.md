@@ -32,6 +32,7 @@ these files. SVG is text and is not stored in Git LFS. The icons are compiled in
 | `flash.svg` | `bolt` | Flash page | `efc632df3302b78537d07d8fd674a66cb911b132515cd4f84c6a6a995ecff8e7` |
 | `follow.svg` | `vertical_align_bottom` | Follow (console) | `6adb1ace91102847d6f08c257c3ec9dce0299cf4e935cec6ed22af9f10b694a7` |
 | `help.svg` | `help` | Help (shortcut overlay) | `9f2bdd969cefc5843f95ccbd560c4281b1eec87c78b68bd4daf694d19fc9c5f9` |
+| `history.svg` | `history` | history rows of the console suggestion list (0021) | `9dbbac013fd1a1fa4677670e64164f953647e32878c2870909a3e0910f28b0d9` |
 | `info.svg` | `info` | information | `33c77c7a4f193445d0136b970ad4b5a80ba8cc340603465d4cb46a1f8abec4ec` |
 | `keyboard.svg` | `keyboard` | keyboard shortcuts | `2c3e09a5bbc5122b64cb3c0d351708b94d6c68c68378ab2cd70d37c0426b2679` |
 | `more.svg` | `more_horiz` | ⋯ Advanced, overflow menus | `498ade89fbbdd4f4ab9b90bb49bae4cc6b2dc0ff0f019b6b051ac641a7bd5872` |

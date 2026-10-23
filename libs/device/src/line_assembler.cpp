@@ -6,6 +6,7 @@
 #include <QString>
 #include <QtTypes>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstddef>
@@ -116,6 +117,45 @@ LogLevel parseZephyrLevel(std::string_view text) {
     return level;
 }
 
+bool isHexdumpLine(std::string_view text) noexcept {
+    // Zephyr log_output.c hexdump_line_print(): the prefix indentation, then for each of the 16
+    // positions "%02x " (or 3 spaces past the data), with one extra space before position 8; '|';
+    // then the 16 characters (non-printable as '.', padded with spaces), a space before the 8th.
+    constexpr std::size_t bytesPerLine = 16;
+    constexpr std::size_t maxCharacters = bytesPerLine + 1;
+    const auto isHex = [](char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    };
+    std::size_t i = 0;
+    while (i < text.size() && (text[i] == ' ' || text[i] == '\t')) {
+        ++i;
+    }
+    if (i == 0) {
+        return false; // the continuation is always indented
+    }
+    std::size_t groups = 0;
+    while (groups < bytesPerLine && i + 2 < text.size() && isHex(text[i]) && isHex(text[i + 1]) &&
+           text[i + 2] == ' ') {
+        ++groups;
+        i += 3;
+        if (groups == bytesPerLine / 2 && i < text.size() && text[i] == ' ') {
+            ++i; // the extra space after the 8th group
+        }
+    }
+    if (groups == 0) {
+        return false;
+    }
+    while (i < text.size() && text[i] == ' ') {
+        ++i; // padding of a short last line
+    }
+    if (i >= text.size() || text[i] != '|') {
+        return false;
+    }
+    const std::string_view characters = text.substr(i + 1);
+    return characters.size() <= maxCharacters &&
+           std::ranges::all_of(characters, [](char c) { return c >= 0x20 && c < 0x7F; });
+}
+
 LineAssembler::LineAssembler(Channel channel, bool hashPrefixIsLog)
     : m_channel(channel), m_hashPrefixIsLog(hashPrefixIsLog) {
     m_partial.reserve(maxPartialBytes);
@@ -133,10 +173,16 @@ ConsoleLine LineAssembler::makeLine(std::string_view raw,
     line.dir = Direction::Out;
     line.time = now;
     line.text = decodeUtf8Lossy(applyCarriageReturns(stripAnsiCsi(raw)));
+    bool hashRouted = false;
     if (line.channel == Channel::Shell && m_hashPrefixIsLog && line.text.starts_with('#')) {
         line.channel = Channel::Log;
+        hashRouted = true;
     }
     line.level = line.channel == Channel::Log ? parseZephyrLevel(line.text) : LogLevel::None;
+    if (line.channel == Channel::Log && line.level == LogLevel::None &&
+        isHexdumpLine(hashRouted ? std::string_view(line.text).substr(1) : line.text)) {
+        line.level = LogLevel::Hexdump; // ADR-0171 (after the '#' of the hashPrefixIsLog rule)
+    }
     return line;
 }
 

@@ -71,6 +71,8 @@ QString levelTag(device::LogLevel level) {
         return QStringLiteral("W");
     case device::LogLevel::Error:
         return QStringLiteral("E");
+    case device::LogLevel::Hexdump:
+        return QStringLiteral("H"); // 0021 (ADR-0171)
     case device::LogLevel::None:
         break;
     }
@@ -107,6 +109,7 @@ ConsoleLineModel::ConsoleLineModel(std::shared_ptr<device::ConsoleLog> log, devi
     : QAbstractListModel(parent), m_log(std::move(log)), m_channel(channel),
       // Qt parent ownership: the scan is a child of this model.
       m_scan(new LineScan(m_log, channel, this)) { // NOLINT(cppcoreguidelines-owning-memory)
+    m_filter.levelMask = m_levelMask;              // 0021: the default chips hide hexdump lines
 }
 
 int ConsoleLineModel::rowCount(const QModelIndex& parent) const {
@@ -366,7 +369,8 @@ void ConsoleLineModel::setPaused(bool paused) {
 }
 
 bool ConsoleLineModel::filterActive() const {
-    return !m_filterQuery.text.isEmpty() || (m_levelMask & level_bits::all) != level_bits::all;
+    // 0021 (ADR-0171): the default chips (H off) are not an active filter.
+    return !m_filterQuery.text.isEmpty() || m_levelMask != level_bits::defaults;
 }
 
 void ConsoleLineModel::setFilterText(const QString& text) {
@@ -403,11 +407,11 @@ void ConsoleLineModel::setLevelMask(int mask) {
 }
 
 void ConsoleLineModel::clearFilter() {
-    if (m_filterQuery.text.isEmpty() && m_levelMask == level_bits::all) {
+    if (m_filterQuery.text.isEmpty() && m_levelMask == level_bits::defaults) {
         return;
     }
     m_filterQuery.text.clear();
-    m_levelMask = level_bits::all;
+    m_levelMask = level_bits::defaults; // 0021: back to the default chips (H off)
     applyFilterQuery();
 }
 

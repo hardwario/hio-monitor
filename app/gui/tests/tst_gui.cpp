@@ -10,9 +10,11 @@
 #include "hio/core/app_identity.h"
 #include "hio/core/error.h"
 #include "hio/core/settings.h"
+#include "hio/device/command_tree.h"
 #include "hio/device/console_line.h"
 #include "hio/device/session_registry.h"
 #include "hio/firmware/firmware_image.h"
+#include "http_fixture.h"
 #include "language_manager.h"
 #include "pages/builtin_pages.h"
 #include "support/fake_jlink_scenario.h"
@@ -24,10 +26,12 @@
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/error_info.h"
+#include "viewmodels/history_store.h"
 #include "zip_builder.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QIODevice>
 #include <QObject>
@@ -36,9 +40,11 @@
 #include <QQuickStyle>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringList>
 #include <QTemporaryDir>
 #include <QUrl>
 #include <QVariant>
+#include <QtContainerFwd>
 #include <QtCore/qtmetamacros.h>
 #include <QtEnvironmentVariables>
 #include <QtLogging>
@@ -256,6 +262,30 @@ public:
         }
     }
 
+    // Plan 0021: a command in the tab's shared history (as if it had been sent).
+    Q_INVOKABLE void addConsoleHistory(int index, const QString& command) const {
+        if (const hio::gui::DeviceTabViewModel* tab = m_app->tabs()->at(index); tab != nullptr) {
+            m_app->historyStore().history(tab->profileId(), tab->consoleTargetId())->add(command);
+        }
+    }
+
+    // Plan 0021: a learned top-level command tree for the tab's console (phase 2 learns it).
+    Q_INVOKABLE void setConsoleCommands(int index, const QStringList& names) const {
+        auto* console = qobject_cast<hio::gui::ConsoleViewModel*>(consoleViewModel(index));
+        if (console == nullptr) {
+            return;
+        }
+        std::vector<hio::device::CommandEntry> entries;
+        for (const QString& name : names) {
+            entries.push_back(hio::device::CommandEntry{
+                .name = name.toStdString(),
+                .help = (name + QStringLiteral(" commands")).toStdString()});
+        }
+        hio::device::CommandTree tree;
+        (void)tree.setChildren({}, entries);
+        console->setCommandTree(std::move(tree));
+    }
+
     Q_INVOKABLE void addDroppedLines(int index, int count) const {
         if (auto* console = qobject_cast<hio::gui::ConsoleViewModel*>(consoleViewModel(index));
             console != nullptr) {
@@ -290,6 +320,32 @@ public slots:
         (void)hio::gui::test::useFakeJLink(m_dir.path(), hio::gui::test::twoProbesScenario);
         // No nRF Util in the Qt Quick tests (whatever is installed): deterministic prerequisites.
         qputenv("HIO_NRFUTIL", QFile::encodeName(m_dir.path() + QStringLiteral("/no-nrfutil")));
+        // Plan 0021: the designated LTE firmware comes from a local fixture (never the internet;
+        // test-only overrides HIO_DESIGNATED_URL / HIO_DESIGNATED_SHA256).
+        const QByteArray modem = hio::firmware::test::zipBytes(
+            {{.name = "firmware.update.image.segments.0.hex", .data = ":00000001FF\n"}});
+        const QByteArray bundle = hio::firmware::test::zipBytes(
+            {{.name = "modem.zip", .data = modem.toStdString()},
+             {.name = "application.hex",
+              .data = hio::firmware::test::hexRecord(0, 0x1000, {1, 2, 3, 4}) +
+                      hio::firmware::test::eofRecord()}});
+        m_lteFirmware.emplace();
+        m_lteFirmware->set(QStringLiteral("/chester/lte.zip"),
+                           hio::firmware::test::HttpFixture::Response::ok(bundle));
+        qputenv("HIO_DESIGNATED_URL",
+                (m_lteFirmware->baseUrl() + QStringLiteral("/lte.zip")).toUtf8());
+        qputenv("HIO_DESIGNATED_SHA256",
+                QCryptographicHash::hash(bundle, QCryptographicHash::Sha256).toHex());
+        // The catalog (test-only HIO_CATALOG_URL) answers one firmware page (ADR-0166); other IDs
+        // are unknown (404).
+        m_lteFirmware->set(
+            QStringLiteral("/chester/001543e218a04ffdbf65082532202736"),
+            hio::firmware::test::HttpFixture::Response::ok(QByteArrayLiteral(
+                "<h2>hio-chester-push-fm:v4.0.1</h2><div>Download the HEX file:</div>"
+                "<div>SHA256 checksum: "
+                "0c7a2286d945c1e12bf9b4f0620beff519a8ade36f98c1da33527d18fa568f5a</div>"
+                "<div>Upload date/time</div><div>2026-09-07 12:13:53</div>")));
+        qputenv("HIO_CATALOG_URL", m_lteFirmware->baseUrl().toUtf8());
     }
 
     // One AppViewModel per test file (per QML engine): QML bindings of one engine never outlive it
@@ -363,6 +419,7 @@ public slots:
 
 private:
     QTemporaryDir m_dir;
+    std::optional<hio::firmware::test::HttpFixture> m_lteFirmware; // plan 0021
     std::optional<hio::gui::AppViewModel> m_app;
     std::optional<hio::gui::LanguageManager> m_languageManager;
     std::optional<QmlTestSupport> m_support;

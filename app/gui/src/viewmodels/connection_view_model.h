@@ -78,6 +78,7 @@ class ConnectionViewModel : public QObject {
     Q_PROPERTY(QString serial READ serial NOTIFY probeChanged)
     Q_PROPERTY(QString targetId READ targetId WRITE setTargetId NOTIFY targetChanged)
     Q_PROPERTY(QString targetTitle READ targetTitle NOTIFY targetChanged)
+    // [{id, label (= id, 0021 ADR-0168), title}]
     Q_PROPERTY(QVariantList targets READ targets NOTIFY targetChanged)
     Q_PROPERTY(bool canChangeTarget READ canChangeTarget NOTIFY stateChanged)
     // "idle", "connecting", "connected", "reconnecting", "error", "busy"

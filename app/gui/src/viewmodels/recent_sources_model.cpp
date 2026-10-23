@@ -105,7 +105,11 @@ std::vector<RecentSourcesModel::Entry> RecentSourcesModel::entries() const {
             break;
         }
         const QJsonObject object = value.toObject();
-        Entry entry{.kind = object.value(QStringLiteral("kind")).toString(),
+        QString kind = object.value(QStringLiteral("kind")).toString();
+        if (kind == QStringLiteral("modem")) {
+            kind = QStringLiteral("lte"); // 0021 (ADR-0174): the modem is part of LTE firmware
+        }
+        Entry entry{.kind = std::move(kind),
                     .source = object.value(QStringLiteral("source")).toString(),
                     .time = QDateTime::fromString(object.value(QStringLiteral("time")).toString(),
                                                   Qt::ISODate)};

@@ -84,6 +84,10 @@ bool FirmwareServices::isFlashPageVisible(const DeviceTabViewModel* tab) const {
     return m_options.isFlashPageVisible && m_options.isFlashPageVisible(tab);
 }
 
+QString FirmwareServices::uiLanguage() const {
+    return m_options.uiLanguage ? m_options.uiLanguage() : QStringLiteral("en");
+}
+
 void FirmwareServices::retranslate() {
     m_dependencies->retranslate();
     languageChanged(); // signal

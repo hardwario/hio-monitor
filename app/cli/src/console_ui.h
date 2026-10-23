@@ -5,11 +5,12 @@
 //
 // Interactive (stdin and stdout are terminals, no --json): a scrolling line mode with replxx -
 // device output is printed above the prompt, Enter sends the line, Up/Down history, Ctrl+R
-// search, F4 reconnect, Ctrl+D / Ctrl+Q / Ctrl+C on an empty line quit, Ctrl+C on a non-empty
-// line clears it. replxx's input() runs on an owned thread; everything else (session signals,
-// printing, history) runs on the main thread.
-// Otherwise: plain line input from stdin (StdinLineReader); output as text or NDJSON (--json).
-// End of input ends the session once the sent commands were written (at most 3 s) plus
+// search, hints from the history and Tab completion from the device command tree (plan 0021,
+// device::Completer; both run on the input thread with its own copy of the history), F4 reconnect,
+// Ctrl+D / Ctrl+Q / Ctrl+C on an empty line quit, Ctrl+C on a non-empty line clears it. replxx's
+// input() runs on an owned thread; everything else (session signals, printing, history) runs on the
+// main thread. Otherwise: plain line input from stdin (StdinLineReader); output as text or NDJSON
+// (--json). End of input ends the session once the sent commands were written (at most 3 s) plus
 // ConsoleUiOptions::linger (--linger, default 1 s) for their output.
 //
 // The session's events are shown from the moment ConsoleView is created (so --json streams the
@@ -18,6 +19,7 @@
 #include "cli_app.h"
 #include "hio/core/error.h"
 #include "hio/core/result.h"
+#include "hio/device/command_tree.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_session.h"
 #include "hio/device/session_events.h"
@@ -100,6 +102,11 @@ private:
 struct ConsoleUiOptions {
     bool interactive = false;
     std::optional<std::filesystem::path> historyFile; // interactive only
+    // Plan 0021 (ADR-0170), interactive only: replxx hints from the history (console/suggestions,
+    // --no-suggestions) and Tab completion from the device command tree (nullptr = none known;
+    // it must outlive runConsole()).
+    bool suggestions = false;
+    const device::CommandTree* commandTree = nullptr;
     std::string prompt = "uart:~$ "; // the local prompt (BLE: the profile's shell prompt)
     // Plain / --json mode: output is collected this long after the end of input (--linger).
     std::chrono::milliseconds linger{1000};

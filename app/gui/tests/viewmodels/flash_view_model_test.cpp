@@ -28,6 +28,7 @@
 #include "zip_builder.h"
 
 #include <QByteArray>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QIODevice>
 #include <QObject>
@@ -90,6 +91,8 @@ protected:
         qunsetenv("HIO_NRFUTIL");
         qunsetenv("HIO_FAKE_NRFUTIL_MODE");
         qunsetenv("HIO_CATALOG_URL");
+        qunsetenv("HIO_DESIGNATED_URL");
+        qunsetenv("HIO_DESIGNATED_SHA256");
         GuiTest::TearDown();
     }
 
@@ -184,7 +187,8 @@ TEST_F(FlashTest, KindDefaultsFromTheTabTarget) {
     // Re-choosing the selected kind changes nothing.
     flash().setKind(Kind::AppFirmware);
     EXPECT_EQ(flash().kind(), Kind::AppFirmware);
-    ASSERT_EQ(flash().kinds().size(), 3);
+    // 0021 (ADR-0174): two kinds, the modem is part of LTE firmware.
+    ASSERT_EQ(flash().kinds().size(), 2);
     EXPECT_TRUE(flash()
                     .kinds()
                     .at(0)
@@ -196,12 +200,13 @@ TEST_F(FlashTest, KindDefaultsFromTheTabTarget) {
 
 TEST_F(FlashTest, TheLastKindIsRememberedPerTabInMemoryOnly) {
     start(probeScenario(), QStringLiteral("lte"));
-    flash().setKind(Kind::ModemFirmware);
+    flash().setKind(Kind::AppFirmware);
     // Nothing is persisted (review F4, user decision 2026-10-16: no flash/lastKind key).
     EXPECT_FALSE(app().settingsStore()->value(QStringLiteral("flash/lastKind")).isValid());
     // The tab keeps its choice when its target changes (no session).
     tab().setConsoleTarget(QStringLiteral("app"));
-    EXPECT_EQ(flash().kind(), Kind::ModemFirmware);
+    tab().setConsoleTarget(QStringLiteral("lte"));
+    EXPECT_EQ(flash().kind(), Kind::AppFirmware);
 
     // Another tab starts from its own target, not from the first tab's choice.
     DeviceTabViewModel* first = &tab();
@@ -233,8 +238,10 @@ TEST_F(FlashTest, AKindChangeDoesNotAddToRecent) {
     start(probeScenario());
     ASSERT_TRUE(load(hexFile()));
     ASSERT_EQ(source().recent()->count(), 1);
-    // The HEX fits LTE firmware too, but only an explicit load adds it to the LTE list (F7).
+    // The HEX fits LTE firmware too (as the own file, 0021), but only an explicit load adds it to
+    // the LTE list (F7).
     flash().setKind(Kind::LteFirmware);
+    source().setLteSource(FirmwareSourceViewModel::OwnFile);
     ASSERT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready);
     EXPECT_EQ(source().recent()->count(), 0);
     EXPECT_EQ(source().recent()->entries().size(), 1);
@@ -244,15 +251,18 @@ TEST_F(FlashTest, AKindChangeDoesNotAddToRecent) {
 
 TEST_F(FlashTest, AFileOfAnotherKindShowsAHintAndNeverSwitchesSilently) {
     start(probeScenario());
+    // 0021 (ADR-0174): modem firmware is LTE firmware.
     ASSERT_TRUE(load(modemFile()));
     EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Invalid);
-    EXPECT_EQ(source().suggestedKind(), Kind::ModemFirmware);
+    EXPECT_EQ(source().suggestedKind(), Kind::LteFirmware);
     EXPECT_EQ(source().kindHint(),
-              QStringLiteral("This is LTE modem firmware — switch to LTE modem firmware?"));
+              QStringLiteral("This is LTE firmware — switch to LTE firmware?"));
     EXPECT_EQ(flash().kind(), Kind::AppFirmware);
     EXPECT_FALSE(flash().canFlash());
     source().acceptSuggestedKind();
-    EXPECT_EQ(flash().kind(), Kind::ModemFirmware);
+    EXPECT_EQ(flash().kind(), Kind::LteFirmware);
+    // A file loaded for another kind is the LTE card's own file once switched.
+    source().setLteSource(FirmwareSourceViewModel::OwnFile);
     EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready);
     EXPECT_TRUE(source().modemNoteVisible());
 
@@ -261,26 +271,38 @@ TEST_F(FlashTest, AFileOfAnotherKindShowsAHintAndNeverSwitchesSilently) {
     ASSERT_TRUE(load(bundleFile()));
     EXPECT_EQ(source().suggestedKind(), Kind::LteFirmware);
     EXPECT_EQ(source().kindHint(),
-              QStringLiteral("This is an LTE firmware bundle — switch to LTE firmware?"));
+              QStringLiteral("This is LTE firmware — switch to LTE firmware?"));
 
-    // An Intel HEX under modem firmware suggests the tab's MCU (application here).
-    flash().setKind(Kind::ModemFirmware);
-    ASSERT_TRUE(load(hexFile()));
-    EXPECT_EQ(source().suggestedKind(), Kind::AppFirmware);
     // A file that is not firmware at all is an error (no hint).
     ASSERT_TRUE(load(writeFile("notes.txt", "hello")));
     EXPECT_EQ(source().suggestedKind(), -1);
     EXPECT_TRUE(source().error().valid());
 }
 
-TEST_F(FlashTest, HexUnderModemFirmwareSuggestsLteOnAnLteTab) {
+// 0021 (ADR-0174): every LTE input fits the LTE card; the summary follows the classification and
+// the operation is chosen from it.
+TEST_F(FlashTest, EveryLteInputFitsTheLteKind) {
     start(probeScenario(), QStringLiteral("lte"));
-    flash().setKind(Kind::ModemFirmware);
-    ASSERT_TRUE(load(hexFile()));
-    EXPECT_EQ(source().suggestedKind(), Kind::LteFirmware);
-    EXPECT_EQ(
-        source().kindHint(),
-        QStringLiteral("This is an Intel HEX file, not modem firmware — switch to LTE firmware?"));
+    ASSERT_EQ(flash().kind(), Kind::LteFirmware);
+    ASSERT_TRUE(load(hexFile("lte.hex")));
+    EXPECT_EQ(source().lteSource(), FirmwareSourceViewModel::OwnFile); // a file is the own file
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready);
+    EXPECT_TRUE(source().sourceSummary().startsWith(QStringLiteral("lte.hex · LTE application")));
+    EXPECT_FALSE(source().modemNoteVisible());
+    EXPECT_TRUE(flash().haltAvailable());
+    ASSERT_TRUE(load(bundleFile()));
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready);
+    EXPECT_TRUE(source().sourceSummary().contains(QStringLiteral("LTE bundle")));
+    EXPECT_TRUE(source().modemNoteVisible());
+    ASSERT_TRUE(load(modemFile()));
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready);
+    EXPECT_EQ(source().suggestedKind(), -1);
+    EXPECT_TRUE(
+        source().sourceSummary().contains(QStringLiteral("Modem firmware 2.0.2 (modem only)")))
+        << source().sourceSummary().toStdString();
+    EXPECT_TRUE(source().modemNoteVisible());
+    EXPECT_FALSE(flash().haltAvailable());
+    EXPECT_FALSE(source().catalogAvailable()); // no catalog ID on the LTE card
 }
 
 TEST_F(FlashTest, CatalogIdValidation) {
@@ -293,7 +315,7 @@ TEST_F(FlashTest, CatalogIdValidation) {
     source().loadCatalogId(QStringLiteral("zz000000000000000000000000000000"));
     EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::None);
     EXPECT_FALSE(source().catalogIdError().isEmpty());
-    flash().setKind(Kind::ModemFirmware);
+    flash().setKind(Kind::LteFirmware);
     EXPECT_FALSE(source().catalogAvailable());
 }
 
@@ -341,7 +363,8 @@ TEST_F(FlashTest, RecentListIsBoundedPerKindAndRemovable) {
     EXPECT_EQ(recent->entries().size(), RecentSourcesModel::maxEntries);
     source().removeRecent(0);
     EXPECT_NE(recent->sourceAt(0), QStringLiteral("/fw/app-5.hex"));
-    flash().setKind(Kind::ModemFirmware);
+    // 0021 (ADR-0174): stored "modem" entries are shown on the LTE card.
+    flash().setKind(Kind::LteFirmware);
     EXPECT_EQ(recent->count(), 1);
     EXPECT_EQ(recent->data(recent->index(0), RecentSourcesModel::TypeRole).toString(),
               QStringLiteral("Zip archive"));
@@ -443,7 +466,6 @@ TEST_F(FlashTest, ModemFailureIsReported) {
     qputenv("HIO_NRFUTIL", QByteArray(HIO_FAKE_NRFUTIL));
     qputenv("HIO_FAKE_NRFUTIL_MODE", "fail");
     start(probeScenario(R"({"family": "nrf91"})"), QStringLiteral("lte"));
-    flash().setKind(Kind::ModemFirmware);
     ASSERT_TRUE(load(modemFile()));
     ASSERT_TRUE(waitFor([this] { return flash().canFlash(); })); // nRF Util detected
     EXPECT_FALSE(flash().haltAvailable());
@@ -466,7 +488,6 @@ TEST_F(FlashTest, AChangedNrfUtilPathReachesAnOpenSession) {
     tab().connectDevice();
     const QPointer<hio::device::DeviceSession> opened(tab().session());
     ASSERT_FALSE(opened.isNull());
-    flash().setKind(Kind::ModemFirmware);
     ASSERT_TRUE(load(modemFile()));
     ASSERT_TRUE(waitFor([this] { return !flash().prerequisiteText().isEmpty(); }));
     EXPECT_FALSE(flash().canFlash());
@@ -485,10 +506,11 @@ TEST_F(FlashTest, AChangedNrfUtilPathReachesAnOpenSession) {
 
 TEST_F(FlashTest, MissingNrfUtilIsAPrerequisite) {
     start(probeScenario(), QStringLiteral("lte"));
-    flash().setKind(Kind::ModemFirmware);
+    // 0021: the designated LTE firmware (the default source) always contains modem firmware.
+    ASSERT_EQ(source().lteSource(), FirmwareSourceViewModel::Designated);
     ASSERT_TRUE(waitFor([this] { return !flash().prerequisiteText().isEmpty(); }));
     EXPECT_EQ(flash().prerequisiteText(),
-              QStringLiteral("nRF Util was not found. It is needed only for LTE modem firmware."));
+              QStringLiteral("nRF Util was not found. It is needed for LTE firmware."));
     ASSERT_TRUE(load(modemFile()));
     EXPECT_FALSE(flash().canFlash());
     EXPECT_EQ(flash().cannotFlashReason(), QStringLiteral("nRF Util was not found"));
@@ -570,9 +592,6 @@ TEST_F(FlashTest, ConfirmationTexts) {
     const QStringList recoverLteItems = recoverLte.value(QStringLiteral("items")).toStringList();
     ASSERT_EQ(recoverLteItems.size(), 3);
     EXPECT_TRUE(recoverLteItems.at(2).startsWith(QStringLiteral("Product Information Block")));
-    // Modem firmware acts on the LTE MCU as well.
-    flash().setKind(Kind::ModemFirmware);
-    EXPECT_EQ(flash().describeEraseAll().value(QStringLiteral("items")).toStringList().size(), 3);
 }
 
 TEST_F(FlashTest, TheLteMcuHasNoCodeOnlyErase) {
@@ -583,8 +602,6 @@ TEST_F(FlashTest, TheLteMcuHasNoCodeOnlyErase) {
     flash().eraseCode();                        // refused
     EXPECT_EQ(flash().opState(), FlashViewModel::Idle);
     EXPECT_TRUE(tab().busyPage().isEmpty());
-    flash().setKind(Kind::ModemFirmware);
-    EXPECT_FALSE(flash().eraseCodeAvailable());
 }
 
 TEST_F(FlashTest, AConfirmationIsRefusedWhenTheMcuChanged) {
@@ -677,7 +694,6 @@ TEST_F(FlashTest, RetryFlashesTheStoredRequestAfterASourceChange) {
 TEST_F(FlashTest, ADependencyErrorOffersTheSettings) {
     qputenv("HIO_NRFUTIL", QByteArray(HIO_FAKE_NRFUTIL));
     start(probeScenario(R"({"family": "nrf91"})"), QStringLiteral("lte"));
-    flash().setKind(Kind::ModemFirmware);
     ASSERT_TRUE(load(modemFile()));
     ASSERT_TRUE(waitFor([this] { return flash().canFlash(); })); // nRF Util detected
     // nRF Util disappears before the session opens (it is located when the session opens).
@@ -792,6 +808,246 @@ TEST_F(LoaderTest, ARequestDroppedFromTheFullQueueIsAnswered) {
     EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::seconds(5));
     qunsetenv("HIO_FAKE_NRFUTIL_MODE");
     qunsetenv("HIO_FAKE_NRFUTIL_LOG");
+}
+
+// ---- 0021 (ADR-0174 ... ADR-0167) ---------------------------------------------------------------
+
+// The designated LTE firmware: downloaded when its row is shown, verified, then flashed as an LTE
+// bundle; a damaged download says so and [Try again] downloads again. The fixture serves it
+// through the test-only HIO_DESIGNATED_URL / HIO_DESIGNATED_SHA256.
+TEST_F(FlashTest, DesignatedLteFirmware) {
+    hio::firmware::test::HttpFixture http;
+    ASSERT_TRUE(http.listening());
+    // Unique content: the firmware cache of the test data directory never has it yet.
+    const QByteArray modem = hio::firmware::test::zipBytes(
+        {{.name = "firmware.update.image.segments.0.hex", .data = ":00000001FF\n"},
+         {.name = "x" + randomId().toStdString() + ".txt", .data = "x"}});
+    const QByteArray bundle = hio::firmware::test::zipBytes(
+        {{.name = "modem.zip", .data = modem.toStdString()},
+         {.name = "application.hex", .data = hio::firmware::test::toHex(image())}});
+    const QString sha =
+        QString::fromLatin1(QCryptographicHash::hash(bundle, QCryptographicHash::Sha256).toHex());
+    http.set(QStringLiteral("/chester/lte.zip"),
+             hio::firmware::test::HttpFixture::Response::ok(bundle));
+    qputenv("HIO_DESIGNATED_URL", (http.baseUrl() + QStringLiteral("/lte.zip")).toUtf8());
+    qputenv("HIO_DESIGNATED_SHA256", sha.toUtf8());
+    qputenv("HIO_NRFUTIL", QByteArray(HIO_FAKE_NRFUTIL));
+    start(probeScenario(R"({"family": "nrf91"})"), QStringLiteral("lte"));
+    ASSERT_EQ(flash().kind(), Kind::LteFirmware);
+    EXPECT_TRUE(source().designatedAvailable());
+    EXPECT_TRUE(source().designatedActive());
+    EXPECT_EQ(source().designatedTitle(),
+              QStringLiteral("HARDWARIO LTE firmware 1.7.0 (recommended)"));
+    // Nothing is downloaded before the row is shown.
+    EXPECT_EQ(source().designatedState(), FirmwareSourceViewModel::DesignatedIdle);
+    EXPECT_EQ(flash().cannotFlashReason(),
+              QStringLiteral("The LTE firmware is not downloaded yet"));
+    EXPECT_TRUE(source().modemNoteVisible());
+    source().prepareDesignated();
+    EXPECT_EQ(source().designatedState(), FirmwareSourceViewModel::DesignatedDownloading);
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Downloading);
+    ASSERT_TRUE(waitFor([this] {
+        return source().designatedState() != FirmwareSourceViewModel::DesignatedDownloading;
+    }));
+    ASSERT_EQ(source().designatedState(), FirmwareSourceViewModel::DesignatedReady)
+        << source().designatedError().detail().toStdString();
+    EXPECT_EQ(source().designatedStatus(), QStringLiteral("Ready"));
+    EXPECT_EQ(source().sourceName(), QStringLiteral("HARDWARIO LTE firmware 1.7.0"));
+    ASSERT_TRUE(waitFor([this] { return flash().canFlash(); }))
+        << flash().cannotFlashReason().toStdString();
+    flash().flash();
+    ASSERT_EQ(flash().opState(), FlashViewModel::Running);
+    EXPECT_EQ(flash().steps(), 2); // the bundle: modem, then the application
+    ASSERT_TRUE(finished());
+    EXPECT_EQ(flash().opState(), FlashViewModel::Succeeded)
+        << flash().error().detail().toStdString();
+    flash().dismissResult();
+
+    // "Use your own file…": the designated firmware stays downloaded.
+    source().setLteSource(FirmwareSourceViewModel::OwnFile);
+    EXPECT_FALSE(source().designatedActive());
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::None);
+    source().setLteSource(FirmwareSourceViewModel::Designated);
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready);
+
+    // Another tab with a damaged file (another pinned hash): checksum mismatch, Try again.
+    qputenv("HIO_DESIGNATED_SHA256", QByteArray(64, 'a'));
+    app().newTab();
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("lte"), 801000001,
+                                QStringLiteral("Test Probe")));
+    source().prepareDesignated();
+    ASSERT_TRUE(waitFor([this] {
+        return source().designatedState() == FirmwareSourceViewModel::DesignatedFailed;
+    }));
+    EXPECT_EQ(source().designatedError().code(), QStringLiteral("firmware.checksum_mismatch"));
+    EXPECT_EQ(source().designatedError().message(),
+              QStringLiteral("The downloaded file is damaged. Try again."));
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Invalid);
+    EXPECT_EQ(flash().cannotFlashReason(),
+              QStringLiteral("The LTE firmware could not be downloaded"));
+    source().prepareDesignated(); // not after a failure: that needs Try again
+    EXPECT_EQ(source().designatedState(), FirmwareSourceViewModel::DesignatedFailed);
+    qputenv("HIO_DESIGNATED_SHA256", sha.toUtf8());
+    source().retryDesignated();
+    ASSERT_TRUE(waitFor([this] {
+        return source().designatedState() != FirmwareSourceViewModel::DesignatedDownloading;
+    }));
+    EXPECT_EQ(source().designatedState(), FirmwareSourceViewModel::DesignatedReady);
+    EXPECT_FALSE(source().designatedError().valid());
+
+    // A failed download says that an own file works too.
+    qputenv("HIO_DESIGNATED_URL", (http.baseUrl() + QStringLiteral("/missing.zip")).toUtf8());
+    qputenv("HIO_DESIGNATED_SHA256", QByteArray(64, 'b'));
+    app().newTab();
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("lte"), 801000001,
+                                QStringLiteral("Test Probe")));
+    source().prepareDesignated();
+    ASSERT_TRUE(waitFor([this] {
+        return source().designatedState() == FirmwareSourceViewModel::DesignatedFailed;
+    }));
+    EXPECT_EQ(source().designatedError().code(), QStringLiteral("network.download_failed"));
+    EXPECT_TRUE(source().designatedError().suggestion().endsWith(
+        QStringLiteral("You can also choose your own file.")));
+    qunsetenv("HIO_DESIGNATED_URL");
+    qunsetenv("HIO_DESIGNATED_SHA256");
+}
+
+// The catalog page of a valid ID (ADR-0166): name, version and upload date; "Unknown firmware"
+// when the page cannot be read; its SHA-256 verifies the download.
+TEST_F(FlashTest, CatalogInfoOfAnId) {
+    hio::firmware::test::HttpFixture http;
+    ASSERT_TRUE(http.listening());
+    qputenv("HIO_CATALOG_URL", http.baseUrl().toUtf8());
+    const QString id = randomId();
+    const QByteArray hex = QByteArray::fromStdString(hio::firmware::test::toHex(image()));
+    const auto page = [](const QByteArray& sha) {
+        return QByteArrayLiteral(
+                   "<h2>hio-chester-push-fm:v4.0.1</h2><div>download the HEX file:</div>"
+                   "<div>SHA256 checksum: ") +
+               sha +
+               QByteArrayLiteral("</div><div>Upload date/time</div><div>2026-09-07 12:13:53</div>");
+    };
+    http.set(QStringLiteral("/chester/%1").arg(id),
+             hio::firmware::test::HttpFixture::Response::ok(
+                 page(QCryptographicHash::hash(hex, QCryptographicHash::Sha256).toHex())));
+    http.set(QStringLiteral("/chester/%1/hex").arg(id),
+             hio::firmware::test::HttpFixture::Response::ok(hex));
+    start(probeScenario());
+    EXPECT_EQ(source().catalogInfo().value(QStringLiteral("lookupState")).toString(),
+              QStringLiteral("none"));
+    EXPECT_TRUE(source().checkCatalogId(id));
+    EXPECT_EQ(source().catalogInfo().value(QStringLiteral("lookupState")).toString(),
+              QStringLiteral("loading"));
+    EXPECT_EQ(source().catalogInfo().value(QStringLiteral("text")).toString(),
+              QStringLiteral("Looking up the firmware…"));
+    ASSERT_TRUE(waitFor([this] {
+        return source().catalogInfo().value(QStringLiteral("lookupState")).toString() !=
+               QStringLiteral("loading");
+    }));
+    const QVariantMap info = source().catalogInfo();
+    EXPECT_EQ(info.value(QStringLiteral("lookupState")).toString(), QStringLiteral("found"));
+    EXPECT_EQ(info.value(QStringLiteral("name")).toString(), QStringLiteral("hio-chester-push-fm"));
+    EXPECT_EQ(info.value(QStringLiteral("version")).toString(), QStringLiteral("v4.0.1"));
+    EXPECT_EQ(info.value(QStringLiteral("uploaded")).toString(), QStringLiteral("2026-09-07"));
+    EXPECT_EQ(info.value(QStringLiteral("text")).toString(),
+              QStringLiteral("hio-chester-push-fm v4.0.1 · uploaded 2026-09-07"));
+    // The download is verified and named after the page.
+    source().loadCatalogId(id);
+    ASSERT_TRUE(
+        waitFor([this] { return source().sourceState() != FirmwareSourceViewModel::Downloading; }));
+    ASSERT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready)
+        << source().error().code().toStdString();
+    EXPECT_EQ(source().sourceName(), QStringLiteral("hio-chester-push-fm v4.0.1"));
+    EXPECT_EQ(flash().flashSummary(),
+              QStringLiteral("Application firmware · hio-chester-push-fm v4.0.1"));
+
+    // A page that lists another hash: the download is refused as damaged.
+    const QString other = randomId();
+    http.set(QStringLiteral("/chester/%1").arg(other),
+             hio::firmware::test::HttpFixture::Response::ok(page(QByteArray(64, 'c'))));
+    http.set(QStringLiteral("/chester/%1/hex").arg(other),
+             hio::firmware::test::HttpFixture::Response::ok(hex));
+    EXPECT_TRUE(source().checkCatalogId(other));
+    ASSERT_TRUE(waitFor([this] {
+        return source().catalogInfo().value(QStringLiteral("lookupState")).toString() ==
+               QStringLiteral("found");
+    }));
+    source().loadCatalogId(other);
+    ASSERT_TRUE(
+        waitFor([this] { return source().sourceState() != FirmwareSourceViewModel::Downloading; }));
+    EXPECT_EQ(source().error().code(), QStringLiteral("firmware.checksum_mismatch"));
+
+    // No page: unknown firmware (not an error); an invalid ID clears the info.
+    EXPECT_TRUE(source().checkCatalogId(randomId()));
+    ASSERT_TRUE(waitFor([this] {
+        return source().catalogInfo().value(QStringLiteral("lookupState")).toString() !=
+               QStringLiteral("loading");
+    }));
+    EXPECT_EQ(source().catalogInfo().value(QStringLiteral("text")).toString(),
+              QStringLiteral("Unknown firmware — it can still be flashed."));
+    EXPECT_FALSE(source().checkCatalogId(QStringLiteral("12")));
+    EXPECT_EQ(source().catalogInfo().value(QStringLiteral("lookupState")).toString(),
+              QStringLiteral("none"));
+}
+
+// Review F1: a download started while the page lookup still runs waits for it, so the page's hash
+// verifies it (the Recent list, a paste + Enter); a cached HEX is checked against the page too.
+TEST_F(FlashTest, ACatalogDownloadWaitsForTheLookup) {
+    hio::firmware::test::HttpFixture http;
+    ASSERT_TRUE(http.listening());
+    qputenv("HIO_CATALOG_URL", http.baseUrl().toUtf8());
+    const QString id = randomId();
+    const QByteArray hex = QByteArray::fromStdString(hio::firmware::test::toHex(image()));
+    const auto page = [](const QByteArray& sha) {
+        return QByteArrayLiteral("<h2>hio-chester-push-fm:v4.0.1</h2><div>the HEX file:</div>"
+                                 "<div>SHA256 checksum: ") +
+               sha + QByteArrayLiteral("</div>");
+    };
+    http.set(QStringLiteral("/chester/%1/hex").arg(id),
+             hio::firmware::test::HttpFixture::Response::ok(hex));
+    start(probeScenario());
+
+    // No page yet (unknown firmware): the download waits for the lookup, then runs unverified.
+    source().loadCatalogId(id);
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Downloading);
+    EXPECT_EQ(source().catalogInfo().value(QStringLiteral("lookupState")).toString(),
+              QStringLiteral("loading"));
+    ASSERT_TRUE(
+        waitFor([this] { return source().sourceState() != FirmwareSourceViewModel::Downloading; }));
+    ASSERT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready)
+        << source().error().code().toStdString();
+    EXPECT_EQ(http.requests(QStringLiteral("/chester/%1").arg(id)), 1);
+
+    // The page now lists another file: loading the ID again (from Recent: the info is read
+    // anew) waits for the page and refuses the cached HEX as well as the download.
+    http.set(QStringLiteral("/chester/%1").arg(id),
+             hio::firmware::test::HttpFixture::Response::ok(page(QByteArray(64, 'd'))));
+    EXPECT_TRUE(source().checkCatalogId(QString())); // clears the info of the field
+    ASSERT_EQ(source().recent()->sourceAt(0), RecentSourcesModel::catalogPrefix + id);
+    source().loadRecent(0);
+    EXPECT_EQ(source().catalogInfo().value(QStringLiteral("lookupState")).toString(),
+              QStringLiteral("loading"));
+    ASSERT_TRUE(
+        waitFor([this] { return source().sourceState() != FirmwareSourceViewModel::Downloading; }));
+    EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Invalid);
+    EXPECT_EQ(source().error().code(), QStringLiteral("firmware.checksum_mismatch"));
+
+    // Typing another ID while a download waits for its lookup drops that download.
+    const QString other = randomId();
+    source().loadCatalogId(other);
+    ASSERT_EQ(source().sourceState(), FirmwareSourceViewModel::Downloading);
+    EXPECT_TRUE(source().checkCatalogId(randomId()));
+    EXPECT_NE(source().sourceState(), FirmwareSourceViewModel::Downloading);
+    EXPECT_EQ(http.requests(QStringLiteral("/chester/%1/hex").arg(other)), 0);
+}
+
+// ADR-0167: the documentation page of application firmware in the UI language (English here: no
+// LanguageManager in the view model tests).
+TEST_F(FlashTest, DocsUrlFollowsTheLanguage) {
+    start(probeScenario());
+    EXPECT_EQ(source().docsUrl().toString(),
+              QStringLiteral("https://docs.hardwario.com/chester/catalog-applications/"
+                             "catalog-applications/#application-firmware"));
 }
 
 TEST_F(LoaderTest, LoadErrorsAreHioErrors) {

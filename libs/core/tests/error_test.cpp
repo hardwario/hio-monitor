@@ -251,6 +251,20 @@ TEST(ErrorTable, BleCodes) {
     }
 }
 
+// Plan 0021 (ADR-0165, ADR-0166): a downloaded file whose SHA-256 differs from the pinned / listed
+// one; mapped to the firmware exit code.
+TEST(MakeError, ChecksumMismatchCode) {
+    EXPECT_EQ(hio::idOf(ErrorCode::FirmwareChecksumMismatch), "firmware.checksum_mismatch");
+    EXPECT_EQ(hio::categoryOf(ErrorCode::FirmwareChecksumMismatch), ErrorCategory::Firmware);
+    EXPECT_EQ(hio::errorCodeFromId("firmware.checksum_mismatch"),
+              ErrorCode::FirmwareChecksumMismatch);
+    const hio::Error error = hio::makeError(ErrorCode::FirmwareChecksumMismatch);
+    EXPECT_EQ(error.message, "The downloaded firmware is damaged (checksum mismatch).");
+    EXPECT_EQ(error.suggestion, "Try again; if it repeats, report it to HARDWARIO.");
+    EXPECT_FALSE(error.cause.empty());
+    EXPECT_EQ(error.wizard, std::nullopt);
+}
+
 TEST(MakeError, OutputClosedIsCancelledWithItsOwnMessage) {
     const hio::Error error = hio::outputClosedError("the standard output was closed");
     const hio::Error cancelled = hio::makeError(ErrorCode::Cancelled);

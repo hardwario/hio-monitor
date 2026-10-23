@@ -39,6 +39,7 @@ set(HIO_GUI_QML_FILES
     qml/console/ConsoleView.qml
     qml/console/HistoryPopup.qml
     qml/console/ShellInput.qml
+    qml/console/SuggestionList.qml
     qml/dialogs/ReportDialog.qml
     qml/flash/FlashBar.qml
     qml/flash/FlashCard.qml

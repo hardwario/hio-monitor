@@ -207,6 +207,33 @@ TEST_F(ConsoleLineModelTest, FilterHidesRowsButNotMarkers) {
     EXPECT_EQ(model().visibleLines(), 6);
 }
 
+// 0021 (ADR-0171): hexdump lines have their own chip H, off by default; the default chips are no
+// active filter, but the hidden lines show in the counts.
+TEST_F(ConsoleLineModelTest, HexdumpLinesAreHiddenByDefault) {
+    EXPECT_EQ(model().levelMask(), level_bits::defaults);
+    EXPECT_FALSE(model().filterActive());
+    add("<inf> app_lrw: Received:", LogLevel::Info);
+    add("   44 74 4f 34 |DtO4", LogLevel::Hexdump);
+    add("   78 54 |xT", LogLevel::Hexdump);
+    add("shell output", LogLevel::None);
+    model().refresh();
+    EXPECT_EQ(model().totalLines(), 4);
+    EXPECT_EQ(model().visibleLines(), 2);
+    EXPECT_EQ(text(1), QStringLiteral("shell output"));
+    model().setLevelMask(level_bits::defaults | level_bits::hexdump);
+    ASSERT_TRUE(scanDone());
+    EXPECT_TRUE(model().filterActive());
+    EXPECT_EQ(model().visibleLines(), 4);
+    EXPECT_EQ(model().data(model().index(1), ConsoleLineModel::LevelTagRole).toString(),
+              QStringLiteral("H"));
+    EXPECT_EQ(model().data(model().index(1), ConsoleLineModel::LevelRole).toInt(), 5);
+    // Clear filter goes back to the default chips (H off).
+    model().clearFilter();
+    ASSERT_TRUE(scanDone());
+    EXPECT_EQ(model().levelMask(), level_bits::defaults);
+    EXPECT_EQ(model().visibleLines(), 2);
+}
+
 // ADR-0046: an invalid regular expression shows the error and keeps the last valid result.
 TEST_F(ConsoleLineModelTest, InvalidRegexKeepsTheLastValidResult) {
     add("ctr_lte: attach");

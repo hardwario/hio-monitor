@@ -43,6 +43,10 @@ class ConsoleSettings : public QObject {
     Q_PROPERTY(int splitRatio READ splitRatio WRITE setSplitRatio NOTIFY changed)
     Q_PROPERTY(bool stacked READ stacked WRITE setStacked NOTIFY changed)
     Q_PROPERTY(bool logToFile READ logToFile WRITE setLogToFile NOTIFY changed)
+    // 0021 (ADR-0170): the suggestion list while typing; `help` on connect (else on first use).
+    Q_PROPERTY(bool suggestions READ suggestions WRITE setSuggestions NOTIFY changed)
+    Q_PROPERTY(bool readCommandsOnConnect READ readCommandsOnConnect WRITE setReadCommandsOnConnect
+                   NOTIFY changed)
     Q_PROPERTY(int minFontSize READ minFontSize CONSTANT)
     Q_PROPERTY(int maxFontSize READ maxFontSize CONSTANT)
     Q_PROPERTY(QString logFolder READ logFolder CONSTANT)
@@ -59,7 +63,8 @@ public:
     // `store` may be null (QML fallback instance: defaults, writes ignored).
     ConsoleSettings(SettingsStore* store, std::filesystem::path logFolder, QObject* parent);
 
-    // The console/* keys (fontSize, showTimestamps, wrapLines, splitRatio, stacked, logToFile).
+    // The console/* keys (fontSize, showTimestamps, wrapLines, splitRatio, stacked, logToFile;
+    // 0021: suggestions, readCommandsOnConnect).
     static void registerKeys(SettingsStore& store);
 
     // QML singleton factory: the instance created by registerConsolePage (a child of
@@ -78,6 +83,10 @@ public:
     void setStacked(bool stacked);
     [[nodiscard]] bool logToFile() const;
     void setLogToFile(bool log);
+    [[nodiscard]] bool suggestions() const;
+    void setSuggestions(bool enabled);
+    [[nodiscard]] bool readCommandsOnConnect() const;
+    void setReadCommandsOnConnect(bool enabled);
     [[nodiscard]] static int minFontSize() { return minFont; }
     [[nodiscard]] static int maxFontSize() { return maxFont; }
     [[nodiscard]] QString logFolder() const;

@@ -13,6 +13,7 @@
 #include "hio/device/pib.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_registry.h"
+#include "hio/firmware/designated_firmware.h"
 #include "hio/firmware/firmware_cache.h"
 #include "hio/firmware/firmware_catalog.h"
 #include "hio/firmware/firmware_image.h"
@@ -189,6 +190,61 @@ QJsonObject imageJson(const firmware::FirmwareImage& image, std::string_view sou
     return json;
 }
 
+// The catalog of the CHESTER profile with the ADR-0037 limits (plan 0021: + the page lookup).
+std::unique_ptr<firmware::FirmwareCatalog> chesterCatalog(firmware::FirmwareCache* cache) {
+    return std::make_unique<firmware::FirmwareCatalog>(
+        firmware::CatalogOptions{.baseUrl = firmware::catalogBaseUrl(chester().firmwareCatalogUrl),
+                                 .transferTimeout = std::chrono::seconds(60),
+                                 .maxBodyBytes = 32ULL * 1024 * 1024,
+                                 .lookupTimeout = std::chrono::seconds(15),
+                                 .maxPageBytes = 1024ULL * 1024},
+        cache);
+}
+
+// "hio-chester-push-fm v4.0.1 (uploaded 2026-09-07 12:13:53)"
+std::string catalogSummary(const firmware::CatalogInfo& info) {
+    std::string text = std::format("{} {}", info.name, info.version);
+    if (!info.uploaded.empty()) {
+        text += std::format(" (uploaded {})", info.uploaded);
+    }
+    return text;
+}
+
+QJsonObject catalogInfoJson(const firmware::FirmwareId& id, const firmware::CatalogInfo& info) {
+    QJsonObject json;
+    json.insert(QStringLiteral("id"), toQString(id.value()));
+    json.insert(QStringLiteral("name"), toQString(info.name));
+    json.insert(QStringLiteral("version"), toQString(info.version));
+    json.insert(QStringLiteral("uploaded"), info.uploaded.empty()
+                                                ? QJsonValue(QJsonValue::Null)
+                                                : QJsonValue(toQString(info.uploaded)));
+    json.insert(QStringLiteral("sha256"), info.sha256
+                                              ? QJsonValue(toQString(firmware::toHex(*info.sha256)))
+                                              : QJsonValue(QJsonValue::Null));
+    return json;
+}
+
+// ---- app catalog-info (plan 0021) ------------------------------------------------------------
+
+Result<CommandResult> catalogInfo(const Context& context, const std::string& idText) {
+    auto id = firmware::FirmwareId::parse(idText);
+    if (!id) {
+        return std::unexpected(std::move(id).error());
+    }
+    auto catalog = chesterCatalog(nullptr);
+    auto operation = catalog->lookup(*id, context.stop);
+    auto info = firmware::waitForLookup(*operation);
+    if (!info) {
+        return std::unexpected(std::move(info).error());
+    }
+    std::string human =
+        std::format("Name:     {}\nVersion:  {}\nUploaded: {}\nSHA-256:  {}", info->name,
+                    info->version, info->uploaded.empty() ? "-" : info->uploaded,
+                    info->sha256 ? firmware::toHex(*info->sha256) : "-");
+    return CommandResult{
+        .data = catalogInfoJson(*id, *info), .humanText = std::move(human), .streamed = false};
+}
+
 // ---- app flash -------------------------------------------------------------------------------
 
 struct AppFlashOptions {
@@ -228,13 +284,25 @@ Result<LoadedImage> loadAppImage(const Context& context, const AppFlashOptions& 
         return std::unexpected(std::move(firmwareId).error());
     }
     firmware::FirmwareCache cache(firmware::FirmwareCache::defaultDirectory());
-    firmware::FirmwareCatalog catalog(
-        firmware::CatalogOptions{.baseUrl = firmware::catalogBaseUrl(chester().firmwareCatalogUrl),
-                                 .transferTimeout = std::chrono::seconds(60),
-                                 .maxBodyBytes = 32ULL * 1024 * 1024},
-        &cache);
-    auto operation = catalog.download(
-        *firmwareId, firmware::DownloadOptions{.noCache = options.noCache},
+    auto catalog = chesterCatalog(&cache);
+    // Plan 0021 (ADR-0166): the name and version from the catalog page; its SHA-256 verifies the
+    // download. An unreadable page does not stop the flash (the HEX download is authoritative).
+    auto lookup = catalog->lookup(*firmwareId, context.stop);
+    auto info = firmware::waitForLookup(*lookup);
+    if (!info && info.error().code == ErrorCode::Cancelled) {
+        return std::unexpected(std::move(info).error());
+    }
+    if (info) {
+        ui.info(std::format("Firmware {}: {}", firmwareId->value(), catalogSummary(*info)));
+    } else {
+        qCInfo(lcCli).noquote() << "Catalog page not read:" << toQString(info.error().detail);
+        ui.info(std::format("Firmware {}: unknown firmware (the catalog page could not be read)",
+                            firmwareId->value()));
+    }
+    auto operation = catalog->download(
+        *firmwareId,
+        firmware::DownloadOptions{.noCache = options.noCache,
+                                  .expectedSha256 = info ? info->sha256 : std::nullopt},
         [&ui](std::uint64_t done, std::uint64_t total) { ui.progress("downloading", done, total); },
         context.stop);
     auto downloaded = firmware::waitForDownload(*operation);
@@ -251,6 +319,11 @@ Result<LoadedImage> loadAppImage(const Context& context, const AppFlashOptions& 
     QJsonObject json = imageJson(*downloaded->image, "catalog", QStringLiteral("id"),
                                  toQString(firmwareId->value()));
     json.insert(QStringLiteral("cached"), downloaded->fromCache);
+    // Plan 0021: what the catalog page says (null when it could not be read).
+    json.insert(QStringLiteral("name"),
+                info ? QJsonValue(toQString(info->name)) : QJsonValue(QJsonValue::Null));
+    json.insert(QStringLiteral("version"),
+                info ? QJsonValue(toQString(info->version)) : QJsonValue(QJsonValue::Null));
     return LoadedImage{.image = downloaded->image, .json = std::move(json)};
 }
 
@@ -465,25 +538,90 @@ Result<fs::path> checkNrfUtil(const GlobalOptions& globals, ProgressUi& ui) {
     return info->executable;
 }
 
+// The designated LTE firmware of the CHESTER profile (ADR-0165; always present in the profile).
+const firmware::DesignatedFirmware& designatedLte() {
+    static const firmware::DesignatedFirmware none{};
+    const std::optional<firmware::DesignatedFirmware>& entry = targetOf("lte").designatedFirmware;
+    return entry.has_value() ? *entry : none;
+}
+
+// Plan 0021 (ADR-0165): the designated LTE firmware of the profile, downloaded (or taken from the
+// cache) and SHA-256 verified.
+Result<firmware::DesignatedDownload> downloadDesignated(const Context& context, ProgressUi& ui,
+                                                        bool noCache) {
+    const firmware::DesignatedFirmware& designated = designatedLte();
+    firmware::FirmwareCache cache(firmware::FirmwareCache::defaultDirectory());
+    auto catalog = chesterCatalog(&cache);
+    auto operation = catalog->downloadDesignated(
+        designated, firmware::DownloadOptions{.noCache = noCache, .expectedSha256 = std::nullopt},
+        [&ui](std::uint64_t done, std::uint64_t total) { ui.progress("downloading", done, total); },
+        context.stop);
+    auto downloaded = firmware::waitForDownload(*operation);
+    ui.finish();
+    if (!downloaded) {
+        return std::unexpected(std::move(downloaded).error());
+    }
+    for (const Error& warning : downloaded->warnings) {
+        ui.warning(warning);
+    }
+    ui.info(std::format("{} {} ({}, {}, SHA-256 verified)", designated.name, designated.version,
+                        downloaded->fromCache ? "cached" : "downloaded",
+                        kib(downloaded->fileBytes)));
+    return downloaded;
+}
+
 Result<CommandResult> lteFlash(const Context& context, const GlobalOptions& globals,
                                const ProbeOptions& group, const ProbeOptions& own,
-                               const std::string& file, bool allowUicr) {
-    const fs::path path = toPath(file);
-    std::error_code ec;
-    if (!fs::exists(path, ec)) {
-        return std::unexpected(
-            usage(QStringLiteral("The file %1 does not exist.").arg(toQString(file)), file));
-    }
-    auto input = firmware::classifyLteInput(path);
-    if (!input) {
-        return std::unexpected(std::move(input).error());
-    }
+                               const std::string& file, bool allowUicr, bool noCache) {
     ProgressUi ui(context, std::cerr, stderrIsTerminal());
+    const fs::path path = toPath(file);
+    // Without FILE: the designated firmware (a verified bundle); otherwise the classified file.
+    std::optional<firmware::DesignatedDownload> designated;
+    std::optional<firmware::LteInput> input;
+    std::optional<fs::path> nrfUtil;
+    if (file.empty()) {
+        // The designated bundle always contains modem firmware: nRF Util first (ADR-0042).
+        auto checked = checkNrfUtil(globals, ui);
+        if (!checked) {
+            return std::unexpected(std::move(checked).error());
+        }
+        nrfUtil = *checked;
+        auto downloaded = downloadDesignated(context, ui, noCache);
+        if (!downloaded) {
+            return std::unexpected(std::move(downloaded).error());
+        }
+        designated = std::move(*downloaded);
+    } else {
+        if (noCache) {
+            // Review F10: only the designated firmware is cached; said, not an error.
+            qCWarning(lcCli) << "--no-cache has no effect with a FILE";
+            std::cerr << "Warning: --no-cache has no effect with a FILE (it applies to the "
+                         "downloaded HARDWARIO LTE firmware only).\n";
+        }
+        std::error_code ec;
+        if (!fs::exists(path, ec)) {
+            return std::unexpected(
+                usage(QStringLiteral("The file %1 does not exist.").arg(toQString(file)), file));
+        }
+        auto classified = firmware::classifyLteInput(path);
+        if (!classified) {
+            return std::unexpected(std::move(classified).error());
+        }
+        input = std::move(*classified);
+    }
     const device::FlashOptions flash{.halt = false, .allowUicr = allowUicr};
     QJsonObject image;
     StartFn start;
-    std::optional<fs::path> nrfUtil;
-    if (auto* bundle = std::get_if<firmware::LteBundle>(&*input)) {
+    if (designated) {
+        const firmware::DesignatedFirmware& entry = designatedLte();
+        image = imageJson(designated->bundle->application, "designated", QStringLiteral("name"),
+                          toQString(entry.name));
+        image.insert(QStringLiteral("version"), toQString(entry.version));
+        image.insert(QStringLiteral("cached"), designated->fromCache);
+        start = [shared = designated->bundle, flash](device::DeviceSession& session) {
+            return session.flashLteBundle("lte", shared, flash);
+        };
+    } else if (auto* bundle = std::get_if<firmware::LteBundle>(&*input)) {
         ui.info(std::format("Bundle: modem firmware {} + application.hex ({})",
                             toUtf8(path.filename()), kib(bundle->application.totalBytes())));
         auto checked = checkNrfUtil(globals, ui);
@@ -585,6 +723,19 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
     flash->callback([&slot, &globals, group, flashOptions] {
         slot.command = [&globals, group, flashOptions](const Context& context) {
             return appFlash(context, globals, *group, *flashOptions);
+        };
+    });
+
+    // Plan 0021 (ADR-0166): what a catalog ID is, from the public catalog page.
+    auto catalogId = std::make_shared<std::string>();
+    CLI::App* catalogInfoCommand = appGroup.add_subcommand(
+        "catalog-info", "Show the name, version, upload time and SHA-256 of a catalog firmware");
+    catalogInfoCommand->add_option("id", *catalogId, "The 32-digit firmware ID")
+        ->required()
+        ->option_text("ID");
+    catalogInfoCommand->callback([&slot, catalogId] {
+        slot.command = [catalogId](const Context& context) {
+            return catalogInfo(context, *catalogId);
         };
     });
 
@@ -700,22 +851,28 @@ void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
         ProbeOptions probe;
         std::string file;
         bool allowUicr = false;
+        bool noCache = false;
     };
     auto flashOptions = std::make_shared<FlashOptions>();
     CLI::App* flash = lte->add_subcommand(
-        "flash", "Flash a CHESTER LTE bundle (modem firmware + application), a Nordic modem "
-                 "firmware zip or an application HEX file");
-    flash->add_option("file", flashOptions->file, "Bundle (.zip), modem firmware (.zip) or .hex")
-        ->required()
+        "flash", "Flash the HARDWARIO LTE firmware (downloaded and verified when no FILE is "
+                 "given), or a CHESTER LTE bundle, a Nordic modem firmware zip or an application "
+                 "HEX file");
+    flash
+        ->add_option("file", flashOptions->file,
+                     "Bundle (.zip), modem firmware (.zip) or .hex (default: the designated "
+                     "HARDWARIO LTE firmware)")
         ->option_text("FILE");
     flash->add_flag(
         "--allow-uicr", flashOptions->allowUicr,
         "Also program the image's UICR records (the Product Information Block is kept)");
+    flash->add_flag("--no-cache", flashOptions->noCache,
+                    "Download the HARDWARIO LTE firmware even when it is cached");
     addProbeOptions(*flash, flashOptions->probe);
     flash->callback([&slot, &globals, group, flashOptions] {
         slot.command = [&globals, group, flashOptions](const Context& context) {
             return lteFlash(context, globals, *group, flashOptions->probe, flashOptions->file,
-                            flashOptions->allowUicr);
+                            flashOptions->allowUicr, flashOptions->noCache);
         };
     });
 

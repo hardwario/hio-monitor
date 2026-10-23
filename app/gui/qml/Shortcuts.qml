@@ -33,7 +33,7 @@ Item {
 
     Shortcut {
         sequence: shortcuts.registry.portableText("settings.open")
-        onActivated: AppViewModel.openGlobalPage("settings")
+        onActivated: AppViewModel.openSettings("")
     }
 
     Shortcut {

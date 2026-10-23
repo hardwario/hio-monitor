@@ -44,6 +44,16 @@ ErrorInfo::ErrorInfo(const Error& error)
       m_wizard(toJson(error).value(QStringLiteral("wizard")).toString()),
       m_primaryAction(error_action::forCategory(categoryOf(error.code))) {}
 
+QString ErrorInfo::settingsSection() const {
+    if (m_code.startsWith(QStringLiteral("dependency.jlink"))) {
+        return QStringLiteral("jlink");
+    }
+    if (m_code.startsWith(QStringLiteral("dependency.nrfutil"))) {
+        return QStringLiteral("nrfutil");
+    }
+    return {};
+}
+
 QString ErrorInfo::detailsText() const {
     if (m_detail.isEmpty()) {
         return m_code;

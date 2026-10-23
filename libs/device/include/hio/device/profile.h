@@ -7,6 +7,7 @@
 //
 // Adding a device = one new file in src/profiles/ + one registration line in profile.cpp + tests.
 
+#include "hio/firmware/designated_firmware.h"
 #include "hio/firmware/firmware_image.h"
 #include "hio/hw/jlink/programmer.h"
 
@@ -75,6 +76,18 @@ struct TargetProfile {
 
     // ---- wizards (M4, ADR-0077) ----
     std::span<const ConnectionGuideStep> connectionGuide; // cabling steps, in order
+
+    // ---- plan 0021 (ADR-0165) ----
+    // The firmware HARDWARIO supports for this target, downloaded and SHA-256 verified by
+    // FirmwareCatalog::downloadDesignated (CHESTER `lte`: the LTE bundle); nullopt = none.
+    std::optional<firmware::DesignatedFirmware> designatedFirmware = std::nullopt;
+};
+
+// A URL for one UI language (ADR-0167): `language` is a BCP 47 primary language subtag ("en",
+// "cs").
+struct LocalizedUrl {
+    std::string_view language;
+    std::string_view url;
 };
 
 // BLE facts of a device (ADR-0089, plan 0011 B3). Matching rule (ADR-0142, amends ADR-0083): the
@@ -101,6 +114,10 @@ struct DeviceProfile {
     std::string_view powerHintSourceText;
     // M5 (ADR-0089): devices without BLE leave it empty.
     std::optional<BleProfile> ble = std::nullopt;
+    // Plan 0021 (ADR-0167): the documentation page listing the application firmware, per UI
+    // language; English first (the fallback). Empty = no link. firmwareCatalogUrl stays the
+    // download base (ADR-0037).
+    std::span<const LocalizedUrl> firmwareDocsUrl;
 };
 
 // Size of the Product Information Block.
@@ -134,6 +151,12 @@ public:
 [[nodiscard]] QString powerHint(const DeviceProfile& profile);
 // The translated BLE passkey hint of a profile ("" without BLE; ADR-0084).
 [[nodiscard]] QString passkeyHint(const DeviceProfile& profile);
+
+// The firmware docs URL of `profile` for `language` ("cs", "cs_CZ", "en-US": the primary subtag is
+// compared); the first (English) entry for other languages; "" when the profile has none
+// (ADR-0167).
+[[nodiscard]] std::string_view firmwareDocsUrlFor(const DeviceProfile& profile,
+                                                  std::string_view language) noexcept;
 
 // The PIB address range of `target`.
 [[nodiscard]] firmware::AddressRange pibRange(const TargetProfile& target) noexcept;

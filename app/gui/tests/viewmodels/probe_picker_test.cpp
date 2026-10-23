@@ -15,6 +15,8 @@
 #include <QModelIndex>
 #include <QSignalSpy>
 #include <QString>
+#include <QVariantMap>
+#include <QtContainerFwd>
 #include <QtEnvironmentVariables>
 
 #include <gtest/gtest.h>
@@ -286,8 +288,17 @@ TEST_F(ProbePickerTest, ProfilesAndTargets) {
     EXPECT_EQ(picker.targetId(), QStringLiteral("lte"));
     picker.setTargetId(QStringLiteral("nope"));
     EXPECT_EQ(picker.targetId(), QStringLiteral("lte"));
-    EXPECT_EQ(ProbePickerViewModel::targetTitle(QStringLiteral("app")),
-              QStringLiteral("Application MCU (app)"));
+    EXPECT_EQ(ProbePickerViewModel::targetTitle(QStringLiteral("chester"), QStringLiteral("app")),
+              QStringLiteral("Application MCU (nRF52840)"));
+    EXPECT_EQ(ProbePickerViewModel::targetTitle(QStringLiteral("chester"), QStringLiteral("lte")),
+              QStringLiteral("LTE MCU (nRF9151 / nRF9160)"));
+    // 0021 (ADR-0168): the picker shows the id; the long title is the tooltip.
+    const QVariantMap first = picker.targets().at(0).toMap();
+    EXPECT_EQ(first.value(QStringLiteral("label")).toString(), QStringLiteral("app"));
+    EXPECT_EQ(first.value(QStringLiteral("title")).toString(),
+              QStringLiteral("Application MCU (nRF52840)"));
+    EXPECT_EQ(picker.targets().at(1).toMap().value(QStringLiteral("label")).toString(),
+              QStringLiteral("lte"));
 }
 
 } // namespace

@@ -133,7 +133,7 @@ Item {
                 Layout.fillWidth: true
                 error: page.picker.libraryError
                 primaryAction: ErrorAction.OpenSettings
-                onActionTriggered: AppViewModel.openGlobalPage("settings")
+                onActionTriggered: AppViewModel.openSettings("jlink")
             }
 
             // Probe list card.
@@ -377,10 +377,13 @@ Item {
 
                                     objectName: "targetButton"
                                     kind: page.picker.targetId === modelData.id ? "primary" : "normal"
-                                    text: modelData.title
+                                    // 0021 (ADR-0168): the id; the long title is the tooltip.
+                                    text: modelData.label
+                                    toolTipText: modelData.title
                                     checkable: true
                                     checked: page.picker.targetId === modelData.id
                                     Accessible.role: Accessible.RadioButton
+                                    Accessible.description: modelData.title
                                     onClicked: page.picker.targetId = modelData.id
                                 }
                             }

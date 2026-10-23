@@ -104,6 +104,8 @@ int levelBit(device::LogLevel level) noexcept {
         return level_bits::warning;
     case device::LogLevel::Error:
         return level_bits::error;
+    case device::LogLevel::Hexdump:
+        return level_bits::hexdump;
     case device::LogLevel::None:
         break;
     }

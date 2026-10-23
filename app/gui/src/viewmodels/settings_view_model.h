@@ -95,7 +95,8 @@ class SettingsViewModel : public QObject {
     Q_PROPERTY(QString aboutText READ aboutText NOTIFY aboutChanged)
     Q_PROPERTY(QVariantList licences READ licences NOTIFY languageChanged)
     Q_PROPERTY(QString documentationUrl READ documentationUrl CONSTANT)
-    Q_PROPERTY(QString catalogUrl READ catalogUrl CONSTANT)
+    // 0021 (ADR-0167): the documentation page of application firmware in the UI language.
+    Q_PROPERTY(QString catalogUrl READ catalogUrl NOTIFY languageChanged)
     Q_PROPERTY(QString sourceUrl READ sourceUrl CONSTANT)
     Q_PROPERTY(QString nrfUtilInstallUrl READ nrfUtilInstallUrl CONSTANT)
 
@@ -162,7 +163,7 @@ public:
     [[nodiscard]] QString aboutText() const;
     [[nodiscard]] static QVariantList licences();
     [[nodiscard]] static QString documentationUrl();
-    [[nodiscard]] static QString catalogUrl();
+    [[nodiscard]] QString catalogUrl() const;
     [[nodiscard]] static QString sourceUrl();
     [[nodiscard]] static QString nrfUtilInstallUrl();
 

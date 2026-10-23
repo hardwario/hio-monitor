@@ -36,7 +36,7 @@ target_compile_definitions(hio_cli_tests PRIVATE ${HIO_TEST_OVERRIDES_DEFINE})
 # is uninstrumented Qt code, see libs/firmware/tests/CMakeLists.txt).
 set(_hio_cli_test_filter "")
 if("thread" IN_LIST HIO_SANITIZERS)
-    set(_hio_cli_test_filter TEST_FILTER "-FlashCli.FlashByCatalogId:FlashCli.CatalogNetworkDown")
+    set(_hio_cli_test_filter TEST_FILTER "-FlashCli.FlashByCatalogId:FlashCli.CatalogNetworkDown:FlashCli.LteFlashDesignatedFirmware:FlashCli.CatalogInfoAndVerifiedIdFlash")
 endif()
 gtest_discover_tests(hio_cli_tests
     DISCOVERY_TIMEOUT 60

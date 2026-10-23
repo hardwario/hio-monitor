@@ -382,6 +382,10 @@ QString AppViewModel::language() const {
     return m_languageManager ? m_languageManager->language() : QStringLiteral("system");
 }
 
+QString AppViewModel::effectiveLanguage() const {
+    return m_languageManager ? m_languageManager->effectiveLanguage() : QStringLiteral("en");
+}
+
 void AppViewModel::setLanguage(const QString& code) {
     if (!m_languageManager) {
         qCWarning(lcGui) << "setLanguage" << code << "ignored: no LanguageManager";
@@ -407,15 +411,28 @@ void AppViewModel::setTheme(const QString& theme) {
 }
 
 void AppViewModel::setCurrentTab(int index) {
-    if (index < 0 || index >= m_tabs->count()) {
+    if (index < 0 || index >= m_tabs->rowTotal()) {
         return;
     }
+    if (index < m_tabs->count()) {
+        m_lastDeviceTab = index;
+    }
     if (index != m_currentTab) {
+        const QString page = globalPage();
         m_currentTab = index;
         currentTabChanged(); // signal
+        if (page != globalPage()) {
+            globalPageChanged(); // signal: the Settings tab became current or was left
+        }
         saveTabs();
     }
-    closeGlobalPage();
+}
+
+QString AppViewModel::globalPage() const {
+    // 0021 (ADR-0172): the Settings tab hosts the global page.
+    return m_tabs->settingsOpen() && m_currentTab == m_tabs->settingsRow()
+               ? QStringLiteral("settings")
+               : QString();
 }
 
 DeviceTabViewModel* AppViewModel::currentTabViewModel() const { return m_tabs->at(m_currentTab); }
@@ -474,8 +491,14 @@ std::unique_ptr<DeviceTabViewModel> AppViewModel::makeTab() {
 
 DeviceTabViewModel* AppViewModel::addTab(std::unique_ptr<DeviceTabViewModel> tab) {
     DeviceTabViewModel* raw = tab.get();
+    const bool settingsCurrent = m_tabs->settingsOpen() && m_currentTab == m_tabs->settingsRow();
     if (!m_tabs->append(std::move(tab))) {
         return nullptr;
+    }
+    if (settingsCurrent) {
+        // 0021 review F2: the new device row was inserted before the Settings row, which stays
+        // current (its index moved); a following setCurrentTab() then notifies the change.
+        m_currentTab = m_tabs->settingsRow();
     }
     connect(raw, &DeviceTabViewModel::configurationChanged, this, [this] {
         saveTabs();
@@ -504,6 +527,10 @@ void AppViewModel::newTab() {
 }
 
 void AppViewModel::closeTab(int index, bool force) {
+    if (index >= 0 && index == m_tabs->settingsRow()) {
+        closeSettings(); // 0021 (ADR-0172)
+        return;
+    }
     DeviceTabViewModel* tab = m_tabs->at(index);
     if (tab == nullptr) {
         return;
@@ -544,6 +571,8 @@ void AppViewModel::removeTab(int index) {
     tab->setParent(this);
     tab.release()->deleteLater();
 
+    const bool settingsCurrent =
+        m_tabs->settingsOpen() && m_currentTab == m_tabs->settingsRow() + 1;
     if (m_tabs->count() == 0) {
         (void)addTab(makeTab()); // the last tab leaves one empty Choose device tab
     }
@@ -551,7 +580,11 @@ void AppViewModel::removeTab(int index) {
     if (index < current) {
         --current;
     }
-    current = std::clamp(current, 0, m_tabs->count() - 1);
+    if (index < m_lastDeviceTab) {
+        --m_lastDeviceTab;
+    }
+    m_lastDeviceTab = std::clamp(m_lastDeviceTab, 0, m_tabs->count() - 1);
+    current = settingsCurrent ? m_tabs->settingsRow() : std::clamp(current, 0, m_tabs->count() - 1);
     m_currentTab = -1; // force the notification: another tab is at the index now
     setCurrentTab(current);
     saveTabs();
@@ -561,39 +594,60 @@ void AppViewModel::removeTab(int index) {
 }
 
 void AppViewModel::nextTab() {
-    if (m_tabs->count() > 1) {
-        setCurrentTab((m_currentTab + 1) % m_tabs->count());
+    // 0021 (ADR-0172): the Settings tab is cycled like any tab.
+    const int rows = m_tabs->rowTotal();
+    if (rows > 1) {
+        setCurrentTab((m_currentTab + 1) % rows);
     }
 }
 
 void AppViewModel::previousTab() {
-    if (m_tabs->count() > 1) {
-        setCurrentTab((m_currentTab + m_tabs->count() - 1) % m_tabs->count());
+    const int rows = m_tabs->rowTotal();
+    if (rows > 1) {
+        setCurrentTab((m_currentTab + rows - 1) % rows);
     }
 }
 
 void AppViewModel::showPage(const QString& pageId) {
+    if (!globalPage().isEmpty()) {
+        // A per-tab page from the Settings tab: back to the last device tab.
+        setCurrentTab(std::clamp(m_lastDeviceTab, 0, m_tabs->count() - 1));
+    }
     if (DeviceTabViewModel* tab = currentTabViewModel(); tab != nullptr && !tab->choosing()) {
         tab->setCurrentPage(pageId);
     }
-    closeGlobalPage();
 }
 
 void AppViewModel::openGlobalPage(const QString& pageId) {
+    // 0021 (ADR-0172): the only global page, Settings, is a tab now.
     const PageDescriptor* page = m_pages.find(pageId);
-    if (page == nullptr || !page->global || pageId == m_globalPage) {
+    if (page == nullptr || !page->global) {
         return;
     }
-    m_globalPage = pageId;
-    globalPageChanged(); // signal
+    openSettings();
 }
 
-void AppViewModel::closeGlobalPage() {
-    if (m_globalPage.isEmpty()) {
+void AppViewModel::closeGlobalPage() { closeSettings(); }
+
+void AppViewModel::openSettings(const QString& sectionId) {
+    m_tabs->openSettings();
+    setCurrentTab(m_tabs->settingsRow());
+    m_settingsSection = sectionId;
+    settingsSectionRequested(sectionId); // signal: the page scrolls to the section
+}
+
+void AppViewModel::closeSettings() {
+    if (!m_tabs->settingsOpen()) {
         return;
     }
-    m_globalPage.clear();
-    globalPageChanged(); // signal
+    const bool wasCurrent = m_currentTab == m_tabs->settingsRow();
+    m_tabs->closeSettings();
+    m_settingsSection.clear();
+    if (wasCurrent) {
+        m_currentTab = -1; // force the notification
+        setCurrentTab(std::clamp(m_lastDeviceTab, 0, m_tabs->count() - 1));
+        globalPageChanged(); // signal
+    }
 }
 
 QObject* AppViewModel::globalPageViewModel(const QString& pageId) const {
@@ -686,6 +740,7 @@ void AppViewModel::restoreTabs() {
         (void)addTab(makeTab()); // first start: one Choose device tab
     }
     m_currentTab = std::clamp(current, 0, m_tabs->count() - 1);
+    m_lastDeviceTab = m_currentTab;
     m_restoring = false;
 }
 
@@ -701,7 +756,7 @@ void AppViewModel::saveTabs() {
         if (tab->choosing() || !serial) {
             continue;
         }
-        if (i == m_currentTab) {
+        if (i == m_currentTab || (m_currentTab == m_tabs->settingsRow() && i == m_lastDeviceTab)) {
             current = static_cast<int>(tabs.size());
         }
         tabs.append(QJsonObject{{QStringLiteral("profile"), tab->profileId()},
@@ -927,7 +982,9 @@ QJsonArray AppViewModel::tabsJson() const {
 void AppViewModel::onHandOff(const QString& action, DeviceTabViewModel* tab) {
     qCInfo(lcGui).noquote() << "Wizard hand-off:" << action;
     if (action.startsWith(QStringLiteral("open-settings"))) {
-        openGlobalPage(QStringLiteral("settings"));
+        // "open-settings[:<section>]" (0021: the Settings tab scrolls to the section).
+        const qsizetype colon = action.indexOf(QLatin1Char(':'));
+        openSettings(colon >= 0 ? action.mid(colon + 1) : QString());
         return;
     }
     if (tab == nullptr) {
@@ -948,6 +1005,7 @@ void AppViewModel::onHandOff(const QString& action, DeviceTabViewModel* tab) {
 
 void AppViewModel::retranslate() {
     m_pageList->retranslate();
+    m_tabs->retranslate();
     m_shortcuts->retranslate();
     for (int i = 0; i < m_tabs->count(); ++i) {
         m_tabs->at(i)->retranslate();

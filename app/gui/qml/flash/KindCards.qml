@@ -1,6 +1,7 @@
-// Flash step 1 (ADR-0055): "What do you want to flash?" - three radio cards (application, LTE,
-// modem firmware), stacked below 1000 px window width; prerequisite problems (nRF Util) and the
-// connector warning (ADR-0057 Phase 0) appear inline below the cards.
+// Flash step 1 (ADR-0055; amended by 0021, ADR-0174): "What do you want to flash?" - two radio
+// cards (application firmware, LTE firmware incl. the modem), stacked below 1000 px window width;
+// prerequisite problems (nRF Util) and the connector warning (ADR-0057 Phase 0) appear inline below
+// the cards.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -18,7 +19,7 @@ FlashCard {
 
     GridLayout {
         Layout.fillWidth: true
-        columns: AppViewModel.windowWidth < 1000 ? 1 : 3
+        columns: AppViewModel.windowWidth < 1000 ? 1 : 2
         columnSpacing: Theme.spacingS
         rowSpacing: Theme.spacingS
         Accessible.role: Accessible.Grouping
@@ -148,7 +149,7 @@ FlashCard {
             HButton {
                 objectName: "prerequisiteSettings"
                 text: qsTr("Set path in Settings")
-                onClicked: AppViewModel.openGlobalPage("settings")
+                onClicked: AppViewModel.openSettings("nrfutil")
             }
 
             HButton {

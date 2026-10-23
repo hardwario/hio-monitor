@@ -1,4 +1,5 @@
-// The global Settings page (Ctrl+,; plan/features/0006-m3-flash-settings.md, ADR-0059): the
+// The global Settings page (Ctrl+,; plan/features/0006-m3-flash-settings.md, ADR-0059; shown by the
+// Settings tab, 0021 ADR-0172): the
 // sections registered in the PageRegistry (General, Console by 0005, J-Link, nRF Util, About), each
 // under its title. Changes apply immediately; invalid input shows an inline error and is not saved.
 // A settings file of a newer version is read-only: a banner and all controls disabled.
@@ -15,9 +16,36 @@ Item {
     property DeviceTabViewModel tab
     property SettingsViewModel vm
 
+    // 0021 (ADR-0172): scrolls to a section ("Open Settings" of an error panel, a wizard link).
+    function showSection(sectionId: string) {
+        if (sectionId === "")
+            return;
+        for (let i = 0; i < sections.count; ++i) {
+            const item = sections.itemAt(i);
+            if (item !== null && item.objectName === "section_" + sectionId) {
+                const flickable = scroll.contentItem as Flickable;
+                flickable.contentY = Math.max(0, Math.min(item.y, flickable.contentHeight - flickable.height));
+                AppViewModel.clearSettingsSection(); // used: never re-applied later (review F8)
+                return;
+            }
+        }
+    }
+
     objectName: "settingsPage"
     onVisibleChanged: if (page.visible && page.vm) page.vm.pageShown()
-    onVmChanged: if (page.visible && page.vm) page.vm.pageShown()
+    onVmChanged: {
+        if (page.visible && page.vm)
+            page.vm.pageShown();
+        Qt.callLater(page.showSection, AppViewModel.settingsSection);
+    }
+
+    Connections {
+        target: AppViewModel
+
+        function onSettingsSectionRequested(sectionId: string) {
+            Qt.callLater(page.showSection, sectionId);
+        }
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -56,6 +84,7 @@ Item {
         ScrollView {
             id: scroll
 
+            objectName: "settingsScroll"
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentWidth: availableWidth
@@ -79,6 +108,8 @@ Item {
                 }
 
                 Repeater {
+                    id: sections
+
                     model: page.vm ? page.vm.sections : []
 
                     delegate: ColumnLayout {

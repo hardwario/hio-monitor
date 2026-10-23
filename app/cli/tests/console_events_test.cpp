@@ -47,6 +47,9 @@ TEST(ConsoleEvents, LineJson) {
               QStringLiteral("[00:00:01.234,000] <inf> app: Build version: v3.1.0"));
     EXPECT_TRUE(
         hio::cli::lineEventJson(logLine(LogLevel::None)).value(QStringLiteral("level")).isNull());
+    // Plan 0021 (ADR-0171): hexdump continuation lines.
+    EXPECT_EQ(hio::cli::lineEventJson(logLine(LogLevel::Hexdump)).value(QStringLiteral("level")),
+              QStringLiteral("hex"));
 }
 
 TEST(ConsoleEvents, ConnectionJson) {

@@ -3,10 +3,10 @@
 // RecentSourcesModel - the Flash page's recent firmware sources
 // (plan/features/0006-m3-flash-settings.md, D1): a list model over the setting flash/recent (a JSON
 // list of {kind, source, time}, most recent first, at most maxEntries for all kinds together),
-// filtered to one kind ("app", "lte", "modem"). `source` is a file path or "catalog:<id>". Every
-// instance reads the shared key and follows its changes (SettingsStore::valueChanged), so the Flash
-// pages of all tabs and the flash wizard (0010) show the same list. An unreadable value counts as
-// an empty list.
+// filtered to one kind ("app", "lte"; amended by 0021: stored "modem" entries are read as "lte").
+// `source` is a file path or "catalog:<id>". Every instance reads the shared key and follows its
+// changes (SettingsStore::valueChanged), so the Flash pages of all tabs and the flash wizard (0010)
+// show the same list. An unreadable value counts as an empty list.
 //
 // Ownership: child of its FirmwareSourceViewModel (Qt parent). GUI thread only.
 

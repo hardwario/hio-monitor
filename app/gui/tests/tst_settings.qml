@@ -110,7 +110,11 @@ TestCase {
 
     function test_defaultSpeed() {
         const vm = AppViewModel.globalPageViewModel("settings");
+        // 0021 (ADR-0172): "Open Settings" scrolls to the section.
+        AppViewModel.openSettings("jlink");
         const automatic = find("defaultAutoSpeed");
+        tryVerify(() => automatic.mapToItem(window.contentItem, 0, 0).y + automatic.height < window.height);
+        waitForRendering(window.contentItem);
         const speedBox = find("defaultSpeedBox");
         verify(automatic.checked);
         verify(!speedBox.enabled);

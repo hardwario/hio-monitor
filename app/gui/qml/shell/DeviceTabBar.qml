@@ -1,5 +1,7 @@
 // Device tab strip (ADR-0043): state dot + "CHESTER app · 683012345" + close ×, "+" at the end
-// (Ctrl+T; disabled at 8 tabs with a tooltip). Middle-click closes a tab.
+// (Ctrl+T; disabled at 8 tabs with a tooltip). Middle-click closes a tab. Amended by 0021
+// (ADR-0172): while open, the Settings tab (gear icon, "Settings", no state dot) follows the
+// device tabs.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -38,6 +40,8 @@ Rectangle {
                 required property int index
                 required property DeviceTabViewModel tab
                 required property string title
+                required property string tabKind
+                readonly property bool settingsTab: tabButton.tabKind === "settings"
                 readonly property bool selected: tabButton.index === AppViewModel.currentTab
                 // The model clears `tab` when the row is removed; keep the last one until the
                 // delegate is destroyed.
@@ -49,7 +53,7 @@ Rectangle {
                     restoreMode: Binding.RestoreNone
                 }
 
-                objectName: "deviceTab"
+                objectName: tabButton.settingsTab ? "settingsTab" : "deviceTab"
                 Layout.alignment: Qt.AlignBottom
                 Layout.fillWidth: true
                 Layout.minimumWidth: 96
@@ -60,7 +64,8 @@ Rectangle {
                 focusPolicy: Qt.StrongFocus
                 checkable: false
                 Accessible.role: Accessible.PageTab
-                Accessible.name: tabButton.title + ", " + (tabButton.stableTab ? tabButton.stableTab.connection.stateText : "")
+                Accessible.name: tabButton.settingsTab ? tabButton.title
+                                 : tabButton.title + ", " + (tabButton.stableTab ? tabButton.stableTab.connection.stateText : "")
                 Accessible.selected: tabButton.selected
                 onClicked: AppViewModel.currentTab = tabButton.index
 
@@ -95,8 +100,16 @@ Rectangle {
                     spacing: Theme.spacingS
 
                     StateDot {
+                        visible: !tabButton.settingsTab
                         kind: !tabButton.stableTab || tabButton.stableTab.state === DeviceTabViewModel.ChoosingDevice
                               ? "idle" : tabButton.stableTab.connection.stateKind
+                    }
+
+                    Icon {
+                        visible: tabButton.settingsTab
+                        symbol: "settings"
+                        size: 16
+                        color: tabButton.selected ? Theme.text : Theme.textMuted
                     }
 
                     Label {

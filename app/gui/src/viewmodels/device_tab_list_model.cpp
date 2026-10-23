@@ -4,10 +4,12 @@
 
 #include <QAbstractListModel>
 #include <QByteArray>
+#include <QCoreApplication>
 #include <QHash>
 #include <QModelIndex>
 #include <QObject>
 #include <QQmlEngine>
+#include <QString>
 #include <QVariant>
 
 #include <algorithm>
@@ -19,10 +21,26 @@ namespace hio::gui {
 DeviceTabListModel::DeviceTabListModel(QObject* parent) : QAbstractListModel(parent) {}
 
 int DeviceTabListModel::rowCount(const QModelIndex& parent) const {
-    return parent.isValid() ? 0 : count();
+    return parent.isValid() ? 0 : rowTotal();
 }
 
 QVariant DeviceTabListModel::data(const QModelIndex& index, int role) const {
+    if (index.isValid() && index.row() == settingsRow()) {
+        switch (role) {
+        case TabRole:
+            return QVariant::fromValue(static_cast<DeviceTabViewModel*>(nullptr));
+        case TitleRole:
+            return QCoreApplication::translate("Pages", "Settings");
+        case StateRole:
+            return 0;
+        case HasErrorRole:
+            return false;
+        case KindRole:
+            return QStringLiteral("settings");
+        default:
+            return {};
+        }
+    }
     DeviceTabViewModel* tab = at(index.row());
     if (!index.isValid() || tab == nullptr) {
         return {};
@@ -36,14 +54,45 @@ QVariant DeviceTabListModel::data(const QModelIndex& index, int role) const {
         return static_cast<int>(tab->state());
     case HasErrorRole:
         return tab->hasError();
+    case KindRole:
+        return QStringLiteral("device");
     default:
         return {};
     }
 }
 
 QHash<int, QByteArray> DeviceTabListModel::roleNames() const {
-    return {
-        {TabRole, "tab"}, {TitleRole, "title"}, {StateRole, "state"}, {HasErrorRole, "hasError"}};
+    return {{TabRole, "tab"},
+            {TitleRole, "title"},
+            {StateRole, "state"},
+            {HasErrorRole, "hasError"},
+            {KindRole, "tabKind"}};
+}
+
+void DeviceTabListModel::openSettings() {
+    if (m_settingsOpen) {
+        return;
+    }
+    beginInsertRows({}, count(), count());
+    m_settingsOpen = true;
+    endInsertRows();
+    settingsOpenChanged(); // signal
+}
+
+void DeviceTabListModel::closeSettings() {
+    if (!m_settingsOpen) {
+        return;
+    }
+    beginRemoveRows({}, count(), count());
+    m_settingsOpen = false;
+    endRemoveRows();
+    settingsOpenChanged(); // signal
+}
+
+void DeviceTabListModel::retranslate() {
+    if (m_settingsOpen) {
+        dataChanged(index(settingsRow()), index(settingsRow()), {TitleRole}); // signal
+    }
 }
 
 DeviceTabViewModel* DeviceTabListModel::at(int index) const {

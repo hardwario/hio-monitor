@@ -105,15 +105,18 @@ void ConnectionViewModel::setTargetId(const QString& id) {
 }
 
 QString ConnectionViewModel::targetTitle() const {
-    return ProbePickerViewModel::targetTitle(targetId());
+    return ProbePickerViewModel::targetTitle(m_tab->profileId(), targetId());
 }
 
 QVariantList ConnectionViewModel::targets() const {
     QVariantList list;
     for (const device::TargetProfile& target : m_tab->profile().targets) {
         const QString id = toQString(target.id);
-        list.append(QVariantMap{{QStringLiteral("id"), id},
-                                {QStringLiteral("title"), ProbePickerViewModel::targetTitle(id)}});
+        // 0021 (ADR-0168): pickers show the id ("label"); the long title is the tooltip.
+        list.append(QVariantMap{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("label"), id},
+            {QStringLiteral("title"), ProbePickerViewModel::targetTitle(m_tab->profileId(), id)}});
     }
     return list;
 }

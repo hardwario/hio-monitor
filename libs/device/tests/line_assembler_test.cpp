@@ -174,3 +174,74 @@ TEST(ConsoleLineIds, Stable) {
 }
 
 } // namespace
+
+// ---- plan 0021 (ADR-0171): hexdump continuation lines ---------------------------------------
+
+namespace {
+
+// Zephyr LOG_HEXDUMP_INF output as CHESTER prints it on the Logger channel (log_output.c
+// hexdump_line_print: the prefix indentation, 16 "%02x " groups with an extra space after the 8th,
+// '|', 16 characters with a space after the 8th; a short last line padded with spaces).
+constexpr std::string_view recordedHexdump =
+    "[00:00:12.345,000] <inf> app_lrw: Received:\r\n"
+    "                                 44 74 4f 34 78 54 73 31  4b 36 69 41 73 41 53 4a "
+    "|DtO4xTs1 K6iAsASJ\r\n"
+    "                                 00 01 02 0a ff 7f 20 41  42 43                   "
+    "|...... A BC      \r\n"
+    "[00:00:12.346,000] <wrn> app_lrw: next\r\n";
+
+TEST(Hexdump, ContinuationLinesGetTheirOwnLevel) {
+    LineAssembler assembler(Channel::Log, false);
+    const auto lines = feed(assembler, recordedHexdump);
+    ASSERT_EQ(lines.size(), 4U);
+    EXPECT_EQ(lines[0].level, LogLevel::Info); // the header keeps its level
+    EXPECT_EQ(lines[1].level, LogLevel::Hexdump);
+    EXPECT_EQ(lines[2].level, LogLevel::Hexdump);
+    EXPECT_EQ(lines[3].level, LogLevel::Warning);
+    EXPECT_EQ(lines[1].channel, Channel::Log);
+    // The text is kept unchanged (search, copy, save).
+    EXPECT_EQ(lines[1].text,
+              "                                 44 74 4f 34 78 54 73 31  4b 36 69 41 "
+              "73 41 53 4a |DtO4xTs1 K6iAsASJ");
+}
+
+TEST(Hexdump, ShellLinesAreNotClassified) {
+    LineAssembler shell(Channel::Shell, false);
+    const auto lines = feed(shell, "  44 74 |Dt\n");
+    ASSERT_EQ(lines.size(), 1U);
+    EXPECT_EQ(lines[0].level, LogLevel::None);
+    EXPECT_EQ(lines[0].channel, Channel::Shell);
+}
+
+TEST(Hexdump, HashPrefixedContinuation) {
+    LineAssembler chester(Channel::Shell, true);
+    const auto lines = feed(chester, "#   01 02 |..\n");
+    ASSERT_EQ(lines.size(), 1U);
+    EXPECT_EQ(lines[0].channel, Channel::Log);
+    EXPECT_EQ(lines[0].level, LogLevel::Hexdump);
+}
+
+TEST(Hexdump, NearMissesAreNotHexdumps) {
+    using hio::device::isHexdumpLine;
+    EXPECT_TRUE(isHexdumpLine("  44 |D"));
+    EXPECT_TRUE(isHexdumpLine("\t44 74 |"));
+    EXPECT_TRUE(
+        isHexdumpLine("  44 74 4f 34 78 54 73 31  4b 36 69 41 73 41 53 4a |DtO4xTs1 K6iAsASJ"));
+    EXPECT_FALSE(isHexdumpLine("44 74 |Dt"));                           // not indented
+    EXPECT_FALSE(isHexdumpLine("  44 74"));                             // no '|'
+    EXPECT_FALSE(isHexdumpLine("  |abc"));                              // no hex group
+    EXPECT_FALSE(isHexdumpLine("  4 74 |Dt"));                          // one digit
+    EXPECT_FALSE(isHexdumpLine("  447 4 |Dt"));                         // three digits
+    EXPECT_FALSE(isHexdumpLine("  4g 74 |Dt"));                         // not hex
+    EXPECT_FALSE(isHexdumpLine("  44 74 |DtO4xTs1 K6iAsASJ and more")); // too many characters
+    EXPECT_FALSE(isHexdumpLine("  00000000: 44 74 |Dt"));               // shell_hexdump (offset)
+    EXPECT_FALSE(isHexdumpLine("  value 44 |x"));                       // words
+    EXPECT_FALSE(isHexdumpLine("  44 74 |D\x01"));                      // non-printable
+    EXPECT_FALSE(isHexdumpLine(""));
+    // 17 groups are not a hexdump line (16 bytes per line).
+    EXPECT_FALSE(isHexdumpLine("  00 01 02 03 04 05 06 07  08 09 0a 0b 0c 0d 0e 0f 10 |x"));
+}
+
+TEST(Hexdump, LevelId) { EXPECT_EQ(hio::device::levelId(LogLevel::Hexdump), "hex"); }
+
+} // namespace

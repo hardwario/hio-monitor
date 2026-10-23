@@ -29,6 +29,9 @@ enum class LogLevel : std::uint8_t {
     Info,
     Warning,
     Error,
+    // Plan 0021 (ADR-0171): a Zephyr LOG_HEXDUMP continuation line (no tag of its own; the header
+    // line keeps its level). Hidden by default in the GUI log view (chip H).
+    Hexdump,
 };
 
 struct ConsoleLine {
@@ -43,7 +46,8 @@ struct ConsoleLine {
 // Stable lowercase ids used in JSON and console files.
 [[nodiscard]] std::string_view channelId(Channel channel) noexcept;       // "shell", "log"
 [[nodiscard]] std::string_view directionId(Direction direction) noexcept; // "out", "in", "marker"
-[[nodiscard]] std::optional<std::string_view> levelId(LogLevel level) noexcept; // "dbg" ... or none
+// "dbg", "inf", "wrn", "err", "hex" (ADR-0171), or none.
+[[nodiscard]] std::optional<std::string_view> levelId(LogLevel level) noexcept;
 
 } // namespace hio::device
 

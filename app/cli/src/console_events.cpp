@@ -93,6 +93,7 @@ std::string humanLine(const device::ConsoleLine& line, bool colors) {
         color = yellow;
         break;
     case device::LogLevel::Debug:
+    case device::LogLevel::Hexdump: // ADR-0171: muted, like debug lines
         color = dim;
         break;
     case device::LogLevel::Info:

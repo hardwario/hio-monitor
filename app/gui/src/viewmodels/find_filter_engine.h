@@ -47,7 +47,11 @@ inline constexpr int debug = 1;
 inline constexpr int info = 2;
 inline constexpr int warning = 4;
 inline constexpr int error = 8;
-inline constexpr int all = debug | info | warning | error;
+// 0021 (ADR-0171): Zephyr hexdump continuation lines (chip H), off by default.
+inline constexpr int hexdump = 16;
+inline constexpr int all = debug | info | warning | error | hexdump;
+// The chips of a new view: everything but hexdump lines.
+inline constexpr int defaults = debug | info | warning | error;
 } // namespace level_bits
 
 struct TextQuery {

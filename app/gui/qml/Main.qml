@@ -1,6 +1,6 @@
 // Main window of HARDWARIO Monitor (ADR-0043, ADR-0061): device tab strip on top, per tab the
-// rail, the device bar and the page area; global pages (Settings) replace the device bar and page
-// area. Presentation only (ADR-0003): all data and actions come from AppViewModel.
+// rail, the device bar and the page area; the Settings tab (0021, ADR-0172) shows the Settings page
+// over the full width (no rail, no device bar). Presentation only (ADR-0003): all data and actions come from AppViewModel.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -71,6 +71,7 @@ ApplicationWindow {
             NavRail {
                 objectName: "navRail"
                 Layout.fillHeight: true
+                visible: AppViewModel.globalPage === ""
             }
 
             Item {
@@ -86,7 +87,21 @@ ApplicationWindow {
                     Repeater {
                         model: AppViewModel.tabs
 
-                        delegate: TabView {}
+                        // 0021 (ADR-0172): the Settings row has no device view (an empty slot
+                        // keeps the indexes of the StackLayout).
+                        delegate: Loader {
+                            id: slot
+
+                            required property DeviceTabViewModel tab
+                            required property int index
+                            required property string tabKind
+
+                            active: slot.tabKind === "device"
+                            sourceComponent: TabView {
+                                tab: slot.tab
+                                index: slot.index
+                            }
+                        }
                     }
                 }
 
@@ -95,13 +110,16 @@ ApplicationWindow {
 
                     objectName: "globalPage"
                     anchors.fill: parent
-                    active: AppViewModel.globalPage !== ""
-                    source: AppViewModel.pages.qml(AppViewModel.globalPage)
+                    // 0021 review F8: alive while the Settings tab is open (scroll position and
+                    // half-typed fields survive switching tabs), shown while it is current.
+                    active: AppViewModel.tabs.settingsOpen
+                    visible: AppViewModel.globalPage !== ""
+                    source: AppViewModel.pages.qml("settings")
 
                     Binding {
                         target: globalPageLoader.item
                         property: "vm"
-                        value: AppViewModel.globalPageViewModel(AppViewModel.globalPage)
+                        value: AppViewModel.globalPageViewModel("settings")
                         when: globalPageLoader.status === Loader.Ready
                     }
                 }

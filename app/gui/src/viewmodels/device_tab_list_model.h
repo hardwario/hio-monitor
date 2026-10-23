@@ -3,6 +3,10 @@
 // DeviceTabListModel - the device tabs of the window (plan/features/0004-m3-gui-shell.md, B2;
 // ADR-0043): at most maxTabs (= SessionRegistry::maxSessions) DeviceTabViewModels.
 //
+// Amended by 0021 (ADR-0172): while Settings is open, one non-device row of kind "settings" follows
+// the device tabs (row settingsRow(); tab = null). It is not counted in count() / the limit and is
+// never stored in ui/tabs. at(i), indexOf() and take() address device tabs only.
+//
 // Ownership: the tabs are Qt children of this model; take() hands a removed tab to the caller
 // (AppViewModel deletes it on the next event-loop turn, after QML has dropped its delegate).
 // Owned by AppViewModel (Qt parent). GUI thread only.
@@ -33,8 +37,9 @@ class DeviceTabListModel : public QAbstractListModel {
     QML_ELEMENT
     QML_UNCREATABLE("Owned by AppViewModel")
 
-    Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(int count READ count NOTIFY countChanged) // device tabs
     Q_PROPERTY(bool canAdd READ canAdd NOTIFY countChanged)
+    Q_PROPERTY(bool settingsOpen READ settingsOpen NOTIFY settingsOpenChanged)
 
 public:
     static constexpr std::size_t maxTabs = device::SessionRegistry::maxSessions;
@@ -45,6 +50,7 @@ public:
         TitleRole,
         StateRole,
         HasErrorRole,
+        KindRole, // 0021: "device" | "settings" (QML role "tabKind")
     };
     Q_ENUM(Roles)
 
@@ -56,6 +62,15 @@ public:
 
     [[nodiscard]] int count() const { return static_cast<int>(m_tabs.size()); }
     [[nodiscard]] bool canAdd() const { return m_tabs.size() < maxTabs; }
+    // 0021 (ADR-0172): the Settings row (after the device tabs), -1 while it is closed.
+    [[nodiscard]] bool settingsOpen() const noexcept { return m_settingsOpen; }
+    [[nodiscard]] int settingsRow() const { return m_settingsOpen ? count() : -1; }
+    // All rows: the device tabs and the Settings row.
+    [[nodiscard]] int rowTotal() const { return count() + (m_settingsOpen ? 1 : 0); }
+    void openSettings();
+    void closeSettings();
+    // A live language switch (the Settings row's title).
+    void retranslate();
     // nullptr for an invalid index.
     Q_INVOKABLE [[nodiscard]] hio::gui::DeviceTabViewModel* at(int index) const;
     [[nodiscard]] int indexOf(const DeviceTabViewModel* tab) const;
@@ -67,11 +82,13 @@ public:
 
 signals:
     void countChanged();
+    void settingsOpenChanged();
 
 private:
     void watch(DeviceTabViewModel* tab);
 
     std::vector<DeviceTabViewModel*> m_tabs; // children
+    bool m_settingsOpen = false;
 };
 
 } // namespace hio::gui

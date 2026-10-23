@@ -92,7 +92,7 @@ class ConsoleLineModel : public QAbstractListModel {
 public:
     enum Roles : quint16 {           // NOLINT(cppcoreguidelines-use-enum-class)
         TextRole = Qt::UserRole + 1, // shown text ("> " before a sent command), ≤ 4 KiB
-        LevelRole,                   // 0 none, 1 D, 2 I, 3 W, 4 E (device::LogLevel)
+        LevelRole,                   // 0 none, 1 D, 2 I, 3 W, 4 E, 5 H (device::LogLevel)
         DirectionRole,               // 0 out, 1 in (sent command), 2 marker
         TimeRole,                    // "HH:mm:ss.zzz" (local time)
         SeqRole,
@@ -100,7 +100,7 @@ public:
         SelectedRole,     // the row is selected
         CurrentMatchRole, // the row is the current match
         MatchRangesRole,  // [{start, length}, …] of the matches in `text` (≤ 64); [] when none
-        LevelTagRole,     // "D", "I", "W", "E" or ""
+        LevelTagRole,     // "D", "I", "W", "E", "H" or ""
     };
     Q_ENUM(Roles)
 
@@ -242,8 +242,8 @@ private:
     // valid query in effect (ADR-0046).
     TextQuery m_filterQuery;
     TextQuery m_filterApplied;
-    int m_levelMask = level_bits::all;
-    LineFilter m_filter; // compiled from m_filterApplied and m_levelMask
+    int m_levelMask = level_bits::defaults; // 0021 (ADR-0171): H off
+    LineFilter m_filter;                    // compiled from m_filterApplied and m_levelMask
     QString m_filterError;
     TextQuery m_findQuery;
     TextQuery m_findApplied;

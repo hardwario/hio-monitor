@@ -92,7 +92,7 @@ add_dependencies(hio_gui_tests hio_fake_jlink hio_fake_jlink_incomplete hio_fake
 # libs/firmware/tests (Qt's HTTP thread is uninstrumented; plan/features/0003, review R11).
 set(_hio_gui_test_filter "")
 if("thread" IN_LIST HIO_SANITIZERS)
-    set(_hio_gui_test_filter TEST_FILTER "-FlashTest.CatalogDownloadAndErrors")
+    set(_hio_gui_test_filter TEST_FILTER "-FlashTest.CatalogDownloadAndErrors:FlashTest.DesignatedLteFirmware:FlashTest.CatalogInfoOfAnId:FlashTest.ACatalogDownloadWaitsForTheLookup")
 endif()
 gtest_discover_tests(hio_gui_tests
     DISCOVERY_TIMEOUT 60

@@ -275,6 +275,43 @@ TestCase {
         verify(find("tabStack").visible);
     }
 
+    // 0021 (ADR-0172): the rail item opens Settings as a tab (gear, no state dot, no rail, no
+    // device bar); clicking it again switches to it; × closes it; it is not a device tab.
+    function test_settingsTab() {
+        verify(!find("settingsTab"));
+        const railSettings = findAll(find("navRail"), "railItem").filter(item => item.text === "Settings" && item.visible)[0];
+        verify(railSettings !== undefined);
+        click(railSettings);
+        compare(AppViewModel.globalPage, "settings");
+        tryVerify(() => find("settingsTab") !== null);
+        const tab = find("settingsTab");
+        verify(tab.selected);
+        compare(findChild(tab, "tabTitle").text, "Settings");
+        verify(!find("navRail").visible);
+        verify(!find("tabStack").visible);
+        tryVerify(() => find("settingsPage") !== null);
+        compare(AppViewModel.tabs.count, 1); // not a device tab
+        // A device tab and back: the Settings tab stays until closed.
+        click(find("deviceTab"));
+        verify(find("navRail").visible);
+        verify(find("settingsTab") !== null);
+        click(railSettings);
+        verify(find("settingsTab").selected);
+        // Review F8: the page survives switching tabs (same object, same scroll position).
+        const page = find("settingsPage");
+        const flickable = findChild(page, "settingsScroll").contentItem;
+        flickable.contentY = 100;
+        click(find("deviceTab"));
+        click(railSettings);
+        compare(find("settingsPage"), page);
+        compare(flickable.contentY, 100);
+        compare(AppViewModel.settingsSection, "");
+        click(findChild(find("settingsTab"), "tabClose"));
+        tryVerify(() => !find("settingsTab"));
+        verify(find("navRail").visible);
+        verify(find("tabStack").visible);
+    }
+
     function test_shortcutOverlayFromRail() {
         // M4 (plan 0007): the rail's Help item opens the Help menu; its first item the overlay.
         click(find("railHelp"));

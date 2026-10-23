@@ -77,6 +77,7 @@ TestCase {
         const vm = testSupport.flashPage(0);
         vm.kind = kind;
         vm.source.clear();
+        vm.source.lteSource = FirmwareSourceViewModel.Designated;
         tryVerify(() => find("kindCard0") !== null && find("kindCard0").width > 100, 5000);
         return vm;
     }
@@ -115,18 +116,19 @@ TestCase {
         vm.kind = FirmwareSourceViewModel.LteFirmware;
         save("f04-flash-wrong-connector");
 
-        // LTE bundle on an LTE tab, nRF Util missing (prerequisite).
+        // 0021: the designated LTE firmware on an LTE tab, nRF Util missing (prerequisite).
         vm = freshTab("lte", FirmwareSourceViewModel.LteFirmware);
+        tryVerify(() => vm.source.designatedState === FirmwareSourceViewModel.DesignatedReady, 10000);
+        tryVerify(() => vm.prerequisiteText !== "", 10000);
+        save("f05-flash-lte-designated");
+
+        // 0021: an own LTE bundle, then modem firmware (the LTE card's own file).
         vm.source.loadFile(testSupport.writeBundle());
         tryVerify(() => vm.source.sourceState === FirmwareSourceViewModel.Ready, 10000);
-        tryVerify(() => vm.prerequisiteText !== "", 10000);
-        save("f05-flash-lte-bundle");
-
-        // Modem firmware, nRF Util missing.
-        vm.kind = FirmwareSourceViewModel.ModemFirmware;
+        save("f06-flash-lte-own-bundle");
         vm.source.loadFile(testSupport.writeModemZip());
         tryVerify(() => vm.source.sourceState === FirmwareSourceViewModel.Ready, 10000);
-        save("f06-flash-modem-nrfutil-missing");
+        save("f06b-flash-lte-own-modem");
 
         // Progress (slow verify), then cancel.
         testSupport.useScenario(slowScenario);

@@ -29,6 +29,7 @@
 
 #include "hio/core/error.h"
 #include "hio/core/result.h"
+#include "hio/device/command_tree.h"
 #include "hio/device/operation.h"
 #include "viewmodels/console_line_model.h"
 #include "viewmodels/console_settings.h"
@@ -40,6 +41,8 @@
 #include <QStringList>
 #include <QTimer>
 #include <QUrl>
+#include <QVariantList>
+#include <QVariantMap>
 #include <QtQmlIntegration>
 #include <QtTypes>
 
@@ -101,6 +104,9 @@ class ConsoleViewModel : public QObject {
     // The page width (set by the page); below stackBreakpoint the split stacks (ADR-0061).
     Q_PROPERTY(int pageWidth READ pageWidth WRITE setPageWidth NOTIFY layoutChanged)
     Q_PROPERTY(bool stackedLayout READ stackedLayout NOTIFY layoutChanged)
+    // 0021 (ADR-0170): the device command tree is being read ("Reading commands from the
+    // device…"). Always false until plan 0021 phase 2 (ShellQuery) learns the tree.
+    Q_PROPERTY(bool readingCommands READ readingCommands NOTIFY commandTreeChanged)
 
 public:
     static constexpr int stackBreakpoint = 1000; // ADR-0061
@@ -153,6 +159,14 @@ public:
     // Ctrl+R: newest first, unique, case-insensitive substring; ≤ max (50).
     Q_INVOKABLE [[nodiscard]] QStringList historySearch(const QString& text,
                                                         int max = historySearchMax) const;
+    // 0021 (ADR-0170), device::Completer over the tab's history and command tree:
+    // the automatic list - [{text, label, help, kind: "command" | "history"}], ≤ 50 rows;
+    Q_INVOKABLE [[nodiscard]] QVariantList suggestions(const QString& text) const;
+    // the ghost text source without a list - the newest history entry that extends `text` ("" =
+    // none);
+    Q_INVOKABLE [[nodiscard]] QString suggestion(const QString& text) const;
+    // Tab with the list closed - {replacement, candidates}.
+    Q_INVOKABLE [[nodiscard]] QVariantMap complete(const QString& text) const;
     Q_INVOKABLE void runBatch(const QUrl& file);
     Q_INVOKABLE void stopBatch();
     // channelMask: 1 = shell, 2 = log, 3 = both.
@@ -172,6 +186,11 @@ public:
 
     // Tests: reads the log into the models now (normally on the 50 ms timer).
     void refreshNow();
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static): state in plan 0021 phase 2
+    [[nodiscard]] bool readingCommands() const noexcept { return false; }
+    // The device command tree used for suggestions (nullopt = none known). Plan 0021 phase 2
+    // fills it from CommandTreeCache / ShellQuery; tests set it directly.
+    void setCommandTree(std::optional<device::CommandTree> tree);
     // Lines the session dropped (DeviceSession::linesDropped; saturating).
     void addDroppedLines(quint64 count);
     [[nodiscard]] BatchRunner& batchRunner() { return *m_batch; }
@@ -187,6 +206,7 @@ signals:
     void followingChanged();
     void pausedChanged();
     void layoutChanged();
+    void commandTreeChanged();
     // Throttled (≤ 1 per 2 s) text for the screen reader: the newest shell output line.
     void announce(const QString& text);
 
@@ -223,6 +243,7 @@ private:
     std::optional<device::OperationId> m_resetOperation;
     bool m_resetHalt = false;
     std::shared_ptr<SharedHistory> m_history;
+    std::optional<device::CommandTree> m_commandTree; // 0021: learned in phase 2
     // History walk: m_historyIndex == entries().size() means "not navigating". A revision that
     // differs from the history's (another tab added a command, another history, the first use)
     // starts the walk again from the newest entry.

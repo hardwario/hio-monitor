@@ -3,6 +3,7 @@
 #include "gui_log.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
+#include "hio/device/completer.h"
 #include "hio/device/console_file_sink.h"
 #include "settings_store.h"
 #include "viewmodels/app_view_model.h"
@@ -35,6 +36,9 @@ const QString wrapKey = QStringLiteral("console/wrapLines");
 const QString splitKey = QStringLiteral("console/splitRatio");
 const QString stackedKey = QStringLiteral("console/stacked");
 const QString logToFileKey = QStringLiteral("console/logToFile");
+// 0021 (ADR-0170): shared with the CLI console (device::suggestionsSetting, ...).
+const QString suggestionsKey = toQString(device::suggestionsSetting.path);
+const QString readCommandsKey = toQString(device::readCommandsOnConnectSetting.path);
 
 } // namespace
 
@@ -68,6 +72,14 @@ void ConsoleSettings::registerKeys(SettingsStore& store) {
             .path = stackedKey, .type = QMetaType::Bool, .defaultValue = false, .validator = {}},
         SettingKey{
             .path = logToFileKey, .type = QMetaType::Bool, .defaultValue = true, .validator = {}},
+        SettingKey{.path = suggestionsKey,
+                   .type = QMetaType::Bool,
+                   .defaultValue = device::suggestionsSetting.defaultValue,
+                   .validator = {}},
+        SettingKey{.path = readCommandsKey,
+                   .type = QMetaType::Bool,
+                   .defaultValue = device::readCommandsOnConnectSetting.defaultValue,
+                   .validator = {}},
     };
     store.registerKeys(keys);
 }
@@ -101,6 +113,26 @@ void ConsoleSettings::write(const QString& key, const QVariant& value) {
         qCWarning(lcGui) << "Console setting not saved:" << key
                          << toQString(written.error().message);
         changed(); // signal: the controls show the stored value again
+    }
+}
+
+bool ConsoleSettings::suggestions() const {
+    return read(suggestionsKey, device::suggestionsSetting.defaultValue).toBool();
+}
+
+void ConsoleSettings::setSuggestions(bool enabled) {
+    if (enabled != suggestions()) {
+        write(suggestionsKey, enabled);
+    }
+}
+
+bool ConsoleSettings::readCommandsOnConnect() const {
+    return read(readCommandsKey, device::readCommandsOnConnectSetting.defaultValue).toBool();
+}
+
+void ConsoleSettings::setReadCommandsOnConnect(bool enabled) {
+    if (enabled != readCommandsOnConnect()) {
+        write(readCommandsKey, enabled);
     }
 }
 

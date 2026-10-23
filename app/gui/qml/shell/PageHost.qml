@@ -27,7 +27,7 @@ Item {
             compact: Window.window !== null && Window.window.height < 700
             secondaryActionText: host.tab.connection.canChooseAnotherProbe ? qsTr("Choose another probe") : ""
             onSecondaryActionTriggered: host.tab.connection.chooseAnotherProbe()
-            onActionTriggered: action => action === ErrorAction.OpenSettings ? AppViewModel.openGlobalPage("settings")
+            onActionTriggered: action => action === ErrorAction.OpenSettings ? AppViewModel.openSettings(host.tab.connection.error.settingsSection)
                                                                                : host.tab.connection.triggerErrorAction(action)
         }
 

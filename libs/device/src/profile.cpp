@@ -86,6 +86,16 @@ QString passkeyHint(const DeviceProfile& profile) {
     return QCoreApplication::translate("hio::device", profile.ble->passkeyHintSourceText);
 }
 
+std::string_view firmwareDocsUrlFor(const DeviceProfile& profile,
+                                    std::string_view language) noexcept {
+    if (profile.firmwareDocsUrl.empty()) {
+        return {};
+    }
+    const std::string_view primary = language.substr(0, language.find_first_of("_-"));
+    const auto it = std::ranges::find(profile.firmwareDocsUrl, primary, &LocalizedUrl::language);
+    return it == profile.firmwareDocsUrl.end() ? profile.firmwareDocsUrl.front().url : it->url;
+}
+
 firmware::AddressRange pibRange(const TargetProfile& target) noexcept {
     const std::uint64_t start = target.uicr.start + target.pibOffset;
     return firmware::AddressRange{.start = start, .end = start + pibSize};

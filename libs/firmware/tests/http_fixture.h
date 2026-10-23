@@ -11,6 +11,8 @@
 #include <QString>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QTimer>
+#include <QtTypes>
 
 #include <memory>
 #include <utility>
@@ -24,18 +26,39 @@ public:
         QByteArray body;
         QByteArray location; // Location header (redirects)
         bool hang = false;   // accept the request and never answer
+        int trickleMs = 0;   // > 0: the headers at once, then one body byte per trickleMs
 
         static Response ok(QByteArray body) {
-            return {.status = 200, .body = std::move(body), .location = {}, .hang = false};
+            return {.status = 200,
+                    .body = std::move(body),
+                    .location = {},
+                    .hang = false,
+                    .trickleMs = 0};
         }
         static Response withStatus(int code, QByteArray body = {}) {
-            return {.status = code, .body = std::move(body), .location = {}, .hang = false};
+            return {.status = code,
+                    .body = std::move(body),
+                    .location = {},
+                    .hang = false,
+                    .trickleMs = 0};
         }
         static Response redirect(QByteArray location) {
-            return {.status = 302, .body = {}, .location = std::move(location), .hang = false};
+            return {.status = 302,
+                    .body = {},
+                    .location = std::move(location),
+                    .hang = false,
+                    .trickleMs = 0};
         }
         static Response hanging() {
-            return {.status = 0, .body = {}, .location = {}, .hang = true};
+            return {.status = 0, .body = {}, .location = {}, .hang = true, .trickleMs = 0};
+        }
+        // Plan 0021 (review F9): a slow server that keeps sending.
+        static Response trickling(QByteArray body, int intervalMs) {
+            return {.status = 200,
+                    .body = std::move(body),
+                    .location = {},
+                    .hang = false,
+                    .trickleMs = intervalMs};
         }
     };
 
@@ -75,8 +98,26 @@ private:
                 if (!response.location.isEmpty()) {
                     reply += "Location: " + response.location + "\r\n";
                 }
-                reply += "Connection: close\r\n\r\n" + response.body;
-                socket->write(reply);
+                reply += "Connection: close\r\n\r\n";
+                if (response.trickleMs > 0) {
+                    socket->write(reply);
+                    // Qt parent ownership: the socket.
+                    auto* timer = new QTimer(socket); // NOLINT(cppcoreguidelines-owning-memory)
+                    auto sent = std::make_shared<qsizetype>(0);
+                    QObject::connect(timer, &QTimer::timeout, socket,
+                                     [socket, timer, sent, body = response.body] {
+                                         if (*sent >= body.size()) {
+                                             timer->stop();
+                                             socket->disconnectFromHost();
+                                             return;
+                                         }
+                                         socket->write(body.mid(*sent, 1));
+                                         ++*sent;
+                                     });
+                    timer->start(response.trickleMs);
+                    return;
+                }
+                socket->write(reply + response.body);
                 socket->disconnectFromHost();
             });
             QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);

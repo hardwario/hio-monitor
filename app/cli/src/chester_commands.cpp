@@ -9,7 +9,9 @@
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
+#include "hio/core/settings.h"
 #include "hio/device/command_history.h"
+#include "hio/device/completer.h"
 #include "hio/device/console_session.h"
 #include "hio/device/device_session.h"
 #include "hio/device/profile.h"
@@ -69,6 +71,7 @@ struct ConsoleOptions {
     std::string coredumpFile;
     bool autoReconnect = false;
     double lingerSeconds = 1.0;
+    bool noSuggestions = false; // plan 0021: overrides console/suggestions for one run
 };
 
 struct CommandOptions {
@@ -184,6 +187,14 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
         ui.historyFile = options.historyFile.empty()
                              ? device::CommandHistory::defaultFile(profileId, targetId)
                              : fs::path(toQString(options.historyFile).toStdU16String());
+        // Plan 0021 (ADR-0170): the console settings shared with the GUI.
+        auto settings = Settings::openDefault();
+        ui.suggestions =
+            !options.noSuggestions && (!settings || settings->get(device::suggestionsSetting));
+        // TODO(plan 0021 phase 2): learn the command tree through ShellQuery - `info show` for the
+        // firmware key (CommandTreeCache::load), then `help` on connect when
+        // device::readCommandsOnConnectSetting is on (else at the first Tab) and `<cmd> -h` for
+        // Completer::pathToLearn(); until then Tab completes from no tree (ui.commandTree is null).
     }
     const Status status = runConsole(consoleContext, **session, view, ui);
     (*session)->close(); // writes the console file's trailer and flushes it
@@ -309,6 +320,9 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
     consoleCommand->add_flag("--auto-reconnect", consoleOptions->autoReconnect,
                              "Keep re-attaching RTT after the link drops, instead of leaving "
                              "the console disconnected until F4");
+    consoleCommand->add_flag("--no-suggestions", consoleOptions->noSuggestions,
+                             "Interactive mode: no hints from the command history (overrides the "
+                             "setting console/suggestions for this run)");
     addProbeOptions(*consoleCommand, consoleOptions->probe);
     consoleCommand->callback([&slot, &globals, group, consoleOptions, consoleFile] {
         consoleOptions->consoleFileGiven = consoleFile->count() > 0;

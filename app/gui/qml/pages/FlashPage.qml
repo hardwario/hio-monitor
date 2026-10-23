@@ -44,8 +44,8 @@ Item {
             page.browse();
         }
 
-        function onSettingsRequested() {
-            AppViewModel.openGlobalPage("settings");
+        function onSettingsRequested(sectionId: string) {
+            AppViewModel.openSettings(sectionId);
         }
 
         function onConfirmationRequested() {

@@ -8,6 +8,7 @@
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
+#include "hio/device/command_tree.h"
 #include "hio/device/console_line.h"
 #include "hio/device/device_session.h"
 #include "support/test_page_view_model.h"
@@ -29,6 +30,8 @@
 #include <QString>
 #include <QStringList>
 #include <QUrl>
+#include <QVariantList>
+#include <QVariantMap>
 #include <QtContainerFwd>
 
 #include <gtest/gtest.h>
@@ -42,6 +45,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -218,6 +222,58 @@ TEST_F(ConsoleViewModelTest, HistoryUpAndDown) {
     EXPECT_EQ(console().historySearch(QString()),
               (QStringList{QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("a")}));
     EXPECT_EQ(console().historySearch(QString(), 2).size(), 2);
+}
+
+// 0021 (ADR-0170): the suggestion list (device commands, then history), the ghost text source and
+// Tab completion; the two console settings.
+TEST_F(ConsoleViewModelTest, SuggestionsAndCompletion) {
+    ASSERT_TRUE(connectAndWait(tab()));
+    for (const char* command : {"lte test", "led on", "lte config show"}) {
+        console().send(QString::fromLatin1(command));
+    }
+    // History only while no command tree is known.
+    QVariantList rows = console().suggestions(QStringLiteral("l"));
+    ASSERT_EQ(rows.size(), 3);
+    EXPECT_EQ(rows.at(0).toMap().value(QStringLiteral("text")).toString(),
+              QStringLiteral("lte config show"));
+    EXPECT_EQ(rows.at(0).toMap().value(QStringLiteral("kind")).toString(),
+              QStringLiteral("history"));
+    EXPECT_EQ(console().suggestion(QStringLiteral("lte t")), QStringLiteral("lte test"));
+    EXPECT_TRUE(console().suggestion(QStringLiteral("x")).isEmpty());
+    EXPECT_EQ(console().complete(QStringLiteral("l")).value(QStringLiteral("replacement")),
+              QStringLiteral("l"));
+    EXPECT_FALSE(console().readingCommands());
+
+    // With a command tree (learned in phase 2; set directly here).
+    hio::device::CommandTree tree;
+    const std::vector<hio::device::CommandEntry> top{{.name = "lte", .help = "LTE commands"},
+                                                     {.name = "led", .help = "LED commands"}};
+    ASSERT_TRUE(tree.setChildren({}, top));
+    console().setCommandTree(std::move(tree));
+    rows = console().suggestions(QStringLiteral("l"));
+    ASSERT_EQ(rows.size(), 5);
+    const QVariantMap first = rows.at(0).toMap();
+    EXPECT_EQ(first.value(QStringLiteral("kind")).toString(), QStringLiteral("command"));
+    EXPECT_EQ(first.value(QStringLiteral("label")).toString(), QStringLiteral("lte"));
+    EXPECT_EQ(first.value(QStringLiteral("help")).toString(), QStringLiteral("LTE commands"));
+    EXPECT_EQ(first.value(QStringLiteral("text")).toString(), QStringLiteral("lte "));
+    const QVariantMap completion = console().complete(QStringLiteral("le"));
+    EXPECT_EQ(completion.value(QStringLiteral("replacement")).toString(), QStringLiteral("led "));
+    EXPECT_EQ(
+        console().complete(QStringLiteral("l")).value(QStringLiteral("candidates")).toStringList(),
+        (QStringList{QStringLiteral("lte"), QStringLiteral("led")}));
+
+    // The settings, shared with the CLI console.
+    hio::gui::ConsoleSettings& settings = *console().settings();
+    EXPECT_TRUE(settings.suggestions());
+    EXPECT_TRUE(settings.readCommandsOnConnect());
+    settings.setSuggestions(false);
+    settings.setReadCommandsOnConnect(false);
+    EXPECT_FALSE(app().settingsStore()->value(QStringLiteral("console/suggestions")).toBool());
+    EXPECT_FALSE(
+        app().settingsStore()->value(QStringLiteral("console/readCommandsOnConnect")).toBool());
+    settings.setSuggestions(true);
+    settings.setReadCommandsOnConnect(true);
 }
 
 // Down while not walking the history keeps the typed text; while walking it goes forward and

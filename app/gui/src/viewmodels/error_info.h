@@ -55,6 +55,8 @@ class ErrorInfo {
     Q_PROPERTY(QString detail READ detail CONSTANT)
     Q_PROPERTY(QString wizard READ wizard CONSTANT)
     Q_PROPERTY(int primaryAction READ primaryAction CONSTANT)
+    // 0021 (ADR-0172): the Settings section "Open Settings" scrolls to ("jlink", "nrfutil", "").
+    Q_PROPERTY(QString settingsSection READ settingsSection CONSTANT)
 
 public:
     ErrorInfo() = default; // invalid: no error
@@ -70,6 +72,7 @@ public:
     // The kebab-case wizard id ("connect-device") or "" when the error has none.
     [[nodiscard]] QString wizard() const { return m_wizard; }
     [[nodiscard]] int primaryAction() const noexcept { return m_primaryAction; }
+    [[nodiscard]] QString settingsSection() const;
 
     // The text for the Details expander and its Copy button: "<code>\n<detail>".
     Q_INVOKABLE [[nodiscard]] QString detailsText() const;

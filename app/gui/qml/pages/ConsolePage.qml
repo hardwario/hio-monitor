@@ -443,11 +443,12 @@ Item {
                                    || page.vm.error.primaryAction === ErrorAction.OpenSettings
                                    ? page.vm.error.primaryAction : ErrorAction.Dismiss
                     onActionTriggered: action => {
+                        const section = page.vm.error.settingsSection;
                         page.vm.dismissError();
                         if (action === ErrorAction.Reconnect)
                             page.vm.reconnect();
                         else if (action === ErrorAction.OpenSettings)
-                            AppViewModel.openGlobalPage("settings");
+                            AppViewModel.openSettings(section);
                     }
                 }
 

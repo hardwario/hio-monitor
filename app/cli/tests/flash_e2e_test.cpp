@@ -8,6 +8,7 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QEventLoop>
 #include <QFile>
 #include <QIODevice>
@@ -379,6 +380,16 @@ TEST_F(FlashCli, LteBundleWithTheFakeNrfUtil) {
     ASSERT_TRUE(log.open(QIODevice::ReadOnly));
     EXPECT_TRUE(log.readAll().contains("device program --firmware"));
 
+    // Plan 0021 review F10: --no-cache with a FILE is said on stderr, not an error.
+    const RunResult noCache = run(
+        {QStringLiteral("--json"), QStringLiteral("--nrfutil"), QStringLiteral(HIO_FAKE_NRFUTIL),
+         QStringLiteral("chester"), QStringLiteral("lte"), QStringLiteral("flash"),
+         QStringLiteral("--no-cache"), path(QStringLiteral("bundle.zip"))},
+        env);
+    EXPECT_EQ(noCache.exitCode, 0) << noCache.err;
+    EXPECT_NE(noCache.err.find("Warning: --no-cache has no effect with a FILE"), std::string::npos)
+        << noCache.err;
+
     // A zip that is neither a bundle nor modem firmware: exit 7, nothing programmed.
     writeFile(QStringLiteral("other.zip"),
               hio::firmware::test::zipBytes({{.name = "readme.txt", .data = "x"}}));
@@ -399,6 +410,138 @@ TEST_F(FlashCli, NrfUtilMissing) {
              QStringLiteral("flash"), path(QStringLiteral("mfw.zip"))});
     EXPECT_EQ(result.exitCode, 4) << result.out;
     EXPECT_EQ(errorCode(result), QStringLiteral("dependency.nrfutil_not_found"));
+}
+
+// ---- plan 0021 ------------------------------------------------------------------------------
+
+QString sha256Hex(const QByteArray& bytes) {
+    return QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex());
+}
+
+// `lte flash` without FILE: the designated LTE firmware is downloaded (HTTP fixture through the
+// test-only HIO_DESIGNATED_URL / HIO_DESIGNATED_SHA256), verified, cached and flashed as a bundle.
+TEST_F(FlashCli, LteFlashDesignatedFirmware) {
+#ifndef HIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_DESIGNATED_URL)";
+#endif
+    const QByteArray modem = hio::firmware::test::zipBytes(
+        {{.name = "firmware.update.image.segments.0.hex", .data = appHex()}});
+    const QByteArray bundle =
+        hio::firmware::test::zipBytes({{.name = "modem.zip", .data = modem.toStdString()},
+                                       {.name = "application.hex", .data = appHex()}});
+    HttpFixture http;
+    ASSERT_TRUE(http.listening());
+    http.set(QStringLiteral("/chester/lte.zip"), HttpFixture::Response::ok(bundle));
+    useScenario(QStringLiteral(
+        R"({"probes": [{"serialNumber": 801000002, "chip": {"family": "nrf91"}}]})"));
+    QProcessEnvironment env = fakeEnvironment();
+    env.insert(QStringLiteral("HIO_DESIGNATED_URL"), http.baseUrl() + QStringLiteral("/lte.zip"));
+    env.insert(QStringLiteral("HIO_DESIGNATED_SHA256"), sha256Hex(bundle));
+    const QStringList args{
+        QStringLiteral("--json"),  QStringLiteral("--nrfutil"), QStringLiteral(HIO_FAKE_NRFUTIL),
+        QStringLiteral("chester"), QStringLiteral("lte"),       QStringLiteral("flash")};
+    const RunResult first = runWithEvents(args, env);
+    ASSERT_EQ(first.exitCode, 0) << first.out << first.err;
+    const auto events = envelopes(first.out);
+    EXPECT_EQ(data(events.front()).value(QStringLiteral("phase")).toString(),
+              QStringLiteral("downloading"));
+    const QJsonObject final = data(events.back());
+    EXPECT_EQ(final.value(QStringLiteral("operation")).toString(), QStringLiteral("lteBundle"));
+    const QJsonObject image = final.value(QStringLiteral("image")).toObject();
+    EXPECT_EQ(image.value(QStringLiteral("source")).toString(), QStringLiteral("designated"));
+    EXPECT_EQ(image.value(QStringLiteral("name")).toString(),
+              QStringLiteral("HARDWARIO LTE firmware"));
+    EXPECT_EQ(image.value(QStringLiteral("version")).toString(), QStringLiteral("1.7.0"));
+    EXPECT_FALSE(image.value(QStringLiteral("cached")).toBool());
+
+    // Human mode names the firmware; the second run uses the verified cache.
+    const RunResult second =
+        runWithEvents({QStringLiteral("--nrfutil"), QStringLiteral(HIO_FAKE_NRFUTIL),
+                       QStringLiteral("chester"), QStringLiteral("lte"), QStringLiteral("flash")},
+                      env);
+    ASSERT_EQ(second.exitCode, 0) << second.err;
+    EXPECT_NE(second.err.find("HARDWARIO LTE firmware 1.7.0 (cached"), std::string::npos)
+        << second.err;
+    EXPECT_EQ(http.requests(QStringLiteral("/chester/lte.zip")), 1);
+
+    // A file with another hash: firmware.checksum_mismatch (firmware exit code 7), nothing flashed.
+    env.insert(QStringLiteral("HIO_DESIGNATED_SHA256"), sha256Hex("another file"));
+    const RunResult mismatch = runWithEvents(args, env);
+    EXPECT_EQ(mismatch.exitCode, 7) << mismatch.out;
+    EXPECT_EQ(errorCode(mismatch), QStringLiteral("firmware.checksum_mismatch"));
+}
+
+TEST_F(FlashCli, CatalogInfoAndVerifiedIdFlash) {
+#ifndef HIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_CATALOG_URL)";
+#endif
+    HttpFixture http;
+    ASSERT_TRUE(http.listening());
+    const QString id = QStringLiteral("0123456789abcdef0123456789abcdef");
+    const QByteArray hex = QByteArray::fromStdString(appHex());
+    const auto page = [](const QString& sha) {
+        return QStringLiteral("<html><head><title> CHESTER Firmware: hio-chester-push-fm:v4.0.1"
+                              "</title></head><body><h2>hio-chester-push-fm:v4.0.1</h2>"
+                              "<div>For a firmware update via the J-Link USB debugger, download "
+                              "the HEX file:</div><div>SHA256 checksum: %1</div>"
+                              "<div>Upload date/time</div><div>2026-09-07 12:13:53</div>"
+                              "</body></html>")
+            .arg(sha)
+            .toUtf8();
+    };
+    http.set(QStringLiteral("/chester/%1").arg(id),
+             HttpFixture::Response::ok(page(sha256Hex(hex))));
+    http.set(QStringLiteral("/chester/%1/hex").arg(id), HttpFixture::Response::ok(hex));
+    QProcessEnvironment env = fakeEnvironment();
+    env.insert(QStringLiteral("HIO_CATALOG_URL"), http.baseUrl());
+
+    const RunResult info =
+        runWithEvents({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+                       QStringLiteral("catalog-info"), id},
+                      env);
+    ASSERT_EQ(info.exitCode, 0) << info.out << info.err;
+    const QJsonObject fields = data(envelopes(info.out).back());
+    EXPECT_EQ(fields.value(QStringLiteral("id")).toString(), id);
+    EXPECT_EQ(fields.value(QStringLiteral("name")).toString(),
+              QStringLiteral("hio-chester-push-fm"));
+    EXPECT_EQ(fields.value(QStringLiteral("version")).toString(), QStringLiteral("v4.0.1"));
+    EXPECT_EQ(fields.value(QStringLiteral("uploaded")).toString(),
+              QStringLiteral("2026-09-07 12:13:53"));
+    EXPECT_EQ(fields.value(QStringLiteral("sha256")).toString(), sha256Hex(hex));
+    const RunResult human = runWithEvents(
+        {QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("catalog-info"), id},
+        env);
+    ASSERT_EQ(human.exitCode, 0);
+    EXPECT_NE(human.out.find("Version:  v4.0.1"), std::string::npos) << human.out;
+
+    // flash ID prints the name and version and verifies the hash.
+    const RunResult flash = runWithEvents(
+        {QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("flash"), id}, env);
+    ASSERT_EQ(flash.exitCode, 0) << flash.err;
+    EXPECT_NE(flash.err.find("hio-chester-push-fm v4.0.1 (uploaded 2026-09-07 12:13:53)"),
+              std::string::npos)
+        << flash.err;
+    http.set(QStringLiteral("/chester/%1").arg(id),
+             HttpFixture::Response::ok(page(sha256Hex("x"))));
+    const RunResult mismatch =
+        runWithEvents({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+                       QStringLiteral("flash"), QStringLiteral("--no-cache"), id},
+                      env);
+    EXPECT_EQ(mismatch.exitCode, 7);
+    EXPECT_EQ(errorCode(mismatch), QStringLiteral("firmware.checksum_mismatch"));
+
+    // An unknown ID: firmware.not_found_in_catalog; an invalid one: usage.
+    const RunResult missing = runWithEvents({QStringLiteral("--json"), QStringLiteral("chester"),
+                                             QStringLiteral("app"), QStringLiteral("catalog-info"),
+                                             QStringLiteral("ffffffffffffffffffffffffffffffff")},
+                                            env);
+    EXPECT_EQ(missing.exitCode, 7);
+    EXPECT_EQ(errorCode(missing), QStringLiteral("firmware.not_found_in_catalog"));
+    EXPECT_EQ(runWithEvents({QStringLiteral("chester"), QStringLiteral("app"),
+                             QStringLiteral("catalog-info"), QStringLiteral("xyz")},
+                            env)
+                  .exitCode,
+              2);
 }
 
 #ifndef _WIN32

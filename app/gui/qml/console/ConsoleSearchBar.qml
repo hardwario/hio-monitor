@@ -365,6 +365,8 @@ Rectangle {
             Label {
                 objectName: "filterCount"
                 anchors.verticalCenter: parent.verticalCenter
+                // 0021 (user decision 2026-10-23): only for a filter changed from the default
+                // (hexdump lines hidden by the default chips do not count).
                 visible: bar.model.filterActive
                 text: qsTr("Showing %1 of %2 lines").arg(Qt.locale().toString(bar.model.visibleLines)).arg(Qt.locale().toString(bar.model.totalLines))
                 font: Theme.fontUiSmall
@@ -432,6 +434,16 @@ Rectangle {
                 bit: 8
                 tint: Theme.error
                 description: qsTr("Error")
+            }
+
+            // 0021 (ADR-0171): hexdump continuation lines, off by default.
+            LevelChip {
+                objectName: "levelHexdump"
+                anchors.verticalCenter: parent.verticalCenter
+                text: "H"
+                bit: 16
+                tint: Theme.textMuted
+                description: qsTr("Show hexdump lines")
             }
         }
     }

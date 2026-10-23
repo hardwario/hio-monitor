@@ -1,6 +1,6 @@
 # 0010 — M4 flash firmware wizard
 
-- **Status:** Approved (2026-10-16, by Matej Strnad; without the pending M5 amendments); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
+- **Status:** Approved (2026-10-16, by Matej Strnad; without the pending M5 amendments); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist; the shared `FirmwareSourceViewModel` has the two kinds and the LTE sources since 2026-10-23, the wizard itself is not implemented yet)
 - **Milestone:** M4 (plan 4 of 4, ADR-0065)
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0164, ADR-0165, ADR-0166 (0021), ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0049, ADR-0054, ADR-0055, ADR-0057, ADR-0062,

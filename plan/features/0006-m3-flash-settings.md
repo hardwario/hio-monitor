@@ -9,7 +9,7 @@
 > "— resumed —"); this plan never appends markers. F4 is a global shell shortcut only; page shortcut descriptions use
 > the "Shortcuts" translation context. See plan 0004, "Fixes of review round 1".
 
-- **Status:** In progress (implementation started 2026-10-16 on `v2/m4-wizards`; approved 2026-10-16 by Matej Strnad, with the amendment from the 0004 review and the 0007/0008/0010 amendments applied); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
+- **Status:** In progress (implementation started 2026-10-16 on `v2/m4-wizards`; approved 2026-10-16 by Matej Strnad, with the amendment from the 0004 review and the 0007/0008/0010 amendments applied); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist; applied 2026-10-23 except "In the device" / "Now in the device", 0021 phase 2)
 - **Milestone:** M3 (plan 3 of 3, ADR-0059)
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0164, ADR-0165, ADR-0166, ADR-0167, ADR-0172 (0021), ADR-0016, ADR-0025, ADR-0027, ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0047, ADR-0049,

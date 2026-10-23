@@ -84,14 +84,32 @@ Rectangle {
             implicitHeight: 30
             Layout.maximumWidth: 260
             model: bar.connection.targets
-            textRole: "title"
+            // 0021 (ADR-0168): the ids only; the long title is the tooltip.
+            textRole: "label"
             valueRole: "id"
             currentIndex: targetBox.indexOfValue(bar.connection.targetId)
             enabled: bar.connection.canChangeTarget
             font: Theme.fontUi
             displayText: qsTr("Target: %1").arg(bar.connection.targetId)
             Accessible.name: qsTr("Target")
+            Accessible.description: bar.connection.targetTitle
             onActivated: bar.connection.targetId = targetBox.currentValue
+
+            delegate: ItemDelegate {
+                id: targetItem
+
+                required property var modelData
+                required property int index
+
+                width: targetBox.width
+                text: targetItem.modelData.label
+                font: Theme.fontUi
+                highlighted: targetBox.highlightedIndex === targetItem.index
+                Accessible.description: targetItem.modelData.title
+                ToolTip.visible: targetItem.hovered
+                ToolTip.text: targetItem.modelData.title
+                ToolTip.delay: 600
+            }
             ToolTip.visible: targetBox.hovered
             ToolTip.text: bar.connection.canChangeTarget ? bar.connection.targetTitle
                                                          : qsTr("Disconnect to change the target")

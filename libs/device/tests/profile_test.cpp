@@ -1,8 +1,11 @@
 #include "hio/device/profile.h"
+#include "hio/firmware/designated_firmware.h"
 
 #include <QString>
 
 #include <gtest/gtest.h>
+
+#include <string_view>
 
 namespace {
 
@@ -94,6 +97,61 @@ TEST(Profiles, FlashLayoutIsConsistent) {
             EXPECT_TRUE(target.uicr.contains(hio::device::pibRange(target))) << target.id;
         }
     }
+}
+
+} // namespace
+
+// ---- plan 0021 (ADR-0165, ADR-0167) ---------------------------------------------------------
+
+namespace {
+
+TEST(Profiles, ChesterLteDesignatedFirmware) {
+    const auto& chester = *ProfileRegistry::find("chester");
+    const auto* lte = hio::device::findTarget(chester, "lte");
+    ASSERT_NE(lte, nullptr);
+    ASSERT_TRUE(lte->designatedFirmware.has_value());
+    const hio::firmware::DesignatedFirmware designated =
+        lte->designatedFirmware.value_or(hio::firmware::DesignatedFirmware{});
+    EXPECT_EQ(designated.name, "HARDWARIO LTE firmware");
+    EXPECT_EQ(designated.version, "1.7.0");
+    EXPECT_EQ(designated.url, "https://docs.hardwario.com/download/hio-chester-lte-v1.7.0.zip");
+    EXPECT_EQ(hio::firmware::toHex(designated.sha256),
+              "95d301a11738bcd9a9df4726159361d64fd8f681c3546f479d46b49f4bf0fe49");
+    EXPECT_EQ(designated.kind, hio::firmware::FirmwareKind::LteBundle);
+    // The application MCU has no designated firmware (it is chosen from the catalog).
+    EXPECT_FALSE(hio::device::findTarget(chester, "app")->designatedFirmware.has_value());
+}
+
+TEST(Profiles, EveryDesignatedFirmwareIsHttps) {
+    for (const hio::device::DeviceProfile* profile : ProfileRegistry::all()) {
+        for (const hio::device::TargetProfile& target : profile->targets) {
+            if (target.designatedFirmware) {
+                EXPECT_TRUE(target.designatedFirmware->url.starts_with("https://")) << target.id;
+                EXPECT_FALSE(target.designatedFirmware->name.empty()) << target.id;
+                EXPECT_FALSE(target.designatedFirmware->version.empty()) << target.id;
+            }
+        }
+    }
+}
+
+TEST(Profiles, ChesterFirmwareDocsUrlPerLanguage) {
+    const auto& chester = *ProfileRegistry::find("chester");
+    ASSERT_EQ(chester.firmwareDocsUrl.size(), 2U);
+    EXPECT_EQ(chester.firmwareDocsUrl.front().language, "en"); // the fallback comes first
+    const std::string_view english =
+        "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/"
+        "#application-firmware";
+    const std::string_view czech =
+        "https://docs.hardwario.com/cs/chester/catalog-applications/catalog-applications/"
+        "#application-firmware";
+    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "en"), english);
+    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "cs"), czech);
+    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "cs_CZ"), czech);
+    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "cs-CZ"), czech);
+    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "de"), english);
+    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, ""), english);
+    // The catalog URL stays the download base (ADR-0037).
+    EXPECT_EQ(chester.firmwareCatalogUrl, "https://firmware.hardwario.com/chester");
 }
 
 } // namespace

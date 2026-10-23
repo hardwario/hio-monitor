@@ -7,6 +7,9 @@
 // sections), the ShortcutRegistry, the SessionRegistry, the ProbeScanner worker, the device tabs
 // (≤ 8, restored Disconnected from ui/tabs, ADR-0061), the global page view models, the toasts
 // (≤ 3 visible) and the theme. Language switching is forwarded to the LanguageManager.
+// Amended by 0021 (ADR-0172): Settings opens as a tab after the device tabs (rail item, Ctrl+,,
+// "Open Settings" actions); currentTab may be its row; globalPage() is "settings" while it is
+// current.
 //
 // Ownership: created by main() (and the test runners) on the stack with the application object as
 // QObject parent, so that the QML singleton factory create() finds it as a direct child of the
@@ -84,7 +87,10 @@ class AppViewModel : public QObject {
     Q_PROPERTY(int maxTabs READ maxTabs CONSTANT)
     // Pages for the rail and the page hosts, in order; titles translated (review S9).
     Q_PROPERTY(hio::gui::PageListModel* pages READ pages CONSTANT)
-    Q_PROPERTY(QString globalPage READ globalPage NOTIFY globalPageChanged) // "" = the tab's page
+    // "settings" while the Settings tab is current (0021, ADR-0172), "" = a device tab's page.
+    Q_PROPERTY(QString globalPage READ globalPage NOTIFY globalPageChanged)
+    // 0021: the Settings section the Settings tab was opened for ("" = the top).
+    Q_PROPERTY(QString settingsSection READ settingsSection NOTIFY settingsSectionRequested)
     Q_PROPERTY(int windowWidth READ windowWidth WRITE setWindowWidth NOTIFY railCompactChanged)
     Q_PROPERTY(bool railCompact READ railCompact NOTIFY railCompactChanged) // width < 1100
     Q_PROPERTY(bool shortcutOverlayVisible READ shortcutOverlayVisible WRITE
@@ -130,6 +136,8 @@ public:
     [[nodiscard]] static QString version();
     [[nodiscard]] static QString buildInfo();
     [[nodiscard]] QString language() const;
+    // The language in use ("en", "cs"; "en" without a LanguageManager) - plan 0021, ADR-0167.
+    [[nodiscard]] QString effectiveLanguage() const;
     [[nodiscard]] QVariantList availableLanguages() const { return m_availableLanguages; }
     Q_INVOKABLE void setLanguage(const QString& code);
     [[nodiscard]] QString theme() const;
@@ -142,7 +150,8 @@ public:
     [[nodiscard]] DeviceTabViewModel* currentTabViewModel() const;
     [[nodiscard]] static int maxTabs() { return static_cast<int>(DeviceTabListModel::maxTabs); }
     [[nodiscard]] PageListModel* pages() const { return m_pageList; }
-    [[nodiscard]] QString globalPage() const { return m_globalPage; }
+    [[nodiscard]] QString globalPage() const;
+    [[nodiscard]] QString settingsSection() const { return m_settingsSection; }
     [[nodiscard]] int windowWidth() const noexcept { return m_windowWidth; }
     void setWindowWidth(int width);
     [[nodiscard]] bool railCompact() const noexcept { return m_windowWidth < railBreakpoint; }
@@ -185,8 +194,17 @@ public:
     Q_INVOKABLE void previousTab();
     // Selects a per-tab page of the current tab (and leaves a global page).
     Q_INVOKABLE void showPage(const QString& pageId);
+    // 0021 (ADR-0172): opens the Settings tab (the only global page).
     Q_INVOKABLE void openGlobalPage(const QString& pageId);
+    // Closes the Settings tab.
     Q_INVOKABLE void closeGlobalPage();
+    // 0021 (ADR-0172): opens the Settings tab (or switches to it) and scrolls to `sectionId`
+    // ("general", "console", "jlink", "nrfutil", "about"; "" = the top). The tab exists only while
+    // it is open: not counted in the tab limit, not stored in ui/tabs.
+    Q_INVOKABLE void openSettings(const QString& sectionId = {});
+    Q_INVOKABLE void closeSettings();
+    // The Settings page scrolled to settingsSection: the request is done (review F8).
+    Q_INVOKABLE void clearSettingsSection() { m_settingsSection.clear(); }
     // The view model of a global page.
     Q_INVOKABLE [[nodiscard]] QObject* globalPageViewModel(const QString& pageId) const;
     // Device bar shortcuts on the current tab (Ctrl+Shift+D, F4).
@@ -216,6 +234,7 @@ signals:
     void themeChanged();
     void currentTabChanged();
     void globalPageChanged();
+    void settingsSectionRequested(const QString& sectionId);
     void railCompactChanged();
     void shortcutOverlayVisibleChanged();
     void toastsChanged();
@@ -271,8 +290,9 @@ private:
     QPointer<LanguageManager> m_languageManager;                  // non-owning, owned by main()
     QPointer<QWindow> m_window; // non-owning, owned by the QML engine
     QVariantList m_availableLanguages;
-    int m_currentTab = 0;
-    QString m_globalPage;
+    int m_currentTab = 0;    // a row of m_tabs (the Settings row too)
+    int m_lastDeviceTab = 0; // the device tab to return to from the Settings tab
+    QString m_settingsSection;
     int m_windowWidth = 1280;
     bool m_shortcutOverlay = false;
     bool m_reducedMotion = false;

@@ -284,7 +284,7 @@ TestCase {
         // The scroll bar: pressing it stops following at once.
         vm().log.following = true;
         tryVerify(() => list.atYEnd);
-        const bar = findAll(list, "consoleScrollBar")[0];
+        const bar = findAll(list.parent, "consoleScrollBar")[0];
         verify(bar !== undefined);
         mousePress(bar, bar.width / 2, bar.height - 4);
         verify(!vm().log.following);
@@ -292,6 +292,237 @@ TestCase {
         waitForRendering(window.contentItem);
         verify(!vm().log.following);
         mouseRelease(bar, bar.width / 2, bar.height - 4);
+    }
+
+    // ---- 0021 -----------------------------------------------------------------------------
+
+    function topIndex(list) {
+        return list.indexAt(1, list.contentY + 1);
+    }
+
+    // ADR-0169: a wheel notch moves whole rows (the system's lines per scroll), no coasting, the
+    // top row aligned; keys move by rows and pages.
+    function test_wheelAndKeysScrollWholeRows() {
+        testSupport.appendConsoleLines(0, 1, 300, "<inf> line %1", 2, 0);
+        const list = logList();
+        tryVerify(() => list.height > 0 && list.contentHeight > list.height && list.atYEnd);
+        const lines = Math.max(1, Qt.styleHints.wheelScrollLines);
+        const before = topIndex(list);
+        mouseWheel(list, list.width / 2, list.height / 2, 0, 120);
+        verify(!list.moving); // no coasting
+        verify(!vm().log.following);
+        compare(topIndex(list), before - lines);
+        const row = list.itemAtIndex(topIndex(list));
+        verify(row !== null);
+        compare(row.y, list.contentY); // aligned to a row boundary
+
+        list.forceActiveFocus();
+        const top = topIndex(list);
+        keyClick(Qt.Key_Up);
+        compare(topIndex(list), top - 1);
+        keyClick(Qt.Key_Down);
+        compare(topIndex(list), top);
+        keyClick(Qt.Key_PageUp);
+        verify(topIndex(list) < top - 1);
+        keyClick(Qt.Key_Home, Qt.ControlModifier);
+        compare(topIndex(list), 0);
+        keyClick(Qt.Key_End, Qt.ControlModifier);
+        verify(vm().log.following);
+        tryVerify(() => list.atYEnd);
+    }
+
+    // Review F3: a diagonal wheel event keeps its vertical part (the dominant axis decides).
+    function test_diagonalWheelScrollsVertically() {
+        testSupport.appendConsoleLines(0, 1, 300, "<inf> line %1 " + "wide ".repeat(100), 2, 0);
+        const list = logList();
+        tryVerify(() => list.height > 0 && list.contentHeight > list.height && list.atYEnd);
+        const lines = Math.max(1, Qt.styleHints.wheelScrollLines);
+        const before = topIndex(list);
+        const x = list.contentX;
+        mouseWheel(list, list.width / 2, list.height / 2, 20, 120);
+        compare(topIndex(list), before - lines);
+        compare(list.contentX, x);
+        // Mostly horizontal: scrolls sideways only.
+        mouseWheel(list, list.width / 2, list.height / 2, -120, 10);
+        compare(topIndex(list), before - lines);
+        verify(list.contentX > x);
+    }
+
+    // ADR-0173 (N10): at the end of a log with a line wider than the view, the last row is fully
+    // above the horizontal bar, a press selects it and Ctrl+C copies it; a press suspends Follow.
+    function test_lastRowIsSelectableAtTheEnd() {
+        testSupport.appendConsoleLines(0, 1, 100, "<inf> line %1", 2, 0);
+        testSupport.appendConsoleLines(0, 1, 1, "<inf> " + "wide ".repeat(200), 2, 0);
+        testSupport.appendConsoleLines(0, 1, 1, "<inf> the last line", 2, 0);
+        const list = logList();
+        tryVerify(() => list.atYEnd && list.count === 102);
+        const hbar = findAll(list.parent, "consoleHorizontalBar")[0];
+        tryVerify(() => hbar.visible && hbar.height > 0);
+        waitForRendering(window.contentItem);
+        const last = list.itemAtIndex(list.count - 1);
+        verify(last !== null);
+        const lastBottom = last.mapToItem(window.contentItem, 0, last.height).y;
+        const barTop = hbar.mapToItem(window.contentItem, 0, 0).y;
+        verify(lastBottom <= barTop + 0.5, `last row ends at ${lastBottom}, bar starts at ${barTop}`);
+        const vbar = findAll(list.parent, "consoleScrollBar")[0];
+        verify(vbar.mapToItem(window.contentItem, 0, 0).x >= list.mapToItem(window.contentItem, list.width, 0).x - 0.5);
+        mousePress(last, 10, last.height / 2);
+        // Follow is suspended while pressed: new lines do not move the rows.
+        const position = list.contentY;
+        testSupport.appendConsoleLines(0, 1, 5, "<inf> during %1", 2, 0);
+        waitForRendering(window.contentItem);
+        compare(list.contentY, position);
+        mouseRelease(last, 10, last.height / 2);
+        verify(last.selected);
+        verify(vm().log.hasSelection);
+        keySequence(StandardKey.Copy);
+        // Follow resumes after the release (the view was at the end).
+        verify(vm().log.following);
+        tryVerify(() => list.atYEnd);
+    }
+
+    // ADR-0173: dragging a selection below the view scrolls by rows and extends it to the end.
+    function test_dragPastTheEdgeExtendsTheSelection() {
+        testSupport.appendConsoleLines(0, 1, 200, "<inf> line %1", 2, 0);
+        const list = logList();
+        tryVerify(() => list.atYEnd && list.count === 200);
+        vm().following = false;
+        waitForRendering(window.contentItem);
+        list.positionViewAtIndex(100, ListView.Beginning);
+        waitForRendering(window.contentItem);
+        verify(topIndex(list) >= 90, topIndex(list));
+        const first = list.itemAtIndex(topIndex(list) + 1);
+        mousePress(first, 10, first.height / 2);
+        for (let y = 0; y < 400; y += 40)
+            mouseMove(first, 10, first.height / 2 + list.height + y, -1, Qt.LeftButton);
+        tryVerify(() => list.atYEnd, 10000);
+        mouseMove(first, 10, first.height / 2 + list.height + 400, -1, Qt.LeftButton);
+        wait(150);
+        mouseRelease(first, 10, first.height / 2 + list.height + 400);
+        const lastRow = list.itemAtIndex(list.count - 1);
+        verify(lastRow !== null && lastRow.selected);
+    }
+
+    // ADR-0171: hexdump lines are hidden by the default chips; H shows them muted.
+    function test_hexdumpChip() {
+        testSupport.appendConsoleLines(0, 1, 1, "<inf> app: Received:", 2, 0);
+        testSupport.appendConsoleLines(0, 1, 2, "    44 74 4f 34 |DtO4 %1", 5, 0);
+        const log = vm().log;
+        const chip = one("levelHexdump");
+        verify(!chip.checked);
+        tryVerify(() => log.visibleLines === 1 && log.totalLines === 3);
+        verify(!log.filterActive);
+        mouseClick(chip);
+        tryVerify(() => log.visibleLines === 3 && !log.searching);
+        waitForRendering(window.contentItem);
+        const row = shown("consoleRow").filter(r => r.levelTag === "H")[0];
+        verify(row !== undefined);
+        compare(row.textColour, Theme.textMuted);
+        mouseClick(chip);
+        tryVerify(() => log.visibleLines === 1);
+    }
+
+    function ghost() {
+        return findAll(window.contentItem, "ghostText")[0];
+    }
+
+    // ADR-0170: the automatic list above the input (commands, then history), ghost text, the
+    // ↑ ↓ / Tab / Esc / Enter rules, Tab completion; off by the setting.
+    function test_suggestions() {
+        AppViewModel.currentTabViewModel.connection.connectDevice();
+        tryCompare(AppViewModel.currentTabViewModel, "state", DeviceTabViewModel.Connected, 10000);
+        tryVerify(() => vm().inputEnabled);
+        testSupport.addConsoleHistory(0, "lte test");
+        testSupport.addConsoleHistory(0, "led on");
+        testSupport.setConsoleCommands(0, ["lte", "led", "app"]);
+        const input = one("shellInput");
+        const field = one("commandInput");
+        field.forceActiveFocus();
+        field.text = "";
+        keyClick(Qt.Key_L);
+        const list = input.suggestionList;
+        tryVerify(() => list.opened);
+        compare(list.rows.length, 4); // lte, led, then "led on", "lte test"
+        compare(list.rows[0].label, "lte");
+        compare(list.rows[2].kind, "history");
+        compare(findAll(list.contentItem, "suggestionRow0")[0].highlighted, true);
+        // The ghost text is the rest of the highlighted row.
+        compare(ghost().text, "te ");
+        verify(ghost().visible);
+        // Enter sends the typed line unless the highlight was moved.
+        keyClick(Qt.Key_Down);
+        compare(list.currentIndex, 1);
+        keyClick(Qt.Key_Return);
+        compare(field.text, "led ");
+        // Esc closes the list until the next keystroke.
+        tryVerify(() => list.opened); // "led " lists "led on"
+        keyClick(Qt.Key_Escape);
+        verify(!list.opened);
+        verify(!ghost().visible);
+        keyClick(Qt.Key_O);
+        tryVerify(() => list.opened);
+        compare(ghost().text, "n");
+        // → accepts the ghost text / the highlighted row.
+        keyClick(Qt.Key_Right);
+        compare(field.text, "led on");
+        // Tab completes and never leaves the field.
+        field.text = "";
+        keyClick(Qt.Key_A);
+        keyClick(Qt.Key_Tab);
+        compare(field.text, "app ");
+        verify(field.activeFocus);
+        // Off by the setting: no list, the history ghost text stays.
+        ConsoleSettings.suggestions = false;
+        field.text = "";
+        keyClick(Qt.Key_L);
+        keyClick(Qt.Key_E);
+        verify(!list.opened);
+        compare(ghost().text, "d on");
+        ConsoleSettings.suggestions = true;
+        field.text = "";
+    }
+
+    // Review F6 and the ADR-0170 key rules: ↑ on the first row does not count as moving the
+    // highlight (Enter sends the typed line); Esc with nothing to close is not consumed and Tab then
+    // leaves the field; Ctrl+Tab still switches tabs.
+    function test_inputKeys() {
+        AppViewModel.currentTabViewModel.connection.connectDevice();
+        tryCompare(AppViewModel.currentTabViewModel, "state", DeviceTabViewModel.Connected, 10000);
+        tryVerify(() => vm().inputEnabled);
+        testSupport.setConsoleCommands(0, ["lte", "led"]);
+        const input = one("shellInput");
+        const field = one("commandInput");
+        const list = input.suggestionList;
+        field.forceActiveFocus();
+        field.text = "";
+        keyClick(Qt.Key_L);
+        tryVerify(() => list.opened);
+        keyClick(Qt.Key_Up); // already on the first row
+        compare(list.currentIndex, 0);
+        verify(!input.highlightMoved);
+        keyClick(Qt.Key_Return); // sends "l"
+        compare(field.text, "");
+        tryVerify(() => vm().shell.totalLines > 0 && vm().historySearch("l").indexOf("l") >= 0);
+        // Esc with nothing to close, then Tab leaves the field.
+        verify(field.activeFocus);
+        keyClick(Qt.Key_Escape);
+        verify(field.activeFocus);
+        keyClick(Qt.Key_Tab);
+        verify(!field.activeFocus);
+        // Tab in the field completes and stays.
+        field.forceActiveFocus();
+        keyClick(Qt.Key_L);
+        keyClick(Qt.Key_T);
+        keyClick(Qt.Key_Tab);
+        compare(field.text, "lte ");
+        verify(field.activeFocus);
+        // Ctrl+Tab switches tabs.
+        field.text = "";
+        AppViewModel.newTab();
+        AppViewModel.currentTab = 0;
+        field.forceActiveFocus();
+        keyClick(Qt.Key_Tab, Qt.ControlModifier);
+        compare(AppViewModel.currentTab, 1);
     }
 
     // K11: the split handle has the 2 px accent focus ring.

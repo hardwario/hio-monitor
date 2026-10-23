@@ -60,7 +60,8 @@ void registerFlashAndSettingsPages(AppViewModel& app) {
                 [&app](const DeviceTabViewModel* tab) {
                     return app.globalPage().isEmpty() && app.currentTabViewModel() == tab &&
                            tab->currentPage() == FlashViewModel::pageId;
-                }},
+                },
+            .uiLanguage = [&app] { return app.effectiveLanguage(); }},
         &app);
     QObject::connect(&app, &AppViewModel::languageChanged, services,
                      &FirmwareServices::retranslate);

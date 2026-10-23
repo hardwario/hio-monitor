@@ -1,6 +1,6 @@
 # 0004 — M3 GUI shell: theme, components, device tabs, probe picker, device bar
 
-- **Status:** In progress (implementation started 2026-10-12; approved by Matej Strnad, 2026-10-12, without the pending M4/M5 amendments; implemented on `v2/m3-gui`, based on the M2 WIP commit 7f371c6); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
+- **Status:** In progress (implementation started 2026-10-12; approved by Matej Strnad, 2026-10-12, without the pending M4/M5 amendments; implemented on `v2/m3-gui`, based on the M2 WIP commit 7f371c6); amended by 0007 (approved by Matej Strnad 2026-10-16 together with 0007–0010); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist; applied 2026-10-23: target pickers, Settings tab)
 - **Milestone:** M3 (plan 1 of 3, ADR-0059; followed by [0005](0005-m3-console.md) and [0006](0006-m3-flash-settings.md))
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0168, ADR-0172 (0021), ADR-0002, ADR-0003, ADR-0004, ADR-0018, ADR-0025, ADR-0027, ADR-0031, ADR-0043, ADR-0044,

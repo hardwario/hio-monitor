@@ -98,7 +98,6 @@ FlashViewModel::FlashViewModel(DeviceTabViewModel* tab, FirmwareServices& servic
     connect(m_tab, &DeviceTabViewModel::stateChanged, this, &FlashViewModel::stateChanged);
     connect(m_tab, &DeviceTabViewModel::configurationChanged, this, [this] {
         applyDefaultKind();
-        updateHexFallback();
         kindChanged();  // signal
         textsChanged(); // signal: the MCU names of the profile
         stateChanged(); // signal
@@ -108,7 +107,6 @@ FlashViewModel::FlashViewModel(DeviceTabViewModel* tab, FirmwareServices& servic
     connect(&m_services, &FirmwareServices::languageChanged, this, &FlashViewModel::retranslate);
 
     applyDefaultKind();
-    updateHexFallback();
     m_source->setKind(m_kind);
     onSessionChanged();
 }
@@ -123,7 +121,7 @@ FlashViewModel::~FlashViewModel() {
 
 void FlashViewModel::setKind(int kind) {
     if (kind < FirmwareSourceViewModel::AppFirmware ||
-        kind > FirmwareSourceViewModel::ModemFirmware || m_running) {
+        kind > FirmwareSourceViewModel::LteFirmware || m_running) {
         return;
     }
     m_kindChosen = true;
@@ -151,12 +149,6 @@ void FlashViewModel::applyDefaultKind() {
     m_source->setKind(m_kind);
 }
 
-void FlashViewModel::updateHexFallback() {
-    m_source->setHexFallbackKind(m_tab->consoleTargetId() == QStringLiteral("lte")
-                                     ? FirmwareSourceViewModel::LteFirmware
-                                     : FirmwareSourceViewModel::AppFirmware);
-}
-
 QString FlashViewModel::targetId() const { return FirmwareSourceViewModel::targetIdFor(m_kind); }
 
 const device::DeviceProfile* FlashViewModel::profile() const {
@@ -182,16 +174,12 @@ QVariantList FlashViewModel::kinds() const {
             {QStringLiteral("title"), tr("Application firmware")},
             {QStringLiteral("mcu"), mcu(tr("Application MCU"), app)},
             {QStringLiteral("accepts"), tr(".hex file or catalog ID")}},
+        // 0021 (ADR-0174): one LTE card for the LTE MCU application, the modem and the bundle.
         QVariantMap{
             {QStringLiteral("kind"), static_cast<int>(FirmwareSourceViewModel::LteFirmware)},
             {QStringLiteral("title"), tr("LTE firmware")},
-            {QStringLiteral("mcu"), mcu(tr("LTE MCU"), lte)},
-            {QStringLiteral("accepts"), tr(".hex, LTE bundle .zip or catalog ID")}},
-        QVariantMap{
-            {QStringLiteral("kind"), static_cast<int>(FirmwareSourceViewModel::ModemFirmware)},
-            {QStringLiteral("title"), tr("LTE modem firmware")},
-            {QStringLiteral("mcu"), tr("Modem core via nRF Util")},
-            {QStringLiteral("accepts"), QStringLiteral("mfw_nrf91*.zip")}},
+            {QStringLiteral("mcu"), tr("%1 + modem").arg(mcu(tr("LTE MCU"), lte))},
+            {QStringLiteral("accepts"), tr("The HARDWARIO LTE firmware or your own .hex / .zip")}},
     };
 }
 
@@ -199,12 +187,24 @@ QVariantList FlashViewModel::kinds() const {
 // ----------------------------------------------------------------
 
 bool FlashViewModel::needsNrfUtil() const {
-    if (m_kind == FirmwareSourceViewModel::ModemFirmware) {
+    if (m_kind != FirmwareSourceViewModel::LteFirmware) {
+        return false;
+    }
+    // 0021 (ADR-0174): whenever the LTE source contains modem firmware - the designated bundle
+    // always does.
+    if (m_source->designatedActive()) {
         return true;
     }
     const LoadedSource* loaded = m_source->loadedSource();
-    return m_kind == FirmwareSourceViewModel::LteFirmware && loaded != nullptr &&
-           loaded->sourceClass == SourceClass::LteBundle;
+    return loaded != nullptr && (loaded->sourceClass == SourceClass::LteBundle ||
+                                 loaded->sourceClass == SourceClass::ModemZip);
+}
+
+bool FlashViewModel::haltAvailable() const {
+    // Not for a modem-only file (nRF Util programs the modem; nothing to halt).
+    const LoadedSource* loaded = m_source->loadedSource();
+    return m_kind == FirmwareSourceViewModel::AppFirmware || m_source->designatedActive() ||
+           loaded == nullptr || loaded->sourceClass != SourceClass::ModemZip;
 }
 
 QString FlashViewModel::prerequisiteText() const {
@@ -216,10 +216,7 @@ QString FlashViewModel::prerequisiteText() const {
         return {};
     }
     if (problem->code == ErrorCode::DependencyNrfUtilNotFound) {
-        return m_kind == FirmwareSourceViewModel::ModemFirmware
-                   ? tr("nRF Util was not found. It is needed only for LTE modem firmware.")
-                   : tr("nRF Util was not found. It is needed for the modem firmware in this LTE "
-                        "bundle.");
+        return tr("nRF Util was not found. It is needed for LTE firmware.");
     }
     return toQString(problem->message) + QLatin1Char(' ') + toQString(problem->suggestion);
 }
@@ -265,7 +262,10 @@ QString FlashViewModel::cannotFlashReason() const {
     }
     switch (static_cast<FirmwareSourceViewModel::SourceState>(m_source->sourceState())) {
     case FirmwareSourceViewModel::None:
-        if (m_kind == FirmwareSourceViewModel::ModemFirmware || !m_source->catalogAvailable()) {
+        if (m_source->designatedActive()) {
+            return tr("The LTE firmware is not downloaded yet");
+        }
+        if (!m_source->catalogAvailable()) {
             return tr("Choose a firmware file");
         }
         return tr("Choose a firmware file or enter a catalog ID");
@@ -274,6 +274,9 @@ QString FlashViewModel::cannotFlashReason() const {
     case FirmwareSourceViewModel::Downloading:
         return tr("Downloading the firmware…");
     case FirmwareSourceViewModel::Invalid:
+        if (m_source->designatedActive()) {
+            return tr("The LTE firmware could not be downloaded");
+        }
         return m_source->suggestedKind() >= 0 ? tr("The file does not match the chosen kind")
                                               : tr("The firmware cannot be used");
     case FirmwareSourceViewModel::Ready:
@@ -310,8 +313,9 @@ void FlashViewModel::flash() {
     if (loaded == nullptr) {
         return;
     }
+    // 0021 (ADR-0174): the operation follows the classification of the input (ADR-0040).
     OperationKind kind = OperationKind::Flash;
-    if (m_kind == FirmwareSourceViewModel::ModemFirmware) {
+    if (loaded->sourceClass == SourceClass::ModemZip) {
         kind = OperationKind::Modem;
     } else if (loaded->sourceClass == SourceClass::LteBundle) {
         kind = OperationKind::LteBundle;
@@ -600,11 +604,12 @@ void FlashViewModel::triggerErrorAction(int action) {
         return;
     }
     const bool flashAgain = flashOperation() && action == error_action::Retry;
+    const QString section = error().settingsSection(); // before the result is dismissed
     dismissResult();
     if (action == error_action::ChooseFile) {
         chooseFileRequested(); // signal
     } else if (action == error_action::OpenSettings) {
-        settingsRequested(); // signal
+        settingsRequested(section); // signal
     } else if (flashAgain && m_lastFlash && canRunMaintenance()) {
         // The stored request: a source loaded since then is not flashed by [Try again].
         runFlash(*m_lastFlash);

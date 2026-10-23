@@ -15,6 +15,8 @@
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QVariantList>
+#include <QVariantMap>
 #include <QtContainerFwd>
 
 #include <gtest/gtest.h>
@@ -180,6 +182,19 @@ TEST_F(ConnectionTest, OptionsComeFromTheProfileAndTheSettings) {
     EXPECT_EQ(connection().options().sessionSpeedKhz(), 1000);
     EXPECT_EQ(connection().latencyMs(), 50);
     EXPECT_FALSE(connection().autoReconnect());
+}
+
+// 0021 (ADR-0168): the device bar's target picker shows the ids; the long title is the tooltip.
+TEST_F(ConnectionTest, TargetLabelsAreTheIds) {
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 683012345));
+    const QVariantList targets = connection().targets();
+    ASSERT_EQ(targets.size(), 2);
+    EXPECT_EQ(targets.at(0).toMap().value(QStringLiteral("label")).toString(),
+              QStringLiteral("app"));
+    EXPECT_EQ(targets.at(1).toMap().value(QStringLiteral("label")).toString(),
+              QStringLiteral("lte"));
+    EXPECT_EQ(targets.at(1).toMap().value(QStringLiteral("title")).toString(),
+              QStringLiteral("LTE MCU (nRF9151 / nRF9160)"));
 }
 
 TEST_F(ConnectionTest, AutomaticSpeedByDefault) {

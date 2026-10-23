@@ -110,11 +110,13 @@ TestCase {
         compare(find("flashBarText").text, "Choose a firmware file or enter a catalog ID");
         verify(!find("flashButton").enabled);
 
-        mouseClick(find("kindCard" + FirmwareSourceViewModel.ModemFirmware));
-        compare(flash.kind, FirmwareSourceViewModel.ModemFirmware);
-        verify(!find("catalogIdField")); // no catalog for modem firmware
+        // 0021 (ADR-0174, ADR-0165): the LTE card - the designated LTE firmware by default.
+        mouseClick(find("kindCard" + FirmwareSourceViewModel.LteFirmware));
+        compare(flash.kind, FirmwareSourceViewModel.LteFirmware);
+        verify(!find("catalogIdField")); // no catalog ID on the LTE card
         tryVerify(() => find("prerequisite") !== null, 10000); // nRF Util is missing
         verify(find("modemNote") !== null);
+        verify(find("designatedRadio").checked);
 
         mouseClick(find("kindCard" + FirmwareSourceViewModel.AppFirmware));
         flash.source.loadFile(testSupport.writeHex("app.hex", 4096, false));
@@ -144,9 +146,47 @@ TestCase {
         const flash = vm();
         flash.source.loadFile(testSupport.writeModemZip());
         tryVerify(() => find("kindHint") !== null, 5000);
+        compare(find("kindHint").Accessible.name, "This is LTE firmware — switch to LTE firmware?");
         mouseClick(find("switchKind"));
-        compare(flash.kind, FirmwareSourceViewModel.ModemFirmware);
+        compare(flash.kind, FirmwareSourceViewModel.LteFirmware);
         verify(!find("kindHint"));
+        // The file is the LTE card's own file now.
+        verify(find("ownFileRadio").checked);
+        tryVerify(() => find("summaryText") !== null);
+        verify(find("summaryText").text.indexOf("Modem firmware 2.0.2 (modem only)") >= 0);
+    }
+
+    // 0021 (ADR-0165): the designated LTE firmware downloads when its row is shown (a local
+    // fixture here); "Use your own file…" shows the drop zone and the recent list.
+    function test_lteDesignatedFirmware() {
+        const flash = vm();
+        mouseClick(find("kindCard" + FirmwareSourceViewModel.LteFirmware));
+        verify(find("designatedRadio").checked);
+        compare(find("designatedRadio").text, "HARDWARIO LTE firmware 1.7.0 (recommended)");
+        tryVerify(() => flash.source.designatedState === FirmwareSourceViewModel.DesignatedReady, 10000);
+        tryCompare(find("designatedStatusText"), "text", "Ready");
+        verify(!find("dropText"));
+        compare(find("flashBarText").text, "nRF Util was not found");
+        mouseClick(find("ownFileRadio"));
+        compare(flash.source.lteSource, FirmwareSourceViewModel.OwnFile);
+        verify(find("dropText") !== null);
+        verify(!find("designatedStatus"));
+        mouseClick(find("designatedRadio"));
+        compare(flash.source.lteSource, FirmwareSourceViewModel.Designated);
+        verify(!find("dropText"));
+    }
+
+    // 0021 (ADR-0167): "Find firmware IDs ↗" is the documentation in the UI language.
+    function test_docsLink() {
+        const link = find("docsLink");
+        verify(link !== null);
+        compare(vm().source.docsUrl.toString(),
+                "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/#application-firmware");
+        AppViewModel.setLanguage("cs");
+        tryCompare(link, "text", "Najít ID firmwaru ↗");
+        compare(vm().source.docsUrl.toString(),
+                "https://docs.hardwario.com/cs/chester/catalog-applications/catalog-applications/#application-firmware");
+        AppViewModel.setLanguage("en");
     }
 
     function test_catalogIdValidator() {
@@ -275,7 +315,7 @@ TestCase {
         checkNoOverlap(buttons);
         for (const button of buttons)
             verify(button.width >= button.implicitWidth - 0.5, `${button.objectName} is narrower than its text`);
-        const cards = [0, 1, 2].map(kind => find("kindCard" + kind));
+        const cards = [0, 1].map(kind => find("kindCard" + kind));
         checkNoOverlap(cards);
         for (const card of cards)
             checkInside(card, false);

@@ -21,7 +21,7 @@
 > - Open log file uses `DeviceSession::consoleFile()` (0002 amendment) instead of a file lookup (§ Data flow).
 > - Selection is whole rows only in M3 (ADR-0113 supersedes ADR-0045's partial selection within a row).
 
-- **Status:** In progress (implementation started 2026-10-16; approved by Matej Strnad, 2026-10-16, with the amendment; amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
+- **Status:** In progress (implementation started 2026-10-16; approved by Matej Strnad, 2026-10-16, with the amendment; amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist; applied 2026-10-23 except learning the device command tree, 0021 phase 2)
   from the 0004 review applied)
 - **Milestone:** M3 (plan 2 of 3, ADR-0059)
 - **Author:** Matej Strnad (with Claude)

@@ -55,6 +55,8 @@ public:
         std::function<nrfutil::LocatorOptions()> nrfUtilOptions;
         // True when the Flash page of `tab` is on screen (no toast then).
         std::function<bool(const DeviceTabViewModel* tab)> isFlashPageVisible;
+        // 0021 (ADR-0167): the UI language in use ("en", "cs"; English when not set).
+        std::function<QString()> uiLanguage;
     };
 
     explicit FirmwareServices(Options options, QObject* parent = nullptr);
@@ -73,6 +75,8 @@ public:
     // The catalog of `profile` (created on first use); nullptr when the profile has none.
     [[nodiscard]] firmware::FirmwareCatalog* catalog(const device::DeviceProfile& profile);
     [[nodiscard]] bool isFlashPageVisible(const DeviceTabViewModel* tab) const;
+    // The UI language in use ("en" without the hook).
+    [[nodiscard]] QString uiLanguage() const;
 
     // Called by the registration on a live language switch; view models re-read their texts.
     void retranslate();

@@ -8,6 +8,7 @@
 #include "hio/core/json.h"
 #include "hio/core/result.h"
 #include "hio/device/command_history.h"
+#include "hio/device/completer.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_session.h"
 #include "hio/device/device_session.h"
@@ -23,9 +24,12 @@
 #include <QTimer>
 #include <QtTypes>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <expected>
 #include <format>
 #include <functional>
@@ -327,6 +331,7 @@ public:
     [[nodiscard]] Status run() {
         openHistory();
         configureReplxx();
+        configureCompletion();
         m_view->setPrinter(
             [this](ConsoleStream /*stream*/, std::string_view text) {
                 std::string line(text);
@@ -371,6 +376,54 @@ private:
         for (const std::string& entry : m_history->entries()) {
             m_rx.history_add(entry);
         }
+        // The input thread's own copy (hints), filled before the thread starts.
+        m_inputHistory = m_history->entries();
+    }
+
+    // Plan 0021 (ADR-0170). The callbacks run on the input thread (inside replxx's input()); they
+    // use only m_completer, m_inputHistory and m_options (read-only), which that thread owns
+    // while it runs.
+    void configureCompletion() {
+        m_completer.setTree(m_options->commandTree);
+        if (m_options->suggestions) {
+            m_rx.set_max_hint_rows(static_cast<int>(maxHintRows));
+            m_rx.set_hint_callback(
+                [this](const std::string& input, int& contextLen, replxx::Replxx::Color& color) {
+                    replxx::Replxx::hints_t hints;
+                    for (const device::Suggestion& row : m_completer.suggest(
+                             input, m_inputHistory, device::Completer::maxSuggestions)) {
+                        if (row.kind == device::Suggestion::Kind::History &&
+                            hints.size() < maxHintRows) {
+                            hints.push_back(row.text);
+                        }
+                    }
+                    contextLen = codePoints(input); // the hints are whole lines
+                    color = replxx::Replxx::Color::GRAY;
+                    return hints;
+                });
+        }
+        m_rx.set_completion_callback([this](const std::string& input, int& contextLen) {
+            replxx::Replxx::completions_t completions;
+            const device::Completion completion = m_completer.complete(input);
+            const std::string_view prefix(input.data(), input.find_last_of(' ') == std::string::npos
+                                                            ? 0
+                                                            : input.find_last_of(' ') + 1);
+            if (completion.candidates.size() == 1) {
+                completions.emplace_back(completion.replacement);
+            } else {
+                for (const std::string& name : completion.candidates) {
+                    completions.emplace_back(std::string(prefix) + name);
+                }
+            }
+            contextLen = codePoints(input); // whole lines
+            return completions;
+        });
+    }
+
+    // UTF-8 code points of `text` (replxx counts the context in code points).
+    static int codePoints(std::string_view text) {
+        return static_cast<int>(std::ranges::count_if(
+            text, [](char c) { return (static_cast<unsigned char>(c) & 0xC0U) != 0x80U; }));
     }
 
     void configureReplxx() {
@@ -417,6 +470,10 @@ private:
             std::string line(text);
             if (!line.empty()) {
                 m_rx.history_add(line);
+                m_inputHistory.push_back(line);
+                while (m_inputHistory.size() > device::CommandHistory::maxEntries) {
+                    m_inputHistory.pop_front();
+                }
             }
             if (!m_entered.push(std::move(line), stop)) {
                 return;
@@ -455,8 +512,13 @@ private:
     device::ConsoleSession* m_session;
     ConsoleView* m_view;
     const ConsoleUiOptions* m_options;
+    static constexpr std::size_t maxHintRows = 4;
+
     replxx::Replxx m_rx;
     std::optional<device::CommandHistory> m_history;
+    // Input thread only once it runs (filled before): the hints' history and the completer.
+    std::deque<std::string> m_inputHistory; // <= CommandHistory::maxEntries
+    device::Completer m_completer;
     // Shared with the input thread: the entered lines (bounded) and two flags.
     BoundedQueue<std::string> m_entered{64, OverflowPolicy::Block};
     std::atomic<bool> m_quit{false};

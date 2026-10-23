@@ -4,6 +4,8 @@
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
+#include "hio/device/command_tree.h"
+#include "hio/device/completer.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
 #include "hio/device/device_session.h"
@@ -19,9 +21,11 @@
 #include "viewmodels/history_store.h"
 #include "workers/batch_runner.h"
 
+#include <QChar>
 #include <QClipboard>
 #include <QDir>
 #include <QGuiApplication>
+#include <QLatin1Char>
 #include <QList>
 #include <QLoggingCategory>
 #include <QModelIndex>
@@ -30,12 +34,15 @@
 #include <QString>
 #include <QStringList>
 #include <QUrl>
+#include <QVariantList>
+#include <QVariantMap>
 #include <QtContainerFwd>
 #include <QtTypes>
 
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <deque>
 #include <expected>
 #include <filesystem>
 #include <limits>
@@ -463,6 +470,65 @@ QStringList ConsoleViewModel::historySearch(const QString& text, int max) const 
             ? m_history
             : m_context.history->history(m_tab->profileId(), m_tab->consoleTargetId());
     return history->search(text, static_cast<std::size_t>(std::clamp(max, 0, historySearchMax)));
+}
+
+// ---- suggestions (0021, ADR-0170) ---------------------------------------------------------------
+
+namespace {
+
+const std::deque<std::string>& noHistory() {
+    static const std::deque<std::string> empty;
+    return empty;
+}
+
+} // namespace
+
+QVariantList ConsoleViewModel::suggestions(const QString& text) const {
+    const std::shared_ptr<SharedHistory> history =
+        m_history != nullptr || m_context.history == nullptr
+            ? m_history
+            : m_context.history->history(m_tab->profileId(), m_tab->consoleTargetId());
+    const device::Completer completer(m_commandTree ? &*m_commandTree : nullptr);
+    QVariantList rows;
+    for (const device::Suggestion& row :
+         completer.suggest(toStdString(text), history ? history->entries() : noHistory())) {
+        rows.append(
+            QVariantMap{{QStringLiteral("text"), toQString(row.text)},
+                        {QStringLiteral("label"), toQString(row.label)},
+                        {QStringLiteral("help"), toQString(row.help)},
+                        {QStringLiteral("kind"), row.kind == device::Suggestion::Kind::Command
+                                                     ? QStringLiteral("command")
+                                                     : QStringLiteral("history")}});
+    }
+    return rows;
+}
+
+QString ConsoleViewModel::suggestion(const QString& text) const {
+    const std::shared_ptr<SharedHistory> history =
+        m_history != nullptr || m_context.history == nullptr
+            ? m_history
+            : m_context.history->history(m_tab->profileId(), m_tab->consoleTargetId());
+    if (!history) {
+        return {};
+    }
+    const auto hint = device::Completer::historyHint(toStdString(text), history->entries());
+    return hint ? toQString(*hint) : QString();
+}
+
+QVariantMap ConsoleViewModel::complete(const QString& text) const {
+    const device::Completer completer(m_commandTree ? &*m_commandTree : nullptr);
+    const device::Completion completion = completer.complete(toStdString(text));
+    QStringList candidates;
+    for (const std::string& name : completion.candidates) {
+        candidates.append(toQString(name));
+    }
+    return {{QStringLiteral("replacement"), toQString(completion.replacement)},
+            {QStringLiteral("candidates"), candidates}};
+}
+
+void ConsoleViewModel::setCommandTree(std::optional<device::CommandTree> tree) {
+    m_commandTree = std::move(tree);
+    commandTreeChanged(); // signal
 }
 
 // ---- batch --------------------------------------------------------------------------------------

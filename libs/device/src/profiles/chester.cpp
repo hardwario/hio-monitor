@@ -2,6 +2,7 @@
 // py-hardwario hardwario/chester/cli/app.py, lte.py, hardwario/device/nrfjprog.py).
 
 #include "hio/device/profile.h"
+#include "hio/firmware/designated_firmware.h"
 #include "hio/hw/jlink/programmer.h"
 #include "profiles.h"
 
@@ -79,6 +80,29 @@ constexpr std::array blePairingGuide{
     },
 };
 
+// ADR-0165: the LTE firmware HARDWARIO supports for CHESTER (docs.hardwario.com, "LTE Modem over
+// J-Link"); SHA-256 measured 2026-10-20. A new version is a profile change in a release.
+constexpr firmware::DesignatedFirmware lteFirmware{
+    .name = "HARDWARIO LTE firmware",
+    .version = "1.7.0",
+    .url = "https://docs.hardwario.com/download/hio-chester-lte-v1.7.0.zip",
+    .sha256 =
+        firmware::sha256FromHex("95d301a11738bcd9a9df4726159361d64fd8f681c3546f479d46b49f4bf0fe49"),
+    .kind = firmware::FirmwareKind::LteBundle,
+};
+
+// ADR-0167: the documentation list of application firmware, English first (the fallback).
+constexpr std::array firmwareDocs{
+    LocalizedUrl{.language = "en",
+                 .url =
+                     "https://docs.hardwario.com/chester/catalog-applications/catalog-applications/"
+                     "#application-firmware"},
+    LocalizedUrl{
+        .language = "cs",
+        .url = "https://docs.hardwario.com/cs/chester/catalog-applications/catalog-applications/"
+               "#application-firmware"},
+};
+
 constexpr std::array chesterTargets{
     // Application MCU: the RTT console of `hio chester app console` / `command`.
     TargetProfile{.id = "app",
@@ -98,7 +122,8 @@ constexpr std::array chesterTargets{
                   .pibErasableWithUicr = true,
                   .recoverImage = RecoverImage::None,
                   .defaultErase = EraseScope::Code,
-                  .connectionGuide = appGuide},
+                  .connectionGuide = appGuide,
+                  .designatedFirmware = std::nullopt},
     // LTE modem MCU (nRF9151 or nRF9160). Programming only; no RTT console. Connected with the
     // first part's J-Link name, then with the exact part's name (to confirm in Phase 0). The PIB
     // lies in the UICR OTP area, which a UICR erase does not touch.
@@ -119,7 +144,8 @@ constexpr std::array chesterTargets{
                   .pibErasableWithUicr = false,
                   .recoverImage = RecoverImage::Nrf91DisableApProtect,
                   .defaultErase = EraseScope::All,
-                  .connectionGuide = lteGuide},
+                  .connectionGuide = lteGuide,
+                  .designatedFirmware = lteFirmware},
 };
 
 } // namespace
@@ -131,17 +157,19 @@ constinit const DeviceProfile chester{
     .firmwareCatalogUrl = "https://firmware.hardwario.com/chester",
     .powerHintSourceText =
         QT_TRANSLATE_NOOP("hio::device", "Power CHESTER with batteries or the USB-C power input."),
-    .ble = BleProfile{
-        .namePattern = "CHESTER",
-        .serviceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-        .rxUuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
-        .txUuid = "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
-        .shellPrompt = "bt_nus:~$ ",
-        .consoleTargetId = "app",
-        .passkeyHintSourceText = QT_TRANSLATE_NOOP(
-            "hio::device",
-            "The passkey is 123456 unless it was changed when the device was configured."),
-        .pairingGuide = blePairingGuide,
-    }};
+    .ble =
+        BleProfile{
+            .namePattern = "CHESTER",
+            .serviceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+            .rxUuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+            .txUuid = "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+            .shellPrompt = "bt_nus:~$ ",
+            .consoleTargetId = "app",
+            .passkeyHintSourceText = QT_TRANSLATE_NOOP(
+                "hio::device",
+                "The passkey is 123456 unless it was changed when the device was configured."),
+            .pairingGuide = blePairingGuide,
+        },
+    .firmwareDocsUrl = firmwareDocs};
 
 } // namespace hio::device::profiles

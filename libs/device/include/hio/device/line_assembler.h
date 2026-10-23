@@ -11,7 +11,8 @@
 //   - applies carriage returns like a terminal that redraws a line (Zephyr's shell redraws its
 //     prompt with "\r" + erase-line): trailing '\r's are dropped, and the text after the last
 //     remaining '\r' replaces what came before it (applyCarriageReturns);
-//   - parses the Zephyr level tag <dbg|inf|wrn|err> of log lines;
+//   - parses the Zephyr level tag <dbg|inf|wrn|err> of log lines; a log line without a tag that
+//     has the Zephyr hexdump continuation format gets LogLevel::Hexdump (ADR-0171);
 //   - (profile rule hashPrefixIsLog) routes shell lines starting with '#' to the Log channel.
 //
 // Owned by the session worker; not thread-safe.
@@ -58,5 +59,10 @@ private:
 // Drops trailing '\r's, then keeps the text after the last '\r' (review fix 8, 2026-10-09).
 [[nodiscard]] std::string applyCarriageReturns(std::string_view bytes);
 [[nodiscard]] LogLevel parseZephyrLevel(std::string_view text);
+// ADR-0171: the Zephyr LOG_HEXDUMP continuation format - leading whitespace, 1-16 groups of two
+// hex digits each followed by a space (one extra space after the 8th group, padding spaces for a
+// short last line), then '|' and at most 17 printable ASCII characters (16 bytes as characters,
+// with the space Zephyr puts after the 8th). Nothing else matches.
+[[nodiscard]] bool isHexdumpLine(std::string_view text) noexcept;
 
 } // namespace hio::device

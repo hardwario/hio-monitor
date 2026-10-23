@@ -46,6 +46,7 @@ class ProbePickerViewModel : public QAbstractListModel {
     Q_PROPERTY(QString profileId READ profileId WRITE setProfileId NOTIFY profileIdChanged)
     Q_PROPERTY(QVariantList profiles READ profiles CONSTANT)
     Q_PROPERTY(QString targetId READ targetId WRITE setTargetId NOTIFY targetIdChanged)
+    // [{id, label (= id, 0021 ADR-0168), title}]
     Q_PROPERTY(QVariantList targets READ targets NOTIFY targetsChanged)
     Q_PROPERTY(int selectedRow READ selectedRow WRITE setSelectedRow NOTIFY selectedRowChanged)
     Q_PROPERTY(bool canConnect READ canConnect NOTIFY selectedRowChanged)
@@ -106,8 +107,9 @@ public:
 
     // "J-Link V11 compiled Sep 21 2023 10:38:43" -> "2023-09-21"; "" when it cannot be read.
     [[nodiscard]] static QString firmwareDate(const QString& firmware);
-    // Translated target title: "Application MCU (app)", "LTE modem MCU (lte)", else the id.
-    [[nodiscard]] static QString targetTitle(const QString& targetId);
+    // Translated long target title with the profile's chips (0021, ADR-0168): "Application MCU
+    // (nRF52840)", "LTE MCU (nRF9151 / nRF9160)"; the id for unknown targets.
+    [[nodiscard]] static QString targetTitle(const QString& profileId, const QString& targetId);
 
 signals:
     void activeChanged();

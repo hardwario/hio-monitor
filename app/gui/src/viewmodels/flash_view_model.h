@@ -3,11 +3,12 @@
 // FlashViewModel - the Flash page of a device tab (plan/features/0006-m3-flash-settings.md, D2-D4;
 // ADR-0049, ADR-0054, ADR-0055, ADR-0057, ADR-0062, ADR-0038, ADR-0109).
 //
-// Kind first (ADR-0055): application firmware (target app), LTE firmware (lte: .hex or LTE bundle)
-// or LTE modem firmware (lte, via nRF Util). The source part (file, catalog ID, recent list, kind
-// hint, UICR) is the child FirmwareSourceViewModel (amended by 0010). Flash and the maintenance
-// actions (reset, erase code, erase all, recover) run as one session operation each on the tab's
-// session with the kind's target (ADR-0057, ADR-0062):
+// Kind first (ADR-0055; amended by 0021, ADR-0174): application firmware (target app) or LTE
+// firmware (lte: the designated LTE firmware, or an own .hex, LTE bundle or modem zip - the
+// operation follows the ADR-0040 classification: flash, flashLteBundle or updateModem). The source
+// part (file, catalog ID, recent list, kind hint, UICR) is the child FirmwareSourceViewModel
+// (amended by 0010). Flash and the maintenance actions (reset, erase code, erase all, recover) run
+// as one session operation each on the tab's session with the kind's target (ADR-0057, ADR-0062):
 //   - a tab without a working session opens one first (DeviceTabViewModel::ensureSession(): the
 //     console target, amended by the 0004 review S2);
 //   - progress (phases from OperationProgress::plannedPhases, step 1/2 of an LTE bundle) and the
@@ -69,7 +70,7 @@ class FlashViewModel : public QObject {
     Q_PROPERTY(QString prerequisiteText READ prerequisiteText NOTIFY stateChanged)
     // ADR-0057 Phase 0: the kind's MCU is not the tab's console target.
     Q_PROPERTY(QString connectorWarning READ connectorWarning NOTIFY stateChanged)
-    Q_PROPERTY(bool haltAvailable READ haltAvailable NOTIFY kindChanged)
+    Q_PROPERTY(bool haltAvailable READ haltAvailable NOTIFY stateChanged)
     Q_PROPERTY(bool halt READ halt WRITE setHalt NOTIFY haltChanged)
     Q_PROPERTY(bool canFlash READ canFlash NOTIFY stateChanged)
     Q_PROPERTY(QString cannotFlashReason READ cannotFlashReason NOTIFY stateChanged)
@@ -131,9 +132,7 @@ public:
     [[nodiscard]] QVariantList kinds() const;
     [[nodiscard]] QString prerequisiteText() const;
     [[nodiscard]] QString connectorWarning() const;
-    [[nodiscard]] bool haltAvailable() const {
-        return m_kind != FirmwareSourceViewModel::ModemFirmware;
-    }
+    [[nodiscard]] bool haltAvailable() const;
     [[nodiscard]] bool halt() const noexcept { return m_halt; }
     void setHalt(bool halt);
     [[nodiscard]] bool canFlash() const { return cannotFlashReason().isEmpty(); }
@@ -196,7 +195,8 @@ signals:
     void progressChanged();
     void textsChanged();
     void chooseFileRequested();
-    void settingsRequested(); // QML opens the Settings page
+    // QML opens the Settings tab at `sectionId` (0021: "nrfutil", "jlink" or "").
+    void settingsRequested(const QString& sectionId);
     void confirmationRequested();
     // A text for screen readers (operation started / finished; design system § 6).
     void announcement(const QString& text);
@@ -235,7 +235,6 @@ private:
     void finish(device::OperationKind kind, const Status& status,
                 std::chrono::milliseconds duration, const std::optional<device::ChipInfo>& chip);
     void applyDefaultKind();
-    void updateHexFallback();
     void retranslate();
     [[nodiscard]] const device::DeviceProfile* profile() const;
     [[nodiscard]] const device::TargetProfile* targetProfile(const QString& id) const;

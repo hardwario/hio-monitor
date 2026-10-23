@@ -34,7 +34,7 @@
 <context>
     <name>ConsoleView</name>
     <message numerus="yes">
-        <location filename="../../../app/gui/qml/console/ConsoleView.qml" line="74"/>
+        <location filename="../../../app/gui/qml/console/ConsoleView.qml" line="158"/>
         <source>%Ln lines</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -42,7 +42,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../../app/gui/qml/console/ConsoleView.qml" line="228"/>
+        <location filename="../../../app/gui/qml/console/ConsoleView.qml" line="424"/>
         <source>▼ %Ln new lines</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -53,7 +53,7 @@
 <context>
     <name>hio::gui::ConsoleViewModel</name>
     <message numerus="yes">
-        <location filename="../../../app/gui/src/viewmodels/console_view_model.cpp" line="559"/>
+        <location filename="../../../app/gui/src/viewmodels/console_view_model.cpp" line="625"/>
         <source>Only the first %Ln lines were copied (copy limit).</source>
         <translation type="unfinished">
             <numerusform></numerusform>

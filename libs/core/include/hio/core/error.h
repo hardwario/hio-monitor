@@ -99,6 +99,8 @@ enum class ErrorCode : std::uint8_t {
     BleDisconnected,
     BleInUseByOtherProcess,
     BleNoPairingAgent, // HIL finding H1, 2026-10-20
+    // GUI feedback round 1 (plan/features/0021-gui-feedback-round-1.md)
+    FirmwareChecksumMismatch,
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -306,6 +308,9 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::BleNoPairingAgent,
               .id = "ble.no_pairing_agent",
               .category = ErrorCategory::Dependency},
+    ErrorInfo{.code = ErrorCode::FirmwareChecksumMismatch,
+              .id = "firmware.checksum_mismatch",
+              .category = ErrorCategory::Firmware},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every

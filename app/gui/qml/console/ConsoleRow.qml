@@ -28,18 +28,15 @@ Rectangle {
     property font rowFont: Theme.fontMono
     property real rowWidth: 0
     property real levelWidth: 0 // the level column (one character, measured by the view)
-    property ListView list: null
 
-    signal pressedRow(int index, bool extend)
-    signal draggedTo(int index)
-    signal contextMenuRequested(real x, real y)
 
     readonly property bool marker: row.direction === 2
     readonly property color textColour: row.marker ? Theme.textMuted
                                       : row.direction === 1 ? Theme.shellEcho
                                       : row.level === 1 ? Theme.logDebug
                                       : row.level === 3 ? Theme.warning
-                                      : row.level === 4 ? Theme.error : Theme.logInfo
+                                      : row.level === 4 ? Theme.error
+                                      : row.level === 5 ? Theme.textMuted : Theme.logInfo // 5: hexdump (0021)
 
     objectName: "consoleRow"
     width: row.rowWidth
@@ -173,28 +170,6 @@ Rectangle {
                 color: row.textColour
                 wrapMode: row.wrap ? TextEdit.WrapAnywhere : TextEdit.NoWrap
                 Accessible.ignored: true // the row exposes its text
-            }
-        }
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        // Dragging selects rows instead of flicking the list (desktop behaviour).
-        preventStealing: true
-        onPressed: mouse => {
-            if (mouse.button === Qt.RightButton) {
-                if (!row.selected)
-                    row.pressedRow(row.index, false);
-                row.contextMenuRequested(mouse.x, mouse.y);
-            } else {
-                row.pressedRow(row.index, (mouse.modifiers & Qt.ShiftModifier) !== 0);
-            }
-        }
-        onPositionChanged: mouse => {
-            if (row.list !== null && (mouse.buttons & Qt.LeftButton)) {
-                const point = mapToItem(row.list.contentItem, mouse.x, mouse.y);
-                row.draggedTo(row.list.indexAt(point.x, point.y));
             }
         }
     }

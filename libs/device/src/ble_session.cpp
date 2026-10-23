@@ -224,6 +224,10 @@ void BleConsoleHandler::onData(std::span<const std::byte> data) {
             if (const LogLevel level = parseZephyrLevel(line.text); level != LogLevel::None) {
                 line.channel = Channel::Log;
                 line.level = level;
+            } else if (isHexdumpLine(line.text)) {
+                // ADR-0171: the continuation lines of a log hexdump are log lines too.
+                line.channel = Channel::Log;
+                line.level = LogLevel::Hexdump;
             }
         }
         if (line.channel == Channel::Shell) {
