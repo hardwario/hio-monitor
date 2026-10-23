@@ -1,10 +1,11 @@
 # 0021 — GUI feedback round 1: flash page, target picker, console, Settings tab
 
 - **Status:** Approved (2026-10-20 by Matej Strnad, with all minor defaults as proposed; amendments applied to
-  0004, 0005, 0006 and 0010 the same day)
+  0004, 0005, 0006 and 0010 the same day); amendment N10 (log scroll bars, ADR-0173) approved 2026-10-23
 - **Milestone:** M3 follow-up (changes the implemented plans 0004, 0005, 0006 and the flash wizard 0010)
 - **Author:** Matej Strnad (with Claude)
-- **Related ADRs:** ADR-0164, ADR-0165, ADR-0166, ADR-0167, ADR-0168, ADR-0169, ADR-0170, ADR-0171, ADR-0172;
+- **Related ADRs:** ADR-0164, ADR-0165, ADR-0166, ADR-0167, ADR-0168, ADR-0169, ADR-0170, ADR-0171, ADR-0172,
+  ADR-0173 (N10, 2026-10-23);
   amended: ADR-0033, ADR-0043, ADR-0045, ADR-0046, ADR-0055; context: ADR-0037, ADR-0040, ADR-0054, ADR-0058, ADR-0104
 - **Depends on:** [0004](0004-m3-gui-shell.md), [0005](0005-m3-console.md), [0006](0006-m3-flash-settings.md),
   [0010](0010-m4-flash-wizard.md) implemented (all on `v2-dev`); 0003 (M2: catalog download, LTE operations);
@@ -26,6 +27,7 @@ Matej Strnad tried the integrated GUI (`v2-dev`) and sent these notes (2026-10-2
 | N7 | Autocompletion and suggestions in the console. | Console |
 | N8 | Can Settings be another tab? | Shell |
 | N9 | With the Info level switched off in the filter, hexdump lines (`44 74 4f 34 … \|DtO4xTs1 K6iAsASJ`) are still shown. | Console |
+| N10 | *Added 2026-10-23 (amendment, approved the same day):* copying in the log fails at the very bottom — "some bar gets in the way". | Console |
 
 Answers to the clarifying questions are recorded in the ADRs listed above and in § Decisions.
 
@@ -98,7 +100,7 @@ switch to LTE firmware?" [Switch]; an `app` hex on LTE → "This is application 
 - "Open Settings" (ErrorPanel primary action, wizard links, "Set path in Settings") opens the tab and scrolls to the
   section (`openSettings(sectionId)`).
 
-### Console (N6, N7, N9; ADR-0169 … ADR-0171)
+### Console (N6, N7, N9, N10; ADR-0169 … ADR-0171, ADR-0173)
 
 - **Scrolling:** wheel = system lines-per-notch (default 3) whole rows, no coasting; touchpad accumulated to rows; the
   top row always aligned; keys Up/Down, PgUp/PgDn, Ctrl+Home/End in the focused view.
@@ -118,6 +120,12 @@ switch to LTE firmware?" [Switch]; an `app` hex on LTE → "This is application 
   the first time a suggestion is needed).
 - **Hexdump chip:** the level chips become D I W E **H**; H ("Hexdump lines") is off by default; tooltip "Show hexdump
   lines". Hexdump rows use the muted text colour when shown.
+- **Scroll bars beside the rows (N10, ADR-0173; amendment approved 2026-10-23):** cause found — the
+  Material horizontal scroll bar (16 px) is attached over the list and covers the whole last row at the end of the
+  log, so the row cannot be clicked, selected or copied (reproduced offscreen: 0 presses reach the row). Both bars move
+  out of the list into the layout (horizontal below, vertical to the right), visible only when needed. Pressing a row
+  suspends Follow until release (rows do not move under the pointer); dragging past the top/bottom edge scrolls by
+  whole rows and extends the selection.
 
 ## CLI
 
@@ -225,6 +233,7 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 | Log scrolling | whole rows, no coasting | Whole rows (2026-10-20) | ADR-0169 |
 | Completion source | history / history + device commands / Tab to device | History + device commands, GUI and CLI (2026-10-20) | ADR-0170 |
 | Hexdump lines | inherit level / own level hidden by default | Own level, hidden by default (2026-10-20) | ADR-0171 |
+| Log scroll bars over the last row (N10) | margins / bars beside the list / wrap on | Bars beside the list, Follow suspended while pressed, drag auto-scroll (2026-10-23) | ADR-0173 |
 | Settings | rail page / tab in tab strip | Rail item stays; it opens Settings as a tab that exists only while open (2026-10-20) | ADR-0172 |
 | Plan form | new plan + notes / edit 0004–0006 | New plan 0021; amendments applied to 0004/0005/0006/0010 on approval (2026-10-20) | — |
 | When to send `help` / `info show` | on connect / lazily | `help` on connect, configurable in Settings (`console/readCommandsOnConnect`) (2026-10-20); `info show` on connect | ADR-0170, ADR-0166 |
@@ -250,6 +259,8 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 - [ ] C3 Settings tab (tab model entry, rail item + Ctrl+, open/switch, `openSettings(section)`)
 - [ ] C4 Console: line scrolling, ghost suggestion, automatic suggestion list above the input, Tab completion, the
       two console settings, H chip default off
+- [ ] C5 Console scroll bars beside the rows, Follow suspended while a row is pressed, drag auto-scroll (N10,
+      ADR-0173)
 - [ ] D1 `update_translations`, Czech for every new string; `check_translations`
 - [ ] D2 Docs: `docs/` user guide sections for Flash (LTE), console completion, Settings tab; plan notes in
       0004/0005/0006/0010 marked applied; 0006-cli table updated
@@ -264,6 +275,10 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 - **ViewModel tests:** Flash kinds and operation mapping for designated / hex / bundle / modem file; kind hints;
   catalog info states; device info after attach and after flash; Settings tab model (limit, not restored,
   `openSettings(section)`); target labels; level mask default.
+- **Qt Quick Tests (N10):** log at the end with a line wider than the view: the last row is fully above the
+  horizontal bar, a press selects it and Ctrl+C copies it; a press while lines stream does not move the row under the
+  pointer; dragging below the view extends the selection to the last row. Same for the shell view and with Czech at
+  960 × 600.
 - **Qt Quick Tests:** Flash page both kinds in light/dark, 960 × 600 Czech; Settings tab open/close/cycle; wheel
   scrolling moves whole rows and aligns the top row; ghost text, the automatic list (opens on typing, ↑ ↓ / Tab / Esc / Enter rules, off by setting), `help` sent
   on connect or lazily per setting; H chip off by default.

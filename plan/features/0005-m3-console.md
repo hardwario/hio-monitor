@@ -130,6 +130,9 @@ Its pain points must be fixed:
   filter. Switching modes keeps both queries. Searching never pauses the stream; Follow is turned off only when the
   user moves to a match.
 - **Shell search:** Ctrl+F in the shell shows a Search-only bar directly above the command input. Esc hides it.
+- *Amendment from 0021 (N10, ADR-0173; approved 2026-10-23):* the scroll bars sit beside the rows (horizontal below,
+  vertical to the right), never over them, so the last row stays selectable at the end of the log; a pressed row
+  suspends Follow until release; dragging past an edge scrolls by rows.
 - **Selection and copy:** click / Shift+click / Ctrl+A select rows; Ctrl+C copies the rows (with timestamps when they
   are shown). Whole rows only (ADR-0113).
 - **Banners:**
