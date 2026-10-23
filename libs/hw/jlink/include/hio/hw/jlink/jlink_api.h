@@ -50,6 +50,28 @@ using FlashProgressFn = std::function<void(std::string_view action, int percent)
 // does that right after `Device =`.
 inline constexpr std::uint32_t autoSpeed = 0;
 
+// The functions resolved optionally (ADR-0151, plan/features/0013): a library without one of them
+// still loads; only the operation that needs it fails with dependency.jlink_function_missing
+// (detail: optionalFunctionName()).
+enum class OptionalFunction : std::uint8_t {
+    IsHalted,        // JLINKARM_IsHalted
+    GetId,           // JLINKARM_GetId
+    WriteU16,        // JLINKARM_WriteU16
+    WriteU32,        // JLINKARM_WriteU32
+    GetRegisterList, // JLINKARM_GetRegisterList
+    GetRegisterName, // JLINKARM_GetRegisterName
+    ReadRegs,        // JLINKARM_ReadRegs
+    GetMemZones,     // JLINK_GetMemZones
+};
+
+inline constexpr std::size_t optionalFunctionCount = 8;
+
+// The exported symbol name, e.g. "JLINKARM_IsHalted".
+[[nodiscard]] std::string_view optionalFunctionName(OptionalFunction function) noexcept;
+
+// Largest register list requested from the library (pylink MAX_NUM_CPU_REGISTERS).
+inline constexpr std::size_t maxRegisterListItems = 256;
+
 class IJLinkApi {
 public:
     IJLinkApi() = default;
@@ -110,9 +132,41 @@ public:
     // JLINKARM_Go.
     virtual void go() = 0;
 
+    // ---- target, optional functions (M6, plan/features/0013, ADR-0151) ----------------------
+    // Callers check has() first; a missing function returns -1 (or an empty result) without
+    // calling the library.
+    [[nodiscard]] virtual bool has(OptionalFunction function) = 0;
+    // JLINKARM_IsHalted: > 0 halted, 0 running, < 0 vendor error.
+    [[nodiscard]] virtual int isHalted() = 0;
+    // JLINKARM_GetId: the core's identification (0 when unknown).
+    [[nodiscard]] virtual std::uint32_t coreId() = 0;
+    // JLINKARM_WriteU16 / JLINKARM_WriteU32 of one unit. Returns the vendor code (0 = success).
+    [[nodiscard]] virtual int writeU16(std::uint32_t address, std::uint16_t value) = 0;
+    [[nodiscard]] virtual int writeU32(std::uint32_t address, std::uint32_t value) = 0;
+    // JLINKARM_ReadMemU32 of items.size() units (mandatory symbol): the number of units read
+    // (>= 0; the count stops at the first unit whose status reports an error) or a negative
+    // vendor code.
+    [[nodiscard]] virtual int readU32s(std::uint32_t address, std::span<std::uint32_t> items) = 0;
+    // JLINKARM_GetRegisterList: at most maxRegisterListItems register indexes. Error: the
+    // negative vendor code.
+    [[nodiscard]] virtual std::expected<std::vector<std::uint32_t>, int> registerList() = 0;
+    // JLINKARM_GetRegisterName: "" when the library has no name.
+    [[nodiscard]] virtual std::string registerName(std::uint32_t index) = 0;
+    // JLINKARM_ReadRegs of `indexes` into `values` (same size). Returns the vendor code (< 0:
+    // error).
+    [[nodiscard]] virtual int readRegisters(std::span<const std::uint32_t> indexes,
+                                            std::span<std::uint32_t> values) = 0;
+    // JLINK_GetMemZones: at most `maxZones` zones (empty when the target reports none; a longer
+    // list is cut and the cut is logged, review S10). Error:
+    // the negative vendor code.
+    [[nodiscard]] virtual std::expected<std::vector<MemoryZone>, int>
+    memoryZones(std::size_t maxZones) = 0;
+
     // ---- RTT (JLINK_RTTERMINAL_*) -----------------------------------------------------------
-    // Control(START) with automatic control block search. Returns the vendor code (< 0: error).
-    [[nodiscard]] virtual int rttStart() = 0;
+    // Control(START): with `blockAddress` the control block is expected at that address
+    // (JLINK_RTTERMINAL_START.ConfigBlockAddress), otherwise the library searches for it.
+    // Returns the vendor code (< 0: error).
+    [[nodiscard]] virtual int rttStart(std::optional<std::uint32_t> blockAddress) = 0;
     // Control(STOP). Returns the vendor code.
     virtual int rttStop() = 0;
     // Control(GETNUMBUF). < 0 while the control block has not been found yet.
@@ -132,15 +186,21 @@ public:
     // ---- memory and flash (M2, plan/features/0003) ------------------------------------------
     // JLINKARM_BeginDownload(0): following writeMemory() calls go to the flash loader's buffer.
     virtual void beginDownload() = 0;
-    // JLINKARM_WriteMem. Bytes accepted (>= 0) or a negative vendor code.
+    // JLINKARM_WriteMem. Between beginDownload() and endDownload() the bytes go to the flash
+    // loader's buffer; outside a download it is a direct write of target memory (RAM,
+    // peripherals; M6 writeMemory with 8-bit units). Bytes accepted (>= 0) or a negative vendor
+    // code.
     [[nodiscard]] virtual int writeMemory(std::uint32_t address,
                                           std::span<const std::byte> data) = 0;
     // JLINKARM_EndDownload: the loader erases the touched sectors and programs them. `progress`
     // receives the loader's progress callbacks during the call. Returns the vendor code (< 0:
     // error).
     [[nodiscard]] virtual int endDownload(const FlashProgressFn& progress) = 0;
-    // JLINKARM_ReadMemEx: bytes read (>= 0) or a negative vendor code.
+    // JLINKARM_ReadMemEx (access width 0 = any): bytes read (>= 0) or a negative vendor code.
     [[nodiscard]] virtual int readMemory(std::uint32_t address, std::span<std::byte> buffer) = 0;
+    // JLINKARM_ReadMemEx with access width 2 (16-bit units, as pylink memory_read(nbits=16);
+    // M6): the library's count (>= 0) or a negative vendor code. buffer.size() is even.
+    [[nodiscard]] virtual int readMemory16(std::uint32_t address, std::span<std::byte> buffer) = 0;
     // JLINKARM_ReadMemU32 of one word. Error: the vendor code (or the item status).
     [[nodiscard]] virtual std::expected<std::uint32_t, int> readU32(std::uint32_t address) = 0;
     // JLINK_EraseChip: erases flash and UICR. Returns the vendor code (< 0: error).

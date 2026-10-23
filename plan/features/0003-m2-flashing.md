@@ -20,6 +20,7 @@
 > `diagnoseStep` signal; operations also run on probe-only sessions (`connectTarget = false`, 0002). Diagnose never
 > resets, halts or writes. The implementation is tracked in 0007 (step B2), not in this plan's checklist.
 
+
 > **Pending amendment from M6 (ADR-0099, specified in [0013](0013-m6-mcp-core-cli.md); applied to this text when 0013
 > is approved — then this plan needs re-approval):** new operations `halt`, `go`, `targetStatus`, `readMemory` with
 > access width, `writeMemory`, `readRegisters`, `memoryZones`, `writeFlash` (raw bytes through `IProgrammer`, M2
@@ -89,7 +90,7 @@ No GUI changes in M2. CLI transcripts (English only, ADR-0027):
 
 ```
 $ hio chester app flash 0123456789abcdef0123456789abcdef
-Using J-Link 801234567 (J-Link probe), library 8.10a
+Using J-Link 801234567 (J-Link EDU Mini), library 8.10a
 Firmware 0123456789abcdef0123456789abcdef: cached (412 KiB)
 Target: nRF52840 (app)
 Erasing     [##############################] 100 %

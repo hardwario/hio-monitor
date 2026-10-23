@@ -16,6 +16,10 @@
 // Linux and macOS there is a single calling convention, so HIO_JLINK_STDCALL expands to nothing
 // there (clang warns about an ignored __stdcall on x64, which -Werror would turn into an error).
 //
+// JLINKARM_ReadMemEx(U32 Addr, U32 NumBytes, void* pData, U32 AccessWidth): AccessWidth 0 = any
+// (the 8-bit path of M2), 1/2/4 = 8/16/32-bit units ([pylink] memory_read(): access = 1/2/4 with
+// NumBytes = units x access).
+//
 // Types: SEGGER's U32 = uint32_t, U16 = uint16_t, U8 = uint8_t, I32/int = int32_t; `char` return
 // values are booleans (0 / non-zero).
 //
@@ -191,6 +195,52 @@ using CoresightReadFn = int (*)(std::uint8_t, std::uint8_t,
 using CoresightWriteFn = int (*)(std::uint8_t, std::uint8_t,
                                  std::uint32_t); // JLINKARM_CORESIGHT_WriteAPDPReg
 
+// M6 low-level target operations (plan/features/0013, ADR-0099). Resolved OPTIONALLY (ADR-0151):
+// a missing export disables only the operation that needs it (dependency.jlink_function_missing).
+// JLINKARM_ReadMemU16 is deliberately NOT used (decision Q2 of plan 0013, ADR-0151 note): 16-bit
+// reads use JLINKARM_ReadMemEx with access width 2, as [pylink] memory_read(nbits=16) does.
+//
+// Signatures from [UM08002], cross-checked with [pylink] jlink.py halted(), core_id(),
+// peripheral_write16/32(), register_list(), register_name(), register_read_multiple(),
+// num_memory_zones()/memory_zones(); calling conventions from [pylink] library.py
+// (_standard_calls_ lists JLINK_GetMemZones, none of the JLINKARM_* below).
+//
+// JLINKARM_IsHalted: [UM08002] returns a `char`: > 0 halted, 0 running, < 0 error ([pylink]
+// halted() reads it as int and checks < 0 / > 0). Declared as `signed char`: reading only the low
+// byte is correct whether the library returns a char or an int for these small values, while an
+// `int` declaration would read undefined upper bits of a char return.
+using IsHaltedFn = signed char (*)(); // JLINKARM_IsHalted
+using GetIdFn = std::uint32_t (*)();  // JLINKARM_GetId (the core's IDCODE / CPUID)
+// JLINKARM_WriteU16 / WriteU32: 0 = success ([pylink] peripheral_write16/32 check `res != 0`).
+using WriteU16Fn = int (*)(std::uint32_t, std::uint16_t); // JLINKARM_WriteU16
+using WriteU32Fn = int (*)(std::uint32_t, std::uint32_t); // JLINKARM_WriteU32
+// JLINKARM_GetRegisterList(U32* paList, int MaxNumItems): number of register indexes written
+// [pylink register_list(), MAX_NUM_CPU_REGISTERS = 256].
+using GetRegisterListFn = int (*)(std::uint32_t*, int);
+// JLINKARM_GetRegisterName(U32 RegIndex): a NUL-terminated name owned by the library (may be
+// null) [pylink register_name(), restype POINTER(c_char)].
+using GetRegisterNameFn = const char* (*)(std::uint32_t);
+// JLINKARM_ReadRegs(const U32* paRegIndex, U32* paData, U8* paStatus, U32 NumRegs): < 0 error
+// [pylink register_read_multiple(); its comment says the statuses "cannot be trusted", so they
+// are not evaluated].
+using ReadRegsFn = int (*)(const std::uint32_t*, std::uint32_t*, std::uint8_t*, std::uint32_t);
+
+// JLINK_MEM_ZONE_INFO [pylink structs.JLinkMemoryZone]: char* sName; char* sDesc; U64 VirtAddr;
+// U8 abDummy[16] (natural alignment). The strings are owned by the library.
+struct MemZoneInfo {
+    const char* name;
+    const char* description;
+    std::uint64_t virtualAddress;
+    std::array<std::uint8_t, 16> reserved;
+};
+static_assert(offsetof(MemZoneInfo, virtualAddress) == (sizeof(void*) == 8 ? 16 : 8));
+static_assert(sizeof(MemZoneInfo) == (sizeof(void*) == 8 ? 40 : 32),
+              "JLINK_MEM_ZONE_INFO is 40 bytes (64-bit) / 32 bytes (32-bit)");
+// JLINK_GetMemZones(JLINK_MEM_ZONE_INFO* paZoneInfo, int MaxNumZones): the number of zones (with
+// a null buffer and 0: the count), < 0 error; __stdcall on 32-bit Windows [pylink library.py
+// _standard_calls_; num_memory_zones(), memory_zones()].
+using GetMemZonesFn = int(HIO_JLINK_STDCALL*)(MemZoneInfo*, int); // JLINK_GetMemZones
+
 // The resolved function table of one loaded library copy.
 struct Functions {
     GetDllVersionFn getDllVersion = nullptr;
@@ -231,6 +281,15 @@ struct Functions {
     CoresightConfigureFn coresightConfigure = nullptr;
     CoresightReadFn coresightRead = nullptr;
     CoresightWriteFn coresightWrite = nullptr;
+    // Optional (ADR-0151): nullptr when the library does not export the function.
+    IsHaltedFn isHalted = nullptr;
+    GetIdFn getId = nullptr;
+    WriteU16Fn writeU16 = nullptr;
+    WriteU32Fn writeU32 = nullptr;
+    GetRegisterListFn getRegisterList = nullptr;
+    GetRegisterNameFn getRegisterName = nullptr;
+    ReadRegsFn readRegs = nullptr;
+    GetMemZonesFn getMemZones = nullptr;
 };
 
 } // namespace hio::jlink::abi

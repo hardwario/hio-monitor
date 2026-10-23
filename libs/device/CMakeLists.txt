@@ -55,7 +55,9 @@ hio_add_backend_library(hio_device
     src/profiles/profiles.h
     src/session_internal.h
     src/session_registry.cpp
-    src/session_worker.cpp)
+    src/session_worker.cpp
+    src/session_worker_target.cpp
+    src/session_worker_target.h)
 add_library(hio::device ALIAS hio_device)
 
 target_include_directories(hio_device PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")

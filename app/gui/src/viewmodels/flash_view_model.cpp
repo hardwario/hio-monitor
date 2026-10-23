@@ -639,6 +639,13 @@ QString FlashViewModel::busyText(OperationKind kind) {
         return tr("Resetting…");
     case OperationKind::ReadMemory:
     case OperationKind::Diagnose:
+    case OperationKind::Halt:
+    case OperationKind::Go:
+    case OperationKind::TargetStatus:
+    case OperationKind::WriteMemory:
+    case OperationKind::ReadRegisters:
+    case OperationKind::MemoryZones:
+    case OperationKind::WriteFlash:
         break;
     }
     return tr("Working…");
@@ -664,6 +671,13 @@ QString FlashViewModel::operationTitle() const {
         return tr("Resetting the %1 MCU").arg(mcu);
     case OperationKind::ReadMemory:
     case OperationKind::Diagnose:
+    case OperationKind::Halt:
+    case OperationKind::Go:
+    case OperationKind::TargetStatus:
+    case OperationKind::WriteMemory:
+    case OperationKind::ReadRegisters:
+    case OperationKind::MemoryZones:
+    case OperationKind::WriteFlash:
         break;
     }
     return {};
@@ -761,6 +775,13 @@ QString FlashViewModel::consoleNote() const {
     case OperationKind::Recover:
     case OperationKind::ReadMemory:
     case OperationKind::Diagnose:
+    case OperationKind::Halt:
+    case OperationKind::Go:
+    case OperationKind::TargetStatus:
+    case OperationKind::WriteMemory:
+    case OperationKind::ReadRegisters:
+    case OperationKind::MemoryZones:
+    case OperationKind::WriteFlash:
         break;
     }
     return tr("The console is paused and resumes automatically afterwards.");
@@ -790,6 +811,13 @@ QString FlashViewModel::resultText() const {
                                : tr("The %1 MCU was reset.").arg(mcu);
         case OperationKind::ReadMemory:
         case OperationKind::Diagnose:
+        case OperationKind::Halt:
+        case OperationKind::Go:
+        case OperationKind::TargetStatus:
+        case OperationKind::WriteMemory:
+        case OperationKind::ReadRegisters:
+        case OperationKind::MemoryZones:
+        case OperationKind::WriteFlash:
             break;
         }
         return {};

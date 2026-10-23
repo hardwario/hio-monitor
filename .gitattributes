@@ -3,6 +3,8 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
+# HTTP fuzz seeds: raw requests with CRLF line ends, stored byte for byte (ADR-0152)
+libs/mcp/fuzz/corpus/http_parser_fuzz/* -text
 
 # Git LFS - every binary / large file MUST be tracked here (see CLAUDE.md)
 # Native libraries and executables (vendor SDKs like J-Link/nrfjprog must NOT be committed at all)

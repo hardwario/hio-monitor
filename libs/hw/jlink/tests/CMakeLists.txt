@@ -20,8 +20,9 @@ target_include_directories(hio_hw_jlink_tests PRIVATE
 target_link_libraries(hio_hw_jlink_tests PRIVATE hio::hw_jlink GTest::gmock)
 target_compile_definitions(hio_hw_jlink_tests PRIVATE
     "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\""
-    "HIO_FAKE_JLINK_INCOMPLETE_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink_incomplete>\"")
-add_dependencies(hio_hw_jlink_tests hio_fake_jlink hio_fake_jlink_incomplete)
+    "HIO_FAKE_JLINK_INCOMPLETE_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink_incomplete>\""
+    "HIO_FAKE_JLINK_BASIC_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink_basic>\"")
+add_dependencies(hio_hw_jlink_tests hio_fake_jlink hio_fake_jlink_incomplete hio_fake_jlink_basic)
 
 gtest_discover_tests(hio_hw_jlink_tests
     DISCOVERY_TIMEOUT 60

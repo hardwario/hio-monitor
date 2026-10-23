@@ -155,6 +155,73 @@ jobs:
             build/linux-coverage/coverage-html
             build/linux-coverage/coverage.lcov
 
+  fuzz:
+    # ADR-0152: libFuzzer smoke run of the MCP HTTP parser and JSON-RPC handling, 60 s per target;
+    # plan 0021: the catalog page parser, 10 min.
+    name: linux-fuzz
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: false # the fuzz targets and seed corpora need no LFS objects
+      - name: Install LLVM ${{ env.LLVM_MAJOR }} and build tools
+        run: |
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-${LLVM_MAJOR} main" \
+            | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang-${LLVM_MAJOR} llvm-${LLVM_MAJOR} libclang-rt-${LLVM_MAJOR}-dev ninja-build \
+            libgl1-mesa-dev libxkbcommon-dev
+      - uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+          aqtversion: ${{ env.AQT_VERSION }}
+          modules: qtconnectivity # Qt Bluetooth (plan 0011, ADR-0080)
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cpm-cache
+          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+      - name: Configure
+        run: cmake --preset linux-fuzz
+      - name: Build
+        run: cmake --build --preset linux-fuzz
+      - name: Fuzz (60 s per target)
+        # libFuzzer symbolizes new functions with llvm-symbolizer; a configured debuginfod server
+        # makes each lookup block for a long time (seen locally: about 100 s), so it is disabled
+        # here as in the sanitizer test presets.
+        env:
+          DEBUGINFOD_URLS: ""
+        run: |
+          mkdir -p fuzz-artifacts
+          for target in http_parser_fuzz json_rpc_fuzz; do
+            work="$RUNNER_TEMP/corpus-$target"
+            mkdir -p "$work"
+            # New inputs go to the temporary directory; the committed seeds are read only.
+            "build/linux-fuzz/libs/mcp/fuzz/$target" -max_total_time=60 -print_final_stats=1 \
+              -artifact_prefix="fuzz-artifacts/$target-" "$work" "libs/mcp/fuzz/corpus/$target"
+          done
+      - name: Fuzz the catalog page parser (10 min, plan 0021)
+        env:
+          DEBUGINFOD_URLS: ""
+        run: |
+          mkdir -p fuzz-artifacts
+          target=catalog_page_fuzz
+          work="$RUNNER_TEMP/corpus-$target"
+          mkdir -p "$work"
+          "build/linux-fuzz/libs/firmware/fuzz/$target" -max_total_time=600 -print_final_stats=1 \
+            -artifact_prefix="fuzz-artifacts/$target-" "$work" "libs/firmware/fuzz/corpus/$target"
+      - name: Upload crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-artifacts
+          path: fuzz-artifacts
+
   macos:
     name: macos-${{ matrix.preset }}
     runs-on: macos-15

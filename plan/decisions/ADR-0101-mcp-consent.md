@@ -1,6 +1,6 @@
 # ADR-0101 — Consent for MCP tools: GUI dialogs with per-client remembering, CLI opt-in flags
 
-- **Status:** Accepted (amended by ADR-0108: the prompt is its own always-on-top window)
+- **Status:** Accepted (amended by ADR-0108: the prompt is its own always-on-top window; amended by ADR-0161: `erase scope=all` and `recover` need `erase` + `uicr`)
 - **Date:** 2026-10-16
 - **Decided by:** Matej Strnad (M6 planning session)
 

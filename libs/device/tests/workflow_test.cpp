@@ -10,7 +10,9 @@
 #include "hio/firmware/firmware_image.h"
 #include "hio/firmware/program_progress.h"
 #include "hio/hw/jlink/programmer.h"
+#include "hio/hw/jlink/types.h"
 #include "operation_reporter.h"
+#include "session_worker_target.h"
 
 #include <QCryptographicHash>
 #include <QFile>
@@ -20,11 +22,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <span>
 #include <stop_token>
 #include <string>
 #include <string_view>
@@ -66,9 +70,18 @@ public:
                 (override));
     MOCK_METHOD(Status, eraseAll, (), (override));
     MOCK_METHOD(Status, recover, (std::stop_token), (override));
-    MOCK_METHOD((hio::Result<std::vector<std::byte>>), readMemory, (std::uint32_t, std::size_t),
-                (override));
+    MOCK_METHOD((hio::Result<std::vector<std::byte>>), readMemory,
+                (std::uint32_t, std::size_t, hio::jlink::AccessWidth), (override));
     MOCK_METHOD(Status, reset, (ResetMode), (override));
+    MOCK_METHOD(Status, writeMemory,
+                (std::uint32_t, std::span<const std::byte>, hio::jlink::AccessWidth), (override));
+    MOCK_METHOD(Status, halt, (), (override));
+    MOCK_METHOD(Status, go, (), (override));
+    MOCK_METHOD(hio::Result<bool>, isHalted, (), (override));
+    MOCK_METHOD(hio::Result<std::uint32_t>, coreId, (), (override));
+    MOCK_METHOD((hio::Result<std::vector<hio::jlink::RegisterValue>>), readRegisters, (),
+                (override));
+    MOCK_METHOD((hio::Result<std::vector<hio::jlink::MemoryZone>>), memoryZones, (), (override));
 };
 
 ChipInfo chip(std::uint32_t part) {
@@ -243,7 +256,7 @@ TEST_F(Workflow, AllowUicrMergesAndKeepsThePib) {
     for (std::size_t i = 0x80; i < 0x100; ++i) {
         device[i] = std::byte{0xAB};
     }
-    EXPECT_CALL(programmer(), readMemory(0x10001000U, 0x1000U)).WillOnce(Return(device));
+    EXPECT_CALL(programmer(), readMemory(0x10001000U, 0x1000U, _)).WillOnce(Return(device));
     std::optional<FirmwareImage> written;
     EXPECT_CALL(programmer(), program(_, _, _))
         .WillOnce([&written](const FirmwareImage& firmware, const auto&, const std::stop_token&) {
@@ -266,7 +279,7 @@ TEST_F(Workflow, AllowUicrMergesAndKeepsThePib) {
 
 TEST_F(Workflow, AllowUicrOnTheLteMcuLeavesThePibOut) {
     ON_CALL(programmer(), identify()).WillByDefault(Return(chip(0x9120)));
-    EXPECT_CALL(programmer(), readMemory(0x00FF8000U, 0x1000U))
+    EXPECT_CALL(programmer(), readMemory(0x00FF8000U, 0x1000U, _))
         .WillOnce(Return(std::vector<std::byte>(0x1000, std::byte{0xFF})));
     std::optional<FirmwareImage> written;
     EXPECT_CALL(programmer(), program(_, _, _))
@@ -424,7 +437,7 @@ TEST_F(Workflow, RecoverNeedsTheExpectedFamily) {
 // Review R5: a code-only erase that changes the PIB fails loudly.
 TEST_F(Workflow, CodeEraseThatChangesThePibFails) {
     const std::vector<std::byte> pib(128, std::byte{0xBA});
-    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U))
+    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U, _))
         .WillOnce(Return(pib))
         .WillOnce(Return(std::vector<std::byte>(128, std::byte{0xFF})));
     auto ctx = context();
@@ -433,13 +446,15 @@ TEST_F(Workflow, CodeEraseThatChangesThePibFails) {
     EXPECT_EQ(result.error().code, ErrorCode::TargetEraseFailed);
     EXPECT_EQ(result.error().message, "Erasing the code flash of the application MCU also changed "
                                       "its Product Information Block.");
-    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U)).Times(2).WillRepeatedly(Return(pib));
+    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U, _))
+        .Times(2)
+        .WillRepeatedly(Return(pib));
     EXPECT_TRUE(hio::device::detail::runErase(ctx, EraseScope::Code));
 }
 
 // Review R17: a PIB that cannot be read after the erase is an erase failure that says so.
 TEST_F(Workflow, PibUnreadableAfterTheCodeEraseFails) {
-    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U))
+    EXPECT_CALL(programmer(), readMemory(0x10001080U, 128U, _))
         .WillOnce(Return(std::vector<std::byte>(128, std::byte{0xBA})))
         .WillOnce(Return(hio::Result<std::vector<std::byte>>(
             std::unexpected(hio::makeError(ErrorCode::TargetConnectFailed, "read failed")))));
@@ -459,12 +474,13 @@ TEST_F(Workflow, PibUnreadableAfterTheCodeEraseFails) {
 TEST_F(Workflow, ResetAndReadMemoryCheckTheFamily) {
     ON_CALL(programmer(), identify()).WillByDefault(Return(chip(0x9120)));
     EXPECT_CALL(programmer(), reset(_)).Times(0);
-    EXPECT_CALL(programmer(), readMemory(_, _)).Times(0);
+    EXPECT_CALL(programmer(), readMemory(_, _, _)).Times(0);
     auto ctx = context();
     const auto reset = hio::device::detail::runReset(ctx, ResetMode::Go);
     ASSERT_FALSE(reset);
     EXPECT_EQ(reset.error().code, ErrorCode::TargetWrongFamily);
-    const auto read = hio::device::detail::runReadMemory(ctx, 0x10001080, 128);
+    const auto read =
+        hio::device::detail::runReadMemory(ctx, 0x10001080, 128, hio::jlink::AccessWidth::Bits8);
     ASSERT_FALSE(read);
     EXPECT_EQ(read.error().code, ErrorCode::TargetWrongFamily);
 }
@@ -534,6 +550,178 @@ TEST(OperationReporterTest, PlannedPhasesPerKind) {
     EXPECT_EQ(plannedPhases(OperationKind::LteBundle, false).front(), ProgramPhase::Modem);
     EXPECT_EQ(plannedPhases(OperationKind::Recover, false, true).size(), 6U);
     EXPECT_EQ(hio::device::operationKindId(OperationKind::LteBundle), "lteBundle");
+}
+
+// ---- M6 target operations (plan/features/0013, session_worker_target.cpp)
+// ------------------------
+
+using hio::jlink::AccessWidth;
+
+TEST_F(Workflow, TargetOperationsCheckTheFamilyFirst) {
+    ON_CALL(programmer(), identify()).WillByDefault(Return(chip(0x9120))); // the other connector
+    EXPECT_CALL(programmer(), halt()).Times(0);
+    EXPECT_CALL(programmer(), writeMemory(_, _, _)).Times(0);
+    auto ctx = context();
+    EXPECT_EQ(hio::device::detail::runHalt(ctx).error().code, ErrorCode::TargetWrongFamily);
+    const std::vector<std::byte> data(4);
+    EXPECT_EQ(hio::device::detail::runWriteMemory(ctx, 0x20000000, data, AccessWidth::Bits32)
+                  .error()
+                  .code,
+              ErrorCode::TargetWrongFamily);
+}
+
+TEST_F(Workflow, HaltGoAndStatus) {
+    {
+        InSequence order;
+        EXPECT_CALL(programmer(), identify()).WillOnce(Return(chip(0x52840)));
+        EXPECT_CALL(programmer(), halt()).WillOnce(Return(Status{}));
+        EXPECT_CALL(programmer(), identify()).WillOnce(Return(chip(0x52840)));
+        EXPECT_CALL(programmer(), go()).WillOnce(Return(Status{}));
+        EXPECT_CALL(programmer(), identify()).WillOnce(Return(chip(0x52840)));
+        EXPECT_CALL(programmer(), isHalted()).WillOnce(Return(true));
+        EXPECT_CALL(programmer(), coreId()).WillOnce(Return(0x2BA01477U));
+    }
+    auto ctx = context();
+    const auto halted = hio::device::detail::runHalt(ctx);
+    ASSERT_TRUE(halted);
+    EXPECT_TRUE(halted->halted);
+    EXPECT_EQ(halted->deviceName, "NRF52840_xxAA");
+    const auto running = hio::device::detail::runGo(ctx);
+    ASSERT_TRUE(running);
+    EXPECT_FALSE(running->halted);
+    const auto status = hio::device::detail::runTargetStatus(ctx);
+    ASSERT_TRUE(status);
+    EXPECT_TRUE(status->halted);
+    EXPECT_EQ(status->coreId, 0x2BA01477U);
+    EXPECT_EQ(status->deviceName, "NRF52840_xxAA");
+    EXPECT_FALSE(ctx.cpuHalted); // the worker decides about RTT (ADR-0157)
+}
+
+TEST_F(Workflow, WriteMemoryPassesWidthAndUnits) {
+    const std::vector<std::byte> data{std::byte{1}, std::byte{2}};
+    EXPECT_CALL(programmer(), writeMemory(0x40000000U, _, AccessWidth::Bits16))
+        .WillOnce([&](std::uint32_t, std::span<const std::byte> bytes, AccessWidth) {
+            EXPECT_TRUE(std::ranges::equal(bytes, data));
+            return Status{};
+        });
+    auto ctx = context();
+    EXPECT_TRUE(hio::device::detail::runWriteMemory(ctx, 0x40000000, data, AccessWidth::Bits16));
+}
+
+// ADR-0160: the worker checks the flash controller again (DeviceSession checks at request time),
+// before touching the target; both nRF91 aliases.
+TEST_F(Workflow, WriteMemoryNeverTouchesTheFlashController) {
+    EXPECT_CALL(programmer(), identify()).Times(0);
+    EXPECT_CALL(programmer(), writeMemory(_, _, _)).Times(0);
+    const std::vector<std::byte> word(4);
+    auto app = context("app");
+    const auto erased = hio::device::detail::runWriteMemory(app, 0x4001E50C, word,
+                                                            AccessWidth::Bits32); // ERASEALL
+    ASSERT_FALSE(erased);
+    EXPECT_EQ(erased.error().code, ErrorCode::TargetAddressOutOfRange);
+    EXPECT_NE(erased.error().detail.find("denied 0x4001E000-0x4001F000"), std::string::npos);
+    auto lte = context("lte");
+    for (const std::uint32_t address : {0x5003950CU, 0x4003950CU}) { // ERASEALL, both aliases
+        EXPECT_EQ(hio::device::detail::runWriteMemory(lte, address, word, AccessWidth::Bits32)
+                      .error()
+                      .code,
+                  ErrorCode::TargetAddressOutOfRange)
+            << address;
+    }
+}
+
+// ADR-0160: reads are unrestricted except a range that wraps past 0xFFFFFFFF.
+TEST_F(Workflow, ReadMemoryRejectsAWrappingRange) {
+    EXPECT_CALL(programmer(), readMemory(_, _, _)).Times(0);
+    auto ctx = context();
+    const auto wrapped = hio::device::detail::runReadMemory(ctx, 0xFFFFFFFC, 8, AccessWidth::Bits8);
+    ASSERT_FALSE(wrapped);
+    EXPECT_EQ(wrapped.error().code, ErrorCode::TargetAddressOutOfRange);
+}
+
+// Review S6: without JLINKARM_GetId the status is still reported, without a core id; without
+// JLINKARM_IsHalted it is not.
+TEST_F(Workflow, TargetStatusWithoutCoreId) {
+    EXPECT_CALL(programmer(), isHalted())
+        .WillOnce(Return(false))
+        .WillOnce(Return(std::unexpected(
+            hio::makeError(ErrorCode::DependencyJLinkFunctionMissing, "JLINKARM_IsHalted"))));
+    EXPECT_CALL(programmer(), coreId())
+        .WillOnce(Return(std::unexpected(
+            hio::makeError(ErrorCode::DependencyJLinkFunctionMissing, "JLINKARM_GetId"))));
+    auto ctx = context();
+    const auto status = hio::device::detail::runTargetStatus(ctx);
+    ASSERT_TRUE(status) << status.error().detail;
+    EXPECT_FALSE(status->halted);
+    EXPECT_FALSE(status->coreId.has_value());
+    EXPECT_EQ(status->deviceName, "NRF52840_xxAA");
+    const auto missing = hio::device::detail::runTargetStatus(ctx);
+    ASSERT_FALSE(missing);
+    EXPECT_EQ(missing.error().code, ErrorCode::DependencyJLinkFunctionMissing);
+    EXPECT_EQ(missing.error().detail, "JLINKARM_IsHalted");
+}
+
+TEST_F(Workflow, ReadMemoryPassesTheWidth) {
+    EXPECT_CALL(programmer(), readMemory(0x20000000U, 8U, AccessWidth::Bits32))
+        .WillOnce(Return(std::vector<std::byte>(8)));
+    auto ctx = context();
+    EXPECT_TRUE(hio::device::detail::runReadMemory(ctx, 0x20000000, 8, AccessWidth::Bits32));
+}
+
+TEST_F(Workflow, RegistersAndZonesComeFromTheProgrammer) {
+    EXPECT_CALL(programmer(), readRegisters())
+        .WillOnce(Return(std::vector<hio::jlink::RegisterValue>{{.name = "R0", .value = 3}}))
+        .WillOnce(Return(std::unexpected(hio::makeError(ErrorCode::TargetNotHalted))));
+    EXPECT_CALL(programmer(), memoryZones())
+        .WillOnce(Return(std::vector<hio::jlink::MemoryZone>{}));
+    auto ctx = context();
+    EXPECT_EQ(hio::device::detail::runReadRegisters(ctx)->size(), 1U);
+    EXPECT_EQ(hio::device::detail::runReadRegisters(ctx).error().code, ErrorCode::TargetNotHalted);
+    EXPECT_TRUE(hio::device::detail::runMemoryZones(ctx)->empty());
+}
+
+TEST_F(Workflow, WriteFlashIsAFlashThatRunsAfterwards) {
+    {
+        InSequence order;
+        EXPECT_CALL(programmer(), reset(ResetMode::Halt));
+        EXPECT_CALL(programmer(), program(_, _, _));
+        EXPECT_CALL(programmer(), verify(_, _, _));
+        EXPECT_CALL(programmer(), reset(ResetMode::Go));
+    }
+    auto ctx = context();
+    ASSERT_TRUE(hio::device::detail::runWriteFlash(ctx, image({{0x80000, 16}}), false));
+    EXPECT_FALSE(ctx.cpuHalted);
+}
+
+TEST_F(Workflow, WriteFlashKeepsTheM2RangeRules) {
+    EXPECT_CALL(programmer(), program(_, _, _)).Times(0);
+    auto ctx = context();
+    // The PIB is never written, also with allowUicr; the UICR needs allowUicr; RAM is no flash.
+    EXPECT_EQ(hio::device::detail::runWriteFlash(ctx, image({{0x10001080, 4}}), true).error().code,
+              ErrorCode::FirmwareOutOfRange);
+    EXPECT_EQ(hio::device::detail::runWriteFlash(ctx, image({{0x10001000, 4}}), false).error().code,
+              ErrorCode::FirmwareUicrInImage);
+    EXPECT_EQ(hio::device::detail::runWriteFlash(ctx, image({{0x20000000, 4}}), false).error().code,
+              ErrorCode::FirmwareOutOfRange);
+}
+
+TEST(OperationReporterTest, PlannedPhasesOfTheTargetOperations) {
+    using hio::device::plannedPhases;
+    for (const OperationKind kind :
+         {OperationKind::Halt, OperationKind::Go, OperationKind::TargetStatus,
+          OperationKind::WriteMemory, OperationKind::ReadRegisters, OperationKind::MemoryZones}) {
+        EXPECT_EQ(plannedPhases(kind, false).size(), 1U);
+        EXPECT_EQ(plannedPhases(kind, true).size(), 3U);
+        EXPECT_TRUE(hio::device::isLightOperation(kind));
+    }
+    EXPECT_TRUE(hio::device::isLightOperation(OperationKind::ReadMemory));
+    EXPECT_FALSE(hio::device::isLightOperation(OperationKind::WriteFlash));
+    EXPECT_FALSE(hio::device::isLightOperation(OperationKind::Reset));
+    EXPECT_EQ(plannedPhases(OperationKind::WriteFlash, false).size(),
+              plannedPhases(OperationKind::Flash, false).size());
+    EXPECT_EQ(hio::device::operationKindId(OperationKind::TargetStatus), "targetStatus");
+    EXPECT_EQ(hio::device::operationKindId(OperationKind::WriteFlash), "writeFlash");
+    EXPECT_EQ(hio::device::operationKindId(OperationKind::MemoryZones), "memoryZones");
 }
 
 } // namespace

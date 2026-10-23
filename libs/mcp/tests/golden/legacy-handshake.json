@@ -1,0 +1,318 @@
+{
+    "description": "Legacy (2025-11-25) handshake over stdio and the list methods.",
+    "steps": [
+        {
+            "expect": [
+                {
+                    "id": 1,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "capabilities": {
+                            "prompts": {
+                            },
+                            "resources": {
+                                "listChanged": true,
+                                "subscribe": true
+                            },
+                            "tools": {
+                            }
+                        },
+                        "protocolVersion": "2025-11-25",
+                        "serverInfo": {
+                            "name": "hio-monitor",
+                            "version": "test"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "initialize",
+                "params": {
+                    "capabilities": {
+                    },
+                    "clientInfo": {
+                        "name": "golden",
+                        "version": "1"
+                    },
+                    "protocolVersion": "2025-11-25"
+                }
+            }
+        },
+        {
+            "expect": [
+            ],
+            "send": {
+                "jsonrpc": "2.0",
+                "method": "notifications/initialized"
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": "p1",
+                    "jsonrpc": "2.0",
+                    "result": {
+                    }
+                }
+            ],
+            "send": {
+                "id": "p1",
+                "jsonrpc": "2.0",
+                "method": "ping"
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 2,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "tools": [
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": true,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": true
+                                },
+                                "description": "Returns the text.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "count": {
+                                            "default": 1,
+                                            "maximum": 10,
+                                            "minimum": 1,
+                                            "type": "integer"
+                                        },
+                                        "text": {
+                                            "description": "Text.",
+                                            "maxLength": 100,
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "text"
+                                    ],
+                                    "type": "object"
+                                },
+                                "name": "echo",
+                                "outputSchema": {
+                                    "type": "object"
+                                },
+                                "title": "Echo"
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Parses an address.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "address": {
+                                            "pattern": "^(0x[0-9a-fA-F]{1,8}|[0-9]{1,10})$",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "address"
+                                    ],
+                                    "type": "object"
+                                },
+                                "name": "address",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Finishes later.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "step_ms": {
+                                            "default": 50,
+                                            "maximum": 10000,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                        },
+                                        "steps": {
+                                            "default": 0,
+                                            "maximum": 1000,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "slow",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Fails.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "fail",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": true,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Pretends to flash.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "flash_fake",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Forgets to ask.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "no_consent",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            "send": {
+                "id": 2,
+                "jsonrpc": "2.0",
+                "method": "tools/list"
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 3,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "prompts": [
+                            {
+                                "arguments": [
+                                    {
+                                        "description": "Who.",
+                                        "name": "name",
+                                        "required": true
+                                    },
+                                    {
+                                        "description": "How.",
+                                        "name": "mood",
+                                        "required": false
+                                    }
+                                ],
+                                "description": "Greets somebody.",
+                                "name": "greet",
+                                "title": "Greet"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "send": {
+                "id": 3,
+                "jsonrpc": "2.0",
+                "method": "prompts/list"
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 4,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "resources": [
+                            {
+                                "description": "A static text.",
+                                "mimeType": "text/plain",
+                                "name": "static",
+                                "title": "Static",
+                                "uri": "test://static"
+                            },
+                            {
+                                "mimeType": "application/json",
+                                "name": "a status",
+                                "uri": "test://item/a/status"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "send": {
+                "id": 4,
+                "jsonrpc": "2.0",
+                "method": "resources/list"
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 5,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "resourceTemplates": [
+                            {
+                                "description": "Item status.",
+                                "mimeType": "application/json",
+                                "name": "item-status",
+                                "uriTemplate": "test://item/{id}/status"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "send": {
+                "id": 5,
+                "jsonrpc": "2.0",
+                "method": "resources/templates/list"
+            }
+        }
+    ]
+}

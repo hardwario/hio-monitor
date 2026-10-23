@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -99,6 +100,29 @@ TEST(ConsoleLog, DefaultCapacityIs100000PerChannel) {
     EXPECT_EQ(ConsoleLog::defaultCapacityPerChannel, 100000U);
     const ConsoleLog log;
     EXPECT_EQ(log.capacityPerChannel(), 100000U);
+}
+
+// ADR-0155 (M6): totals count every appended line per channel; eviction and clear() keep them.
+TEST(ConsoleLog, TotalsAndFirstSeqAcrossEvictionAndClear) {
+    ConsoleLog log(2);
+    EXPECT_EQ(log.total(Channel::Shell), 0U);
+    EXPECT_FALSE(log.firstSeq(Channel::Shell));
+    (void)log.append(line(Channel::Shell, "s1"));           // seq 1
+    (void)log.append(line(Channel::Log, "l1"));             // seq 2
+    (void)log.append(line(Channel::Shell, "s2"));           // seq 3
+    (void)log.appendMarker(Channel::Shell, "-- marker --"); // seq 4, evicts s1
+    EXPECT_EQ(log.total(Channel::Shell), 3U);
+    EXPECT_EQ(log.total(Channel::Log), 1U);
+    EXPECT_EQ(log.size(Channel::Shell), 2U);
+    EXPECT_EQ(log.firstSeq(Channel::Shell), std::optional<std::uint64_t>(3U));
+    EXPECT_EQ(log.firstSeq(Channel::Log), std::optional<std::uint64_t>(2U));
+    log.clear(ChannelMask::Shell);
+    EXPECT_FALSE(log.firstSeq(Channel::Shell));
+    EXPECT_EQ(log.total(Channel::Shell), 3U);
+    (void)log.append(line(Channel::Shell, "s3")); // seq 5
+    EXPECT_EQ(log.total(Channel::Shell), 4U);
+    EXPECT_EQ(log.firstSeq(Channel::Shell), std::optional<std::uint64_t>(5U));
+    EXPECT_EQ(log.firstSeq(Channel::Log), std::optional<std::uint64_t>(2U));
 }
 
 } // namespace

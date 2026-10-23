@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -63,6 +64,11 @@ public:
     [[nodiscard]] std::uint64_t lastSeq() const noexcept { return m_lastSeq; }
     [[nodiscard]] std::size_t size(Channel channel) const noexcept;
     [[nodiscard]] std::size_t capacityPerChannel() const noexcept { return m_shell.capacity(); }
+    // ADR-0155 (M6): lines ever appended to `channel` (markers included); neither eviction nor
+    // clear() resets it.
+    [[nodiscard]] std::uint64_t total(Channel channel) const noexcept;
+    // ADR-0155: seq of the oldest stored line of `channel`; nullopt when it stores none.
+    [[nodiscard]] std::optional<std::uint64_t> firstSeq(Channel channel) const noexcept;
 
 private:
     [[nodiscard]] const RingBuffer<ConsoleLine>& buffer(Channel channel) const noexcept;
@@ -71,6 +77,8 @@ private:
     RingBuffer<ConsoleLine> m_shell;
     RingBuffer<ConsoleLine> m_log;
     std::uint64_t m_lastSeq = 0;
+    std::uint64_t m_shellTotal = 0; // ADR-0155
+    std::uint64_t m_logTotal = 0;
 };
 
 } // namespace hio::device

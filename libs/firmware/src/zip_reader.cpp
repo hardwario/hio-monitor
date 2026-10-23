@@ -23,6 +23,7 @@
 #include <memory>
 #include <miniz.h>
 #include <span>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -51,17 +52,24 @@ std::size_t readFromFile(void* opaque, mz_uint64 offset, void* buffer, std::size
     return read < 0 ? 0 : static_cast<std::size_t>(read);
 }
 
-// Extraction sink: collects at most `limit` bytes; more makes the extraction fail.
+// Extraction sink: collects at most `limit` bytes; more makes the extraction fail, and so does a
+// requested stop (review F2).
 struct ByteSink {
     std::vector<std::byte> bytes;
     std::uint64_t limit = 0;
+    std::stop_token stop;
     bool overflow = false;
     bool allocationFailed = false;
+    bool stopped = false;
 };
 
 std::size_t writeToSink(void* opaque, mz_uint64 /*offset*/, const void* data,
                         std::size_t size) noexcept {
     auto* sink = static_cast<ByteSink*>(opaque);
+    if (sink->stop.stop_requested()) {
+        sink->stopped = true;
+        return 0; // stops the extraction
+    }
     if (sink->bytes.size() + size > sink->limit) {
         sink->overflow = true;
         return 0; // stops the extraction
@@ -208,15 +216,28 @@ ZipReader::~ZipReader() = default;
 
 const std::vector<ZipEntry>& ZipReader::entries() const noexcept { return m_impl->entries; }
 
-Result<std::vector<std::byte>> ZipReader::extract(std::string_view name, std::uint64_t maxBytes) {
+Result<std::vector<std::byte>> ZipReader::extract(std::string_view name, std::uint64_t maxBytes,
+                                                  const std::stop_token& stop) {
     auto index = m_impl->indexOf(name);
     if (!index) {
         return std::unexpected(std::move(index).error());
     }
+    const auto cancelled = [&] {
+        return std::unexpected(
+            makeError(ErrorCode::Cancelled,
+                      std::format("{}: extraction of \"{}\" stopped", toUtf8(m_impl->path), name)));
+    };
+    if (stop.stop_requested()) {
+        return cancelled();
+    }
     ByteSink sink;
     sink.limit = std::min(maxBytes, m_impl->limits.maxEntryBytes);
+    sink.stop = stop;
     const mz_bool ok =
         mz_zip_reader_extract_to_callback(&m_impl->archive, *index, &writeToSink, &sink, 0);
+    if (sink.stopped) {
+        return cancelled();
+    }
     if (sink.overflow) {
         return std::unexpected(invalidZip(std::format("{}: entry \"{}\" is larger than {} bytes",
                                                       toUtf8(m_impl->path), name, sink.limit)));
@@ -230,8 +251,8 @@ Result<std::vector<std::byte>> ZipReader::extract(std::string_view name, std::ui
 }
 
 Result<fs::path> ZipReader::extractTo(std::string_view name, const fs::path& directory,
-                                      std::uint64_t maxBytes) {
-    auto bytes = extract(name, maxBytes);
+                                      std::uint64_t maxBytes, const std::stop_token& stop) {
+    auto bytes = extract(name, maxBytes, stop);
     if (!bytes) {
         return std::unexpected(std::move(bytes).error());
     }

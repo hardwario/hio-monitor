@@ -13,6 +13,7 @@
 #include <QString>
 #include <QTemporaryDir>
 #include <QtEnvironmentVariables>
+#include <QtTypes>
 
 #include <gtest/gtest.h>
 
@@ -21,6 +22,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <initializer_list>
+#include <stop_token>
 #include <string>
 #include <utility>
 #include <vector>
@@ -198,6 +200,29 @@ TEST(IntelHex, RoundTripThroughTheBuilder) {
     EXPECT_EQ(parsed->segments(), original->segments());
     EXPECT_EQ(parsed->sha256(), original->sha256());
     EXPECT_EQ(parsed->sha256().size(), 64U);
+}
+
+// Review F2: a requested stop gives `cancelled` (parse and file read).
+TEST(IntelHex, StopTokenCancelsTheParse) {
+    std::stop_source source;
+    source.request_stop();
+    const std::string text = hexRecord(0, 0x0100, {1, 2, 3}) + eofRecord();
+    const auto stopped = parseIntelHex(bytesOf(text), "test.hex", source.get_token());
+    ASSERT_FALSE(stopped);
+    EXPECT_EQ(stopped.error().code, ErrorCode::Cancelled);
+    EXPECT_TRUE(parseIntelHex(bytesOf(text), "test.hex", std::stop_source().get_token()));
+
+    const QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    QFile file(dir.filePath(QStringLiteral("app.hex")));
+    ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+    file.write(text.data(), static_cast<qint64>(text.size()));
+    file.close();
+    const std::filesystem::path path(file.fileName().toStdU16String());
+    const auto read = hio::firmware::readIntelHexFile(path, source.get_token());
+    ASSERT_FALSE(read);
+    EXPECT_EQ(read.error().code, ErrorCode::Cancelled);
+    EXPECT_TRUE(hio::firmware::readIntelHexFile(path));
 }
 
 TEST(IntelHex, ReadFileErrors) {

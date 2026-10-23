@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -52,14 +53,16 @@ public:
 
     [[nodiscard]] const std::vector<ZipEntry>& entries() const noexcept;
 
-    // The uncompressed bytes of entry `name` (at most min(maxBytes, maxEntryBytes)).
-    [[nodiscard]] Result<std::vector<std::byte>> extract(std::string_view name,
-                                                         std::uint64_t maxBytes);
+    // The uncompressed bytes of entry `name` (at most min(maxBytes, maxEntryBytes)). `stop` is
+    // checked for every decompressed chunk (review F2); a requested stop gives `cancelled`.
+    [[nodiscard]] Result<std::vector<std::byte>>
+    extract(std::string_view name, std::uint64_t maxBytes, const std::stop_token& stop = {});
     // Extracts entry `name` into `directory` (keeping its relative path, which open() validated)
-    // and returns the written file. Errors also: io.write_failed.
+    // and returns the written file. Errors also: io.write_failed, `cancelled` (as extract()).
     [[nodiscard]] Result<std::filesystem::path> extractTo(std::string_view name,
                                                           const std::filesystem::path& directory,
-                                                          std::uint64_t maxBytes);
+                                                          std::uint64_t maxBytes,
+                                                          const std::stop_token& stop = {});
 
 private:
     explicit ZipReader(std::unique_ptr<Impl> impl);

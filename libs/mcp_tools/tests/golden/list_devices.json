@@ -1,0 +1,34 @@
+{
+  "devices": [
+    {
+      "id": "jlink:801000001",
+      "kind": "jlink",
+      "display_name": "J-Link 801000001",
+      "profile": "chester",
+      "state": "open",
+      "owner": null,
+      "connection": {"state": "connected", "error": null, "target_mv": 3300},
+      "opened_by_mcp": true
+    },
+    {
+      "id": "jlink:801000002",
+      "kind": "jlink",
+      "display_name": "J-Link 801000002",
+      "profile": null,
+      "state": "available",
+      "owner": null,
+      "connection": null,
+      "opened_by_mcp": false
+    },
+    {
+      "id": "jlink:801000003",
+      "kind": "jlink",
+      "display_name": "J-Link 801000003",
+      "profile": null,
+      "state": "in_use_by_other_process",
+      "owner": {"app": "hio-monitor", "pid": 4242},
+      "connection": null,
+      "opened_by_mcp": false
+    }
+  ]
+}

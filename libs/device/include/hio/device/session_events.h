@@ -50,7 +50,11 @@ struct Warning {
     Error error;
 };
 
-using SessionEvent = std::variant<ConsoleLine, ConnectionEvent, LinesDropped, Warning>;
+// The shell prompt of the profile was seen after output (ADR-0082 for BLE; M6, ADR-0104: also
+// RTT when TargetProfile::shellPrompt is set). Not a line; ConsoleSession::promptSeen.
+struct PromptSeen {};
+
+using SessionEvent = std::variant<ConsoleLine, ConnectionEvent, LinesDropped, Warning, PromptSeen>;
 
 // "connecting", "probeOpen", "connected", "disconnected", "stopped" (JSON).
 [[nodiscard]] std::string_view connectionStateId(ConnectionState state) noexcept;

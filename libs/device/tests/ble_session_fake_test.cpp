@@ -165,3 +165,28 @@ TEST_F(BleSessionFake, DropIsRecoveredWithAutoReconnect) {
 }
 
 } // namespace
+
+namespace {
+
+// ADR-0156 (M6): the default console file of a BLE session goes into consoleFileDir.
+TEST_F(BleSessionFake, ConsoleFileDir) {
+    hio::device::SessionRegistry registry(registryOptions());
+    hio::ble::BleHost host(fake("chester.json"));
+    const fs::path dir = registryOptions().instanceRoot.parent_path() / "mcp-console";
+    fs::create_directories(dir);
+    auto session = BleSession::open(registry, host,
+                                    {.profile = hio::device::ProfileRegistry::find("chester"),
+                                     .deviceId = "F1:22:33:44:55:66",
+                                     .deviceName = "CHESTER-ABC123",
+                                     .autoReconnect = false,
+                                     .consoleFile = std::nullopt,
+                                     .consoleLog = nullptr,
+                                     .consoleFileDir = dir});
+    ASSERT_TRUE(session) << session.error().message;
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, 5s));
+    ASSERT_TRUE(waitFor([&session] { return !(*session)->consoleFile().empty(); }));
+    EXPECT_EQ((*session)->consoleFile().parent_path(), dir);
+    EXPECT_TRUE((*session)->consoleFile().filename().string().starts_with("chester-ble-"));
+}
+
+} // namespace

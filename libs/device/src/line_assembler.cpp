@@ -207,4 +207,11 @@ std::vector<ConsoleLine> LineAssembler::feed(std::span<const std::byte> bytes,
     return lines;
 }
 
+bool isPrompt(std::string_view partial, std::string_view prompt) {
+    if (prompt.empty() || partial.empty()) {
+        return false;
+    }
+    return applyCarriageReturns(stripAnsiCsi(partial)) == prompt;
+}
+
 } // namespace hio::device

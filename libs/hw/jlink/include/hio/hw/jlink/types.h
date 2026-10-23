@@ -48,6 +48,19 @@ struct RttBufferInfo {
     std::uint32_t flags = 0;
 };
 
+// One J-Link memory zone of the connected target (JLINK_GetMemZones, plan/features/0013).
+struct MemoryZone {
+    std::string name;        // UTF-8, e.g. "AHB-AP"; invalid sequences replaced
+    std::string description; // UTF-8
+    std::uint64_t virtualAddress = 0;
+};
+
+// One core register (JLINKARM_GetRegisterList / GetRegisterName / ReadRegs, plan/features/0013).
+struct RegisterValue {
+    std::string name; // e.g. "R0", "PC"
+    std::uint32_t value = 0;
+};
+
 // "8.10a" for 81001, "7.94k" for 79411 (pylink's format).
 [[nodiscard]] std::string formatLibraryVersion(std::uint32_t version);
 

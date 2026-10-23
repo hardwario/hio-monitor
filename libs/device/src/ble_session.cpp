@@ -82,13 +82,6 @@ bool isFatalBleError(ErrorCode code) noexcept {
     }
 }
 
-bool isPrompt(std::string_view partial, std::string_view prompt) {
-    if (prompt.empty() || partial.empty()) {
-        return false;
-    }
-    return applyCarriageReturns(stripAnsiCsi(partial)) == prompt;
-}
-
 // ---- BleConsoleHandler (BLE thread)
 // ----------------------------------------------------------------
 
@@ -401,7 +394,8 @@ Result<std::unique_ptr<BleSession>> BleSessionInternals::open(SessionRegistry& r
                                                .directory = registry.options().consoleDirectory,
                                                .profileId = std::string(options.profile->id),
                                                .targetId = std::string(target->id),
-                                               .lockDirectory = registry.options().lockDirectory};
+                                               .lockDirectory = registry.options().lockDirectory,
+                                               .consoleFileDir = options.consoleFileDir};
     }
 
     auto session =

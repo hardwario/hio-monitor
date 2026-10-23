@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -46,6 +47,7 @@ RingBuffer<ConsoleLine>& ConsoleLog::buffer(Channel channel) noexcept {
 std::uint64_t ConsoleLog::append(ConsoleLine line) {
     line.seq = ++m_lastSeq;
     const Channel channel = line.channel;
+    ++(channel == Channel::Shell ? m_shellTotal : m_logTotal);
     buffer(channel).push(std::move(line));
     return m_lastSeq;
 }
@@ -99,5 +101,17 @@ void ConsoleLog::clear(ChannelMask mask) {
 }
 
 std::size_t ConsoleLog::size(Channel channel) const noexcept { return buffer(channel).size(); }
+
+std::uint64_t ConsoleLog::total(Channel channel) const noexcept {
+    return channel == Channel::Shell ? m_shellTotal : m_logTotal;
+}
+
+std::optional<std::uint64_t> ConsoleLog::firstSeq(Channel channel) const noexcept {
+    const RingBuffer<ConsoleLine>& ring = buffer(channel);
+    if (ring.empty()) {
+        return std::nullopt;
+    }
+    return ring[0].seq;
+}
 
 } // namespace hio::device

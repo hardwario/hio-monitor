@@ -7,12 +7,14 @@
 //
 // Adding a device = one new file in src/profiles/ + one registration line in profile.cpp + tests.
 
+#include "hio/core/result.h"
 #include "hio/firmware/designated_firmware.h"
 #include "hio/firmware/firmware_image.h"
 #include "hio/hw/jlink/programmer.h"
 
 #include <QString>
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -77,6 +79,21 @@ struct TargetProfile {
     // ---- wizards (M4, ADR-0077) ----
     std::span<const ConnectionGuideStep> connectionGuide; // cabling steps, in order
 
+    // ---- low-level target operations (M6, plan/features/0013, ADR-0099, ADR-0160) ----
+    // Half-open ranges. Memory reads may touch any 32-bit range that does not wrap (an unmapped
+    // address fails in the backend). Memory writes only inside `ram` or one `peripherals` range
+    // and never overlapping a `writeDenied` range (the flash controller: its ERASEALL /
+    // ERASEUICR / ERASEPAGE tasks would wipe flash, UICR and the PIB; ADR-0164: the System
+    // Control Space and the FPB, through which a write could run code); otherwise
+    // target.address_out_of_range (checkMemoryWrite()). RAM stays writable, so a memory write can
+    // still make the device run arbitrary code (ADR-0164).
+    firmware::AddressRange ram{};
+    std::span<const firmware::AddressRange> peripherals;
+    std::span<const firmware::AddressRange> writeDenied;
+    // The RTT shell prompt (ADR-0104), recognised like the BLE prompt (ADR-0082) and reported as
+    // ConsoleSession::promptSeen; empty = unknown (no detection). Separate from
+    // BleProfile::shellPrompt: the RTT and NUS shells are different transports.
+    std::string_view shellPrompt;
     // ---- plan 0021 (ADR-0165) ----
     // The firmware HARDWARIO supports for this target, downloaded and SHA-256 verified by
     // FirmwareCatalog::downloadDesignated (CHESTER `lte`: the LTE bundle); nullopt = none.
@@ -160,5 +177,22 @@ public:
 
 // The PIB address range of `target`.
 [[nodiscard]] firmware::AddressRange pibRange(const TargetProfile& target) noexcept;
+
+// ADR-0160: a memory read of [address, address + size) is allowed when it does not run past
+// 0xFFFFFFFF. Error: target.address_out_of_range (detail: the requested range).
+[[nodiscard]] Status checkMemoryRead(std::uint32_t address, std::size_t size);
+// ADR-0160: a memory write of [address, address + size) must lie inside `target.ram` or one of
+// `target.peripherals` and must not overlap any of `target.writeDenied`. Error:
+// target.address_out_of_range (detail: the requested range and the allowed ranges, or the denied
+// range it overlaps).
+[[nodiscard]] Status checkMemoryWrite(const TargetProfile& target, std::uint32_t address,
+                                      std::size_t size);
+// ADR-0035, ADR-0036: a flash write (an image segment, `flash-write`, MCP write_flash) of
+// [address, address + size) must not touch the PIB and must lie inside `target.flash` or
+// `target.uicr`; bytes in the UICR need `allowUicr`. Errors: firmware.out_of_range (the PIB, or
+// outside flash and UICR), firmware.uicr_in_image (UICR bytes without allowUicr). The one copy of
+// these rules: planImage() and the CLI / MCP checks before the confirmation use it.
+[[nodiscard]] Status checkFlashWrite(const TargetProfile& target, std::uint32_t address,
+                                     std::size_t size, bool allowUicr);
 
 } // namespace hio::device

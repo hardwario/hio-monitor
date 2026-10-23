@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <initializer_list>
 #include <map>
 #include <optional>
 #include <span>
@@ -34,6 +35,7 @@ using hio::firmware::FirmwareImage;
 using hio::firmware::ProgramPhase;
 using hio::firmware::ProgramProgress;
 using hio::firmware::Segment;
+using hio::jlink::AccessWidth;
 using hio::jlink::ChipFamily;
 using hio::jlink::FlashProgressFn;
 using hio::jlink::JLinkProbe;
@@ -472,20 +474,21 @@ TEST_F(Programmer, AbandonedEraseCodeIsAnInterruptedFlash) {
 }
 
 TEST_F(Programmer, ReadMemoryBounds) {
-    EXPECT_FALSE(programmer().readMemory(0, 0));
-    EXPECT_FALSE(programmer().readMemory(0, (64 * 1024) + 1));
+    EXPECT_FALSE(programmer().readMemory(0, 0, AccessWidth::Bits8));
+    EXPECT_FALSE(programmer().readMemory(0, (64 * 1024) + 1, AccessWidth::Bits8));
     EXPECT_CALL(api(), readMemory(0x10001080U, _))
         .WillOnce([](std::uint32_t, std::span<std::byte> buffer) {
             std::ranges::fill(buffer, std::byte{0xBA});
             return static_cast<int>(buffer.size());
         });
-    const auto bytes = programmer().readMemory(0x10001080, 128);
+    const auto bytes = programmer().readMemory(0x10001080, 128, AccessWidth::Bits8);
     ASSERT_TRUE(bytes);
     EXPECT_EQ(bytes->size(), 128U);
     EXPECT_CALL(api(), readMemory(_, _)).WillOnce(Return(-1));
-    const auto failed = programmer().readMemory(0, 4);
+    const auto failed = programmer().readMemory(0, 4, AccessWidth::Bits8);
     ASSERT_FALSE(failed);
-    EXPECT_EQ(failed.error().code, ErrorCode::TargetConnectFailed);
+    EXPECT_EQ(failed.error().code, ErrorCode::TargetMemoryAccessFailed);
+    EXPECT_EQ(failed.error().detail, "JLINKARM_ReadMemEx(0x00000000, 4) returned -1");
 }
 
 TEST_F(Programmer, ResetGoAndHalt) {
@@ -493,6 +496,194 @@ TEST_F(Programmer, ResetGoAndHalt) {
     EXPECT_CALL(api(), go()).Times(1);
     ASSERT_TRUE(programmer().reset(ResetMode::Go));
     ASSERT_TRUE(programmer().reset(ResetMode::Halt));
+}
+
+} // namespace
+
+namespace {
+
+using hio::jlink::MemoryZone;
+using hio::jlink::OptionalFunction;
+
+// ---- M6 target operations (plan/features/0013, ADR-0158) ----------------------------------------
+
+class TargetOps : public Programmer {
+protected:
+    TargetOps() { ON_CALL(api(), has(_)).WillByDefault(Return(true)); }
+};
+
+std::vector<std::byte> bytesOf(std::initializer_list<unsigned> values) {
+    std::vector<std::byte> bytes;
+    for (const unsigned value : values) {
+        bytes.push_back(static_cast<std::byte>(value));
+    }
+    return bytes;
+}
+
+TEST_F(TargetOps, ReadMemoryWidths) {
+    EXPECT_CALL(api(), readMemory(0x20000000U, _))
+        .WillOnce([](std::uint32_t, std::span<std::byte> buffer) {
+            std::ranges::fill(buffer, std::byte{0x5A});
+            return static_cast<int>(buffer.size());
+        });
+    const auto bytes8 = programmer().readMemory(0x20000000, 3, AccessWidth::Bits8);
+    ASSERT_TRUE(bytes8);
+    EXPECT_EQ(*bytes8, bytesOf({0x5A, 0x5A, 0x5A}));
+
+    // 16-bit: ReadMemEx with access width 2; the library's count may be bytes or units.
+    EXPECT_CALL(api(), readMemory16(0x20000002U, _))
+        .WillOnce([](std::uint32_t, std::span<std::byte> buffer) {
+            std::ranges::fill(buffer, std::byte{0x01});
+            return static_cast<int>(buffer.size());
+        })
+        .WillOnce([](std::uint32_t, std::span<std::byte> buffer) {
+            return static_cast<int>(buffer.size() / 2);
+        })
+        .WillOnce(Return(1));
+    EXPECT_TRUE(programmer().readMemory(0x20000002, 4, AccessWidth::Bits16));
+    EXPECT_TRUE(programmer().readMemory(0x20000002, 4, AccessWidth::Bits16));
+    const auto partial = programmer().readMemory(0x20000002, 4, AccessWidth::Bits16);
+    ASSERT_FALSE(partial);
+    EXPECT_EQ(partial.error().code, ErrorCode::TargetMemoryAccessFailed);
+
+    // 32-bit: ReadMemU32 with a count, units little-endian.
+    EXPECT_CALL(api(), readU32s(0x20000000U, _))
+        .WillOnce([](std::uint32_t, std::span<std::uint32_t> items) {
+            EXPECT_EQ(items.size(), 2U);
+            items[0] = 0x44332211U;
+            items[1] = 0x88776655U;
+            return 2;
+        });
+    const auto words = programmer().readMemory(0x20000000, 8, AccessWidth::Bits32);
+    ASSERT_TRUE(words);
+    EXPECT_EQ(*words, bytesOf({0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88}));
+}
+
+TEST_F(TargetOps, AccessSizeAndAlignmentAreChecked) {
+    EXPECT_CALL(api(), readU32s(_, _)).Times(0);
+    EXPECT_CALL(api(), writeU16(_, _)).Times(0);
+    EXPECT_EQ(programmer().readMemory(0x20000000, 6, AccessWidth::Bits32).error().code,
+              ErrorCode::UsageInvalidArgument);
+    EXPECT_EQ(programmer().readMemory(0x20000002, 4, AccessWidth::Bits32).error().code,
+              ErrorCode::UsageInvalidArgument);
+    const std::vector<std::byte> three(3);
+    EXPECT_EQ(programmer().writeMemory(0x20000000, three, AccessWidth::Bits16).error().code,
+              ErrorCode::UsageInvalidArgument);
+    const std::vector<std::byte> tooBig((64 * 1024) + 1);
+    EXPECT_EQ(programmer().writeMemory(0x20000000, tooBig, AccessWidth::Bits8).error().code,
+              ErrorCode::UsageInvalidArgument);
+}
+
+TEST_F(TargetOps, WriteMemoryWidthsAndOrder) {
+    const auto data = bytesOf({0x11, 0x22, 0x33, 0x44});
+    {
+        InSequence order;
+        EXPECT_CALL(api(), writeMemory(0x20000000U, _))
+            .WillOnce([](std::uint32_t, std::span<const std::byte> bytes) {
+                return static_cast<int>(bytes.size());
+            });
+        EXPECT_CALL(api(), writeU16(0x20000000U, 0x2211)).WillOnce(Return(0));
+        EXPECT_CALL(api(), writeU16(0x20000002U, 0x4433)).WillOnce(Return(0));
+        EXPECT_CALL(api(), writeU32(0x20000000U, 0x44332211U)).WillOnce(Return(0));
+    }
+    EXPECT_CALL(api(), beginDownload()).Times(0); // a direct write, not the flash loader
+    ASSERT_TRUE(programmer().writeMemory(0x20000000, data, AccessWidth::Bits8));
+    ASSERT_TRUE(programmer().writeMemory(0x20000000, data, AccessWidth::Bits16));
+    ASSERT_TRUE(programmer().writeMemory(0x20000000, data, AccessWidth::Bits32));
+}
+
+TEST_F(TargetOps, WriteFailureNamesTheAddress) {
+    const auto data = bytesOf({1, 2, 3, 4, 5, 6, 7, 8});
+    EXPECT_CALL(api(), writeU32(0x20000000U, _)).WillOnce(Return(0));
+    EXPECT_CALL(api(), writeU32(0x20000004U, _)).WillOnce(Return(-3));
+    const auto status = programmer().writeMemory(0x20000000, data, AccessWidth::Bits32);
+    ASSERT_FALSE(status);
+    EXPECT_EQ(status.error().code, ErrorCode::TargetMemoryAccessFailed);
+    EXPECT_EQ(status.error().detail, "JLINKARM_WriteU32(0x20000004, 4) returned -3");
+}
+
+TEST_F(TargetOps, MissingOptionalFunctionIsReported) {
+    ON_CALL(api(), has(OptionalFunction::WriteU32)).WillByDefault(Return(false));
+    ON_CALL(api(), has(OptionalFunction::IsHalted)).WillByDefault(Return(false));
+    ON_CALL(api(), has(OptionalFunction::GetMemZones)).WillByDefault(Return(false));
+    EXPECT_CALL(api(), writeU32(_, _)).Times(0);
+    EXPECT_CALL(api(), isHalted()).Times(0);
+    const auto data = bytesOf({1, 2, 3, 4});
+    const auto write = programmer().writeMemory(0x20000000, data, AccessWidth::Bits32);
+    ASSERT_FALSE(write);
+    EXPECT_EQ(write.error().code, ErrorCode::DependencyJLinkFunctionMissing);
+    EXPECT_EQ(write.error().detail, "JLINKARM_WriteU32");
+    EXPECT_EQ(programmer().isHalted().error().detail, "JLINKARM_IsHalted");
+    EXPECT_EQ(programmer().readRegisters().error().detail, "JLINKARM_IsHalted");
+    EXPECT_EQ(programmer().memoryZones().error().detail, "JLINK_GetMemZones");
+    // 8-bit writes use the mandatory JLINKARM_WriteMem.
+    EXPECT_TRUE(programmer().writeMemory(0x20000000, data, AccessWidth::Bits8));
+}
+
+TEST_F(TargetOps, HaltGoAndStatus) {
+    {
+        InSequence order;
+        EXPECT_CALL(api(), halt()).WillOnce(Return(0));
+        EXPECT_CALL(api(), isHalted()).WillOnce(Return(1));
+        EXPECT_CALL(api(), go());
+        EXPECT_CALL(api(), isHalted()).WillOnce(Return(0));
+        EXPECT_CALL(api(), isHalted()).WillOnce(Return(-1));
+    }
+    ASSERT_TRUE(programmer().halt());
+    EXPECT_EQ(programmer().isHalted().value_or(false), true);
+    ASSERT_TRUE(programmer().go());
+    EXPECT_EQ(programmer().isHalted().value_or(true), false);
+    EXPECT_EQ(programmer().isHalted().error().code, ErrorCode::TargetConnectFailed);
+    EXPECT_CALL(api(), coreId()).WillOnce(Return(0x2BA01477U));
+    EXPECT_EQ(programmer().coreId().value_or(0), 0x2BA01477U);
+}
+
+TEST_F(TargetOps, RegistersNeedAHaltedCore) {
+    EXPECT_CALL(api(), isHalted()).WillOnce(Return(0)).WillOnce(Return(1));
+    EXPECT_CALL(api(), registerList()).WillOnce(Return(std::vector<std::uint32_t>{0, 15}));
+    EXPECT_CALL(api(), readRegisters(_, _))
+        .WillOnce([](std::span<const std::uint32_t> indexes, std::span<std::uint32_t> values) {
+            EXPECT_EQ(indexes.size(), 2U);
+            values[0] = 7;
+            values[1] = 0x1000;
+            return 0;
+        });
+    EXPECT_CALL(api(), registerName(0U)).WillOnce(Return("R0"));
+    EXPECT_CALL(api(), registerName(15U)).WillOnce(Return(""));
+    EXPECT_EQ(programmer().readRegisters().error().code, ErrorCode::TargetNotHalted);
+    const auto registers = programmer().readRegisters();
+    ASSERT_TRUE(registers);
+    ASSERT_EQ(registers->size(), 2U);
+    EXPECT_EQ((*registers)[0].name, "R0");
+    EXPECT_EQ((*registers)[0].value, 7U);
+    EXPECT_EQ((*registers)[1].name, "#15"); // no name from the library
+}
+
+TEST_F(TargetOps, RegistersAreCappedAt128) {
+    std::vector<std::uint32_t> many(200);
+    for (std::size_t i = 0; i < many.size(); ++i) {
+        many[i] = static_cast<std::uint32_t>(i);
+    }
+    ON_CALL(api(), isHalted()).WillByDefault(Return(1));
+    ON_CALL(api(), registerList()).WillByDefault(Return(many));
+    ON_CALL(api(), registerName(_)).WillByDefault(Return("R"));
+    EXPECT_CALL(api(), readRegisters(_, _))
+        .WillOnce([](std::span<const std::uint32_t> indexes, std::span<std::uint32_t>) {
+            EXPECT_EQ(indexes.size(), 128U);
+            return 0;
+        });
+    EXPECT_EQ(
+        programmer().readRegisters().value_or(std::vector<hio::jlink::RegisterValue>{}).size(),
+        128U);
+}
+
+TEST_F(TargetOps, MemoryZonesAreBounded) {
+    EXPECT_CALL(api(), memoryZones(32U))
+        .WillOnce(Return(std::vector<MemoryZone>{
+            MemoryZone{.name = "AHB-AP", .description = "AHB-AP", .virtualAddress = 0}}))
+        .WillOnce(Return(std::unexpected(-5)));
+    EXPECT_EQ(programmer().memoryZones().value_or(std::vector<MemoryZone>{}).size(), 1U);
+    EXPECT_EQ(programmer().memoryZones().error().code, ErrorCode::TargetConnectFailed);
 }
 
 } // namespace

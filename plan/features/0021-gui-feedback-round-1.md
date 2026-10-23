@@ -5,7 +5,7 @@
   0004, 0005, 0006 and 0010 the same day; amendment N10 (log scroll bars, ADR-0173) approved 2026-10-23
 - **Milestone:** M3 follow-up (changes the implemented plans 0004, 0005, 0006 and the flash wizard 0010)
 - **Author:** Matej Strnad (with Claude)
-- **Related ADRs:** ADR-0164, ADR-0165, ADR-0166, ADR-0167, ADR-0168, ADR-0169, ADR-0170, ADR-0171, ADR-0172,
+- **Related ADRs:** ADR-0174, ADR-0165, ADR-0166, ADR-0167, ADR-0168, ADR-0169, ADR-0170, ADR-0171, ADR-0172,
   ADR-0173 (N10, 2026-10-23);
   amended: ADR-0033, ADR-0043, ADR-0045, ADR-0046, ADR-0055; context: ADR-0037, ADR-0040, ADR-0054, ADR-0058, ADR-0104
 - **Depends on:** [0004](0004-m3-gui-shell.md), [0005](0005-m3-console.md), [0006](0006-m3-flash-settings.md),
@@ -52,7 +52,7 @@ Answers to the clarifying questions are recorded in the ADRs listed above and in
 
 ## User experience
 
-### Flash page (N1–N4; ADR-0164 … ADR-0167)
+### Flash page (N1–N4; ADR-0165 … ADR-0167, ADR-0174)
 
 1. **What do you want to flash?** — two cards:
 
@@ -234,7 +234,7 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 
 | Question | Options | Decision (by user) | ADR |
 |---|---|---|---|
-| LTE flashing in the GUI | three cards / two cards, LTE merged | Two cards, LTE merged (2026-10-20) | ADR-0164 |
+| LTE flashing in the GUI | three cards / two cards, LTE merged | Two cards, LTE merged (2026-10-20) | ADR-0174 |
 | Designated LTE firmware source | pinned in profile / web manifest / pinned + newer check | Pinned in profile (2026-10-20) | ADR-0165 |
 | What to show for application firmware | catalog name+version / device firmware / both | Both (2026-10-20) | ADR-0166 |
 | Docs link | per UI language | EN/CS docs URLs (note N2) | ADR-0167 |

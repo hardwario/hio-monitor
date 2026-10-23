@@ -59,6 +59,10 @@ private:
 // Drops trailing '\r's, then keeps the text after the last '\r' (review fix 8, 2026-10-09).
 [[nodiscard]] std::string applyCarriageReturns(std::string_view bytes);
 [[nodiscard]] LogLevel parseZephyrLevel(std::string_view text);
+// True when `partial` (raw bytes of the incomplete line, LineAssembler::partial()) is the shell
+// prompt: ANSI CSI sequences and carriage-return redraws removed, it equals `prompt` (ADR-0082;
+// M6: also the RTT prompt, ADR-0104). An empty prompt or partial line is never a prompt.
+[[nodiscard]] bool isPrompt(std::string_view partial, std::string_view prompt);
 // ADR-0171: the Zephyr LOG_HEXDUMP continuation format - leading whitespace, 1-16 groups of two
 // hex digits each followed by a space (one extra space after the 8th group, padding spaces for a
 // short last line), then '|' and at most 17 printable ASCII characters (16 bytes as characters,

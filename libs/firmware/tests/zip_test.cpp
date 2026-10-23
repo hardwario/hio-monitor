@@ -18,6 +18,7 @@
 #include <fstream>
 #include <ios>
 #include <iterator>
+#include <stop_token>
 #include <string>
 #include <variant>
 #include <vector>
@@ -235,6 +236,33 @@ TEST_F(Zip, LteBundleWithBadHex) {
     const auto input = classifyLteInput(path);
     ASSERT_FALSE(input);
     EXPECT_EQ(input.error().code, ErrorCode::FirmwareHexParseError);
+}
+
+// Review F2: a requested stop gives `cancelled` for every kind of input and for the extraction.
+TEST_F(Zip, LteClassificationObservesTheStopToken) {
+    std::stop_source source;
+    source.request_stop();
+    const std::vector<fs::path> inputs{
+        write(QStringLiteral("bundle.zip"),
+              zipBytes({{.name = "modem.zip", .data = modemZip().toStdString()},
+                        {.name = "application.hex", .data = appHex()}})),
+        write(QStringLiteral("modem.zip"), modemZip()),
+        write(QStringLiteral("app.hex"), QByteArray::fromStdString(appHex()))};
+    for (const fs::path& path : inputs) {
+        const auto input = classifyLteInput(path, source.get_token());
+        ASSERT_FALSE(input) << path.string();
+        EXPECT_EQ(input.error().code, ErrorCode::Cancelled) << path.string();
+        EXPECT_TRUE(classifyLteInput(path)) << path.string(); // the default token never stops
+    }
+    auto zip = ZipReader::open(inputs.front());
+    ASSERT_TRUE(zip);
+    const auto bytes = zip->extract("application.hex", 1 << 20, source.get_token());
+    ASSERT_FALSE(bytes);
+    EXPECT_EQ(bytes.error().code, ErrorCode::Cancelled);
+    const auto extracted = zip->extractTo("modem.zip", dir() / "out", 1 << 20, source.get_token());
+    ASSERT_FALSE(extracted);
+    EXPECT_EQ(extracted.error().code, ErrorCode::Cancelled);
+    EXPECT_FALSE(fs::exists(dir() / "out"));
 }
 
 TEST(ModemMarker, Names) {

@@ -20,6 +20,7 @@
 #include "jlink_commands.h"
 #include "output.h"
 #include "probe_options.h"
+#include "target_commands.h"
 #include "terminal.h"
 
 #include <QEventLoop>
@@ -363,6 +364,8 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
     registerAppFlashCommands(*appGroup, group, slot, globals);
     // M4 (plan/features/0007): the live connection check.
     registerCheckCommand(*appGroup, group, slot, globals, "app");
+    // M6 (plan/features/0013): status, halt, go, regs, zones, mem read|write, flash-write.
+    registerTargetCommands(*appGroup, group, slot, globals, "app");
     registerLteCommands(*chester, slot, globals);
 }
 

@@ -29,6 +29,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -428,6 +429,137 @@ TEST_F(FakeLibrarySession, ConnectedEventCarriesTheScenarioVoltage) {
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Connected); }));
     EXPECT_EQ(events.connections.back().targetMillivolts, 3712);
     EXPECT_EQ((*session)->connection().targetMillivolts, 3712);
+}
+
+} // namespace
+
+namespace {
+
+using hio::device::AccessWidth;
+
+// M6 (plan/features/0013): the target operations through a real copy of the fake library. The
+// console stays Connected across halt / go and memory accesses (ADR-0157).
+TEST_F(FakeLibrarySession, TargetOperationsThroughTheLibrary) {
+    useScenario(R"json({"probes": [{"serialNumber": 801000001,
+        "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "booted\n"},
+                           {"atMs": 400, "buffer": 0, "text": "later\n"}]},
+        "chip": {"ram": [{"address": 536870912, "size": 262144}],
+                 "registers": [{"name": "R0", "value": 5}, {"name": "PC", "value": 8192}],
+                 "zones": [{"name": "AHB-AP", "description": "AHB-AP (AP0)", "virtualAddress": 0}]}}]})json");
+    auto session = DeviceSession::open(registry(), location(), options(801000001));
+    ASSERT_TRUE(session) << session.error().message;
+    Recorder events(**session);
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    const auto halted = runToEnd(**session, (*session)->halt("app"));
+    ASSERT_TRUE(halted.status) << halted.status.error().detail;
+    const auto status = runToEnd(**session, (*session)->targetStatus("app"));
+    ASSERT_TRUE(status.status) << status.status.error().detail;
+    EXPECT_TRUE(status.targetStatus.value_or(hio::device::TargetStatus{}).halted);
+    EXPECT_EQ(status.targetStatus.value_or(hio::device::TargetStatus{}).coreId, 0x2BA01477U);
+    const auto registers = runToEnd(**session, (*session)->readRegisters("app"));
+    ASSERT_TRUE(registers.status) << registers.status.error().detail;
+    ASSERT_EQ(registers.registers.size(), 2U);
+    EXPECT_EQ(registers.registers[0].value, 5U);
+    const std::vector<std::byte> data{std::byte{0xEF}, std::byte{0xBE}, std::byte{0xAD},
+                                      std::byte{0xDE}};
+    ASSERT_TRUE(
+        runToEnd(**session, (*session)->writeMemory("app", 0x20000100, data, AccessWidth::Bits32))
+            .status);
+    const auto read =
+        runToEnd(**session, (*session)->readMemory("app", 0x20000100, 4, AccessWidth::Bits16));
+    ASSERT_TRUE(read.status) << read.status.error().detail;
+    EXPECT_EQ(read.data, data);
+    const auto zones = runToEnd(**session, (*session)->memoryZones("app"));
+    ASSERT_TRUE(zones.status);
+    ASSERT_EQ(zones.zones.size(), 1U);
+    EXPECT_EQ(zones.zones[0].description, "AHB-AP (AP0)");
+    ASSERT_TRUE(runToEnd(**session, (*session)->go("app")).status);
+    // RTT kept running across all of it.
+    ASSERT_TRUE(waitFor([&] {
+        const auto lines = events.texts(Channel::Shell, Direction::Out);
+        return std::ranges::find(lines, "later") != lines.end();
+    }));
+    EXPECT_EQ(events.count(ConnectionState::Disconnected), 0);
+    EXPECT_EQ((*session)->connection().state, ConnectionState::Connected);
+}
+
+// ADR-0151: a J-Link library without the optional exports: RTT works, the target operations that
+// need them fail with dependency.jlink_function_missing.
+TEST_F(FakeLibrarySession, MissingOptionalExport) {
+    auto session = DeviceSession::open(
+        registry(), hio::jlink::LibraryLocation{.path = fs::path(HIO_FAKE_JLINK_BASIC_LIBRARY)},
+        options(801000001));
+    ASSERT_TRUE(session) << session.error().message;
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    const auto status = runToEnd(**session, (*session)->targetStatus("app"));
+    ASSERT_FALSE(status.status);
+    EXPECT_EQ(status.status.error().code, ErrorCode::DependencyJLinkFunctionMissing);
+    EXPECT_EQ(status.status.error().detail, "JLINKARM_IsHalted");
+    const auto zones = runToEnd(**session, (*session)->memoryZones("app"));
+    EXPECT_EQ(zones.status.error().detail, "JLINK_GetMemZones");
+    EXPECT_TRUE(runToEnd(**session, (*session)->halt("app")).status);
+}
+
+// Review Q10: the scenario key chip.halted starts the CPU halted, so registers can be read without
+// a halt first; go lets it run.
+TEST_F(FakeLibrarySession, ScenarioStartsTheCpuHalted) {
+    useScenario(R"json({"probes": [{"serialNumber": 801000001,
+        "chip": {"halted": true,
+                 "registers": [{"name": "R0", "value": 7}, {"name": "PC", "value": 4096}]}}]})json");
+    auto session = DeviceSession::open(registry(), location(), options(801000001));
+    ASSERT_TRUE(session) << session.error().message;
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    const auto status = runToEnd(**session, (*session)->targetStatus("app"));
+    ASSERT_TRUE(status.status) << status.status.error().detail;
+    EXPECT_TRUE(status.targetStatus.value_or(hio::device::TargetStatus{}).halted);
+    const auto registers = runToEnd(**session, (*session)->readRegisters("app"));
+    ASSERT_TRUE(registers.status) << registers.status.error().detail;
+    ASSERT_EQ(registers.registers.size(), 2U);
+    EXPECT_EQ(registers.registers[0].value, 7U);
+    ASSERT_TRUE(runToEnd(**session, (*session)->go("app")).status);
+    const auto running = runToEnd(**session, (*session)->targetStatus("app"));
+    ASSERT_TRUE(running.status);
+    EXPECT_FALSE(running.targetStatus.value_or(hio::device::TargetStatus{}).halted);
+    EXPECT_EQ(runToEnd(**session, (*session)->readRegisters("app")).status.error().code,
+              ErrorCode::TargetNotHalted);
+}
+
+// ADR-0160 (review S1): reads are not limited to the profile ranges: FICR reads work, an unmapped
+// address is target.memory_access_failed from the library.
+TEST_F(FakeLibrarySession, FicrIsReadableAndUnmappedReadsFail) {
+    useScenario(R"({"probes": [{"serialNumber": 801000001}]})");
+    auto session = DeviceSession::open(registry(), location(), options(801000001));
+    ASSERT_TRUE(session) << session.error().message;
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    const std::vector<std::byte> part{std::byte{0x40}, std::byte{0x28}, std::byte{0x05},
+                                      std::byte{0x00}}; // INFO.PART 0x52840, little-endian
+    const auto bytes = runToEnd(**session, (*session)->readMemory("app", 0x10000100, 4));
+    ASSERT_TRUE(bytes.status) << bytes.status.error().detail;
+    EXPECT_EQ(bytes.data, part);
+    const auto words =
+        runToEnd(**session, (*session)->readMemory("app", 0x10000100, 4, AccessWidth::Bits32));
+    ASSERT_TRUE(words.status) << words.status.error().detail;
+    EXPECT_EQ(words.data, part);
+    const auto unmapped = runToEnd(**session, (*session)->readMemory("app", 0x30000000, 4));
+    ASSERT_FALSE(unmapped.status);
+    EXPECT_EQ(unmapped.status.error().code, ErrorCode::TargetMemoryAccessFailed);
+    EXPECT_EQ((*session)->connection().state, ConnectionState::Connected);
+}
+
+// The RTT control block address reaches the library: with "autoSearch" false the fake finds the
+// block only when RTT START carries the scenario's address.
+TEST_F(FakeLibrarySession, RttAddressIsPassedToTheLibrary) {
+    useScenario(R"json({"probes": [{"serialNumber": 801000001,
+        "rtt": {"blockAddress": 536875008, "autoSearch": false,
+                "output": [{"atMs": 0, "buffer": 0, "text": "found\n"}]}}]})json");
+    SessionOptions opts = options(801000001);
+    opts.rttAddress = 0x20001000U;
+    auto session = DeviceSession::open(registry(), location(), opts);
+    ASSERT_TRUE(session) << session.error().message;
+    Recorder events(**session);
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(waitFor([&] { return !events.lines.empty(); }));
+    EXPECT_EQ(events.lines.front().text, "found");
 }
 
 } // namespace

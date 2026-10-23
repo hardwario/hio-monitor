@@ -12,7 +12,7 @@
 - **Status:** In progress (implementation started 2026-10-16 on `v2/m4-wizards`; approved 2026-10-16 by Matej Strnad, with the amendment from the 0004 review and the 0007/0008/0010 amendments applied); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist; applied 2026-10-23 except "In the device" / "Now in the device", 0021 phase 2)
 - **Milestone:** M3 (plan 3 of 3, ADR-0059)
 - **Author:** Matej Strnad (with Claude)
-- **Related ADRs:** ADR-0164, ADR-0165, ADR-0166, ADR-0167, ADR-0172 (0021), ADR-0016, ADR-0025, ADR-0027, ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0047, ADR-0049,
+- **Related ADRs:** ADR-0174, ADR-0165, ADR-0166, ADR-0167, ADR-0172 (0021), ADR-0016, ADR-0025, ADR-0027, ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0047, ADR-0049,
   ADR-0054, ADR-0055, ADR-0057, ADR-0059, ADR-0060, ADR-0062, ADR-0067, ADR-0114
 - **Depends on:** [0004](0004-m3-gui-shell.md) (shell, page-extension contract, `SettingsStore`), 0003 (M2 with the
   ADR-0057 / ADR-0062 amendments applied: operations with a target, `flashLteBundle`, `reset` as an operation)
@@ -40,7 +40,7 @@
 > pre-releases, [Check now]), the CLI path of this installation and the licence list read from the installed
 > `licenses/` directory; the version line shows the package kind.
 
-> **Amended by [0021](0021-gui-feedback-round-1.md) (approved 2026-10-20; ADR-0164 … ADR-0167, ADR-0172; applied in
+> **Amended by [0021](0021-gui-feedback-round-1.md) (approved 2026-10-20; ADR-0165 … ADR-0167, ADR-0174, ADR-0172; applied in
 > this text, marked *amended by 0021*):** two kind cards (Application firmware, LTE firmware; the modem is
 > part of the LTE card); the LTE card downloads the designated LTE firmware (pinned in the profile, SHA-256
 > verified) with "Use your own file…" as the alternative; a catalog ID shows the firmware name and version, the
@@ -93,7 +93,7 @@ Per ADR-0055 (kind first) and ADR-0049 (progress, result, maintenance). *Amended
 header has a small ghost button **"Guide me"** that opens the flash wizard (`tab.openWizard("flash-firmware")`, 0004).
 The cards are:
 
-1. **What do you want to flash?** — *amended by 0021 (ADR-0164)*: two radio cards. The default comes from the tab's
+1. **What do you want to flash?** — *amended by 0021 (ADR-0174)*: two radio cards. The default comes from the tab's
    target.
 
    | Kind | MCU | Source |
@@ -343,7 +343,7 @@ session.
 |---|---|---|---|
 | Flash page | single form / wizard | Single form + in-place progress | ADR-0049 |
 | Catalog in GUI | ID only / browser now | ID field + recent + web link | ADR-0054 |
-| Flash page first step (review) | firmware kind cards / target MCU / operation first | Kind cards: app / LTE / modem; *changed by 0021*: app / LTE | ADR-0055, ADR-0164 |
+| Flash page first step (review) | firmware kind cards / target MCU / operation first | Kind cards: app / LTE / modem; *changed by 0021*: app / LTE | ADR-0055, ADR-0174 |
 | Flashing another MCU than the console's | operation carries target / retarget tab / second session | Operation carries its target | ADR-0057 |
 | Session operation API | concrete types; bundle one op / caller sequences; reset op / keep both | Bundle = one operation, reset = operation, cancel = `cancelled` | ADR-0062 |
 | Settings sections of other plans | page hosts contributed sections / 0006 owns all | Contributed sections (Console by 0005) | ADR-0059 |

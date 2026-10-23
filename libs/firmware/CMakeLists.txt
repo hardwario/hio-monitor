@@ -39,8 +39,8 @@ set_target_properties(hio_firmware PROPERTIES AUTOMOC ON)
 if(HIO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
-# libFuzzer target catalog_page_fuzz (plan 0021; the linux-fuzz preset of ADR-0152 sets
-# HIO_BUILD_FUZZERS - the option and hio_add_fuzzer() come with M6, until then this is inert).
+# libFuzzer target catalog_page_fuzz (plan 0021; only the linux-fuzz preset of ADR-0152 sets
+# HIO_BUILD_FUZZERS).
 if(HIO_BUILD_FUZZERS)
     add_subdirectory(fuzz)
 endif()

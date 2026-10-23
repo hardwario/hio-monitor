@@ -81,7 +81,9 @@ signals:
     void connectionChanged(const hio::device::ConnectionEvent& event);
     void linesDropped(quint64 count);
     void warning(const hio::Error& error);
-    // BLE only (ADR-0082): the shell prompt was seen after output; never emitted for J-Link.
+    // The shell prompt was seen after output, when the profile has a prompt for this transport:
+    // BLE BleProfile::shellPrompt (ADR-0082), J-Link RTT TargetProfile::shellPrompt (M6,
+    // ADR-0104; empty for CHESTER until confirmed, open question 25). Never emitted without one.
     void promptSeen();
 
 protected:

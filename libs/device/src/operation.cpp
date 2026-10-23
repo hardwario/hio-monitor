@@ -46,34 +46,64 @@ constexpr std::array resetCross{P::SwitchingTarget, P::Connecting, P::Resetting,
 constexpr std::array readCross{P::SwitchingTarget, P::Connecting, P::Restoring};
 constexpr std::array diagnoseCross{P::SwitchingTarget, P::Connecting, P::Restoring};
 
+// The cross-target or the same-target phases.
+constexpr std::span<const P> pick(bool crossTarget, std::span<const P> cross,
+                                  std::span<const P> same) noexcept {
+    return crossTarget ? cross : same;
+}
+
 } // namespace
 
 std::span<const ProgramPhase> plannedPhases(OperationKind kind, bool crossTarget,
                                             bool recoverImage) noexcept {
     switch (kind) {
     case OperationKind::Flash:
-        return crossTarget ? std::span<const P>(flashCross) : std::span<const P>(flashPhases);
+        return pick(crossTarget, flashCross, flashPhases);
     case OperationKind::EraseCode:
     case OperationKind::EraseAll:
-        return crossTarget ? std::span<const P>(eraseCross) : std::span<const P>(erasePhases);
+        return pick(crossTarget, eraseCross, erasePhases);
     case OperationKind::Recover:
         if (recoverImage) {
-            return crossTarget ? std::span<const P>(recoverImageCross)
-                               : std::span<const P>(recoverImagePhases);
+            return pick(crossTarget, recoverImageCross, recoverImagePhases);
         }
-        return crossTarget ? std::span<const P>(recoverCross) : std::span<const P>(recoverPhases);
+        return pick(crossTarget, recoverCross, recoverPhases);
     case OperationKind::Modem:
-        return crossTarget ? std::span<const P>(modemCross) : std::span<const P>(modemPhases);
+        return pick(crossTarget, modemCross, modemPhases);
     case OperationKind::LteBundle:
-        return crossTarget ? std::span<const P>(bundleCross) : std::span<const P>(bundlePhases);
+        return pick(crossTarget, bundleCross, bundlePhases);
     case OperationKind::Reset:
-        return crossTarget ? std::span<const P>(resetCross) : std::span<const P>(resetPhases);
+        return pick(crossTarget, resetCross, resetPhases);
     case OperationKind::ReadMemory:
-        return crossTarget ? std::span<const P>(readCross) : std::span<const P>(readPhases);
+        return pick(crossTarget, readCross, readPhases);
     case OperationKind::Diagnose:
-        return crossTarget ? std::span<const P>(diagnoseCross) : std::span<const P>(diagnosePhases);
+        return pick(crossTarget, diagnoseCross, diagnosePhases);
+    case OperationKind::Halt:
+    case OperationKind::Go:
+    case OperationKind::TargetStatus:
+    case OperationKind::WriteMemory:
+    case OperationKind::ReadRegisters:
+    case OperationKind::MemoryZones:
+        // M6: like a memory read (the work is one short step after Connecting).
+        return pick(crossTarget, readCross, readPhases);
+    case OperationKind::WriteFlash:
+        return pick(crossTarget, flashCross, flashPhases);
     }
     return {};
+}
+
+bool isLightOperation(OperationKind kind) noexcept {
+    switch (kind) {
+    case OperationKind::Halt:
+    case OperationKind::Go:
+    case OperationKind::TargetStatus:
+    case OperationKind::ReadMemory:
+    case OperationKind::WriteMemory:
+    case OperationKind::ReadRegisters:
+    case OperationKind::MemoryZones:
+        return true;
+    default:
+        return false;
+    }
 }
 
 std::vector<DiagnoseStepInfo> diagnoseSteps(const TargetProfile& target) {
@@ -115,6 +145,20 @@ std::string_view operationKindId(OperationKind kind) noexcept {
         return "readMemory";
     case OperationKind::Diagnose:
         return "diagnose";
+    case OperationKind::Halt:
+        return "halt";
+    case OperationKind::Go:
+        return "go";
+    case OperationKind::TargetStatus:
+        return "targetStatus";
+    case OperationKind::WriteMemory:
+        return "writeMemory";
+    case OperationKind::ReadRegisters:
+        return "readRegisters";
+    case OperationKind::MemoryZones:
+        return "memoryZones";
+    case OperationKind::WriteFlash:
+        return "writeFlash";
     }
     return "flash";
 }

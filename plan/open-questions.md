@@ -27,8 +27,6 @@ before the plan that depends on it is approved.
 | 20 | ~~Documentation links per error code~~ — **resolved**: `docs/troubleshooting.md` anchors per code and `docsUrl()` (ADR-0138, 0017) | — |
 | 21 | PIB / UICR read of the connected device in the diagnostic report and the GUI — not in M4 | later |
 | 22 | CHESTER connection guide content: exact connector names, cable type, pin-1 marking, power wording, and the real illustrations for the wizard slots (ADR-0076, ADR-0077) — HARDWARIO content task | before 0009 is Done |
-| 23 | CHESTER Bluetooth facts used by M5 (taken from the old app and py-hardwario only): advertised name format, whether NUS is in the advertisement, shell prompt `bt_nus:~$ `, passkey default 123456 and how bonds are cleared on the device; also BLE illustrations (ADR-0089) — confirm with the CHESTER firmware team | before 0011 is Done |
-| 24 | Windows: does `QBluetoothLocalDevice::requestPairing` show a passkey dialog for CHESTER? If not, `hio ble pair` on Windows falls back to instructions (ADR-0084) | 0011 HIL |
 | 25 | CHESTER RTT shell prompt string (app and lte targets) for `TargetProfile::shellPrompt` (ADR-0104); empty until recorded on hardware — `send_command` then ends by silence | 0013 HIL (E3) |
 | 26 | Drop the legacy MCP dialect (2025-11-25) once Claude, Cursor and VS Code speak 2026-07-28 (ADR-0095) | after v2.0 |
 | 27 | ~~v2 app icon~~ — **resolved**: the v1 icon is reused (0015); a later brand icon only replaces the files | — |

@@ -34,7 +34,9 @@
 #include "hio/hw/nrfutil/nrfutil.h"
 #include "operation_reporter.h"
 #include "session_internal.h"
+#include "session_worker_target.h"
 
+#include <QChar>
 #include <QCoreApplication>
 #include <QLoggingCategory>
 #include <QString>
@@ -98,7 +100,8 @@ public:
           m_modemFactory(std::move(modemFactory)), m_lock(std::move(lock)), m_commands(commands),
           m_events(events), m_wake(wake),
           m_shellLines(Channel::Shell, m_config.target->hashPrefixIsLog),
-          m_logLines(Channel::Log, false), m_readBuffer(maxReadBytes) {
+          m_logLines(Channel::Log, false), m_readBuffer(maxReadBytes),
+          m_prompt(m_config.target->shellPrompt) {
         if (m_config.probeSn) {
             m_serial = m_config.probeSn;
         }
@@ -369,7 +372,7 @@ private:
     [[nodiscard]] Status attachRtt(const std::stop_token& stop) {
         const jlink::RttNames names{.terminal = std::string(m_config.target->rttTerminal),
                                     .logger = std::string(m_config.target->rttLogger)};
-        auto layout = m_rtt->attach(names, stop);
+        auto layout = m_rtt->attach(names, stop, m_config.rttAddress);
         if (!layout) {
             return std::unexpected(std::move(layout).error());
         }
@@ -524,6 +527,12 @@ private:
             }
         };
         readChannel(layout.terminalUp, m_shellLines);
+        // ADR-0104 (M6): the profile's RTT prompt, recognised like the BLE prompt (ADR-0082): it
+        // is not a line, the session reports it instead. Never without a profile prompt.
+        if (!m_prompt.empty() && isPrompt(m_shellLines.partial(), m_prompt)) {
+            m_shellLines.reset();
+            emitEvent(PromptSeen{});
+        }
         if (layout.loggerUp) {
             readChannel(*layout.loggerUp, m_logLines);
         }
@@ -704,11 +713,12 @@ private:
         return {};
     }
 
-    // The probe is released for nRF Util: closed, the library copy stays loaded (ADR-0016).
-    void releaseProbe() {
+    // The probe is released for nRF Util (ADR-0016) or another program (M6 releaseProbe):
+    // closed, the library copy stays loaded. `purpose` completes the log line.
+    void releaseProbe(std::string_view purpose) {
         if (m_probe && m_probe->isOpen()) {
             m_probe->close();
-            flashLog("J-Link released for nRF Util");
+            flashLog(std::format("J-Link released {}", purpose));
         }
         m_probeTarget = nullptr;
     }
@@ -751,7 +761,7 @@ private:
             }
         }
         reporter.phase(ProgramPhase::Modem);
-        releaseProbe();
+        releaseProbe("for nRF Util");
         flashLog("Updating the modem firmware: " + toUtf8(modemZip));
         Status updated = (*updater)->updateModem(
             modemZip, m_serial.value_or(0),
@@ -925,7 +935,7 @@ private:
             if (Status prepared = prepareOperation(run, true); !prepared) {
                 return prepared;
             }
-            auto data = runReadMemory(run.context, command.address, command.size);
+            auto data = runReadMemory(run.context, command.address, command.size, command.width);
             if (!data) {
                 return std::unexpected(std::move(data).error());
             }
@@ -951,6 +961,62 @@ private:
         }
         case OperationKind::Diagnose: // runDiagnose()
             break;
+        case OperationKind::Halt:
+        case OperationKind::Go:
+        case OperationKind::TargetStatus:
+        case OperationKind::WriteMemory:
+        case OperationKind::ReadRegisters:
+        case OperationKind::MemoryZones:
+        case OperationKind::WriteFlash:
+            return executeTargetOperation(run, result);
+        }
+        return std::unexpected(makeError(ErrorCode::InternalUnexpected, "unknown operation"));
+    }
+
+    // M6 (plan/features/0013, ADR-0158): the low-level target operations of
+    // session_worker_target.cpp.
+    [[nodiscard]] Status executeTargetOperation(OperationRun& run, OperationResult& result) {
+        const OperationCommand& command = run.command;
+        if (Status prepared = prepareOperation(run, true); !prepared) {
+            return prepared;
+        }
+        const auto status = [&result](Result<TargetStatus> found) -> Status {
+            if (!found) {
+                return std::unexpected(std::move(found).error());
+            }
+            result.targetStatus = std::move(*found);
+            return {};
+        };
+        switch (command.kind) {
+        case OperationKind::Halt:
+            return status(runHalt(run.context));
+        case OperationKind::Go:
+            return status(runGo(run.context));
+        case OperationKind::TargetStatus:
+            return status(runTargetStatus(run.context));
+        case OperationKind::WriteMemory:
+            return runWriteMemory(run.context, command.address, command.data, command.width);
+        case OperationKind::ReadRegisters: {
+            auto registers = runReadRegisters(run.context);
+            if (!registers) {
+                return std::unexpected(std::move(registers).error());
+            }
+            result.registers = std::move(*registers);
+            return {};
+        }
+        case OperationKind::MemoryZones: {
+            auto zones = runMemoryZones(run.context);
+            if (!zones) {
+                return std::unexpected(std::move(zones).error());
+            }
+            result.zones = std::move(*zones);
+            return {};
+        }
+        case OperationKind::WriteFlash:
+            return keepChip(runWriteFlash(run.context, *command.image, command.flash.allowUicr),
+                            result);
+        default:
+            break;
         }
         return std::unexpected(makeError(ErrorCode::InternalUnexpected, "unknown operation"));
     }
@@ -963,6 +1029,10 @@ private:
                                             [&operationStop] { operationStop.request_stop(); });
         const TargetProfile& target = *command.target;
         const bool crossTarget = &target != m_config.target;
+        // ADR-0157 (M6): a light operation on the console target keeps RTT as it is (attached or
+        // not): no pause, no restore, no re-attach; a halt keeps the console Connected. On another
+        // target it follows the M2 pattern below. This is the only place deciding it.
+        const bool keepRtt = isLightOperation(command.kind) && !crossTarget;
         const bool withImage =
             command.kind == OperationKind::Recover && target.recoverImage != RecoverImage::None;
         OperationReporter reporter(command.kind,
@@ -982,14 +1052,20 @@ private:
                                .duration = {},
                                .chip = std::nullopt,
                                .data = {},
-                               .checks = {}};
+                               .checks = {},
+                               .targetStatus = std::nullopt,
+                               .registers = {},
+                               .zones = {}};
         if (m_suspended) {
             result.status = std::unexpected(notConnected("operation not run (suspended)"));
             finishOperation(command, reporter, std::move(result));
             return;
         }
+        // Review R20: what a light operation on an unattached console target puts back.
+        const bool probeWasOpen = m_probe && m_probe->isOpen();
+        const bool fatalBefore = m_fatal;
         // Pause RTT without reporting a disconnect (ADR-0034).
-        if (m_attached) {
+        if (m_attached && !keepRtt) {
             m_rtt->stop();
             m_attached = false;
         }
@@ -1017,11 +1093,43 @@ private:
             run.programmer && run.programmer->reset(ResetMode::Go)) {
             run.context.cpuHalted = false;
         }
+        if (keepRtt && outcome) {
+            noteHaltState(command.kind);
+        }
         result.status = std::move(outcome);
-        if (!sessionStop.stop_requested()) {
+        if (!sessionStop.stop_requested() && !keepRtt) {
             restoreAfterOperation(crossTarget, run.context.cpuHalted, reporter, sessionStop);
         }
+        if (keepRtt && !m_attached) {
+            settleUnattached(probeWasOpen, fatalBefore);
+        }
         finishOperation(command, reporter, std::move(result));
+    }
+
+    // Review S7: halt on the console target stops auto-reconnect like reset(Halt) (review R25),
+    // while the console stays Connected (ADR-0157); go lets it run again. reset(Go), reconnect
+    // and resume clear the flag as before.
+    void noteHaltState(OperationKind kind) {
+        if (kind == OperationKind::Halt) {
+            m_halted = true;
+        } else if (kind == OperationKind::Go) {
+            m_halted = false;
+        }
+    }
+
+    // Review R20: a light operation on the console target while RTT is not attached
+    // (Disconnected, Stopped, ProbeOpen) reports no state of its own (ADR-0157), so it leaves
+    // the session as it found it: a probe the session had closed (e.g. a failed reconnect) is
+    // closed again, and a fatal stop stays fatal (prepareProbe() cleared it) so that nothing
+    // re-attaches by itself. A probe that was open stays open, connected to the target; the
+    // next (auto-)reconnect starts with detach() as always.
+    void settleUnattached(bool probeWasOpen, bool fatalBefore) {
+        m_fatal = fatalBefore;
+        if (!probeWasOpen && m_probe && m_probe->isOpen()) {
+            m_probe->close();
+            m_probeTarget = nullptr;
+            flashLog("J-Link closed again (it was closed before the operation)");
+        }
     }
 
     // ---- Diagnose (M4, plan/features/0007, ADR-0069) -------------------------------------------
@@ -1436,7 +1544,7 @@ private:
             jlink::RttChannel channel(*m_api, clock(), timing, m_config.speedKhz);
             const jlink::RttNames names{.terminal = std::string(target.rttTerminal),
                                         .logger = std::string(target.rttLogger)};
-            auto attached = channel.attach(names, run.stop);
+            auto attached = channel.attach(names, run.stop, m_config.rttAddress);
             channel.stop();
             if (!attached) {
                 Error error = std::move(attached).error();
@@ -1516,7 +1624,10 @@ private:
                                .duration = {},
                                .chip = std::nullopt,
                                .data = {},
-                               .checks = {}};
+                               .checks = {},
+                               .targetStatus = std::nullopt,
+                               .registers = {},
+                               .zones = {}};
         if (m_suspended) {
             result.status = std::unexpected(notConnected("diagnose not run (suspended)"));
             finishOperation(command, reporter, std::move(result));
@@ -1610,6 +1721,10 @@ private:
                            connect(stop, true);
                        },
                        [&](const ReconnectCommand&) {
+                           if (m_released) { // review R19: only through the reacquire path
+                               reattachProbe(stop);
+                               return;
+                           }
                            m_suspended = false;
                            m_halted = false;
                            m_fatal = false;
@@ -1621,13 +1736,85 @@ private:
                            report(ConnectionState::Stopped, std::nullopt, true);
                        },
                        [&](const ResumeCommand&) {
+                           if (m_released) { // review R19
+                               reattachProbe(stop);
+                               return;
+                           }
                            m_suspended = false;
                            m_halted = false;
                            m_fatal = false;
                            reconnect(stop);
                        },
+                       [&](const DetachProbeCommand&) { detachProbe(); },
+                       [&](const ReattachProbeCommand&) {
+                           if (!m_released) { // review R19: nothing to reacquire
+                               qCInfo(log::lcDevice) << "Reacquire ignored: the probe was not "
+                                                        "released";
+                               return;
+                           }
+                           reattachProbe(stop);
+                       },
+                       [&](const SetRttAddressCommand& set) {
+                           // Sticky (rttt): used by every later attach.
+                           m_config.rttAddress = set.address;
+                           qCInfo(log::lcDevice).noquote()
+                               << (set.address ? QStringLiteral("RTT control block address 0x%1")
+                                                     .arg(*set.address, 8, 16, QLatin1Char('0'))
+                                               : QStringLiteral("RTT control block: search"));
+                       },
                    },
                    command);
+    }
+
+    // ---- probe release (M6, plan/features/0013)
+    // --------------------------------------------------
+
+    // DeviceSession::releaseProbe(): RTT stopped and the J-Link closed for another program (rttt
+    // jlink_close); the ProbeLock and the registry slot stay held. The session is suspended (no
+    // automatic re-attach) and reports Stopped.
+    void detachProbe() {
+        m_released = true;
+        m_suspended = true;
+        if (m_rtt) {
+            m_rtt->stop();
+        }
+        m_attached = false;
+        releaseProbe("for another program");
+        m_lastMillivolts.reset();
+        report(ConnectionState::Stopped, std::nullopt, true);
+    }
+
+    // DeviceSession::reacquireProbe(), and reconnect() / resume() of a released session (review
+    // R19): opens the J-Link again (the existing reopen helper) and connects as usual. A probe
+    // that cannot be opened now is most likely held by the program it was released for:
+    // probe.open_failed becomes probe.in_use_by_other_process; the session then stays released,
+    // suspended and Stopped with that error.
+    void reattachProbe(const std::stop_token& stop) {
+        m_suspended = false;
+        m_halted = false;
+        m_fatal = false;
+        report(ConnectionState::Connecting);
+        if (Status reopened = reopenProbe(stop); !reopened) {
+            m_suspended = true;
+            Error error = std::move(reopened).error();
+            if (error.code == ErrorCode::ProbeOpenFailed) {
+                Error taken =
+                    makeError(ErrorCode::ProbeInUseByOtherProcess, std::move(error.detail));
+                taken.cause =
+                    QCoreApplication::translate(
+                        "hio::device", "Another program opened the J-Link after it was released.")
+                        .toStdString();
+                taken.suggestion =
+                    QCoreApplication::translate(
+                        "hio::device", "Close the other program, then reacquire the J-Link.")
+                        .toStdString();
+                error = std::move(taken);
+            }
+            report(ConnectionState::Stopped, std::move(error), true);
+            return;
+        }
+        m_released = false;
+        connect(stop, false);
     }
 
     void shutdown() {
@@ -1673,7 +1860,10 @@ private:
     Clock::TimePoint m_nextReconnect;
     bool m_attached = false;
     bool m_suspended = false;
-    bool m_halted = false; // after reset(halt = true): no auto-reconnect (review R25)
+    // M6 releaseProbe() until a successful reattachProbe() (review R19); implies m_suspended.
+    bool m_released = false;
+    // After reset(halt = true) or halt on the console target: no auto-reconnect (reviews R25, S7).
+    bool m_halted = false;
     bool m_fatal = false;
     bool m_seenPower = false;
     std::optional<int> m_lastMillivolts; // ADR-0091
@@ -1685,6 +1875,8 @@ private:
     bool m_probeOnly = false; // ADR-0069: connectTarget = false until startConnection()
     // Diagnose: what the CTRL-AP said after a failed connect (consumed by the identify step).
     std::optional<Error> m_diagnoseIdentity;
+    // ADR-0104 (M6): TargetProfile::shellPrompt of the console target ("" = no detection).
+    std::string_view m_prompt;
 };
 
 } // namespace

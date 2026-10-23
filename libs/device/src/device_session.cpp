@@ -1,5 +1,6 @@
 #include "hio/device/device_session.h"
 
+#include "flash_workflows.h"
 #include "hio/core/bounded_queue.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
@@ -20,6 +21,7 @@
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_library.h"
 #include "hio/hw/jlink/library_locator.h"
+#include "hio/hw/jlink/programmer.h"
 #include "hio/hw/jlink/rtt_channel.h"
 #include "hio/hw/jlink/types.h"
 #include "hio/hw/nrfutil/nrfutil.h"
@@ -53,6 +55,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace hio::device {
 
@@ -167,7 +170,10 @@ SessionInternals::abandonRunning(Error error) {
                                                  .duration = {},
                                                  .chip = std::nullopt,
                                                  .data = {},
-                                                 .checks = {}});
+                                                 .checks = {},
+                                                 .targetStatus = std::nullopt,
+                                                 .registers = {},
+                                                 .zones = {}});
     return lastFinished;
 }
 
@@ -257,12 +263,14 @@ Result<std::unique_ptr<DeviceSession>> SessionInternals::open(SessionRegistry& r
     config.timing.rtt.attachDeadline =
         jlink::rttAttachDeadline(options.speedKhz, hooks.timing.rtt.attachDeadline);
     config.cycles = std::move(hooks.cycles);
+    config.rttAddress = options.rttAddress;
     if (!options.consoleFile || !options.consoleFile->empty()) {
         config.consoleFile = ConsoleFileConfig{.explicitFile = options.consoleFile,
                                                .directory = registry.options().consoleDirectory,
                                                .profileId = std::string(options.profile->id),
                                                .targetId = std::string((*target)->id),
-                                               .lockDirectory = registry.options().lockDirectory};
+                                               .lockDirectory = registry.options().lockDirectory,
+                                               .consoleFileDir = options.consoleFileDir};
     }
 
     ApiFactory factory = std::move(hooks.apiFactory);
@@ -490,8 +498,33 @@ Result<OperationId> DeviceSession::reset(std::string_view targetId, ResetMode mo
     return startOperation(std::move(command), targetId);
 }
 
+namespace {
+
+// usage.invalid_argument unless 1 <= size <= limit, a multiple of the width, address aligned.
+Status checkAccess(std::uint32_t address, std::size_t size, AccessWidth width, std::size_t limit,
+                   const QString& what) {
+    const std::size_t unit = jlink::unitBytes(width);
+    if (size == 0 || size > limit) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hio::device", "A %1 must be between 1 and %2 bytes.")
+                .arg(what, QString::number(limit)),
+            std::to_string(size)));
+    }
+    if (size % unit != 0 || address % unit != 0) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate(
+                "hio::device",
+                "With %1-bit units the address and the length must be multiples of %2.")
+                .arg(QString::number(unit * 8), QString::number(unit)),
+            std::format("address 0x{:08X}, size {}", address, size)));
+    }
+    return {};
+}
+
+} // namespace
+
 Result<OperationId> DeviceSession::readMemory(std::string_view targetId, std::uint32_t address,
-                                              std::size_t size) {
+                                              std::size_t size, AccessWidth width) {
     if (size == 0 || size > maxReadMemoryBytes) {
         return std::unexpected(
             invalidOption(QCoreApplication::translate(
@@ -499,10 +532,100 @@ Result<OperationId> DeviceSession::readMemory(std::string_view targetId, std::ui
                               .arg(maxReadMemoryBytes),
                           std::to_string(size)));
     }
+    if (Status valid = checkAccess(address, size, width, maxReadMemoryBytes,
+                                   QCoreApplication::translate("hio::device", "memory read"));
+        !valid) {
+        return std::unexpected(std::move(valid).error());
+    }
+    // ADR-0160: any range that does not wrap; an unmapped address fails in the backend.
+    if (Status inside = checkMemoryRead(address, size); !inside) {
+        return std::unexpected(std::move(inside).error());
+    }
     detail::OperationCommand command;
     command.kind = OperationKind::ReadMemory;
     command.address = address;
     command.size = size;
+    command.width = width;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::halt(std::string_view targetId) {
+    detail::OperationCommand command;
+    command.kind = OperationKind::Halt;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::go(std::string_view targetId) {
+    detail::OperationCommand command;
+    command.kind = OperationKind::Go;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::targetStatus(std::string_view targetId) {
+    detail::OperationCommand command;
+    command.kind = OperationKind::TargetStatus;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::writeMemory(std::string_view targetId, std::uint32_t address,
+                                               std::vector<std::byte> data, AccessWidth width) {
+    if (Status valid = checkAccess(address, data.size(), width, maxWriteMemoryBytes,
+                                   QCoreApplication::translate("hio::device", "memory write"));
+        !valid) {
+        return std::unexpected(std::move(valid).error());
+    }
+    // ADR-0160: RAM / peripherals, never the flash controller; the worker checks it again.
+    if (const TargetProfile* target = findTarget(*m_internals->profile, targetId)) {
+        if (Status inside = checkMemoryWrite(*target, address, data.size()); !inside) {
+            return std::unexpected(std::move(inside).error());
+        }
+    }
+    detail::OperationCommand command;
+    command.kind = OperationKind::WriteMemory;
+    command.address = address;
+    command.width = width;
+    command.data = std::move(data);
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::readRegisters(std::string_view targetId) {
+    detail::OperationCommand command;
+    command.kind = OperationKind::ReadRegisters;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::memoryZones(std::string_view targetId) {
+    detail::OperationCommand command;
+    command.kind = OperationKind::MemoryZones;
+    return startOperation(std::move(command), targetId);
+}
+
+Result<OperationId> DeviceSession::writeFlash(std::string_view targetId, std::uint32_t address,
+                                              std::vector<std::byte> data, bool allowUicr) {
+    if (data.empty() || data.size() > maxWriteFlashBytes) {
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hio::device", "A flash write must be between 1 and %1 "
+                                                       "bytes.")
+                .arg(maxWriteFlashBytes),
+            std::to_string(data.size())));
+    }
+    std::vector<firmware::Segment> segments;
+    segments.push_back(firmware::Segment{.address = address, .data = std::move(data)});
+    auto image = firmware::FirmwareImage::fromSegments(std::move(segments));
+    if (!image) {
+        return std::unexpected(std::move(image).error());
+    }
+    // The M2 range rules at request time (ADR-0035, ADR-0036); the worker checks them again.
+    if (const TargetProfile* target = findTarget(*m_internals->profile, targetId)) {
+        if (auto plan = detail::planImage(*m_internals->profile, *target, *image, allowUicr);
+            !plan) {
+            return std::unexpected(std::move(plan).error());
+        }
+    }
+    detail::OperationCommand command;
+    command.kind = OperationKind::WriteFlash;
+    command.image = std::make_shared<const firmware::FirmwareImage>(std::move(*image));
+    command.flash = FlashOptions{.halt = false, .allowUicr = allowUicr};
     return startOperation(std::move(command), targetId);
 }
 
@@ -562,6 +685,25 @@ std::optional<OperationResult> DeviceSession::finishedResult(OperationId id) con
 
 std::optional<OperationId> DeviceSession::runningOperation() const {
     return m_internals->runningOperation;
+}
+
+std::optional<OperationKind> DeviceSession::runningOperationKind() const {
+    if (!m_internals->runningOperation) {
+        return std::nullopt;
+    }
+    return m_internals->runningKind;
+}
+
+Status DeviceSession::releaseProbe() {
+    return post(*m_internals, m_closed, detail::DetachProbeCommand{});
+}
+
+Status DeviceSession::reacquireProbe() {
+    return post(*m_internals, m_closed, detail::ReattachProbeCommand{});
+}
+
+Status DeviceSession::setRttAddress(std::optional<std::uint32_t> address) {
+    return post(*m_internals, m_closed, detail::SetRttAddressCommand{.address = address});
 }
 
 const ConsoleLog& DeviceSession::log() const { return *m_internals->log; }
@@ -661,6 +803,10 @@ void DeviceSession::drainEvents() {
                     flushBatch();
                     emit diagnoseStep(item.id, item.step);
                 },
+                [&](const PromptSeen&) {
+                    flushBatch(); // the lines before the prompt first (ADR-0104)
+                    emit promptSeen();
+                },
                 [&](const detail::OperationFinishedEvent& item) {
                     flushBatch();
                     if (m_internals->runningOperation == item.id) {
@@ -741,7 +887,10 @@ OperationResult waitForOperation(DeviceSession& session, OperationId id,
             .duration = {},
             .chip = std::nullopt,
             .data = {},
-            .checks = {}};
+            .checks = {},
+            .targetStatus = std::nullopt,
+            .registers = {},
+            .zones = {}};
     }
     return std::move(*result);
 }

@@ -1,0 +1,620 @@
+{
+    "description": "Modern (2026-07-28) server/discover and the list/read/get methods: resultType, serverInfo, ttlMs and cacheScope.",
+    "steps": [
+        {
+            "expect": [
+                {
+                    "id": "d",
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "cacheScope": "private",
+                        "capabilities": {
+                            "prompts": {
+                            },
+                            "resources": {
+                                "listChanged": true,
+                                "subscribe": true
+                            },
+                            "tools": {
+                            }
+                        },
+                        "resultType": "complete",
+                        "supportedVersions": [
+                            "2026-07-28",
+                            "2025-11-25"
+                        ],
+                        "ttlMs": 3600000
+                    }
+                }
+            ],
+            "send": {
+                "id": "d",
+                "jsonrpc": "2.0",
+                "method": "server/discover",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 1,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "cacheScope": "private",
+                        "resultType": "complete",
+                        "tools": [
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": true,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": true
+                                },
+                                "description": "Returns the text.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "count": {
+                                            "default": 1,
+                                            "maximum": 10,
+                                            "minimum": 1,
+                                            "type": "integer"
+                                        },
+                                        "text": {
+                                            "description": "Text.",
+                                            "maxLength": 100,
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "text"
+                                    ],
+                                    "type": "object"
+                                },
+                                "name": "echo",
+                                "outputSchema": {
+                                    "type": "object"
+                                },
+                                "title": "Echo"
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Parses an address.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "address": {
+                                            "pattern": "^(0x[0-9a-fA-F]{1,8}|[0-9]{1,10})$",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "address"
+                                    ],
+                                    "type": "object"
+                                },
+                                "name": "address",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Finishes later.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "step_ms": {
+                                            "default": 50,
+                                            "maximum": 10000,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                        },
+                                        "steps": {
+                                            "default": 0,
+                                            "maximum": 1000,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "slow",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Fails.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "fail",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": true,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Pretends to flash.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "flash_fake",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Forgets to ask.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "no_consent",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            }
+                        ],
+                        "ttlMs": 3600000
+                    }
+                }
+            ],
+            "send": {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 2,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "cacheScope": "private",
+                        "prompts": [
+                            {
+                                "arguments": [
+                                    {
+                                        "description": "Who.",
+                                        "name": "name",
+                                        "required": true
+                                    },
+                                    {
+                                        "description": "How.",
+                                        "name": "mood",
+                                        "required": false
+                                    }
+                                ],
+                                "description": "Greets somebody.",
+                                "name": "greet",
+                                "title": "Greet"
+                            }
+                        ],
+                        "resultType": "complete",
+                        "ttlMs": 3600000
+                    }
+                }
+            ],
+            "send": {
+                "id": 2,
+                "jsonrpc": "2.0",
+                "method": "prompts/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 3,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "cacheScope": "private",
+                        "resources": [
+                            {
+                                "description": "A static text.",
+                                "mimeType": "text/plain",
+                                "name": "static",
+                                "title": "Static",
+                                "uri": "test://static"
+                            },
+                            {
+                                "mimeType": "application/json",
+                                "name": "a status",
+                                "uri": "test://item/a/status"
+                            }
+                        ],
+                        "resultType": "complete",
+                        "ttlMs": 5000
+                    }
+                }
+            ],
+            "send": {
+                "id": 3,
+                "jsonrpc": "2.0",
+                "method": "resources/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 4,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "cacheScope": "private",
+                        "resourceTemplates": [
+                            {
+                                "description": "Item status.",
+                                "mimeType": "application/json",
+                                "name": "item-status",
+                                "uriTemplate": "test://item/{id}/status"
+                            }
+                        ],
+                        "resultType": "complete",
+                        "ttlMs": 3600000
+                    }
+                }
+            ],
+            "send": {
+                "id": 4,
+                "jsonrpc": "2.0",
+                "method": "resources/templates/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 5,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "cacheScope": "private",
+                        "contents": [
+                            {
+                                "mimeType": "text/plain",
+                                "text": "hello",
+                                "uri": "test://static"
+                            }
+                        ],
+                        "resultType": "complete",
+                        "ttlMs": 0
+                    }
+                }
+            ],
+            "send": {
+                "id": 5,
+                "jsonrpc": "2.0",
+                "method": "resources/read",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "uri": "test://static"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 6,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "description": "Greeting",
+                        "messages": [
+                            {
+                                "content": {
+                                    "text": "Hello Ann",
+                                    "type": "text"
+                                },
+                                "role": "user"
+                            }
+                        ],
+                        "resultType": "complete"
+                    }
+                }
+            ],
+            "send": {
+                "id": 6,
+                "jsonrpc": "2.0",
+                "method": "prompts/get",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "mood": "happy",
+                        "name": "Ann"
+                    },
+                    "name": "greet"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 7,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "content": [
+                            {
+                                "text": "{\"count\":1,\"text\":\"hi\"}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "resultType": "complete",
+                        "structuredContent": {
+                            "count": 1,
+                            "text": "hi"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 7,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "text": "hi"
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 8,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "content": [
+                            {
+                                "text": "mcp.device_not_open: The device is not connected. — Call connect first.",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": true,
+                        "resultType": "complete",
+                        "structuredContent": {
+                            "error": {
+                                "category": "usage",
+                                "cause": "It was never connected, it was disconnected, or its tab was closed.",
+                                "code": "mcp.device_not_open",
+                                "detail": "dev9",
+                                "message": "The device is not connected.",
+                                "suggestion": "Call connect first.",
+                                "wizard": null
+                            }
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 8,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "name": "fail"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 9,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "content": [
+                            {
+                                "text": "{\"flashed\":true}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "resultType": "complete",
+                        "structuredContent": {
+                            "flashed": true
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 9,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "name": "flash_fake"
+                }
+            }
+        }
+    ]
+}

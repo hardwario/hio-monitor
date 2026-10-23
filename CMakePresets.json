@@ -60,6 +60,17 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "CMAKE_CXX_CLANG_TIDY": "clang-tidy-21" }
     },
     {
+      "name": "linux-fuzz",
+      "displayName": "Linux Debug + libFuzzer/ASan/UBSan (ADR-0152)",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "HIO_BUILD_TESTS": "OFF",
+        "HIO_BUILD_FUZZERS": "ON",
+        "HIO_SANITIZERS": "fuzzer;address;undefined"
+      }
+    },
+    {
       "name": "macos-base",
       "hidden": true,
       "inherits": "base",
@@ -121,6 +132,11 @@
     { "name": "linux-tsan", "configurePreset": "linux-tsan" },
     { "name": "linux-coverage", "configurePreset": "linux-coverage" },
     { "name": "linux-tidy", "configurePreset": "linux-tidy" },
+    {
+      "name": "linux-fuzz",
+      "configurePreset": "linux-fuzz",
+      "targets": ["http_parser_fuzz", "json_rpc_fuzz", "catalog_page_fuzz"]
+    },
     { "name": "macos-debug", "configurePreset": "macos-debug" },
     { "name": "macos-asan", "configurePreset": "macos-asan" },
     { "name": "macos-release", "configurePreset": "macos-release" },

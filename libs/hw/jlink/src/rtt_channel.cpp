@@ -8,6 +8,7 @@
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/types.h"
 
+#include <QChar>
 #include <QCoreApplication>
 #include <QLoggingCategory>
 #include <QString>
@@ -86,18 +87,24 @@ std::string RttChannel::libraryDetail(std::string detail) {
     return detail;
 }
 
-Result<RttLayout> RttChannel::attach(const RttNames& names, const std::stop_token& stopToken) {
+Result<RttLayout> RttChannel::attach(const RttNames& names, const std::stop_token& stopToken,
+                                     std::optional<std::uint32_t> blockAddress) {
     stop();
     m_terminalName = names.terminal;
     AttachState state{.deadline = m_clock.now() + m_timing.attachDeadline,
                       .loggerDeadline = std::nullopt,
                       .sawControlBlock = false};
-    qCInfo(log::lcJLink) << "Starting RTT";
+    if (blockAddress) {
+        qCInfo(log::lcJLink).noquote() << QStringLiteral("Starting RTT (control block at 0x%1)")
+                                              .arg(*blockAddress, 8, 16, QLatin1Char('0'));
+    } else {
+        qCInfo(log::lcJLink) << "Starting RTT";
+    }
     while (true) {
         if (stopToken.stop_requested()) {
             return cancelAttach();
         }
-        const int started = m_api.rttStart();
+        const int started = m_api.rttStart(blockAddress);
         if (started < 0) {
             return std::unexpected(
                 makeError(ErrorCode::TargetRttNotFound,
