@@ -1,6 +1,6 @@
 # ADR-0055 — Flash page: choose what to flash first
 
-- **Status:** Accepted; kind list superseded by ADR-0164 (2026-10-20)
+- **Status:** Accepted; kind list superseded by ADR-0174 (2026-10-20)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M3 GUI review of mockups)
 

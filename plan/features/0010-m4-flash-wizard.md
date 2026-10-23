@@ -3,7 +3,7 @@
 - **Status:** Approved (2026-10-16, by Matej Strnad; without the pending M5 amendments); amended by 0021 (approved 2026-10-20 by Matej Strnad, implemented under 0021's checklist)
 - **Milestone:** M4 (plan 4 of 4, ADR-0065)
 - **Author:** Matej Strnad (with Claude)
-- **Related ADRs:** ADR-0164, ADR-0165, ADR-0166 (0021), ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0049, ADR-0054, ADR-0055, ADR-0057, ADR-0062,
+- **Related ADRs:** ADR-0174, ADR-0165, ADR-0166 (0021), ADR-0036, ADR-0037, ADR-0038, ADR-0040, ADR-0049, ADR-0054, ADR-0055, ADR-0057, ADR-0062,
   ADR-0066, ADR-0067, ADR-0069, ADR-0074, ADR-0076, ADR-0077
 - **Depends on:** [0007](0007-m4-wizard-framework-diagnostics.md) (wizard contract, `Diagnose`, connection guide),
   [0006](0006-m3-flash-settings.md) (`FirmwareLoader`, `RecentSourcesModel`, Flash page). The hand-off to
@@ -11,7 +11,7 @@
 - **Can run in parallel with:** [0008](0008-m4-first-run-setup.md), [0009](0009-m4-connect-and-troubleshooting.md)
 - **Design system:** [plan/gui/design-system.md](../gui/design-system.md) · **Mockups:** [plan/gui/mockups/](../gui/mockups/index.html)
 
-> **Amended by [0021](0021-gui-feedback-round-1.md) (approved 2026-10-20; ADR-0164 … ADR-0166; applied in this text,
+> **Amended by [0021](0021-gui-feedback-round-1.md) (approved 2026-10-20; ADR-0165, ADR-0166, ADR-0174; applied in this text,
 > marked *amended by 0021*):** step 2 shows the two kind cards of the Flash page (Application firmware, LTE
 > firmware); the Firmware step for LTE offers the designated LTE firmware (default) or an own file; catalog IDs show
 > the firmware name and version.
@@ -44,7 +44,7 @@ Step list: Device · Firmware kind · Cable · Firmware · Confirm · Flash · D
 
 1. **Device and probe** [Embedded `probe-picker`] — as the Connect wizard's probe step (0009) without the target
    (the kind decides it). Skipped when the tab already has a probe.
-2. **What do you want to flash?** [Choice] — the kind cards of the Flash page (ADR-0055; *amended by 0021, ADR-0164*:
+2. **What do you want to flash?** [Choice] — the kind cards of the Flash page (ADR-0055; *amended by 0021, ADR-0174*:
    two cards, Application firmware · LTE firmware), with the same prerequisites inline (nRF Util for LTE firmware, with
    [Set up nRF Util…] → setup wizard at its nRF Util step, 0008).
 3. **Cable** [Info + Checks] — the profile guide for the kind's MCU (ADR-0077) and the `Diagnose` steps `probe` …

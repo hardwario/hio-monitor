@@ -1,4 +1,4 @@
-# ADR-0164 — Flash page: two kinds, one LTE card (LTE firmware and modem merged)
+# ADR-0174 — Flash page: two kinds, one LTE card (LTE firmware and modem merged)
 
 - **Status:** Accepted (supersedes the kind list of ADR-0055)
 - **Date:** 2026-10-20
