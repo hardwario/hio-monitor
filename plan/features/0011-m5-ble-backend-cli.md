@@ -16,6 +16,9 @@
 > error-text rules, `HIO_TEST_OVERRIDES`). Two decisions changed: the fake BLE backend uses `HIO_TEST_OVERRIDES`
 > (ADR-0127), and BLE line assembly + console file run on the BLE thread (ADR-0128).
 
+> **Pending amendment from M6 (ADR-0104, specified in [0013](0013-m6-mcp-core-cli.md)):** `ConsoleSession::promptSeen`
+> is emitted by J-Link sessions too when the target profile has a `shellPrompt` ("BLE only" no longer holds).
+
 ## Context
 
 v2.0 must replace the old app's Bluetooth shell (ADR-0009, parity item in 0002-legacy-inventory: "BLE scan (CHESTER

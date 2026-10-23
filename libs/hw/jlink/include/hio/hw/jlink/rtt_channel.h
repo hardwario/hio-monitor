@@ -101,7 +101,11 @@ public:
     // the detail names the deadline and the speed, ADR-0110),
     // target.rtt_buffer_not_found (control block found, terminal buffer never registered),
     // cancelled (stop requested; RTT is stopped again).
-    [[nodiscard]] Result<RttLayout> attach(const RttNames& names, const std::stop_token& stopToken);
+    // `blockAddress` (M6, plan/features/0013): the control block address passed to RTT start
+    // (rttt's sticky --address); nullopt = the library searches for it.
+    [[nodiscard]] Result<RttLayout>
+    attach(const RttNames& names, const std::stop_token& stopToken,
+           std::optional<std::uint32_t> blockAddress = std::nullopt);
 
     // Bytes read into `buffer`. Errors: target.rtt_read_failed.
     [[nodiscard]] Result<std::size_t> read(int index, std::span<std::byte> buffer);

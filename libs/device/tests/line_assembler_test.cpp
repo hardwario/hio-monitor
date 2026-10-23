@@ -174,3 +174,18 @@ TEST(ConsoleLineIds, Stable) {
 }
 
 } // namespace
+
+namespace {
+
+// ADR-0082 / ADR-0104 (M6: public for the RTT prompt).
+TEST(LineAssembler, IsPrompt) {
+    using hio::device::isPrompt;
+    EXPECT_TRUE(isPrompt("uart:~$ ", "uart:~$ "));
+    EXPECT_TRUE(isPrompt("\x1b[1;32muart:~$ \x1b[m", "uart:~$ "));
+    EXPECT_TRUE(isPrompt("junk\ruart:~$ ", "uart:~$ ")); // a redrawn line
+    EXPECT_FALSE(isPrompt("uart:~$ ver", "uart:~$ "));
+    EXPECT_FALSE(isPrompt("uart:~$ ", ""));
+    EXPECT_FALSE(isPrompt("", "uart:~$ "));
+}
+
+} // namespace

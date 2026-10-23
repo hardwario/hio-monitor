@@ -43,7 +43,19 @@ public:
     MOCK_METHOD(int, reset, (), (override));
     MOCK_METHOD(int, halt, (), (override));
     MOCK_METHOD(void, go, (), (override));
-    MOCK_METHOD(int, rttStart, (), (override));
+    MOCK_METHOD(bool, has, (OptionalFunction), (override));
+    MOCK_METHOD(int, isHalted, (), (override));
+    MOCK_METHOD(std::uint32_t, coreId, (), (override));
+    MOCK_METHOD(int, writeU16, (std::uint32_t, std::uint16_t), (override));
+    MOCK_METHOD(int, writeU32, (std::uint32_t, std::uint32_t), (override));
+    MOCK_METHOD(int, readU32s, (std::uint32_t, std::span<std::uint32_t>), (override));
+    MOCK_METHOD((std::expected<std::vector<std::uint32_t>, int>), registerList, (), (override));
+    MOCK_METHOD(std::string, registerName, (std::uint32_t), (override));
+    MOCK_METHOD(int, readRegisters, (std::span<const std::uint32_t>, std::span<std::uint32_t>),
+                (override));
+    MOCK_METHOD((std::expected<std::vector<MemoryZone>, int>), memoryZones, (std::size_t),
+                (override));
+    MOCK_METHOD(int, rttStart, (std::optional<std::uint32_t>), (override));
     MOCK_METHOD(int, rttStop, (), (override));
     MOCK_METHOD(int, rttBufferCount, (RttDirection), (override));
     MOCK_METHOD((std::expected<RttBufferInfo, int>), rttBufferInfo, (int, RttDirection),
@@ -54,6 +66,7 @@ public:
     MOCK_METHOD(int, writeMemory, (std::uint32_t, std::span<const std::byte>), (override));
     MOCK_METHOD(int, endDownload, (const FlashProgressFn&), (override));
     MOCK_METHOD(int, readMemory, (std::uint32_t, std::span<std::byte>), (override));
+    MOCK_METHOD(int, readMemory16, (std::uint32_t, std::span<std::byte>), (override));
     MOCK_METHOD((std::expected<std::uint32_t, int>), readU32, (std::uint32_t), (override));
     MOCK_METHOD(int, eraseChip, (), (override));
     MOCK_METHOD(int, installUnsecureDialogHook, (), (override));

@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"fuzz://abc/x","_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

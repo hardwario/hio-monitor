@@ -19,6 +19,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <stop_token>
 #include <string_view>
 #include <variant>
 
@@ -42,8 +43,10 @@ struct AppHex {
 using LteInput = std::variant<LteBundle, ModemOnly, AppHex>;
 
 // Classifies and loads `path`. Bundles are extracted into a new QTemporaryDir (under
-// QDir::tempPath()). Errors: firmware.invalid_image, firmware.hex_parse_error, io.*.
-[[nodiscard]] Result<LteInput> classifyLteInput(const std::filesystem::path& path);
+// QDir::tempPath()). `stop` is passed to the HEX parser and the zip extraction (review F2); a
+// requested stop gives `cancelled`. Errors: firmware.invalid_image, firmware.hex_parse_error, io.*.
+[[nodiscard]] Result<LteInput> classifyLteInput(const std::filesystem::path& path,
+                                                const std::stop_token& stop = {});
 
 // True for a top-level entry name that marks Nordic modem firmware (see above).
 [[nodiscard]] bool isModemFirmwareMarker(std::string_view entryName) noexcept;

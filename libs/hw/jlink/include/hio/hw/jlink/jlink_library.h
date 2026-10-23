@@ -4,7 +4,8 @@
 //
 // loadCopy() copies the located library into a fresh temporary directory under `instanceRoot`
 // (ADR-0030: one copy per session, so several probes work in one process), loads the copy,
-// resolves every function of jlink_abi.h, checks the version (>= 8.00, ADR-0029) and installs the
+// resolves every function of jlink_abi.h (the M6 target functions optionally, ADR-0151: a missing
+// one is logged and reported by has()), checks the version (>= 8.00, ADR-0029) and installs the
 // log / warning / error out handlers. The destructor closes the probe if open, removes the
 // handlers, unloads the copy and deletes its directory.
 //
@@ -87,7 +88,19 @@ public:
     [[nodiscard]] int reset() override;
     [[nodiscard]] int halt() override;
     void go() override;
-    [[nodiscard]] int rttStart() override;
+    [[nodiscard]] bool has(OptionalFunction function) override;
+    [[nodiscard]] int isHalted() override;
+    [[nodiscard]] std::uint32_t coreId() override;
+    [[nodiscard]] int writeU16(std::uint32_t address, std::uint16_t value) override;
+    [[nodiscard]] int writeU32(std::uint32_t address, std::uint32_t value) override;
+    [[nodiscard]] int readU32s(std::uint32_t address, std::span<std::uint32_t> items) override;
+    [[nodiscard]] std::expected<std::vector<std::uint32_t>, int> registerList() override;
+    [[nodiscard]] std::string registerName(std::uint32_t index) override;
+    [[nodiscard]] int readRegisters(std::span<const std::uint32_t> indexes,
+                                    std::span<std::uint32_t> values) override;
+    [[nodiscard]] std::expected<std::vector<MemoryZone>, int>
+    memoryZones(std::size_t maxZones) override;
+    [[nodiscard]] int rttStart(std::optional<std::uint32_t> blockAddress) override;
     int rttStop() override;
     [[nodiscard]] int rttBufferCount(RttDirection direction) override;
     [[nodiscard]] std::expected<RttBufferInfo, int> rttBufferInfo(int index,
@@ -98,6 +111,7 @@ public:
     [[nodiscard]] int writeMemory(std::uint32_t address, std::span<const std::byte> data) override;
     [[nodiscard]] int endDownload(const FlashProgressFn& progress) override;
     [[nodiscard]] int readMemory(std::uint32_t address, std::span<std::byte> buffer) override;
+    [[nodiscard]] int readMemory16(std::uint32_t address, std::span<std::byte> buffer) override;
     [[nodiscard]] std::expected<std::uint32_t, int> readU32(std::uint32_t address) override;
     [[nodiscard]] int eraseChip() override;
     [[nodiscard]] int installUnsecureDialogHook() override;

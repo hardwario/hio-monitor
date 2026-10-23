@@ -9,6 +9,7 @@
 #include "hio/hw/jlink/clock.h"
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_probe.h"
+#include "hio/hw/jlink/types.h"
 
 #include <QChar>
 #include <QCoreApplication>
@@ -401,22 +402,233 @@ Status JLinkProgrammer::recover(std::stop_token stop) {
     return {};
 }
 
-Result<std::vector<std::byte>> JLinkProgrammer::readMemory(std::uint32_t address,
-                                                           std::size_t size) {
-    if (size == 0 || size > maxReadMemoryBytes) {
-        return std::unexpected(
-            makeError(ErrorCode::UsageInvalidArgument,
-                      std::format("read size {} (1..{} bytes)", size, maxReadMemoryBytes)));
+Status JLinkProgrammer::require(OptionalFunction function) {
+    if (m_api.has(function)) {
+        return {};
+    }
+    return std::unexpected(makeError(ErrorCode::DependencyJLinkFunctionMissing,
+                                     std::string(optionalFunctionName(function))));
+}
+
+Error JLinkProgrammer::memoryAccessFailed(std::string_view function, std::uint32_t address,
+                                          std::size_t size, int code) {
+    return makeError(
+        ErrorCode::TargetMemoryAccessFailed,
+        libraryDetail(std::format("{}(0x{:08X}, {}) returned {}", function, address, size, code)));
+}
+
+namespace {
+
+// usage.invalid_argument unless 1 <= size <= limit, size a multiple of the unit, the address
+// aligned to it and the range not running past 0xFFFFFFFF (ADR-0160).
+Status checkAccess(std::uint32_t address, std::size_t size, AccessWidth width, std::size_t limit) {
+    const std::size_t unit = unitBytes(width);
+    constexpr std::uint64_t addressSpaceEnd = std::uint64_t{1} << 32U;
+    if (size == 0 || size > limit || size % unit != 0 || address % unit != 0 ||
+        std::uint64_t{address} + size > addressSpaceEnd) {
+        return std::unexpected(makeError(
+            ErrorCode::UsageInvalidArgument,
+            std::format("address 0x{:08X}, size {} (1..{} bytes, a multiple of {}, aligned, "
+                        "not past 0xFFFFFFFF)",
+                        address, size, limit, unit)));
+    }
+    return {};
+}
+
+// Little-endian unit `index` of `bytes` (unit = sizeof(T)).
+template <class T> T unitAt(std::span<const std::byte> bytes, std::size_t index) {
+    T value = 0;
+    for (std::size_t i = 0; i < sizeof(T); ++i) {
+        value = static_cast<T>(
+            value | (static_cast<T>(std::to_integer<unsigned>(bytes[(index * sizeof(T)) + i]))
+                     << (8U * i)));
+    }
+    return value;
+}
+
+void storeUnit(std::span<std::byte> bytes, std::size_t index, std::uint32_t value,
+               std::size_t unit) {
+    for (std::size_t i = 0; i < unit; ++i) {
+        bytes[(index * unit) + i] = static_cast<std::byte>((value >> (8U * i)) & 0xFFU);
+    }
+}
+
+} // namespace
+
+Result<std::vector<std::byte>> JLinkProgrammer::readMemory(std::uint32_t address, std::size_t size,
+                                                           AccessWidth width) {
+    if (Status valid = checkAccess(address, size, width, maxReadMemoryBytes); !valid) {
+        return std::unexpected(std::move(valid).error());
     }
     std::vector<std::byte> buffer(size);
-    const int count = m_api.readMemory(address, buffer);
-    if (count < 0 || std::cmp_less(count, size)) {
-        return std::unexpected(
-            makeError(ErrorCode::TargetConnectFailed,
-                      libraryDetail(std::format("JLINKARM_ReadMemEx(0x{:08X}, {}) returned {}",
-                                                address, size, count))));
+    switch (width) {
+    case AccessWidth::Bits8: {
+        const int count = m_api.readMemory(address, buffer);
+        if (count < 0 || std::cmp_less(count, size)) {
+            return std::unexpected(memoryAccessFailed("JLINKARM_ReadMemEx", address, size, count));
+        }
+        break;
+    }
+    case AccessWidth::Bits16: {
+        // ReadMemEx with access width 2 (pylink memory_read(nbits=16)). Whether the library counts
+        // bytes or units here is to be confirmed on hardware (plan 0013 E3): both mean "all read".
+        const int count = m_api.readMemory16(address, buffer);
+        if (count < 0 || (std::cmp_not_equal(count, size) && std::cmp_not_equal(count, size / 2))) {
+            return std::unexpected(
+                memoryAccessFailed("JLINKARM_ReadMemEx (16-bit)", address, size, count));
+        }
+        break;
+    }
+    case AccessWidth::Bits32: {
+        std::vector<std::uint32_t> units(size / 4);
+        const int count = m_api.readU32s(address, units);
+        if (count < 0 || std::cmp_less(count, units.size())) {
+            return std::unexpected(memoryAccessFailed("JLINKARM_ReadMemU32", address, size, count));
+        }
+        for (std::size_t i = 0; i < units.size(); ++i) {
+            storeUnit(buffer, i, units[i], 4);
+        }
+        break;
+    }
     }
     return buffer;
+}
+
+Status JLinkProgrammer::writeMemory(std::uint32_t address, std::span<const std::byte> data,
+                                    AccessWidth width) {
+    if (Status valid = checkAccess(address, data.size(), width, maxWriteMemoryBytes); !valid) {
+        return valid;
+    }
+    switch (width) {
+    case AccessWidth::Bits8: {
+        // JLINKARM_WriteMem outside a download: a direct write of target memory.
+        const int written = m_api.writeMemory(address, data);
+        if (written < 0 || std::cmp_less(written, data.size())) {
+            return std::unexpected(
+                memoryAccessFailed("JLINKARM_WriteMem", address, data.size(), written));
+        }
+        break;
+    }
+    case AccessWidth::Bits16:
+        if (Status present = require(OptionalFunction::WriteU16); !present) {
+            return present;
+        }
+        for (std::size_t i = 0; i < data.size() / 2; ++i) {
+            const auto at = static_cast<std::uint32_t>(address + (i * 2));
+            if (const int result = m_api.writeU16(at, unitAt<std::uint16_t>(data, i));
+                result != 0) {
+                return std::unexpected(memoryAccessFailed("JLINKARM_WriteU16", at, 2, result));
+            }
+        }
+        break;
+    case AccessWidth::Bits32:
+        if (Status present = require(OptionalFunction::WriteU32); !present) {
+            return present;
+        }
+        for (std::size_t i = 0; i < data.size() / 4; ++i) {
+            const auto at = static_cast<std::uint32_t>(address + (i * 4));
+            if (const int result = m_api.writeU32(at, unitAt<std::uint32_t>(data, i));
+                result != 0) {
+                return std::unexpected(memoryAccessFailed("JLINKARM_WriteU32", at, 4, result));
+            }
+        }
+        break;
+    }
+    m_api.flushMessages();
+    return {};
+}
+
+Status JLinkProgrammer::halt() {
+    Status halted = m_probe.halt();
+    m_api.flushMessages();
+    return halted;
+}
+
+Status JLinkProgrammer::go() {
+    m_probe.go();
+    m_api.flushMessages();
+    return {};
+}
+
+Result<bool> JLinkProgrammer::isHalted() {
+    if (Status present = require(OptionalFunction::IsHalted); !present) {
+        return std::unexpected(std::move(present).error());
+    }
+    const int result = m_api.isHalted();
+    if (result < 0) {
+        return std::unexpected(
+            makeError(ErrorCode::TargetConnectFailed,
+                      libraryDetail(std::format("JLINKARM_IsHalted returned {}", result))));
+    }
+    return result > 0;
+}
+
+Result<std::uint32_t> JLinkProgrammer::coreId() {
+    if (Status present = require(OptionalFunction::GetId); !present) {
+        return std::unexpected(std::move(present).error());
+    }
+    return m_api.coreId();
+}
+
+Result<std::vector<RegisterValue>> JLinkProgrammer::readRegisters() {
+    for (const OptionalFunction function :
+         {OptionalFunction::IsHalted, OptionalFunction::GetRegisterList,
+          OptionalFunction::GetRegisterName, OptionalFunction::ReadRegs}) {
+        if (Status present = require(function); !present) {
+            return std::unexpected(std::move(present).error());
+        }
+    }
+    auto halted = isHalted();
+    if (!halted) {
+        return std::unexpected(std::move(halted).error());
+    }
+    if (!*halted) {
+        return std::unexpected(makeError(ErrorCode::TargetNotHalted));
+    }
+    auto indexes = m_api.registerList();
+    if (!indexes) {
+        return std::unexpected(makeError(
+            ErrorCode::TargetConnectFailed,
+            libraryDetail(std::format("JLINKARM_GetRegisterList returned {}", indexes.error()))));
+    }
+    if (indexes->size() > maxRegisters) {
+        qCInfo(log::lcJLink) << "Register list truncated from" << indexes->size() << "to"
+                             << maxRegisters;
+        indexes->resize(maxRegisters);
+    }
+    std::vector<std::uint32_t> values(indexes->size(), 0);
+    if (!indexes->empty()) {
+        if (const int result = m_api.readRegisters(*indexes, values); result < 0) {
+            return std::unexpected(
+                makeError(ErrorCode::TargetConnectFailed,
+                          libraryDetail(std::format("JLINKARM_ReadRegs returned {}", result))));
+        }
+    }
+    std::vector<RegisterValue> registers;
+    registers.reserve(indexes->size());
+    for (std::size_t i = 0; i < indexes->size(); ++i) {
+        std::string name = m_api.registerName((*indexes)[i]);
+        if (name.empty()) {
+            name = std::format("#{}", (*indexes)[i]);
+        }
+        registers.push_back(RegisterValue{.name = std::move(name), .value = values[i]});
+    }
+    m_api.flushMessages();
+    return registers;
+}
+
+Result<std::vector<MemoryZone>> JLinkProgrammer::memoryZones() {
+    if (Status present = require(OptionalFunction::GetMemZones); !present) {
+        return std::unexpected(std::move(present).error());
+    }
+    auto zones = m_api.memoryZones(maxMemoryZones);
+    m_api.flushMessages();
+    if (!zones) {
+        return std::unexpected(
+            makeError(ErrorCode::TargetConnectFailed,
+                      libraryDetail(std::format("JLINK_GetMemZones returned {}", zones.error()))));
+    }
+    return std::move(*zones);
 }
 
 Status JLinkProgrammer::reset(ResetMode mode) { return m_probe.reset(mode == ResetMode::Halt); }

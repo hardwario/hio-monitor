@@ -16,7 +16,7 @@
 // Erase (code only): the PIB is read before and after; a change fails with target.erase_failed
 //          (review R5).
 // Reset:   Connecting (identify, family check; protected allowed) -> Resetting.
-// ReadMemory: Connecting (identify, family check) -> read (review R7).
+// ReadMemory: Connecting (identify, family check) -> read with the access width (review R7; M6).
 
 #include "hio/core/error.h"
 #include "hio/core/result.h"
@@ -77,7 +77,8 @@ runFlash(WorkflowContext& context, const firmware::FirmwareImage& image, FlashOp
 runRecover(WorkflowContext& context, const std::function<Status()>& reconnect);
 [[nodiscard]] Status runReset(WorkflowContext& context, ResetMode mode);
 [[nodiscard]] Result<std::vector<std::byte>> runReadMemory(WorkflowContext& context,
-                                                           std::uint32_t address, std::size_t size);
+                                                           std::uint32_t address, std::size_t size,
+                                                           jlink::AccessWidth width);
 
 // The embedded nrf91_disable_ap_protect.hex (ADR-0039), parsed.
 [[nodiscard]] Result<firmware::FirmwareImage> recoverImage(RecoverImage image);

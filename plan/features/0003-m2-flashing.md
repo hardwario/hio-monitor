@@ -20,6 +20,12 @@
 > `diagnoseStep` signal; operations also run on probe-only sessions (`connectTarget = false`, 0002). Diagnose never
 > resets, halts or writes. The implementation is tracked in 0007 (step B2), not in this plan's checklist.
 
+
+> **Pending amendment from M6 (ADR-0099, specified in [0013](0013-m6-mcp-core-cli.md); applied to this text when 0013
+> is approved — then this plan needs re-approval):** new operations `halt`, `go`, `targetStatus`, `readMemory` with
+> access width, `writeMemory`, `readRegisters`, `memoryZones`, `writeFlash` (raw bytes through `IProgrammer`, M2
+> range and PIB rules); CLI `chester app|lte status|halt|go|regs|zones|mem read|mem write|flash-write`.
+
 ## Context
 
 Flashing is the second core feature of HARDWARIO Monitor. The CHESTER has two MCUs: the application MCU

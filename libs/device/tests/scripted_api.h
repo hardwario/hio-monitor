@@ -38,6 +38,24 @@ struct ScriptedChip {
     bool protectedChip = false;
     std::vector<std::uint8_t> flash = std::vector<std::uint8_t>(0x100000, 0xFF);
     std::vector<std::uint8_t> uicr = std::vector<std::uint8_t>(0x1000, 0xFF);
+    // M6: 64 KiB of RAM at 0x20000000 (zero), registers, memory zones, core id.
+    std::vector<std::uint8_t> ram = std::vector<std::uint8_t>(0x10000, 0);
+    std::vector<jlink::RegisterValue> registers{{.name = "R0", .value = 1},
+                                                {.name = "PC", .value = 0x1000}};
+    std::vector<jlink::MemoryZone> zones{
+        {.name = "AHB-AP", .description = "AHB-AP (AP0)", .virtualAddress = 0}};
+    std::uint32_t coreId = 0x2BA01477U;
+
+    [[nodiscard]] std::uint8_t* ramAt(std::uint64_t address) {
+        if (address >= 0x20000000U && address < 0x20000000U + ram.size()) {
+            return &ram.at(static_cast<std::size_t>(address - 0x20000000U));
+        }
+        return nullptr;
+    }
+    [[nodiscard]] std::uint8_t* readableAt(std::uint64_t address) {
+        std::uint8_t* byte = at(address);
+        return byte != nullptr ? byte : ramAt(address);
+    }
 
     [[nodiscard]] std::uint32_t uicrBase() const { return nrf91 ? 0x00FF8000U : 0x10001000U; }
     [[nodiscard]] std::uint32_t ficrPart() const { return nrf91 ? 0x00FF0140U : 0x10000100U; }
@@ -151,6 +169,10 @@ public:
     int unsecureHooks = 0;          // installUnsecureDialogHook() calls
     bool throwOnReadMemory = false; // readMemory() throws (a dying worker, review R4)
     std::chrono::milliseconds eraseChipDelay{0};
+    // ---- M6 ----
+    bool halted = false;                          // reset() halts, go() runs, halt() halts
+    std::vector<jlink::OptionalFunction> missing; // has() is false for these (ADR-0151)
+    std::vector<std::optional<std::uint32_t>> rttStartAddresses; // every rttStart() argument
 
     [[nodiscard]] ScriptedChip& chip() { return device.starts_with("NRF91") ? lte : app; }
 
@@ -298,17 +320,123 @@ public:
         return m_target->get([](ScriptedTarget& t) {
             ++t.resets;
             t.rttStarted = false;
+            t.halted = true;
             t.ops.emplace_back("reset");
             return 0;
         });
     }
 
     int halt() override {
-        m_target->set([](ScriptedTarget& t) { t.ops.emplace_back("halt"); });
+        m_target->set([](ScriptedTarget& t) {
+            t.ops.emplace_back("halt");
+            t.halted = true;
+        });
         return 0;
     }
     void go() override {
-        m_target->set([](ScriptedTarget& t) { t.ops.emplace_back("go"); });
+        m_target->set([](ScriptedTarget& t) {
+            t.ops.emplace_back("go");
+            t.halted = false;
+        });
+    }
+
+    // ---- M6: optional target functions (ADR-0151) ----
+    bool has(jlink::OptionalFunction function) override {
+        return m_target->get([function](ScriptedTarget& t) {
+            return std::ranges::find(t.missing, function) == t.missing.end();
+        });
+    }
+    int isHalted() override {
+        return m_target->get([](ScriptedTarget& t) {
+            if (!t.connected) {
+                return -1;
+            }
+            return t.halted ? 1 : 0;
+        });
+    }
+    std::uint32_t coreId() override {
+        return m_target->get([](ScriptedTarget& t) { return t.chip().coreId; });
+    }
+    static int writeUnit(ScriptedTarget& t, std::uint32_t address, std::uint32_t value,
+                         std::uint32_t size, std::string_view op) {
+        t.ops.emplace_back(op);
+        for (std::uint32_t b = 0; b < size; ++b) {
+            std::uint8_t* byte = t.chip().ramAt(std::uint64_t{address} + b);
+            if (!t.connected || byte == nullptr) {
+                return -1;
+            }
+            *byte = static_cast<std::uint8_t>((value >> (8U * b)) & 0xFFU);
+        }
+        return 0;
+    }
+    int writeU16(std::uint32_t address, std::uint16_t value) override {
+        return m_target->get(
+            [&](ScriptedTarget& t) { return writeUnit(t, address, value, 2, "writeU16"); });
+    }
+    int writeU32(std::uint32_t address, std::uint32_t value) override {
+        return m_target->get(
+            [&](ScriptedTarget& t) { return writeUnit(t, address, value, 4, "writeU32"); });
+    }
+    int readU32s(std::uint32_t address, std::span<std::uint32_t> items) override {
+        return m_target->get([&](ScriptedTarget& t) {
+            if (!t.connected) {
+                return -1;
+            }
+            for (std::size_t i = 0; i < items.size(); ++i) {
+                std::uint32_t word = 0;
+                for (std::uint32_t b = 0; b < 4; ++b) {
+                    const std::uint8_t* byte = t.chip().readableAt(address + (i * 4) + b);
+                    if (byte == nullptr) {
+                        return -1;
+                    }
+                    word |= std::uint32_t{*byte} << (8U * b);
+                }
+                items[i] = word;
+            }
+            return static_cast<int>(items.size());
+        });
+    }
+    int readMemory16(std::uint32_t address, std::span<std::byte> buffer) override {
+        return readMemory(address, buffer);
+    }
+    std::expected<std::vector<std::uint32_t>, int> registerList() override {
+        return m_target->get(
+            [](ScriptedTarget& t) -> std::expected<std::vector<std::uint32_t>, int> {
+                if (!t.connected) {
+                    return std::unexpected(-1);
+                }
+                std::vector<std::uint32_t> list;
+                list.reserve(t.chip().registers.size());
+                for (std::size_t i = 0; i < t.chip().registers.size(); ++i) {
+                    list.push_back(static_cast<std::uint32_t>(i));
+                }
+                return list;
+            });
+    }
+    std::string registerName(std::uint32_t index) override {
+        return m_target->get([index](ScriptedTarget& t) {
+            return index < t.chip().registers.size() ? t.chip().registers[index].name
+                                                     : std::string();
+        });
+    }
+    int readRegisters(std::span<const std::uint32_t> indexes,
+                      std::span<std::uint32_t> values) override {
+        return m_target->get([&](ScriptedTarget& t) {
+            for (std::size_t i = 0; i < indexes.size(); ++i) {
+                if (indexes[i] >= t.chip().registers.size()) {
+                    return -1;
+                }
+                values[i] = t.chip().registers[indexes[i]].value;
+            }
+            return 0;
+        });
+    }
+    std::expected<std::vector<jlink::MemoryZone>, int> memoryZones(std::size_t maxZones) override {
+        return m_target->get([maxZones](ScriptedTarget& t) {
+            std::vector<jlink::MemoryZone> zones = t.chip().zones;
+            zones.resize(std::min(zones.size(), maxZones));
+            return zones;
+        });
     }
 
     // ---- M2: memory, download, erase, CoreSight ----
@@ -321,8 +449,19 @@ public:
 
     int writeMemory(std::uint32_t address, std::span<const std::byte> data) override {
         return m_target->get([&](ScriptedTarget& t) {
-            if (!t.downloading || !t.connected) {
+            if (!t.connected) {
                 return -1;
+            }
+            if (!t.downloading) { // M6: a direct write, RAM only
+                t.ops.emplace_back("writeMem");
+                for (std::size_t i = 0; i < data.size(); ++i) {
+                    std::uint8_t* byte = t.chip().ramAt(std::uint64_t{address} + i);
+                    if (byte == nullptr) {
+                        return -1;
+                    }
+                    *byte = static_cast<std::uint8_t>(data[i]);
+                }
+                return static_cast<int>(data.size());
             }
             std::vector<std::uint8_t> bytes;
             for (const std::byte b : data) {
@@ -371,7 +510,7 @@ public:
                 return -1;
             }
             for (std::size_t i = 0; i < buffer.size(); ++i) {
-                const std::uint8_t* byte = t.chip().at(std::uint64_t{address} + i);
+                const std::uint8_t* byte = t.chip().readableAt(std::uint64_t{address} + i);
                 if (byte == nullptr) {
                     return -1;
                 }
@@ -474,9 +613,10 @@ public:
         });
     }
 
-    int rttStart() override {
-        return m_target->get([](ScriptedTarget& t) {
+    int rttStart(std::optional<std::uint32_t> blockAddress) override {
+        return m_target->get([blockAddress](ScriptedTarget& t) {
             ++t.rttStarts;
+            t.rttStartAddresses.push_back(blockAddress);
             t.rttStartTimes.push_back(std::chrono::steady_clock::now());
             t.rttStarted = true;
             return 0;

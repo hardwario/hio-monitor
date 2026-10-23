@@ -29,6 +29,8 @@
 > settings sections get the link "Run the setup wizard" (0008). In the error table, `FirstRunSetup` is the C++
 > enumerator name; QML/JSON use the kebab id `first-run-setup` (ADR-0067, 0007).
 
+
+> **Pending amendment from M6 ([0014](0014-m6-mcp-gui.md)):** contributed Settings section "AI assistants (MCP)".
 ## Context
 
 Flashing by catalog ID or by a local `.hex` is the second core workflow of the old app. Its problems:

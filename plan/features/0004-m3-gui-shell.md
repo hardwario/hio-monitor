@@ -19,6 +19,10 @@
 > and the page gets the links "Not sure how to connect? Guide me" and "Flash firmware with a guide" (0010).
 > `probe.in_use_by_other_process` opens Troubleshooting. The work is done in 0007 (C2, C5), 0009 (T4) and 0010 (W4).
 
+
+> **Pending amendment from M6 (ADR-0105, specified in [0014](0014-m6-mcp-gui.md)):** an "MCP" indicator on the rail
+> above Settings; an "AI" badge on tabs opened by an AI assistant (not restored); busy page id `ai` for AI
+> operations; `AppViewModel::openTab` overload for programmatic opening.
 ## Context
 
 M0–M2 deliver the backend (J-Link sessions, RTT console, flashing, catalog download) and the CLI. The GUI is still

@@ -9,6 +9,7 @@
 #include "hio/core/result.h"
 #include "hio/core/version.h"
 #include "jlink_commands.h"
+#include "mcp_command.h"
 #include "selftest.h"
 
 #include <QJsonObject>
@@ -86,6 +87,7 @@ CliApp::CliApp()
     registerChesterCommands(app, m_slot, m_options);
     registerBleCommands(app, m_slot, m_options);
     registerDiagCommands(app, m_slot, m_options);
+    registerMcpCommand(app, m_slot, m_options);
 }
 
 CliApp::~CliApp() = default;

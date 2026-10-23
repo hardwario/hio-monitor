@@ -2,6 +2,7 @@
 // resolution + version check + out handlers (plan/features/0002, phases A1 and E2).
 
 #include "hio/core/error.h"
+#include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_library.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/probe_enumerator.h"
@@ -10,12 +11,15 @@
 #include <QByteArray>
 #include <QFile>
 #include <QIODevice>
+#include <QLatin1Char>
 #include <QList>
 #include <QLockFile>
 #include <QProcess>
 #include <QString>
+#include <QStringList>
 #include <QTemporaryDir>
 #include <QtEnvironmentVariables>
+#include <QtLogging>
 #include <QtTypes>
 
 #include <gtest/gtest.h>
@@ -23,8 +27,10 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -387,6 +393,183 @@ TEST_F(FakeLibrary, ProbeEnumeratorKeepsOneCopy) {
         EXPECT_EQ(enumerator.location().path, fakeLocation().path);
     }
     EXPECT_EQ(instanceCount(), 0U); // the destructor removed the copy
+}
+
+} // namespace
+
+namespace {
+
+using hio::jlink::OptionalFunction;
+
+constexpr std::array allOptionalFunctions{
+    OptionalFunction::IsHalted,        OptionalFunction::GetId,
+    OptionalFunction::WriteU16,        OptionalFunction::WriteU32,
+    OptionalFunction::GetRegisterList, OptionalFunction::GetRegisterName,
+    OptionalFunction::ReadRegs,        OptionalFunction::GetMemZones};
+static_assert(allOptionalFunctions.size() == hio::jlink::optionalFunctionCount);
+
+// M6 (plan/features/0013, ADR-0151): the optional target functions through a real copy of the
+// fake: halted state, RAM, registers, zones.
+TEST_F(FakeLibrary, TargetFunctionsReachTheLibrary) {
+    useScenario(R"json({"probes": [{"serialNumber": 5, "chip": {
+        "ram": [{"address": 536870912, "size": 256}],
+        "registers": [{"name": "R0", "value": 17}, {"name": "PC", "value": 4096}],
+        "zones": [{"name": "AHB-AP", "description": "AHB-AP (AP0)", "virtualAddress": 0}],
+        "coreId": 305419896}}]})json");
+    auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
+    ASSERT_TRUE(library) << library.error().detail;
+    JLinkLibrary& api = **library;
+    for (const OptionalFunction function : allOptionalFunctions) {
+        EXPECT_TRUE(api.has(function)) << hio::jlink::optionalFunctionName(function);
+    }
+    ASSERT_EQ(api.selectBySerialNumber(5), 0);
+    ASSERT_FALSE(api.open().has_value());
+    ASSERT_GE(api.connect(), 0);
+
+    EXPECT_EQ(api.isHalted(), 0);
+    EXPECT_EQ(api.halt(), 0);
+    EXPECT_GT(api.isHalted(), 0);
+    api.go();
+    EXPECT_EQ(api.isHalted(), 0);
+    ASSERT_GE(api.reset(), 0);
+    EXPECT_GT(api.isHalted(), 0); // the IJLinkApi contract: halted after a reset
+    api.go();
+    EXPECT_EQ(api.coreId(), 0x12345678U);
+
+    // RAM: WriteMem outside a download, WriteU16 / WriteU32, reads with every width.
+    const std::array<std::byte, 2> bytes{std::byte{0x11}, std::byte{0x22}};
+    EXPECT_EQ(api.writeMemory(0x20000000, bytes), 2);
+    EXPECT_EQ(api.writeU16(0x20000002, 0x4433), 0);
+    EXPECT_EQ(api.writeU32(0x20000004, 0x88776655U), 0);
+    EXPECT_LT(api.writeU32(0x2000, 1), 0);            // flash is not RAM
+    EXPECT_LT(api.writeMemory(0x30000000, bytes), 0); // unmapped
+    std::array<std::byte, 8> back{};
+    ASSERT_EQ(api.readMemory(0x20000000, back), 8);
+    EXPECT_EQ(back[0], std::byte{0x11});
+    EXPECT_EQ(back[3], std::byte{0x44});
+    EXPECT_EQ(back[7], std::byte{0x88});
+    std::array<std::byte, 4> halfwords{};
+    EXPECT_EQ(api.readMemory16(0x20000002, halfwords), 4);
+    EXPECT_EQ(halfwords[0], std::byte{0x33});
+    std::array<std::uint32_t, 2> words{};
+    EXPECT_EQ(api.readU32s(0x20000000, words), 2);
+    EXPECT_EQ(words[0], 0x44332211U);
+    EXPECT_EQ(words[1], 0x88776655U);
+
+    const auto list = api.registerList();
+    ASSERT_TRUE(list);
+    ASSERT_EQ(list->size(), 2U);
+    EXPECT_EQ(api.registerName((*list)[1]), "PC");
+    std::array<std::uint32_t, 2> values{};
+    EXPECT_GE(api.readRegisters(*list, values), 0);
+    EXPECT_EQ(values[0], 17U);
+    EXPECT_EQ(values[1], 4096U);
+
+    const auto zones = api.memoryZones(32);
+    ASSERT_TRUE(zones);
+    ASSERT_EQ(zones->size(), 1U);
+    EXPECT_EQ((*zones)[0].name, "AHB-AP");
+    EXPECT_EQ((*zones)[0].description, "AHB-AP (AP0)");
+    EXPECT_EQ(api.memoryZones(0).value_or(std::vector<hio::jlink::MemoryZone>{{}}).size(), 0U);
+}
+
+// The hio.jlink messages logged while it lives (owner thread only; restores the previous handler).
+class JLinkLogCapture {
+public:
+    JLinkLogCapture() : m_previous(qInstallMessageHandler(&JLinkLogCapture::handle)) {}
+    ~JLinkLogCapture() { qInstallMessageHandler(m_previous); }
+    JLinkLogCapture(const JLinkLogCapture&) = delete;
+    JLinkLogCapture& operator=(const JLinkLogCapture&) = delete;
+    JLinkLogCapture(JLinkLogCapture&&) = delete;
+    JLinkLogCapture& operator=(JLinkLogCapture&&) = delete;
+
+    [[nodiscard]] static QStringList& messages() {
+        static QStringList captured;
+        return captured;
+    }
+
+private:
+    static void handle(QtMsgType /*type*/, const QMessageLogContext& context,
+                       const QString& message) {
+        if (context.category != nullptr && std::string_view(context.category) == "hio.jlink") {
+            messages().append(message);
+        }
+    }
+
+    QtMessageHandler m_previous;
+};
+
+// Review S10: a memory zone list longer than the limit is cut, and the cut is logged.
+TEST_F(FakeLibrary, MemoryZoneTruncationIsLogged) {
+    QString zones;
+    for (int i = 0; i < 33; ++i) {
+        zones +=
+            QStringLiteral(R"({"name": "Z%1", "description": "", "virtualAddress": %1},)").arg(i);
+    }
+    zones.chop(1);
+    const QByteArray scenario =
+        QStringLiteral(R"({"probes": [{"serialNumber": 5, "chip": {"zones": [%1]}}]})")
+            .arg(zones)
+            .toUtf8();
+    useScenario(scenario.constData());
+    auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
+    ASSERT_TRUE(library) << library.error().detail;
+    JLinkLibrary& api = **library;
+    ASSERT_EQ(api.selectBySerialNumber(5), 0);
+    ASSERT_FALSE(api.open().has_value());
+    ASSERT_GE(api.connect(), 0);
+    JLinkLogCapture::messages().clear();
+    {
+        const JLinkLogCapture capture;
+        const auto cut = api.memoryZones(32);
+        ASSERT_TRUE(cut);
+        EXPECT_EQ(cut->size(), 32U);
+        EXPECT_EQ(cut->back().name, "Z31");
+    }
+    EXPECT_TRUE(JLinkLogCapture::messages().contains(
+        QStringLiteral("Memory zone list truncated from 33 to 32")))
+        << JLinkLogCapture::messages().join(QLatin1Char('|')).toStdString();
+}
+
+// ADR-0151: a library without the optional exports still loads; has() reports them missing and
+// the calls fail without touching the library.
+TEST_F(FakeLibrary, MissingOptionalFunctionsDoNotFailTheLoad) {
+    useScenario(R"({"probes": [{"serialNumber": 5}]})");
+    auto library = JLinkLibrary::loadCopy(
+        LibraryLocation{.path = fs::path(HIO_FAKE_JLINK_BASIC_LIBRARY)}, instanceRoot());
+    ASSERT_TRUE(library) << library.error().detail;
+    JLinkLibrary& api = **library;
+    for (const OptionalFunction function : allOptionalFunctions) {
+        EXPECT_FALSE(api.has(function)) << hio::jlink::optionalFunctionName(function);
+    }
+    ASSERT_EQ(api.selectBySerialNumber(5), 0);
+    ASSERT_FALSE(api.open().has_value());
+    ASSERT_GE(api.connect(), 0);
+    EXPECT_LT(api.isHalted(), 0);
+    EXPECT_EQ(api.coreId(), 0U);
+    EXPECT_LT(api.writeU32(0x20000000, 1), 0);
+    EXPECT_FALSE(api.registerList());
+    EXPECT_FALSE(api.memoryZones(32));
+    EXPECT_EQ(hio::jlink::optionalFunctionName(OptionalFunction::GetMemZones), "JLINK_GetMemZones");
+}
+
+// M6: RTT START carries the control block address (JLINK_RTTERMINAL_START); with "autoSearch"
+// false the fake finds the block only at the scenario's address.
+TEST_F(FakeLibrary, RttStartPassesTheBlockAddress) {
+    useScenario(R"({"probes": [{"serialNumber": 5,
+        "rtt": {"blockAddress": 536875008, "autoSearch": false}}]})");
+    auto library = JLinkLibrary::loadCopy(fakeLocation(), instanceRoot());
+    ASSERT_TRUE(library) << library.error().detail;
+    JLinkLibrary& api = **library;
+    ASSERT_EQ(api.selectBySerialNumber(5), 0);
+    ASSERT_FALSE(api.open().has_value());
+    ASSERT_GE(api.connect(), 0);
+    ASSERT_GE(api.rttStart(std::nullopt), 0);
+    EXPECT_LT(api.rttBufferCount(hio::jlink::RttDirection::Up), 0); // no search
+    ASSERT_GE(api.rttStart(0x20000000U), 0);
+    EXPECT_LT(api.rttBufferCount(hio::jlink::RttDirection::Up), 0); // wrong address
+    ASSERT_GE(api.rttStart(0x20001000U), 0);
+    EXPECT_EQ(api.rttBufferCount(hio::jlink::RttDirection::Up), 2);
 }
 
 } // namespace

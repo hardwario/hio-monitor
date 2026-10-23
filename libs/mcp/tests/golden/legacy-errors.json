@@ -1,0 +1,556 @@
+{
+    "description": "Legacy protocol errors: parse error, batch, ids echoed, notifications unanswered, invalid params with pointer, unknown tool and method, resource errors, prompts.",
+    "steps": [
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32700,
+                        "message": "Parse error"
+                    },
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "sendRaw": "{not json"
+        },
+        {
+            "expect": [
+                {
+                    "id": 1,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "capabilities": {
+                            "prompts": {
+                            },
+                            "resources": {
+                                "listChanged": true,
+                                "subscribe": true
+                            },
+                            "tools": {
+                            }
+                        },
+                        "protocolVersion": "2025-11-25",
+                        "serverInfo": {
+                            "name": "hio-monitor",
+                            "version": "test"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "initialize",
+                "params": {
+                    "capabilities": {
+                    },
+                    "clientInfo": {
+                        "name": "golden",
+                        "version": "1"
+                    },
+                    "protocolVersion": "2025-11-25"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32600,
+                        "message": "Batches are not supported"
+                    },
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "sendRaw": "[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}]"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32600,
+                        "message": "Invalid Request: jsonrpc must be \"2.0\""
+                    },
+                    "id": "x",
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "sendRaw": "{\"jsonrpc\":\"1.0\",\"id\":\"x\",\"method\":\"ping\"}"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32600,
+                        "message": "Invalid Request: id must be a string or an integer"
+                    },
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "sendRaw": "{\"jsonrpc\":\"2.0\",\"id\":1.5,\"method\":\"ping\"}"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "message": "Invalid params: params must be an object"
+                    },
+                    "id": 2,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "sendRaw": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":[1]}"
+        },
+        {
+            "expect": [
+            ],
+            "send": {
+                "jsonrpc": "2.0",
+                "method": "notifications/unknown"
+            }
+        },
+        {
+            "expect": [
+            ],
+            "send": {
+                "jsonrpc": "2.0",
+                "method": "notifications/cancelled",
+                "params": {
+                    "requestId": 999
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": "abc",
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [
+                            {
+                                "text": "{\"count\":1,\"text\":\"hi\"}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "structuredContent": {
+                            "count": 1,
+                            "text": "hi"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": "abc",
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "text": "hi"
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 7,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [
+                            {
+                                "text": "{\"count\":3,\"text\":\"hi\"}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "structuredContent": {
+                            "count": 3,
+                            "text": "hi"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 7,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "count": 3,
+                        "text": "hi"
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/count"
+                        },
+                        "message": "Invalid params: /arguments/count must be <= 10"
+                    },
+                    "id": 8,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 8,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "count": 11,
+                        "text": "hi"
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/text"
+                        },
+                        "message": "Invalid params: /arguments/text is required"
+                    },
+                    "id": 9,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 9,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/extra"
+                        },
+                        "message": "Invalid params: /arguments/extra is not allowed"
+                    },
+                    "id": 10,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 10,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "extra": 1,
+                        "text": "hi"
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/text"
+                        },
+                        "message": "Invalid params: /arguments/text must be a string"
+                    },
+                    "id": 11,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 11,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "text": 5
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments"
+                        },
+                        "message": "Invalid params: /arguments must be an object"
+                    },
+                    "id": 12,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 12,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": "x",
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/name"
+                        },
+                        "message": "Unknown tool: nope"
+                    },
+                    "id": 13,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 13,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                    },
+                    "name": "nope"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/name"
+                        },
+                        "message": "Invalid params: /name is required"
+                    },
+                    "id": 14,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 14,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32601,
+                        "message": "Method not found: address"
+                    },
+                    "id": 15,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 15,
+                "jsonrpc": "2.0",
+                "method": "address",
+                "params": {
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32002,
+                        "data": {
+                            "uri": "test://item/missing/status"
+                        },
+                        "message": "Resource not found"
+                    },
+                    "id": 16,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 16,
+                "jsonrpc": "2.0",
+                "method": "resources/read",
+                "params": {
+                    "uri": "test://item/missing/status"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32002,
+                        "data": {
+                            "uri": "test://other"
+                        },
+                        "message": "Resource not found"
+                    },
+                    "id": 17,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 17,
+                "jsonrpc": "2.0",
+                "method": "resources/read",
+                "params": {
+                    "uri": "test://other"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32603,
+                        "data": {
+                            "error": {
+                                "category": "usage",
+                                "cause": "It was never connected, it was disconnected, or its tab was closed.",
+                                "code": "mcp.device_not_open",
+                                "detail": "broken",
+                                "message": "The device is not connected.",
+                                "suggestion": "Call connect first.",
+                                "wizard": null
+                            }
+                        },
+                        "message": "The device is not connected."
+                    },
+                    "id": 18,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 18,
+                "jsonrpc": "2.0",
+                "method": "resources/read",
+                "params": {
+                    "uri": "test://item/broken/status"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/name"
+                        },
+                        "message": "Invalid params: /arguments/name is required"
+                    },
+                    "id": 19,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 19,
+                "jsonrpc": "2.0",
+                "method": "prompts/get",
+                "params": {
+                    "arguments": {
+                    },
+                    "name": "greet"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/name"
+                        },
+                        "message": "Invalid params: /name names an unknown prompt"
+                    },
+                    "id": 20,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 20,
+                "jsonrpc": "2.0",
+                "method": "prompts/get",
+                "params": {
+                    "name": "nope"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/_meta/io.modelcontextprotocol~1protocolVersion"
+                        },
+                        "message": "Invalid params: _meta io.modelcontextprotocol/protocolVersion is missing or invalid"
+                    },
+                    "id": 21,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 21,
+                "jsonrpc": "2.0",
+                "method": "subscriptions/listen",
+                "params": {
+                    "notifications": {
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/_meta/io.modelcontextprotocol~1protocolVersion"
+                        },
+                        "message": "Invalid params: _meta io.modelcontextprotocol/protocolVersion is missing or invalid"
+                    },
+                    "id": 22,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 22,
+                "jsonrpc": "2.0",
+                "method": "server/discover"
+            }
+        }
+    ]
+}

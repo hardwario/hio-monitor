@@ -17,6 +17,7 @@
 #include <format>
 #include <optional>
 #include <span>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -110,9 +111,15 @@ class HexParser {
 public:
     explicit HexParser(std::string_view sourceName) : m_sourceName(sourceName) {}
 
-    [[nodiscard]] Result<FirmwareImage> parse(std::span<const std::byte> text) {
+    [[nodiscard]] Result<FirmwareImage> parse(std::span<const std::byte> text,
+                                              const std::stop_token& stop) {
         std::size_t position = 0;
         while (position < text.size()) {
+            if (stop.stop_requested()) {
+                return std::unexpected(
+                    makeError(ErrorCode::Cancelled, std::format("{}: parsing stopped at line {}",
+                                                                m_sourceName, m_lineNumber + 1)));
+            }
             std::size_t end = position;
             while (end < text.size() && text[end] != std::byte{'\n'}) {
                 ++end;
@@ -262,22 +269,24 @@ private:
 
 } // namespace
 
-Result<FirmwareImage> parseIntelHex(std::span<const std::byte> text, std::string_view sourceName) {
+Result<FirmwareImage> parseIntelHex(std::span<const std::byte> text, std::string_view sourceName,
+                                    const std::stop_token& stop) {
     if (text.size() > maxHexFileBytes) {
         return std::unexpected(makeError(ErrorCode::FirmwareInvalidImage,
                                          std::format("{}: {} bytes, the limit is {} bytes",
                                                      sourceName, text.size(), maxHexFileBytes)));
     }
     HexParser parser(sourceName);
-    return parser.parse(text);
+    return parser.parse(text, stop);
 }
 
-Result<FirmwareImage> readIntelHexFile(const std::filesystem::path& path) {
+Result<FirmwareImage> readIntelHexFile(const std::filesystem::path& path,
+                                       const std::stop_token& stop) {
     auto bytes = detail::readFileBounded(path, maxHexFileBytes);
     if (!bytes) {
         return std::unexpected(std::move(bytes).error());
     }
-    return parseIntelHex(*bytes, toUtf8(path.filename()));
+    return parseIntelHex(*bytes, toUtf8(path.filename()), stop);
 }
 
 } // namespace hio::firmware

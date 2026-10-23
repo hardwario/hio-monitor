@@ -14,6 +14,13 @@
 //            erased nothing on a running nRF52840)
 //   recover  checks the expected family's CTRL-AP IDR, then CTRL-AP ERASEALL via CoreSight, poll
 //            ERASEALLSTATUS, CTRL-AP RESET toggle
+//   target operations (M6, plan/features/0013, ADR-0099, ADR-0158): halt / go (JLINKARM_Halt /
+//            Go), isHalted, coreId, readMemory with an access width (8: ReadMemEx, 16: ReadMemEx
+//            with access width 2, 32: ReadMemU32 with a count), writeMemory with a width (8:
+//            JLINKARM_WriteMem outside a download, 16 / 32: WriteU16 / WriteU32 per unit), units
+//            little-endian; readRegisters (the core must be halted), memoryZones. A missing
+//            optional library function (ADR-0151) -> dependency.jlink_function_missing (detail:
+//            the function name).
 //   identify FICR INFO.PART / INFO.VARIANT; when FICR cannot be read, the CTRL-AP of the expected
 //            family (a Nordic CTRL-AP IDR at its AP index first, then APPROTECTSTATUS); a Nordic
 //            CTRL-AP at another family's AP index only names that family (never "protected")
@@ -36,11 +43,13 @@
 #include "hio/hw/jlink/clock.h"
 #include "hio/hw/jlink/jlink_api.h"
 #include "hio/hw/jlink/jlink_probe.h"
+#include "hio/hw/jlink/types.h"
 
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <stop_token>
 #include <string>
 #include <string_view>
@@ -100,6 +109,20 @@ struct ProgrammerConfig {
 
 // Largest readMemory() request (plan/features/0003 Bounds).
 inline constexpr std::size_t maxReadMemoryBytes = 64ULL * 1024;
+// Largest writeMemory() request (plan/features/0013 Bounds).
+inline constexpr std::size_t maxWriteMemoryBytes = 64ULL * 1024;
+// readRegisters() returns at most this many registers, memoryZones() at most this many zones
+// (plan/features/0013 Bounds).
+inline constexpr std::size_t maxRegisters = 128;
+inline constexpr std::size_t maxMemoryZones = 32;
+
+// The unit of a memory access (plan/features/0013); the value is the unit size in bytes.
+// Re-exported as hio::device::AccessWidth.
+enum class AccessWidth : std::uint8_t { Bits8 = 1, Bits16 = 2, Bits32 = 4 };
+
+[[nodiscard]] constexpr std::size_t unitBytes(AccessWidth width) noexcept {
+    return static_cast<std::size_t>(width);
+}
 
 class IProgrammer {
 public:
@@ -130,11 +153,34 @@ public:
     [[nodiscard]] virtual Status eraseAll() = 0;
     // CTRL-AP ERASEALL. Errors: target.recover_failed, timeout, cancelled (only before it starts).
     [[nodiscard]] virtual Status recover(std::stop_token stop) = 0;
-    // At most maxReadMemoryBytes. Errors: usage.invalid_argument, target.connect_failed.
-    [[nodiscard]] virtual Result<std::vector<std::byte>> readMemory(std::uint32_t address,
-                                                                    std::size_t size) = 0;
+    // At most maxReadMemoryBytes, `size` a multiple of the width and `address` aligned to it;
+    // 16/32-bit units are returned little-endian. Errors: usage.invalid_argument,
+    // target.memory_access_failed (detail: address and the vendor code).
+    [[nodiscard]] virtual Result<std::vector<std::byte>>
+    readMemory(std::uint32_t address, std::size_t size, AccessWidth width) = 0;
     // Errors: target.connect_failed.
     [[nodiscard]] virtual Status reset(ResetMode mode) = 0;
+
+    // ---- target operations (M6, plan/features/0013, ADR-0158) ----
+    // At most maxWriteMemoryBytes, size and alignment as readMemory(); `data` holds the units
+    // little-endian. Errors: usage.invalid_argument, target.memory_access_failed,
+    // dependency.jlink_function_missing (16/32-bit units).
+    [[nodiscard]] virtual Status writeMemory(std::uint32_t address, std::span<const std::byte> data,
+                                             AccessWidth width) = 0;
+    // JLINKARM_Halt. Errors: target.connect_failed.
+    [[nodiscard]] virtual Status halt() = 0;
+    // JLINKARM_Go (never fails in the library API).
+    [[nodiscard]] virtual Status go() = 0;
+    // Errors: target.connect_failed, dependency.jlink_function_missing.
+    [[nodiscard]] virtual Result<bool> isHalted() = 0;
+    // Errors: dependency.jlink_function_missing.
+    [[nodiscard]] virtual Result<std::uint32_t> coreId() = 0;
+    // At most maxRegisters, in the library's order. Errors: target.not_halted,
+    // target.connect_failed, dependency.jlink_function_missing.
+    [[nodiscard]] virtual Result<std::vector<RegisterValue>> readRegisters() = 0;
+    // At most maxMemoryZones (empty when the library reports none). Errors:
+    // target.connect_failed, dependency.jlink_function_missing.
+    [[nodiscard]] virtual Result<std::vector<MemoryZone>> memoryZones() = 0;
 };
 
 class JLinkProgrammer final : public IProgrammer {
@@ -156,9 +202,17 @@ public:
     [[nodiscard]] Status recover(std::stop_token stop) override;
     static constexpr std::uint8_t ctrlApIdr = 3;         // 0x0FC IDR (bank 0xF)
     static constexpr std::uint32_t idrBank = 0xFU << 4U; // DP SELECT APBANKSEL = 0xF
-    [[nodiscard]] Result<std::vector<std::byte>> readMemory(std::uint32_t address,
-                                                            std::size_t size) override;
+    [[nodiscard]] Result<std::vector<std::byte>> readMemory(std::uint32_t address, std::size_t size,
+                                                            AccessWidth width) override;
     [[nodiscard]] Status reset(ResetMode mode) override;
+    [[nodiscard]] Status writeMemory(std::uint32_t address, std::span<const std::byte> data,
+                                     AccessWidth width) override;
+    [[nodiscard]] Status halt() override;
+    [[nodiscard]] Status go() override;
+    [[nodiscard]] Result<bool> isHalted() override;
+    [[nodiscard]] Result<std::uint32_t> coreId() override;
+    [[nodiscard]] Result<std::vector<RegisterValue>> readRegisters() override;
+    [[nodiscard]] Result<std::vector<MemoryZone>> memoryZones() override;
 
     // CTRL-AP registers (bank 0, register index = offset / 4) [nRF52840 / nRF91 product specs].
     static constexpr std::uint8_t ctrlApReset = 0;          // 0x000 RESET
@@ -186,6 +240,11 @@ private:
                                   ErrorCode failure, const firmware::ProgressFn& progress,
                                   const std::stop_token& stop);
     [[nodiscard]] std::string libraryDetail(std::string detail);
+    // dependency.jlink_function_missing when `function` is not exported (ADR-0151).
+    [[nodiscard]] Status require(OptionalFunction function);
+    // target.memory_access_failed for `function` at `address` returning `code`.
+    [[nodiscard]] Error memoryAccessFailed(std::string_view function, std::uint32_t address,
+                                           std::size_t size, int code);
 
     IJLinkApi& m_api;
     JLinkProbe& m_probe;

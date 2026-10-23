@@ -4,6 +4,7 @@
 #include "hio/core/result.h"
 
 #include <QCoreApplication>
+#include <QJsonObject>
 #include <QString>
 #include <QtTypes>
 
@@ -120,6 +121,25 @@ Result<Pib> decodePib(std::span<const std::byte, 128> bytes) {
     pib.claimToken = ascii(bytes, claimToken);
     pib.blePasskey = ascii(bytes, blePasskey);
     return pib;
+}
+
+QJsonObject pibToJson(const Pib& pib) {
+    const auto text = [](const std::string& value) {
+        return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
+    };
+    QJsonObject data;
+    data.insert(QStringLiteral("signature"), text(std::format("0x{:08x}", pib.signature)));
+    data.insert(QStringLiteral("version"), text(std::format("0x{:02x}", pib.version)));
+    data.insert(QStringLiteral("size"), text(std::format("0x{:02x}", pib.size)));
+    data.insert(QStringLiteral("crc"), text(std::format("0x{:08x}", pib.crc)));
+    data.insert(QStringLiteral("vendor_name"), text(pib.vendorName));
+    data.insert(QStringLiteral("product_name"), text(pib.productName));
+    data.insert(QStringLiteral("hw_variant"), text(pib.hwVariant));
+    data.insert(QStringLiteral("hw_revision"), text(pib.hwRevision));
+    data.insert(QStringLiteral("serial_number"), text(pib.serialNumber));
+    data.insert(QStringLiteral("claim_token"), text(pib.claimToken));
+    data.insert(QStringLiteral("ble_passkey"), text(pib.blePasskey));
+    return data;
 }
 
 } // namespace hio::device

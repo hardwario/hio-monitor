@@ -79,6 +79,9 @@ struct BleSessionOptions {
     std::optional<std::filesystem::path> consoleFile;
     // ADR-0063: nullptr = the session creates its own log.
     std::shared_ptr<ConsoleLog> consoleLog;
+    // ADR-0156 (M6): the default console file goes into this directory (same generated name);
+    // an explicit consoleFile (or an empty path = none) wins. nullopt = the default directory.
+    std::optional<std::filesystem::path> consoleFileDir = std::nullopt;
 };
 
 class BleSession final : public ConsoleSession {

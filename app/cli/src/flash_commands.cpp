@@ -1,7 +1,6 @@
 #include "flash_commands.h"
 
 #include "cli_app.h"
-#include "cli_log.h"
 #include "confirm.h"
 #include "diag_commands.h"
 #include "hio/core/error.h"
@@ -18,12 +17,12 @@
 #include "hio/firmware/firmware_image.h"
 #include "hio/firmware/intel_hex.h"
 #include "hio/firmware/lte_input.h"
-#include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/nrfutil/nrfutil.h"
-#include "jlink_commands.h"
+#include "operation_runner.h"
 #include "output.h"
 #include "probe_options.h"
 #include "progress_ui.h"
+#include "target_commands.h"
 #include "terminal.h"
 
 #include <QByteArrayView>
@@ -31,7 +30,6 @@
 #include <QIODevice>
 #include <QJsonObject>
 #include <QJsonValue>
-#include <QLoggingCategory>
 #include <QString>
 #include <QtTypes>
 
@@ -61,17 +59,9 @@ namespace hio::cli {
 namespace {
 
 namespace fs = std::filesystem;
-using device::OperationId;
 using device::OperationResult;
 
-constexpr std::string_view profileId = "chester";
 constexpr std::string_view completed = "Successfully completed";
-
-const device::DeviceProfile& chester() { return *device::ProfileRegistry::find(profileId); }
-
-const device::TargetProfile& targetOf(std::string_view id) {
-    return *device::findTarget(chester(), id);
-}
 
 fs::path toPath(const std::string& text) { return {toQString(text).toStdU16String()}; }
 
@@ -82,90 +72,6 @@ Error usage(const QString& message, std::string detail) {
 }
 
 std::string kib(std::uint64_t bytes) { return std::format("{} KiB", (bytes + 1023) / 1024); }
-
-// ---- the session and one operation ----------------------------------------------------------
-
-struct OperationOutcome {
-    OperationResult result;
-    std::uint32_t probeSerial = 0;
-};
-
-using StartFn = std::function<Result<OperationId>(device::DeviceSession&)>;
-
-// Opens a flash-only session (attachRtt = false) on `targetId`, starts the operation and waits for
-// its result with progress. Ctrl+C cancels the operation (exit 130); the session is closed (the
-// probe released) before returning.
-Result<OperationOutcome> runOperation(const Context& context, const GlobalOptions& globals,
-                                      const ProbeOptions& group, const ProbeOptions& own,
-                                      std::string_view targetId, ProgressUi& ui,
-                                      const StartFn& start,
-                                      std::optional<fs::path> nrfUtil = std::nullopt) {
-    auto location = locateJLinkLibrary(globals);
-    if (!location) {
-        return std::unexpected(std::move(location).error());
-    }
-    const device::TargetProfile& target = targetOf(targetId);
-    device::SessionOptions options;
-    options.profile = &chester();
-    options.targetId = targetId;
-    options.probeSn = serialNumberOf(group, own);
-    auto speed = speedOf(group, own, target.defaultSpeedKhz);
-    if (!speed) {
-        return std::unexpected(std::move(speed).error());
-    }
-    options.speedKhz = *speed;
-    options.latencyMs = target.defaultLatencyMs;
-    options.autoReconnect = false;
-    options.attachRtt = false;
-    if (nrfUtil) {
-        options.nrfUtil = nrfutil::defaultLocatorOptions(std::move(nrfUtil), nullptr);
-    }
-    device::SessionRegistry registry;
-    auto session = device::DeviceSession::open(registry, *location, std::move(options));
-    if (!session) {
-        return std::unexpected(std::move(session).error());
-    }
-    device::DeviceSession& device = **session;
-    auto id = start(device);
-    if (!id) {
-        device.close();
-        return std::unexpected(std::move(id).error());
-    }
-    bool announced = false;
-    const auto announce = [&] {
-        if (!announced && device.probe().serialNumber != 0) {
-            announced = true;
-            const jlink::ProbeInfo probe = device.probe();
-            qCInfo(lcCli) << "Using J-Link" << probe.serialNumber;
-            ui.info(probe.product.empty()
-                        ? std::format("Using J-Link {}", probe.serialNumber)
-                        : std::format("Using J-Link {} ({})", probe.serialNumber, probe.product));
-        }
-    };
-    OperationResult result = device::waitForOperation(
-        device, *id,
-        [&](const device::OperationProgress& progress) {
-            announce();
-            ui.progress(progress);
-        },
-        context.stop);
-    announce();
-    ui.finish();
-    const std::uint32_t serial = device.probe().serialNumber;
-    device.close(); // releases the probe (and its lock) now; joins the worker's current step
-    // Review R13: when the wait gave up after Ctrl+C, the worker may still have finished the
-    // operation (a recover, an erase-all, or a real error such as a changed PIB): report that.
-    if (auto real = device.finishedResult(*id)) {
-        result = std::move(*real);
-    }
-    if (!result.status) {
-        return std::unexpected(result.status.error());
-    }
-    if (result.chip && !result.chip->name.empty()) {
-        ui.info(std::format("Target: {} ({})", result.chip->name, targetId));
-    }
-    return OperationOutcome{.result = std::move(result), .probeSerial = serial};
-}
 
 QJsonObject resultJson(std::string_view targetId, const OperationResult& result) {
     QJsonObject data;
@@ -229,7 +135,8 @@ Result<LoadedImage> loadAppImage(const Context& context, const AppFlashOptions& 
     }
     firmware::FirmwareCache cache(firmware::FirmwareCache::defaultDirectory());
     firmware::FirmwareCatalog catalog(
-        firmware::CatalogOptions{.baseUrl = firmware::catalogBaseUrl(chester().firmwareCatalogUrl),
+        firmware::CatalogOptions{.baseUrl =
+                                     firmware::catalogBaseUrl(chesterProfile().firmwareCatalogUrl),
                                  .transferTimeout = std::chrono::seconds(60),
                                  .maxBodyBytes = 32ULL * 1024 * 1024},
         &cache);
@@ -283,7 +190,7 @@ Result<CommandResult> erase(const Context& context, const GlobalOptions& globals
         const std::string question = std::format(
             "This erases all flash, UICR and the Product Information Block of the {} MCU.\n"
             "Continue? [y/N] ",
-            targetOf(targetId).displayName); // the CLI is English only (ADR-0027)
+            chesterTarget(targetId).displayName); // the CLI is English only (ADR-0027)
         if (Status confirmed = confirmDestructive(context, yes, question); !confirmed) {
             return std::unexpected(std::move(confirmed).error());
         }
@@ -323,7 +230,7 @@ Result<CommandResult> recover(const Context& context, const GlobalOptions& globa
     const std::string question = std::format(
         "This erases ALL flash, UICR and the Product Information Block of the {} MCU and removes "
         "read-back protection.\nContinue? [y/N] ",
-        targetOf(targetId).displayName); // the CLI is English only (ADR-0027)
+        chesterTarget(targetId).displayName); // the CLI is English only (ADR-0027)
     if (Status confirmed = confirmDestructive(context, yes, question); !confirmed) {
         return std::unexpected(std::move(confirmed).error());
     }
@@ -345,7 +252,7 @@ Result<CommandResult> recover(const Context& context, const GlobalOptions& globa
 Result<std::vector<std::byte>> readPibBytes(const Context& context, const GlobalOptions& globals,
                                             const ProbeOptions& group, const ProbeOptions& own) {
     ProgressUi ui(context, std::cerr, false, true);
-    const device::TargetProfile& app = targetOf("app");
+    const device::TargetProfile& app = chesterTarget("app");
     const auto address = static_cast<std::uint32_t>(device::pibRange(app).start);
     auto outcome =
         runOperation(context, globals, group, own, "app", ui, [&](device::DeviceSession& session) {
@@ -370,19 +277,8 @@ Result<CommandResult> pibRead(const Context& context, const GlobalOptions& globa
     if (!pib) {
         return std::unexpected(std::move(pib).error());
     }
-    // py-hardwario keys and formats.
-    QJsonObject data;
-    data.insert(QStringLiteral("signature"), toQString(std::format("0x{:08x}", pib->signature)));
-    data.insert(QStringLiteral("version"), toQString(std::format("0x{:02x}", pib->version)));
-    data.insert(QStringLiteral("size"), toQString(std::format("0x{:02x}", pib->size)));
-    data.insert(QStringLiteral("crc"), toQString(std::format("0x{:08x}", pib->crc)));
-    data.insert(QStringLiteral("vendor_name"), toQString(pib->vendorName));
-    data.insert(QStringLiteral("product_name"), toQString(pib->productName));
-    data.insert(QStringLiteral("hw_variant"), toQString(pib->hwVariant));
-    data.insert(QStringLiteral("hw_revision"), toQString(pib->hwRevision));
-    data.insert(QStringLiteral("serial_number"), toQString(pib->serialNumber));
-    data.insert(QStringLiteral("claim_token"), toQString(pib->claimToken));
-    data.insert(QStringLiteral("ble_passkey"), toQString(pib->blePasskey));
+    // py-hardwario keys and formats (shared with the MCP read_pib tool).
+    const QJsonObject data = device::pibToJson(*pib);
     std::string text;
     text += std::format("Vendor name: {}\n", pib->vendorName);
     text += std::format("Product name: {}\n", pib->productName);
@@ -757,6 +653,9 @@ void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
                            recoverOptions->yes);
         };
     });
+
+    // M6 (plan/features/0013): status, halt, go, regs, zones, mem read|write, flash-write.
+    registerTargetCommands(*lte, group, slot, globals, "lte");
 }
 
 } // namespace hio::cli

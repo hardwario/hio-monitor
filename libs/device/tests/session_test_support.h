@@ -15,6 +15,7 @@
 #include <QObject>
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -63,6 +64,9 @@ public:
         QObject::connect(
             &session, &DeviceSession::operationFinished, &context,
             [this](OperationId id, const OperationResult& r) { finished.emplace_back(id, r); });
+        // M6 (ADR-0104): prompts in order with the lines (the line count when it was seen).
+        QObject::connect(&session, &DeviceSession::promptSeen, &context,
+                         [this] { prompts.push_back(lines.size()); });
     }
 
     // The result of operation `id`, when it finished.
@@ -119,6 +123,7 @@ public:
     std::uint64_t dropped = 0;
     std::vector<std::pair<OperationId, OperationProgress>> progress;
     std::vector<std::pair<OperationId, OperationResult>> finished;
+    std::vector<std::size_t> prompts; // lines.size() at each promptSeen
 
     QObject context; // disconnects the lambdas when the recorder goes away
 };

@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":4,"method":"prompts/get","params":{"name":"p","arguments":{"a":"b"},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

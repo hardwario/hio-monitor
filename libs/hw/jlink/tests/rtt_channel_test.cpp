@@ -13,6 +13,7 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <expected>
 #include <optional>
 #include <span>
@@ -45,7 +46,7 @@ public:
     bool found = true;
 
     void install(NiceMock<MockJLinkApi>& api) {
-        ON_CALL(api, rttStart()).WillByDefault(Return(0));
+        ON_CALL(api, rttStart(_)).WillByDefault(Return(0));
         ON_CALL(api, rttBufferCount(_)).WillByDefault([this](RttDirection direction) {
             if (!found) {
                 return -2;
@@ -130,7 +131,7 @@ TEST_F(Rtt, CountsArePolledEvery100msUntilTheControlBlockIsFound) {
 TEST_F(Rtt, StaleZeroSizeTerminalStopsRttAndSearchesAgain) {
     target().up[0].size = 0;
     int starts = 0;
-    ON_CALL(api(), rttStart()).WillByDefault([&] {
+    ON_CALL(api(), rttStart(_)).WillByDefault([&] {
         if (++starts == 3) {
             target().up[0].size = 1024; // the firmware initialized its control block
         }
@@ -146,7 +147,7 @@ TEST_F(Rtt, StaleZeroSizeTerminalStopsRttAndSearchesAgain) {
 TEST_F(Rtt, TerminalNotYetRegisteredRestartsTheSearch) {
     target().up = {{.name = "Logger", .size = 1024}};
     int starts = 0;
-    ON_CALL(api(), rttStart()).WillByDefault([&] {
+    ON_CALL(api(), rttStart(_)).WillByDefault([&] {
         if (++starts == 2) {
             target().up.push_back({.name = "Terminal", .size = 1024});
         }
@@ -262,7 +263,7 @@ TEST_F(Rtt, TerminalNeverReadyIsBufferNotFound) {
 }
 
 TEST_F(Rtt, RttStartFailure) {
-    ON_CALL(api(), rttStart()).WillByDefault(Return(-1));
+    ON_CALL(api(), rttStart(_)).WillByDefault(Return(-1));
     const auto layout = rtt().attach(chesterNames, {});
     ASSERT_FALSE(layout);
     EXPECT_EQ(layout.error().code, ErrorCode::TargetRttNotFound);
@@ -386,6 +387,19 @@ TEST_F(Rtt, StopCallsRttStopOnce) {
     rtt().stop();
     rtt().stop();
     EXPECT_FALSE(rtt().isAttached());
+}
+
+} // namespace
+
+namespace {
+
+// M6 (plan/features/0013): the sticky control block address reaches RTT start; without one the
+// library searches (nullopt).
+TEST_F(Rtt, BlockAddressIsPassedToRttStart) {
+    EXPECT_CALL(api(), rttStart(std::optional<std::uint32_t>(0x20001000U))).WillOnce(Return(0));
+    ASSERT_TRUE(rtt().attach(chesterNames, {}, 0x20001000U));
+    EXPECT_CALL(api(), rttStart(std::optional<std::uint32_t>())).WillOnce(Return(0));
+    ASSERT_TRUE(rtt().attach(chesterNames, {}));
 }
 
 } // namespace

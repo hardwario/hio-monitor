@@ -126,9 +126,7 @@ private:
 // Errors that end a BLE session for good, also with autoReconnect (plan 0011 Q9).
 [[nodiscard]] bool isFatalBleError(ErrorCode code) noexcept;
 
-// True when `partial` (raw bytes of the incomplete line) is the prompt: ANSI CSI sequences and
-// carriage-return redraws removed, it equals `prompt` (ADR-0082).
-[[nodiscard]] bool isPrompt(std::string_view partial, std::string_view prompt);
+// isPrompt() is public in hio/device/line_assembler.h (M6, plan/features/0013).
 
 // ---- facade state
 // ---------------------------------------------------------------------------------

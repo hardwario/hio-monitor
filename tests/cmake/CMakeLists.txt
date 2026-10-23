@@ -22,6 +22,24 @@ set_tests_properties(cmake_backend_rule_accepts_core PROPERTIES
     FAIL_REGULAR_EXPRESSION "ADR-0004;CMake Error"
     LABELS "cmake")
 
+# ADR-0150: hio_restrict_own_links (hio_mcp may link hio::core only).
+add_test(NAME cmake_restricted_links_rejects_other
+    COMMAND "${CMAKE_COMMAND}" ${_hio_rule_common_args}
+        -B "${CMAKE_CURRENT_BINARY_DIR}/restricted_forbidden"
+        -DHIO_TEST_LINK_GUI=OFF -DHIO_TEST_RESTRICTED_LINK=FORBIDDEN)
+set_tests_properties(cmake_restricted_links_rejects_other PROPERTIES
+    PASS_REGULAR_EXPRESSION "Library 'fake_backend' links 'hio::fake_other'.*ADR-0150"
+    LABELS "cmake")
+
+add_test(NAME cmake_restricted_links_accepts_allowed
+    COMMAND "${CMAKE_COMMAND}" ${_hio_rule_common_args}
+        -B "${CMAKE_CURRENT_BINARY_DIR}/restricted_allowed"
+        -DHIO_TEST_LINK_GUI=OFF -DHIO_TEST_RESTRICTED_LINK=ALLOWED)
+set_tests_properties(cmake_restricted_links_accepts_allowed PROPERTIES
+    PASS_REGULAR_EXPRESSION "own-link restriction checked for 1 libraries"
+    FAIL_REGULAR_EXPRESSION "ADR-0150;CMake Error"
+    LABELS "cmake")
+
 # ADR-0086 (plan/features/0011 D1): on macOS both binaries carry the Bluetooth usage description.
 if(APPLE)
     add_test(NAME macos_cli_info_plist

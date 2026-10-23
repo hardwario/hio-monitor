@@ -198,18 +198,19 @@ Result<std::unique_ptr<ConsoleFileSink>>
 ConsoleFileSink::open(const ConsoleFileConfig& config, const SessionKey& key,
                       std::string_view headerText, std::chrono::system_clock::time_point now) {
     fs::path base;
+    const fs::path& directory = config.consoleFileDir.value_or(config.directory);
     if (config.explicitFile) {
         base = *config.explicitFile;
     } else {
         const QString stamp =
             toDateTime(now).toTimeZone(QTimeZone::UTC).toString(QStringLiteral("yyyyMMdd-HHmmss"));
         if (const auto* probe = std::get_if<ProbeKey>(&key)) {
-            base = config.directory / std::format("{}-{}-{}-{}.log", config.profileId,
-                                                  config.targetId, stamp.toStdString(), probe->sn);
+            base = directory / std::format("{}-{}-{}-{}.log", config.profileId, config.targetId,
+                                           stamp.toStdString(), probe->sn);
         } else {
-            base = config.directory / std::format("{}-ble-{}-{}.log", config.profileId,
-                                                  stamp.toStdString(),
-                                                  sanitisedBleId(std::get<BleKey>(key).id));
+            base =
+                directory / std::format("{}-ble-{}-{}.log", config.profileId, stamp.toStdString(),
+                                        sanitisedBleId(std::get<BleKey>(key).id));
         }
     }
     auto sink = std::make_unique<ConsoleFileSink>(Passkey{}, config, std::move(base));
@@ -362,10 +363,16 @@ Status ConsoleFileSink::flush() {
 void ConsoleFileSink::prune() const {
     std::vector<FileInfo> files;
     std::error_code ec;
-    for (fs::directory_iterator it(m_config.directory, ec), end; !ec && it != end;
-         it.increment(ec)) {
+    // ADR-0156: in a directory given with --console-file-dir only our session files are counted
+    // and deleted (it may hold other .log files of the user).
+    const bool sessionFilesOnly = m_config.consoleFileDir.has_value();
+    for (fs::directory_iterator it(m_config.consoleFileDir.value_or(m_config.directory), ec), end;
+         !ec && it != end; it.increment(ec)) {
         std::error_code entryError;
         if (!it->is_regular_file(entryError) || it->path().extension() != ".log") {
+            continue;
+        }
+        if (sessionFilesOnly && !sessionKeyOf(it->path())) {
             continue;
         }
         FileInfo info{.path = it->path(),

@@ -1,0 +1,432 @@
+{
+    "description": "Legacy tool calls and reads: structured results, tool errors as results, consent, the consent safety net, address validation, resources, prompts, subscriptions.",
+    "steps": [
+        {
+            "expect": [
+                {
+                    "id": 1,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "capabilities": {
+                            "prompts": {
+                            },
+                            "resources": {
+                                "listChanged": true,
+                                "subscribe": true
+                            },
+                            "tools": {
+                            }
+                        },
+                        "protocolVersion": "2025-11-25",
+                        "serverInfo": {
+                            "name": "hio-monitor",
+                            "version": "test"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "initialize",
+                "params": {
+                    "capabilities": {
+                    },
+                    "clientInfo": {
+                        "name": "golden",
+                        "version": "1"
+                    },
+                    "protocolVersion": "2025-11-25"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 1,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [
+                            {
+                                "text": "{\"address\":\"0x2000ABCD\"}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "structuredContent": {
+                            "address": "0x2000ABCD"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "address": "0x2000ABCD"
+                    },
+                    "name": "address"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 2,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [
+                            {
+                                "text": "{\"address\":\"0x20000000\"}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "structuredContent": {
+                            "address": "0x20000000"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 2,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "address": "536870912"
+                    },
+                    "name": "address"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/address"
+                        },
+                        "message": "Invalid params: /arguments/address must match the pattern ^(0x[0-9a-fA-F]{1,8}|[0-9]{1,10})$"
+                    },
+                    "id": 3,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 3,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "address": "0x123456789"
+                    },
+                    "name": "address"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/address"
+                        },
+                        "message": "Invalid params: /arguments/address must match the pattern ^(0x[0-9a-fA-F]{1,8}|[0-9]{1,10})$"
+                    },
+                    "id": 4,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 4,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "address": "-1"
+                    },
+                    "name": "address"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 5,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [
+                            {
+                                "text": "mcp.device_not_open: The device is not connected. — Call connect first.",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": true,
+                        "structuredContent": {
+                            "error": {
+                                "category": "usage",
+                                "cause": "It was never connected, it was disconnected, or its tab was closed.",
+                                "code": "mcp.device_not_open",
+                                "detail": "dev9",
+                                "message": "The device is not connected.",
+                                "suggestion": "Call connect first.",
+                                "wizard": null
+                            }
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 5,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                    },
+                    "name": "fail"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 6,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [
+                            {
+                                "text": "{\"flashed\":true}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "structuredContent": {
+                            "flashed": true
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 6,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "name": "flash_fake"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 7,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [
+                            {
+                                "text": "internal.unexpected: An unexpected internal error occurred. — Please report it with the log file (see Details).",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": true,
+                        "structuredContent": {
+                            "error": {
+                                "category": "internal",
+                                "cause": "This is a bug in HARDWARIO Monitor.",
+                                "code": "internal.unexpected",
+                                "detail": "consent was not requested",
+                                "message": "An unexpected internal error occurred.",
+                                "suggestion": "Please report it with the log file (see Details).",
+                                "wizard": null
+                            }
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 7,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "name": "no_consent"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 8,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [
+                            {
+                                "text": "{\"steps\":0}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "structuredContent": {
+                            "steps": 0
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": 8,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "arguments": {
+                        "step_ms": 10
+                    },
+                    "name": "slow"
+                }
+            },
+            "waitMs": 2000
+        },
+        {
+            "expect": [
+                {
+                    "id": 9,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "contents": [
+                            {
+                                "mimeType": "text/plain",
+                                "text": "hello",
+                                "uri": "test://static"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "send": {
+                "id": 9,
+                "jsonrpc": "2.0",
+                "method": "resources/read",
+                "params": {
+                    "uri": "test://static"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 10,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "contents": [
+                            {
+                                "mimeType": "application/json",
+                                "text": "{\"id\":\"a/b\"}",
+                                "uri": "test://item/a%2Fb/status"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "send": {
+                "id": 10,
+                "jsonrpc": "2.0",
+                "method": "resources/read",
+                "params": {
+                    "uri": "test://item/a%2Fb/status"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 11,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "description": "Greeting",
+                        "messages": [
+                            {
+                                "content": {
+                                    "text": "Hello Ann",
+                                    "type": "text"
+                                },
+                                "role": "user"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "send": {
+                "id": 11,
+                "jsonrpc": "2.0",
+                "method": "prompts/get",
+                "params": {
+                    "arguments": {
+                        "name": "Ann"
+                    },
+                    "name": "greet"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 12,
+                    "jsonrpc": "2.0",
+                    "result": {
+                    }
+                }
+            ],
+            "send": {
+                "id": 12,
+                "jsonrpc": "2.0",
+                "method": "resources/subscribe",
+                "params": {
+                    "uri": "test://static"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32002,
+                        "data": {
+                            "uri": "test://nothing"
+                        },
+                        "message": "Resource not found"
+                    },
+                    "id": 13,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 13,
+                "jsonrpc": "2.0",
+                "method": "resources/subscribe",
+                "params": {
+                    "uri": "test://nothing"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 14,
+                    "jsonrpc": "2.0",
+                    "result": {
+                    }
+                }
+            ],
+            "send": {
+                "id": 14,
+                "jsonrpc": "2.0",
+                "method": "resources/unsubscribe",
+                "params": {
+                    "uri": "test://static"
+                }
+            }
+        }
+    ]
+}

@@ -15,6 +15,8 @@
 
 #include "hio/core/result.h"
 
+#include <QJsonObject>
+
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -39,6 +41,11 @@ struct Pib {
 // Errors: pib.invalid with the failed check ("version", "signature", "size", "crc") in the
 // message and the values in `detail`.
 [[nodiscard]] Result<Pib> decodePib(std::span<const std::byte, 128> bytes);
+
+// The JSON of `hio chester app pib read --json` and the MCP read_pib tool (py-hardwario keys and
+// formats; plan/features/0013): signature, version, size, crc as "0x..." hex strings, then
+// vendor_name, product_name, hw_variant, hw_revision, serial_number, claim_token, ble_passkey.
+[[nodiscard]] QJsonObject pibToJson(const Pib& pib);
 
 // CRC-32 as used by the PIB (exposed for tests).
 [[nodiscard]] std::uint32_t pibCrc32(std::span<const std::byte> bytes) noexcept;
