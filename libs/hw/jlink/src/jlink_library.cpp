@@ -126,6 +126,24 @@ std::vector<std::string> resolveAll(QLibrary& library, abi::Functions& fn) {
     return missing;
 }
 
+// ADR-0151: the M6 target functions. A missing one is returned (logged by the caller) and only
+// disables its operation.
+std::vector<std::string> resolveOptional(QLibrary& library, abi::Functions& fn) {
+    std::vector<std::string> missing;
+    resolveInto(library, "JLINKARM_IsHalted", fn.isHalted, missing);
+    resolveInto(library, "JLINKARM_GetId", fn.getId, missing);
+    resolveInto(library, "JLINKARM_WriteU16", fn.writeU16, missing);
+    resolveInto(library, "JLINKARM_WriteU32", fn.writeU32, missing);
+    resolveInto(library, "JLINKARM_GetRegisterList", fn.getRegisterList, missing);
+    resolveInto(library, "JLINKARM_GetRegisterName", fn.getRegisterName, missing);
+    resolveInto(library, "JLINKARM_ReadRegs", fn.readRegs, missing);
+    resolveInto(library, "JLINK_GetMemZones", fn.getMemZones, missing);
+    return missing;
+}
+
+// abi access width of JLINKARM_ReadMemEx for 16-bit units ([pylink] memory_read(nbits=16)).
+constexpr std::uint32_t readMemExAccess16 = 2;
+
 std::string joined(const std::vector<std::string>& items) {
     std::string text;
     for (const std::string& item : items) {
@@ -214,6 +232,28 @@ Error loadFailed(std::string detail) {
 }
 
 } // namespace
+
+std::string_view optionalFunctionName(OptionalFunction function) noexcept {
+    switch (function) {
+    case OptionalFunction::IsHalted:
+        return "JLINKARM_IsHalted";
+    case OptionalFunction::GetId:
+        return "JLINKARM_GetId";
+    case OptionalFunction::WriteU16:
+        return "JLINKARM_WriteU16";
+    case OptionalFunction::WriteU32:
+        return "JLINKARM_WriteU32";
+    case OptionalFunction::GetRegisterList:
+        return "JLINKARM_GetRegisterList";
+    case OptionalFunction::GetRegisterName:
+        return "JLINKARM_GetRegisterName";
+    case OptionalFunction::ReadRegs:
+        return "JLINKARM_ReadRegs";
+    case OptionalFunction::GetMemZones:
+        return "JLINK_GetMemZones";
+    }
+    return "";
+}
 
 struct JLinkLibrary::Impl {
     fs::path sourcePath;
@@ -313,6 +353,14 @@ Result<std::unique_ptr<JLinkLibrary>> JLinkLibrary::loadCopy(const LibraryLocati
     if (!missing.empty()) {
         return std::unexpected(
             loadFailed(toUtf8(location.path) + ": missing functions: " + joined(missing)));
+    }
+
+    if (const std::vector<std::string> optional = resolveOptional(*impl->library, impl->fn);
+        !optional.empty()) {
+        qCWarning(log::lcJLink).noquote()
+            << QStringLiteral("J-Link library %1 lacks optional functions (target operations "
+                              "that need them are unavailable): %2")
+                   .arg(toQString(toUtf8(location.path)), toQString(joined(optional)));
     }
 
     const std::uint32_t version = impl->fn.getDllVersion();
@@ -496,7 +544,130 @@ int JLinkLibrary::halt() { return static_cast<int>(m_impl->fn.halt()); }
 
 void JLinkLibrary::go() { m_impl->fn.go(); }
 
-int JLinkLibrary::rttStart() { return m_impl->fn.rttControl(abi::rttCmdStart, nullptr); }
+bool JLinkLibrary::has(OptionalFunction function) {
+    const abi::Functions& fn = m_impl->fn;
+    switch (function) {
+    case OptionalFunction::IsHalted:
+        return fn.isHalted != nullptr;
+    case OptionalFunction::GetId:
+        return fn.getId != nullptr;
+    case OptionalFunction::WriteU16:
+        return fn.writeU16 != nullptr;
+    case OptionalFunction::WriteU32:
+        return fn.writeU32 != nullptr;
+    case OptionalFunction::GetRegisterList:
+        return fn.getRegisterList != nullptr;
+    case OptionalFunction::GetRegisterName:
+        return fn.getRegisterName != nullptr;
+    case OptionalFunction::ReadRegs:
+        return fn.readRegs != nullptr;
+    case OptionalFunction::GetMemZones:
+        return fn.getMemZones != nullptr;
+    }
+    return false;
+}
+
+int JLinkLibrary::isHalted() {
+    return m_impl->fn.isHalted == nullptr ? -1 : static_cast<int>(m_impl->fn.isHalted());
+}
+
+std::uint32_t JLinkLibrary::coreId() {
+    return m_impl->fn.getId == nullptr ? 0 : m_impl->fn.getId();
+}
+
+int JLinkLibrary::writeU16(std::uint32_t address, std::uint16_t value) {
+    return m_impl->fn.writeU16 == nullptr ? -1 : m_impl->fn.writeU16(address, value);
+}
+
+int JLinkLibrary::writeU32(std::uint32_t address, std::uint32_t value) {
+    return m_impl->fn.writeU32 == nullptr ? -1 : m_impl->fn.writeU32(address, value);
+}
+
+int JLinkLibrary::readU32s(std::uint32_t address, std::span<std::uint32_t> items) {
+    if (items.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        return -1;
+    }
+    std::vector<std::uint8_t> status(items.size(), 0);
+    const int result = m_impl->fn.readMemU32(address, static_cast<std::uint32_t>(items.size()),
+                                             items.data(), status.data());
+    if (result < 0) {
+        return result;
+    }
+    const auto read = std::min(static_cast<std::size_t>(result), items.size());
+    const std::span<const std::uint8_t> statuses = std::span(status).first(read);
+    const auto failed = std::ranges::find_if(statuses, [](std::uint8_t item) { return item != 0; });
+    return static_cast<int>(failed - statuses.begin());
+}
+
+std::expected<std::vector<std::uint32_t>, int> JLinkLibrary::registerList() {
+    if (m_impl->fn.getRegisterList == nullptr) {
+        return std::unexpected(-1);
+    }
+    std::vector<std::uint32_t> indexes(maxRegisterListItems, 0);
+    const int count = m_impl->fn.getRegisterList(indexes.data(), static_cast<int>(indexes.size()));
+    if (count < 0) {
+        return std::unexpected(count);
+    }
+    indexes.resize(std::min(static_cast<std::size_t>(count), indexes.size()));
+    return indexes;
+}
+
+std::string JLinkLibrary::registerName(std::uint32_t index) {
+    return m_impl->fn.getRegisterName == nullptr ? std::string()
+                                                 : fromCString(m_impl->fn.getRegisterName(index));
+}
+
+int JLinkLibrary::readRegisters(std::span<const std::uint32_t> indexes,
+                                std::span<std::uint32_t> values) {
+    if (m_impl->fn.readRegs == nullptr || indexes.size() != values.size() ||
+        indexes.size() > std::numeric_limits<std::uint32_t>::max()) {
+        return -1;
+    }
+    std::vector<std::uint8_t> status(indexes.size(), 0); // not evaluated (pylink: unreliable)
+    return m_impl->fn.readRegs(indexes.data(), values.data(), status.data(),
+                               static_cast<std::uint32_t>(indexes.size()));
+}
+
+std::expected<std::vector<MemoryZone>, int> JLinkLibrary::memoryZones(std::size_t maxZones) {
+    if (m_impl->fn.getMemZones == nullptr) {
+        return std::unexpected(-1);
+    }
+    const int count = m_impl->fn.getMemZones(nullptr, 0);
+    if (count < 0) {
+        return std::unexpected(count);
+    }
+    if (std::cmp_greater(count, maxZones)) {
+        // Review S10: logged like the register list (JLinkProgrammer::readRegisters()).
+        qCInfo(log::lcJLink) << "Memory zone list truncated from" << count << "to" << maxZones;
+    }
+    std::vector<abi::MemZoneInfo> infos(
+        std::min({static_cast<std::size_t>(count), maxZones,
+                  static_cast<std::size_t>(std::numeric_limits<int>::max())}),
+        abi::MemZoneInfo{});
+    std::vector<MemoryZone> zones;
+    if (infos.empty()) {
+        return zones;
+    }
+    const int found = m_impl->fn.getMemZones(infos.data(), static_cast<int>(infos.size()));
+    if (found < 0) {
+        return std::unexpected(found);
+    }
+    for (std::size_t i = 0; i < std::min(infos.size(), static_cast<std::size_t>(found)); ++i) {
+        zones.push_back(MemoryZone{.name = fromCString(infos[i].name),
+                                   .description = fromCString(infos[i].description),
+                                   .virtualAddress = infos[i].virtualAddress});
+    }
+    return zones;
+}
+
+int JLinkLibrary::rttStart(std::optional<std::uint32_t> blockAddress) {
+    if (!blockAddress) {
+        return m_impl->fn.rttControl(abi::rttCmdStart, nullptr);
+    }
+    abi::RttStart start{};
+    start.configBlockAddress = *blockAddress;
+    return m_impl->fn.rttControl(abi::rttCmdStart, &start);
+}
 
 int JLinkLibrary::rttStop() { return m_impl->fn.rttControl(abi::rttCmdStop, nullptr); }
 
@@ -559,6 +730,14 @@ int JLinkLibrary::readMemory(std::uint32_t address, std::span<std::byte> buffer)
     }
     return m_impl->fn.readMemEx(address, static_cast<std::uint32_t>(buffer.size()), buffer.data(),
                                 0);
+}
+
+int JLinkLibrary::readMemory16(std::uint32_t address, std::span<std::byte> buffer) {
+    if (buffer.size() % 2 != 0 || buffer.size() > std::numeric_limits<std::uint32_t>::max()) {
+        return -1;
+    }
+    return m_impl->fn.readMemEx(address, static_cast<std::uint32_t>(buffer.size()), buffer.data(),
+                                readMemExAccess16);
 }
 
 std::expected<std::uint32_t, int> JLinkLibrary::readU32(std::uint32_t address) {

@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <format>
 #include <memory>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -85,13 +86,17 @@ bool isModemFirmwareMarker(std::string_view entryName) noexcept {
     return std::ranges::all_of(number, [](char c) { return c >= '0' && c <= '9'; });
 }
 
-Result<LteInput> classifyLteInput(const fs::path& path) {
+Result<LteInput> classifyLteInput(const fs::path& path, const std::stop_token& stop) {
+    if (stop.stop_requested()) {
+        return std::unexpected(
+            makeError(ErrorCode::Cancelled, toUtf8(path) + ": classification stopped"));
+    }
     auto kind = sniff(path);
     if (!kind) {
         return std::unexpected(std::move(kind).error());
     }
     if (*kind == FileKind::Hex) {
-        auto image = readIntelHexFile(path);
+        auto image = readIntelHexFile(path, stop);
         if (!image) {
             return std::unexpected(std::move(image).error());
         }
@@ -114,11 +119,12 @@ Result<LteInput> classifyLteInput(const fs::path& path) {
         return std::ranges::any_of(entries, [name](const ZipEntry& e) { return e.name == name; });
     };
     if (entries.size() == 2 && has(bundleModem) && has(bundleApplication)) {
-        auto hexText = zip->extract(bundleApplication, maxHexFileBytes);
+        auto hexText = zip->extract(bundleApplication, maxHexFileBytes, stop);
         if (!hexText) {
             return std::unexpected(std::move(hexText).error());
         }
-        auto application = parseIntelHex(*hexText, toUtf8(path.filename()) + "/application.hex");
+        auto application =
+            parseIntelHex(*hexText, toUtf8(path.filename()) + "/application.hex", stop);
         if (!application) {
             return std::unexpected(std::move(application).error());
         }
@@ -129,7 +135,7 @@ Result<LteInput> classifyLteInput(const fs::path& path) {
                           "temporary directory: " + directory->errorString().toStdString()));
         }
         auto modem = zip->extractTo(bundleModem, fs::path(directory->path().toStdU16String()),
-                                    ZipLimits{}.maxEntryBytes);
+                                    ZipLimits{}.maxEntryBytes, stop);
         if (!modem) {
             return std::unexpected(std::move(modem).error());
         }

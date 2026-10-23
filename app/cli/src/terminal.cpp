@@ -13,10 +13,12 @@
 #include <chrono>
 #include <cstddef>
 #include <iostream>
+#include <mutex>
 #include <optional>
 #include <span>
 #include <stop_token>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <tuple>
 #include <utility>
@@ -98,41 +100,86 @@ ReadResult readAvailable(std::span<char> buffer, std::size_t& count) {
 #endif
 }
 
-// Splits bytes into lines ("\n", one trailing "\r" removed); a line longer than `maxBytes` is cut
-// there and the rest of it is dropped.
+// Splits bytes into lines ("\n", one trailing "\r" removed). A line longer than `maxBytes` is cut
+// there (Truncate) or dropped as a whole and reported (DropAndReport); the rest of it is skipped,
+// so at most maxBytes + 1 bytes are buffered.
 class LineSplitter {
 public:
-    explicit LineSplitter(std::size_t maxBytes) : m_maxBytes(maxBytes) {}
+    LineSplitter(std::size_t maxBytes, OverlongLinePolicy policy)
+        : m_maxBytes(std::max<std::size_t>(maxBytes, 1)), m_policy(policy) {}
 
-    [[nodiscard]] std::vector<std::string> feed(std::span<const char> bytes) {
-        std::vector<std::string> lines;
-        for (const char c : bytes) {
-            if (c == '\n') {
-                if (m_line.ends_with('\r')) {
-                    m_line.pop_back();
-                }
-                lines.push_back(std::exchange(m_line, {}));
-                m_cut = false;
-            } else if (!m_cut) {
-                m_line += c;
-                m_cut = m_line.size() >= m_maxBytes;
+    [[nodiscard]] std::vector<StdinItem> feed(std::span<const char> bytes) {
+        std::vector<StdinItem> items;
+        std::string_view rest(bytes.data(), bytes.size());
+        while (!rest.empty()) {
+            const std::size_t newline = rest.find('\n');
+            append(rest.substr(0, newline));
+            if (newline == std::string_view::npos) {
+                break;
             }
+            items.push_back(endLine());
+            rest.remove_prefix(newline + 1);
         }
-        return lines;
+        return items;
     }
 
     // The unterminated last line, if any.
-    [[nodiscard]] std::optional<std::string> rest() {
-        if (m_line.empty()) {
+    [[nodiscard]] std::optional<StdinItem> rest() {
+        if (!m_skipping && m_line.empty()) {
             return std::nullopt;
         }
-        return std::exchange(m_line, {});
+        if (m_policy == OverlongLinePolicy::DropAndReport &&
+            (m_skipping || m_line.size() > m_maxBytes)) {
+            reset();
+            return StdinItem{.kind = StdinItem::Kind::Overlong, .text = {}};
+        }
+        m_skipping = false;
+        return StdinItem{.kind = StdinItem::Kind::Line, .text = std::exchange(m_line, {})};
     }
 
 private:
+    void append(std::string_view part) {
+        if (m_skipping) {
+            return;
+        }
+        if (m_policy == OverlongLinePolicy::Truncate) {
+            m_line.append(part.substr(0, m_maxBytes - m_line.size()));
+            m_skipping = m_line.size() >= m_maxBytes;
+            return;
+        }
+        // DropAndReport: one byte more than the limit may be a trailing "\r".
+        if (m_line.size() + part.size() > m_maxBytes + 1) {
+            m_line.clear();
+            m_skipping = true;
+            return;
+        }
+        m_line.append(part);
+    }
+
+    StdinItem endLine() {
+        if (m_line.ends_with('\r')) {
+            m_line.pop_back();
+        }
+        if (m_policy == OverlongLinePolicy::DropAndReport &&
+            (m_skipping || m_line.size() > m_maxBytes)) {
+            reset();
+            return StdinItem{.kind = StdinItem::Kind::Overlong, .text = {}};
+        }
+        m_skipping = false;
+        return StdinItem{.kind = StdinItem::Kind::Line, .text = std::exchange(m_line, {})};
+    }
+
+    void reset() {
+        m_line.clear();
+        m_skipping = false;
+    }
+
     std::size_t m_maxBytes;
+    OverlongLinePolicy m_policy;
     std::string m_line;
-    bool m_cut = false; // the current line reached m_maxBytes; drop until its end
+    // Truncate: the line reached m_maxBytes; DropAndReport: the line is too long. Either way the
+    // bytes up to the end of the line are dropped.
+    bool m_skipping = false;
 };
 
 } // namespace
@@ -174,10 +221,15 @@ bool askYesNo(const std::string& question) {
     return answer == "y" || answer == "yes";
 }
 
-StdinLineReader::StdinLineReader() : StdinLineReader(ReadFunction(readAvailable)) {}
+StdinLineReader::StdinLineReader() : StdinLineReader(StdinReaderOptions{}) {}
 
 StdinLineReader::StdinLineReader(ReadFunction read)
-    : m_read(std::move(read)), m_thread([this](const std::stop_token& stop) { run(stop); }) {}
+    : StdinLineReader(StdinReaderOptions{}, std::move(read)) {}
+
+StdinLineReader::StdinLineReader(StdinReaderOptions options, ReadFunction read)
+    : m_options(std::move(options)), m_read(read ? std::move(read) : ReadFunction(readAvailable)),
+      m_lines(std::max<std::size_t>(m_options.maxQueuedLines, 1), OverflowPolicy::Block),
+      m_thread([this](const std::stop_token& stop) { run(stop); }) {}
 
 StdinLineReader::~StdinLineReader() {
     m_thread.request_stop();
@@ -196,7 +248,55 @@ StdinLineReader::~StdinLineReader() {
 }
 
 std::optional<std::optional<std::string>> StdinLineReader::poll() {
-    return m_lines.pop({}, std::chrono::milliseconds(0));
+    while (auto item = take()) {
+        switch (item->kind) {
+        case StdinItem::Kind::Line:
+            return std::optional<std::string>(std::move(item->text));
+        case StdinItem::Kind::End:
+            return std::optional<std::string>();
+        case StdinItem::Kind::Overlong:
+            break; // skipped (never queued by a Truncate reader)
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<StdinItem> StdinLineReader::take() {
+    std::optional<StdinItem> item = m_lines.pop({}, std::chrono::milliseconds(0));
+    if (item && item->kind == StdinItem::Kind::Line && m_options.maxQueuedBytes > 0) {
+        {
+            const std::scoped_lock lock(m_bytesMutex);
+            m_queuedBytes -= std::min(m_queuedBytes, item->text.size());
+        }
+        m_bytesFreed.notify_all();
+    }
+    return item;
+}
+
+bool StdinLineReader::push(StdinItem item, const std::stop_token& stop) {
+    const std::size_t bytes = item.kind == StdinItem::Kind::Line ? item.text.size() : 0;
+    const bool budgeted = m_options.maxQueuedBytes > 0 && bytes > 0;
+    if (budgeted) {
+        // ADR-0163: wait for queue bytes (the destructor's stop request ends the wait).
+        std::unique_lock lock(m_bytesMutex);
+        if (!m_bytesFreed.wait(lock, stop, [this, bytes] {
+                return m_queuedBytes == 0 || m_queuedBytes + bytes <= m_options.maxQueuedBytes;
+            })) {
+            return false; // stopped
+        }
+        m_queuedBytes += bytes;
+    }
+    if (!m_lines.push(std::move(item), stop)) {
+        if (budgeted) {
+            const std::scoped_lock lock(m_bytesMutex);
+            m_queuedBytes -= std::min(m_queuedBytes, bytes);
+        }
+        return false; // stopped or closed
+    }
+    if (m_options.notify) {
+        m_options.notify();
+    }
+    return true;
 }
 
 void StdinLineReader::run(const std::stop_token& stop) {
@@ -220,7 +320,7 @@ void StdinLineReader::run(const std::stop_token& stop) {
         // No exception escapes the thread (review R27): it is the end of input.
         logThreadException("stdin reader");
         try {
-            std::ignore = m_lines.push(std::nullopt, stop);
+            std::ignore = push(StdinItem{.kind = StdinItem::Kind::End, .text = {}}, stop);
         } catch (...) { // NOLINT(bugprone-empty-catch): the queue is closed by the destructor
         }
     }
@@ -228,27 +328,27 @@ void StdinLineReader::run(const std::stop_token& stop) {
 
 void StdinLineReader::readLines(const std::stop_token& stop) {
     std::array<char, 4096> buffer{};
-    LineSplitter splitter(maxLineBytes);
+    LineSplitter splitter(m_options.maxLineBytes, m_options.overlong);
     while (!stop.stop_requested()) {
         std::size_t count = 0;
         const ReadResult result = m_read(buffer, count);
         if (result == ReadResult::NoData) {
             continue;
         }
-        std::vector<std::string> lines = splitter.feed(std::span(buffer).first(count));
+        std::vector<StdinItem> items = splitter.feed(std::span(buffer).first(count));
         if (result == ReadResult::End) {
             if (auto rest = splitter.rest()) {
-                lines.push_back(std::move(*rest));
+                items.push_back(std::move(*rest));
             }
         }
-        for (std::string& line : lines) {
-            if (!m_lines.push(std::move(line), stop)) {
+        for (StdinItem& item : items) {
+            if (!push(std::move(item), stop)) {
                 return; // stopped or closed
             }
         }
         if (result == ReadResult::End) {
             // The end-of-input marker; if stopped meanwhile, nobody waits for it any more.
-            std::ignore = m_lines.push(std::nullopt, stop);
+            std::ignore = push(StdinItem{.kind = StdinItem::Kind::End, .text = {}}, stop);
             return;
         }
     }

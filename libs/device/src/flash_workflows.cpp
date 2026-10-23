@@ -33,14 +33,9 @@ namespace hio::device::detail {
 
 namespace {
 
-using firmware::AddressRange;
 using firmware::FirmwareImage;
 using firmware::ProgramPhase;
 using firmware::Segment;
-
-QString hexAddress(std::uint64_t address) {
-    return QStringLiteral("0x%1").arg(address, 8, 16, QLatin1Char('0'));
-}
 
 QString partName(const DeviceProfile& profile, std::uint32_t part) {
     for (const TargetProfile& target : profile.targets) {
@@ -79,7 +74,8 @@ std::string hexBytes(std::span<const std::byte> bytes) {
 Result<FirmwareImage> mergedUicr(WorkflowContext& context, const FirmwareImage& uicr) {
     const TargetProfile& target = *context.target;
     auto device = context.programmer->readMemory(static_cast<std::uint32_t>(target.uicr.start),
-                                                 static_cast<std::size_t>(target.uicr.size()));
+                                                 static_cast<std::size_t>(target.uicr.size()),
+                                                 jlink::AccessWidth::Bits8);
     if (!device) {
         return std::unexpected(std::move(device).error());
     }
@@ -157,49 +153,28 @@ Result<ImagePlan> planImage(const DeviceProfile& profile, const TargetProfile& t
                             .toStdString();
         return std::unexpected(std::move(error));
     }
-    const AddressRange pib = pibRange(target);
-    for (const Segment& segment : image.segments()) {
-        const AddressRange range = segment.range();
-        if (range.overlaps(pib)) {
-            Error error = makeError(ErrorCode::FirmwareOutOfRange,
-                                    std::format("segment 0x{:08X}-0x{:08X} overlaps the PIB "
-                                                "0x{:08X}-0x{:08X}",
-                                                range.start, range.end, pib.start, pib.end));
-            error.message =
-                QCoreApplication::translate(
-                    "hio::device",
-                    "The firmware writes into the Product Information Block (address %1).")
-                    .arg(hexAddress(std::max(range.start, pib.start)))
-                    .toStdString();
-            return std::unexpected(std::move(error));
+    // The rules of checkFlashWrite(), per segment: first the ranges of all segments (PIB, flash /
+    // UICR), then the UICR consent, so an image with both kinds of fault reports out_of_range.
+    const auto checkSegments = [&](bool uicrAllowed) -> Status {
+        for (const Segment& segment : image.segments()) {
+            if (Status allowed =
+                    checkFlashWrite(target, segment.address, segment.data.size(), uicrAllowed);
+                !allowed) {
+                return allowed;
+            }
         }
-        if (!target.flash.contains(range) && !target.uicr.contains(range)) {
-            const std::uint64_t outside =
-                target.flash.contains(range.start) ? target.flash.end : range.start;
-            Error error =
-                makeError(ErrorCode::FirmwareOutOfRange,
-                          std::format("segment 0x{:08X}-0x{:08X}; flash 0x{:08X}-0x{:08X}, "
-                                      "UICR 0x{:08X}-0x{:08X}",
-                                      range.start, range.end, target.flash.start, target.flash.end,
-                                      target.uicr.start, target.uicr.end));
-            error.message = QCoreApplication::translate(
-                                "hio::device", "The firmware does not fit the %1 MCU (address %2).")
-                                .arg(targetDisplayName(target), hexAddress(outside))
-                                .toStdString();
-            error.suggestion = QCoreApplication::translate(
-                                   "hio::device", "Check that the firmware is for the %1 MCU.")
-                                   .arg(targetDisplayName(target))
-                                   .toStdString();
-            return std::unexpected(std::move(error));
+        return {};
+    };
+    if (Status ranges = checkSegments(true); !ranges) {
+        return std::unexpected(std::move(ranges).error());
+    }
+    if (!allowUicr) {
+        if (Status uicr = checkSegments(false); !uicr) {
+            return std::unexpected(std::move(uicr).error());
         }
     }
     ImagePlan plan{.code = image, .uicr = std::nullopt};
     if (image.intersects(target.uicr)) {
-        if (!allowUicr) {
-            return std::unexpected(makeError(
-                ErrorCode::FirmwareUicrInImage,
-                std::format("UICR 0x{:08X}-0x{:08X}", target.uicr.start, target.uicr.end)));
-        }
         auto uicr = plan.code.splitOut(target.uicr);
         if (!uicr) {
             return std::unexpected(std::move(uicr).error());
@@ -356,14 +331,16 @@ Result<jlink::ChipInfo> runErase(WorkflowContext& context, EraseScope scope) {
         // UICR; until then (and afterwards, as a guard) the PIB is compared before and after.
         const firmware::AddressRange pib = pibRange(target);
         const auto pibAddress = static_cast<std::uint32_t>(pib.start);
-        auto before = context.programmer->readMemory(pibAddress, pibSize);
+        auto before =
+            context.programmer->readMemory(pibAddress, pibSize, jlink::AccessWidth::Bits8);
         if (!before) {
             return std::unexpected(forTarget(std::move(before).error(), profile, target));
         }
         log(context, "Erasing the code flash (UICR and the Product Information Block are kept)");
         erased = context.programmer->eraseCode(target.flash, context.progress, context.stop);
         if (erased) {
-            auto after = context.programmer->readMemory(pibAddress, pibSize);
+            auto after =
+                context.programmer->readMemory(pibAddress, pibSize, jlink::AccessWidth::Bits8);
             if (!after) {
                 // Review R17: say that the PIB state is unknown; keep its old bytes in the log.
                 log(context, "ERROR: the Product Information Block could not be read after the "
@@ -489,12 +466,16 @@ Status runReset(WorkflowContext& context, ResetMode mode) {
 }
 
 Result<std::vector<std::byte>> runReadMemory(WorkflowContext& context, std::uint32_t address,
-                                             std::size_t size) {
+                                             std::size_t size, jlink::AccessWidth width) {
+    // ADR-0160: any range that does not wrap (checked again; DeviceSession checks it first).
+    if (Status inside = checkMemoryRead(address, size); !inside) {
+        return std::unexpected(std::move(inside).error());
+    }
     // Review R7: the family check first (pib read / uicr read on the wrong connector).
     if (auto chip = identifyTarget(context, false); !chip) {
         return std::unexpected(std::move(chip).error());
     }
-    return context.programmer->readMemory(address, size);
+    return context.programmer->readMemory(address, size, width);
 }
 
 Result<FirmwareImage> recoverImage(RecoverImage image) {

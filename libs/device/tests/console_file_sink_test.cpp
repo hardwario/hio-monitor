@@ -404,6 +404,38 @@ TEST_F(Sink, UnwritableLocationIsAnError) {
     EXPECT_EQ(sink.error().code, hio::ErrorCode::IoWriteFailed);
 }
 
+// ADR-0156 (M6): with consoleFileDir the generated name goes there, and the retention deletes only
+// generated session files (the directory may hold other .log files of the user).
+TEST_F(Sink, ConsoleFileDirKeepsForeignFiles) {
+    const fs::path custom = dir().parent_path() / "custom";
+    fs::create_directories(custom);
+    for (int i = 0; i < 55; ++i) {
+        const fs::path session = custom / std::format("chester-app-20260101-0000{:02}-1.log", i);
+        std::ofstream(session) << "x";
+        fs::last_write_time(session,
+                            fs::file_time_type::clock::now() - std::chrono::hours(100 - i));
+    }
+    const fs::path foreign = custom / "build.log";
+    std::ofstream(foreign) << "the user's file";
+    fs::last_write_time(foreign, fs::file_time_type::clock::now() - std::chrono::hours(200));
+    ConsoleFileConfig config = defaultConfig();
+    config.consoleFileDir = custom;
+    auto sink =
+        ConsoleFileSink::open(config, 801234567, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(sink) << sink.error().detail;
+    EXPECT_EQ((*sink)->currentFile().parent_path(), custom);
+    EXPECT_TRUE(std::regex_match((*sink)->currentFile().filename().string(),
+                                 std::regex(R"(chester-app-\d{8}-\d{6}-801234567\.log)")));
+    EXPECT_TRUE(fs::exists(foreign)); // the oldest, but not a session file
+    std::size_t sessionFiles = 0;
+    std::error_code ec;
+    for (fs::directory_iterator it(custom, ec), end; !ec && it != end; it.increment(ec)) {
+        sessionFiles += it->path().filename().string().starts_with("chester-app-") ? 1 : 0;
+    }
+    EXPECT_EQ(sessionFiles, ConsoleFileSink::maxDefaultFiles);
+    EXPECT_FALSE(fs::exists(dir())); // the default directory was not used
+}
+
 TEST(ConsoleFilePrefix, RtttPrefixes) {
     EXPECT_EQ(hio::device::consoleFilePrefix(line(Channel::Shell, Direction::Out, "")), " > ");
     EXPECT_EQ(hio::device::consoleFilePrefix(line(Channel::Log, Direction::Out, "")), " # ");

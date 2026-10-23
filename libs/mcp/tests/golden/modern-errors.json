@@ -1,0 +1,408 @@
+{
+    "description": "Modern protocol errors: batch, ids echoed, notifications unanswered, invalid params with pointer, unknown tool, unknown method (-32601, HTTP 404), resource not found (-32602), ping removed.",
+    "steps": [
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32600,
+                        "message": "Batches are not supported"
+                    },
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "sendRaw": "[]"
+        },
+        {
+            "expect": [
+            ],
+            "send": {
+                "jsonrpc": "2.0",
+                "method": "notifications/initialized",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+            ],
+            "send": {
+                "jsonrpc": "2.0",
+                "method": "notifications/cancelled",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "requestId": "zz"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": "s-1",
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "content": [
+                            {
+                                "text": "{\"count\":1,\"text\":\"a\"}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "resultType": "complete",
+                        "structuredContent": {
+                            "count": 1,
+                            "text": "a"
+                        }
+                    }
+                }
+            ],
+            "send": {
+                "id": "s-1",
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "text": "a"
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/count"
+                        },
+                        "message": "Invalid params: /arguments/count must be >= 1"
+                    },
+                    "id": 42,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 42,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "count": 0,
+                        "text": "a"
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/text"
+                        },
+                        "message": "Invalid params: /arguments/text must be at most 100 characters long"
+                    },
+                    "id": 43,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 43,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    },
+                    "name": "echo"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/name"
+                        },
+                        "message": "Unknown tool: nope"
+                    },
+                    "id": 44,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 44,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "name": "nope"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32601,
+                        "message": "Method not found: ping"
+                    },
+                    "id": 45,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 45,
+                "jsonrpc": "2.0",
+                "method": "ping",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32601,
+                        "message": "Method not found: resources/subscribe"
+                    },
+                    "id": 46,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 46,
+                "jsonrpc": "2.0",
+                "method": "resources/subscribe",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "uri": "test://static"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "uri": "test://item/missing/status"
+                        },
+                        "message": "Resource not found"
+                    },
+                    "id": 47,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 47,
+                "jsonrpc": "2.0",
+                "method": "resources/read",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "uri": "test://item/missing/status"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/name"
+                        },
+                        "message": "Invalid params: /arguments/name must be a string"
+                    },
+                    "id": 48,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 48,
+                "jsonrpc": "2.0",
+                "method": "prompts/get",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "name": 1
+                    },
+                    "name": "greet"
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32601,
+                        "message": "Method not found: nothing/here"
+                    },
+                    "id": 49,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "nothing/here"
+            },
+            "send": {
+                "id": 49,
+                "jsonrpc": "2.0",
+                "method": "nothing/here",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            },
+            "status": "not_found",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/arguments/count"
+                        },
+                        "message": "Invalid params: /arguments/count must be an integer"
+                    },
+                    "id": 50,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "tools/call",
+                "Mcp-Name": "echo"
+            },
+            "send": {
+                "id": 50,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "count": 2.5,
+                        "text": "a"
+                    },
+                    "name": "echo"
+                }
+            },
+            "status": "ok",
+            "transport": "http"
+        }
+    ]
+}

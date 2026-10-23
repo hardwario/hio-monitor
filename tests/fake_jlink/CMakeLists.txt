@@ -17,3 +17,15 @@ hio_apply_target_defaults(hio_fake_jlink_incomplete)
 set_target_properties(hio_fake_jlink_incomplete PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON)
+
+# M6 (plan/features/0013, ADR-0151): the same fake without the optional target functions
+# (JLINKARM_IsHalted, ..., JLINK_GetMemZones), for the dependency.jlink_function_missing path.
+# A loaded library's exports cannot be removed at run time, hence a second build.
+add_library(hio_fake_jlink_basic SHARED fake_jlink.cpp)
+hio_apply_target_defaults(hio_fake_jlink_basic)
+target_compile_definitions(hio_fake_jlink_basic PRIVATE HIO_FAKE_JLINK_BASIC)
+target_include_directories(hio_fake_jlink_basic PRIVATE "${PROJECT_SOURCE_DIR}/libs/hw/jlink/src")
+target_link_libraries(hio_fake_jlink_basic PRIVATE Qt6::Core)
+set_target_properties(hio_fake_jlink_basic PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON)

@@ -14,6 +14,12 @@
 > **Pending amendment from M7 ([0015](0015-m7-packaging-release.md) decision table):** ADR-0108 asked M7 to reconsider
 > native notifications for consent prompts; the user decided on 2026-10-19 to keep the own always-on-top window, so nothing changes here.
 
+> **Open decision from the 0013 sync (2026-10-20), to be decided before 0014 is approved:** ADR-0103 says
+> everything sent over MCP is English, but `hio::Error` texts are translated when the error is created (also the
+> call-site texts in `hio::device`/`hio::jlink`), and nothing can re-render them in English. Options: add the English
+> source texts (+ arguments) to `hio::Error` and fill them at every creation site, or amend ADR-0103 so backend errors
+> reach the AI in the GUI language. 0013 also uses `hio_mcp` + `hio_mcp_tools` (ADR-0150): the GUI links both.
+
 ## Context
 
 ADR-0008: the GUI hosts MCP over Streamable HTTP on 127.0.0.1, opt-in, and the AI works on **the same live
@@ -293,6 +299,19 @@ Phase C — verification
   calls do not stall the UI (frame time < 50 ms measured).
 - **Sanitizers / tidy / qmllint / translations** as in M3.
 - **Manual (by the user, before Done):** C2.
+
+## Pending from the 0013 review (2026-10-20)
+
+Items the independent review of 0013 phases A–C assigned to this plan (decided by the user; to be designed here):
+
+- **R6:** in the modern dialect, consent remembering and the activity list are keyed by the self-declared
+  `clientInfo.name`. Decide how the GUI identifies a client for "Allow … for <client> until it disconnects" (the CLI
+  is unaffected: `--allow` flags).
+- **R17:** `connect` with an asynchronous (GUI) provider: a session/tab opened after the tool call already ended
+  (cancelled, timed out) is never closed. The GUI provider must close it in the `open` callback when the call is
+  gone.
+- **Q9 / R12:** `FlagConsentBroker`'s call-site texts are plain English (MCP texts, ADR-0103); the GUI variant of
+  `mcp.tool_not_allowed` belongs in a backend library if it is ever translated.
 
 ## Risks and open points
 

@@ -34,6 +34,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 option(HIO_BUILD_TESTS "Build the unit and integration tests" ON)
+# libFuzzer targets (ADR-0152): only the linux-fuzz preset turns this on; it needs
+# HIO_SANITIZERS to contain "fuzzer" (cmake/HioSanitizers.cmake).
+option(HIO_BUILD_FUZZERS "Build the libFuzzer targets (linux-fuzz preset only)" OFF)
 # Test-only overrides compiled into the product (HIO_CATALOG_URL; plan/features/0003 reviews R8,
 # R12, R18). OFF by default; only the Debug presets (tests, sanitizers, coverage, tidy - all OSes)
 # turn it ON. Shipped/packaged binaries are built with it OFF (plan/0005-build-ci-release.md):
@@ -99,6 +102,8 @@ add_subdirectory(libs/hw/nrfutil)
 add_subdirectory(libs/hw/ble)
 add_subdirectory(libs/device)
 add_subdirectory(libs/diag)
+add_subdirectory(libs/mcp)
+add_subdirectory(libs/mcp_tools)
 add_subdirectory(app/cli)
 add_subdirectory(app/gui)
 

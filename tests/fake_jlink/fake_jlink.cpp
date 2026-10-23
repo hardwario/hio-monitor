@@ -43,7 +43,11 @@
 //                                                   after the first write attempt of the copy
 //         "acceptEachWriteAfterMs": 0,              every write (each chunk) accepts 0 bytes
 //                                                   until this long after its own first attempt
-//         "readErrors": [[fromMs, toMs]]            RTT reads fail in these ranges
+//         "readErrors": [[fromMs, toMs]],           RTT reads fail in these ranges
+//         "blockAddress": 536870912,                M6: the control block address; with
+//         "autoSearch": true                        autoSearch false the block is found only
+//                                                   when RTT START carried exactly this
+//                                                   address (proves the session passes it)
 //       },
 //       "chip": {                                   flash memory model (plan/features/0003, E1)
 //         "family": "nrf52" | "nrf91",              FICR / UICR / CTRL-AP layout (default nrf52)
@@ -58,28 +62,40 @@
 //         "downloadDelayMs": 0, "readDelayMs": 0    JLINKARM_EndDownload / every ReadMemEx blocks
 //                                                   (CTRL-AP IDR in bank 0xF: nRF52 0x02880000,
 //                                                   nRF91 0x12880000; other APs do not answer)
-//         "absentApsReadZero": false                other AP indexes read 0 instead of failing
+//         "absentApsReadZero": false,               other AP indexes read 0 instead of failing
 //                                                   (like a real DAP with an absent AP)
 //                                                   JLINKARM_Connect on a protected chip asks the
 //                                                   JLINK_SetHookUnsecureDialog hook "unsecure?":
 //                                                   YES (or no hook: the batch-mode default, like
 //                                                   the real library may do) mass-erases the chip
 //                                                   incl. UICR and connects; NO fails the connect
+//         "ram": [{"address": 536870912, "size": 262144}],  M6: zero-filled RAM / peripheral
+//                                                   regions, the only memory that direct writes
+//                                                   (WriteMem outside a download, WriteU16/U32)
+//                                                   reach; at most 16 MiB in total
+//         "registers": [{"name": "R0", "value": 5}],  M6: GetRegisterList / Name / ReadRegs
+//         "zones": [{"name": "AHB-AP", "description": "AHB-AP (AP0)", "virtualAddress": 0}],
+//                                                   M6: JLINK_GetMemZones
+//         "coreId": 732959863,                      M6: JLINKARM_GetId (default 0x2BA01477)
+//         "halted": false                           M6 (review Q10): the CPU is halted after
+//                                                   JLINKARM_Open and every other boot (a
+//                                                   JLINKARM_Reset always halts it)
 //       } } ] }
 // Memory: flash 0x0-0x100000 and the UICR page (nRF52: 0x10001000, nRF91: 0x00FF8000; 4 KiB) start
-// erased (0xFF). A download (BeginDownload, WriteMem, EndDownload) behaves like the J-Link flash
-// loader: only the written bytes change, the rest of every touched 4 KiB sector is kept; bytes
-// outside flash and UICR make EndDownload fail. EndDownload reports "Erase" and "Program" progress
-// to the JLINK_SetFlashProgProgressCallback callback. Like J-Link 9.84 on hardware (Phase 0 item
-// 0.10, ADR-0109), JLINKARM_Close during a download programs the buffered bytes; and (HIL H3)
-// JLINKARM_EMU_SelectByUSBSN fails while a flash progress callback is registered. JLINK_EraseChip
-// and CTRL-AP ERASEALL erase
-// flash and UICR; ERASEALL also clears "protected". The CTRL-AP is AP 1 (nRF52) / AP 4 (nRF91)
-// with RESET (0x0), ERASEALL (0x4), ERASEALLSTATUS (0x8) and APPROTECTSTATUS (0xC).
-// "Boot" is JLINKARM_Open and every JLINKARM_Reset (a reset restarts the RTT timeline: the
-// control block must be found again and the output is replayed). VTref times count from the first
-// JLINKARM_Open of the library copy (the target's power does not restart when the probe is
-// reopened).
+// erased (0xFF). The FICR page (nRF52: 0x10000000, nRF91: 0x00FF0000; 4 KiB, read-only) reads
+// 0xFF except INFO.PART / INFO.VARIANT. Reads of any other address (outside "ram") fail, like an
+// unmapped address on a real target (M6, ADR-0160). A download (BeginDownload, WriteMem,
+// EndDownload) behaves like the J-Link flash loader: only the written bytes change, the rest of
+// every touched 4 KiB sector is kept; bytes outside flash and UICR make EndDownload fail.
+// EndDownload reports "Erase" and "Program" progress to the JLINK_SetFlashProgProgressCallback
+// callback. Like J-Link 9.84 on hardware (Phase 0 item 0.10, ADR-0109), JLINKARM_Close during a
+// download programs the buffered bytes; and (HIL H3) JLINKARM_EMU_SelectByUSBSN fails while a flash
+// progress callback is registered. JLINK_EraseChip and CTRL-AP ERASEALL erase flash and UICR;
+// ERASEALL also clears "protected". The CTRL-AP is AP 1 (nRF52) / AP 4 (nRF91) with RESET (0x0),
+// ERASEALL (0x4), ERASEALLSTATUS (0x8) and APPROTECTSTATUS (0xC). "Boot" is JLINKARM_Open and every
+// JLINKARM_Reset (a reset restarts the RTT timeline: the control block must be found again and the
+// output is replayed). VTref times count from the first JLINKARM_Open of the library copy (the
+// target's power does not restart when the probe is reopened).
 
 #include "jlink_abi.h"
 
@@ -162,7 +178,29 @@ struct RttScenario {
     std::int64_t acceptWritesAfterMs = 0;
     std::int64_t acceptEachWriteAfterMs = 0;
     std::vector<Range> readErrors;
+    std::optional<std::uint32_t> blockAddress;
+    bool autoSearch = true;
 };
+
+// A RAM or peripheral region (M6), zero-initialised.
+struct RamRegion {
+    std::uint32_t address = 0;
+    std::vector<std::uint8_t> bytes;
+};
+
+struct RegisterSpec {
+    std::string name;
+    std::uint32_t value = 0;
+};
+
+struct ZoneSpec {
+    std::string name;
+    std::string description;
+    std::uint64_t virtualAddress = 0;
+};
+
+// Bound of the simulated RAM of one chip (scenario sizes beyond it are cut).
+constexpr std::size_t maxRamBytes = 16ULL * 1024 * 1024;
 
 struct ChipScenario {
     bool nrf91 = false;
@@ -178,9 +216,58 @@ struct ChipScenario {
     std::int64_t readDelayMs = 0;
     std::vector<std::uint8_t> flash = std::vector<std::uint8_t>(0x100000, 0xFF);
     std::vector<std::uint8_t> uicr = std::vector<std::uint8_t>(0x1000, 0xFF);
+    std::vector<RamRegion> ram;
+    std::vector<RegisterSpec> registers;
+    std::vector<ZoneSpec> zones;
+    std::uint32_t coreId = 0x2BA01477U;
+    bool startHalted = false; // "halted": the CPU state after a boot (review Q10)
+    // The FICR page (read-only), filled from part / variant by fillFicr().
+    std::vector<std::uint8_t> ficr = std::vector<std::uint8_t>(0x1000, 0xFF);
 
     [[nodiscard]] std::uint32_t uicrBase() const { return nrf91 ? 0x00FF8000U : 0x10001000U; }
     [[nodiscard]] std::uint32_t ficrPart() const { return nrf91 ? 0x00FF0140U : 0x10000100U; }
+    [[nodiscard]] std::uint32_t ficrBase() const { return nrf91 ? 0x00FF0000U : 0x10000000U; }
+
+    // INFO.PART and INFO.VARIANT (little-endian) in the FICR page.
+    void fillFicr() {
+        const auto store = [this](std::uint32_t address, std::uint32_t value) {
+            for (std::uint32_t b = 0; b < 4; ++b) {
+                ficr.at(address - ficrBase() + b) =
+                    static_cast<std::uint8_t>((value >> (8U * b)) & 0xFFU);
+            }
+        };
+        store(ficrPart(), part);
+        store(ficrPart() + 4, variant);
+    }
+
+    // The FICR byte at `address`, or nullptr outside the FICR page.
+    [[nodiscard]] std::uint8_t* ficrAt(std::uint64_t address) {
+        if (address >= ficrBase() && address < ficrBase() + ficr.size()) {
+            return &ficr.at(static_cast<std::size_t>(address - ficrBase()));
+        }
+        return nullptr;
+    }
+
+    // The RAM / peripheral byte at `address`, or nullptr outside the "ram" regions.
+    [[nodiscard]] std::uint8_t* ramAt(std::uint64_t address) {
+        for (RamRegion& region : ram) {
+            if (address >= region.address && address < region.address + region.bytes.size()) {
+                return &region.bytes.at(static_cast<std::size_t>(address - region.address));
+            }
+        }
+        return nullptr;
+    }
+
+    // Any readable byte: flash, UICR, FICR or RAM; nullptr = unmapped.
+    [[nodiscard]] std::uint8_t* readableAt(std::uint64_t address) {
+        if (std::uint8_t* byte = at(address); byte != nullptr) {
+            return byte;
+        }
+        if (std::uint8_t* byte = ficrAt(address); byte != nullptr) {
+            return byte;
+        }
+        return ramAt(address);
+    }
     [[nodiscard]] std::uint32_t ctrlAp() const { return nrf91 ? 4U : 1U; }
 
     // The byte at `address`, or nullopt outside flash and UICR.
@@ -282,6 +369,11 @@ RttScenario readRtt(const QJsonObject& object) {
     rtt.acceptWritesAfterMs = object.value(QStringLiteral("acceptWritesAfterMs")).toInteger();
     rtt.acceptEachWriteAfterMs = object.value(QStringLiteral("acceptEachWriteAfterMs")).toInteger();
     rtt.readErrors = readRanges(object.value(QStringLiteral("readErrors")));
+    if (object.contains(QStringLiteral("blockAddress"))) {
+        rtt.blockAddress =
+            static_cast<std::uint32_t>(object.value(QStringLiteral("blockAddress")).toInteger());
+    }
+    rtt.autoSearch = object.value(QStringLiteral("autoSearch")).toBool(true);
     return rtt;
 }
 
@@ -306,6 +398,35 @@ ChipScenario readChip(const QJsonObject& object) {
     chip.downloadDelayMs = object.value(QStringLiteral("downloadDelayMs")).toInteger();
     chip.absentApsReadZero = object.value(QStringLiteral("absentApsReadZero")).toBool();
     chip.readDelayMs = object.value(QStringLiteral("readDelayMs")).toInteger();
+    std::size_t ramBytes = 0;
+    for (const QJsonValue item : object.value(QStringLiteral("ram")).toArray()) {
+        const QJsonObject region = item.toObject();
+        const auto size = std::min<std::size_t>(
+            static_cast<std::size_t>(region.value(QStringLiteral("size")).toInteger()),
+            maxRamBytes - ramBytes);
+        ramBytes += size;
+        chip.ram.push_back(RamRegion{.address = static_cast<std::uint32_t>(
+                                         region.value(QStringLiteral("address")).toInteger()),
+                                     .bytes = std::vector<std::uint8_t>(size, 0)});
+    }
+    for (const QJsonValue item : object.value(QStringLiteral("registers")).toArray()) {
+        const QJsonObject reg = item.toObject();
+        chip.registers.push_back(RegisterSpec{
+            .name = reg.value(QStringLiteral("name")).toString().toStdString(),
+            .value = static_cast<std::uint32_t>(reg.value(QStringLiteral("value")).toInteger())});
+    }
+    for (const QJsonValue item : object.value(QStringLiteral("zones")).toArray()) {
+        const QJsonObject zone = item.toObject();
+        chip.zones.push_back(ZoneSpec{
+            .name = zone.value(QStringLiteral("name")).toString().toStdString(),
+            .description = zone.value(QStringLiteral("description")).toString().toStdString(),
+            .virtualAddress = static_cast<std::uint64_t>(
+                zone.value(QStringLiteral("virtualAddress")).toInteger())});
+    }
+    chip.coreId =
+        static_cast<std::uint32_t>(object.value(QStringLiteral("coreId")).toInteger(chip.coreId));
+    chip.startHalted = object.value(QStringLiteral("halted")).toBool();
+    chip.fillFicr();
     for (const QJsonValue item : object.value(QStringLiteral("memory")).toArray()) {
         const QJsonObject block = item.toObject();
         const auto address =
@@ -398,6 +519,8 @@ struct State {
     bool open = false;
     bool connected = false;
     bool rttStarted = false;
+    std::optional<std::uint32_t> rttStartAddress; // ConfigBlockAddress of the last RTT START
+    bool halted = false;                          // M6: the CPU state
     bool everOpened = false;
     int connectCalls = 0;
     Clock::time_point openedAt;
@@ -470,6 +593,8 @@ struct State {
         delayedReplies.clear();
         writtenLine.clear();
         rttStarted = false;
+        const ProbeScenario* p = probe();
+        halted = p != nullptr && p->chip.startHalted; // review Q10: "halted"
     }
 
     static void report(abi::LogHandler handler, const std::string& text) {
@@ -537,7 +662,15 @@ struct State {
 
     [[nodiscard]] bool controlBlockFound() {
         const ProbeScenario* p = probe();
-        return p != nullptr && rttStarted && sinceBoot() >= p->rtt.foundAfterMs;
+        if (p == nullptr || !rttStarted || sinceBoot() < p->rtt.foundAfterMs) {
+            return false;
+        }
+        // M6: an RTT START with an address finds the block only at that address; without auto
+        // search the address is required.
+        if (rttStartAddress && p->rtt.blockAddress) {
+            return *rttStartAddress == *p->rtt.blockAddress;
+        }
+        return p->rtt.autoSearch || rttStartAddress.has_value();
     }
 
     // Registered buffers in one direction (registered in order, like firmware does at boot).
@@ -803,16 +936,25 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_Reset() {
         return -1;
     }
     s.boot();
+    s.halted = true; // the IJLinkApi contract: halted after a reset
     return 0;
 }
 
 HIO_FAKE_JLINK_EXPORT char JLINKARM_Halt() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
-    return s.connected ? 0 : 1;
+    if (!s.connected) {
+        return 1;
+    }
+    s.halted = true;
+    return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_Go() {}
+HIO_FAKE_JLINK_EXPORT void JLINKARM_Go() {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    s.halted = false;
+}
 
 HIO_FAKE_JLINK_EXPORT void JLINKARM_EnableLog(abi::LogHandler handler) {
     State& s = state();
@@ -843,6 +985,10 @@ HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_RTTERMINAL_Control(std::uint32
     switch (command) {
     case abi::rttCmdStart:
         s.rttStarted = true;
+        s.rttStartAddress.reset();
+        if (config != nullptr) {
+            s.rttStartAddress = static_cast<const abi::RttStart*>(config)->configBlockAddress;
+        }
         return 0;
     case abi::rttCmdStop:
         s.rttStarted = false;
@@ -982,10 +1128,22 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_WriteMem(std::uint32_t address, std::uint32_t
                                             const void* data) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
-    if (!s.connected || data == nullptr || !s.downloading) {
+    ProbeScenario* probe = s.probe();
+    if (!s.connected || data == nullptr || probe == nullptr) {
         return -1;
     }
     const auto bytes = std::span(static_cast<const std::uint8_t*>(data), count);
+    if (!s.downloading) { // M6: a direct write, RAM / peripherals only
+        for (std::uint32_t i = 0; i < count; ++i) {
+            std::uint8_t* byte = probe->chip.ramAt(std::uint64_t{address} + i);
+            if (byte == nullptr) {
+                State::report(s.errorHandler, "WriteMem: address not writable");
+                return -1;
+            }
+            *byte = bytes[i];
+        }
+        return static_cast<int>(count);
+    }
     s.downloadData.emplace_back(address, std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
     return static_cast<int>(count);
 }
@@ -1025,7 +1183,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_EndDownload() {
 }
 
 HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemEx(std::uint32_t address, std::uint32_t count, void* data,
-                                             std::uint32_t /*flags*/) {
+                                             std::uint32_t access) {
     chipDelay(&ChipScenario::readDelayMs);
     State& s = state();
     const std::scoped_lock lock(s.mutex);
@@ -1033,9 +1191,14 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemEx(std::uint32_t address, std::uint32_
     if (!s.connected || probe == nullptr || data == nullptr || probe->chip.protectedChip) {
         return -1;
     }
+    // M6: access width 0 (any) or 1 / 2 / 4 bytes per unit; units must be aligned.
+    if ((access != 0 && access != 1 && access != 2 && access != 4) ||
+        (access > 1 && (address % access != 0 || count % access != 0))) {
+        return -1;
+    }
     const auto out = std::span(static_cast<std::uint8_t*>(data), count);
     for (std::uint32_t i = 0; i < count; ++i) {
-        const std::uint8_t* byte = probe->chip.at(std::uint64_t{address} + i);
+        const std::uint8_t* byte = probe->chip.readableAt(std::uint64_t{address} + i);
         if (byte == nullptr) {
             return -1;
         }
@@ -1051,25 +1214,41 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemU32(std::uint32_t address, std::uint32
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
-    if (!s.connected || probe == nullptr || data == nullptr || count != 1 ||
-        probe->chip.protectedChip) {
+    if (!s.connected || probe == nullptr || data == nullptr || count == 0 ||
+        probe->chip.protectedChip || address % 4 != 0) {
         return -1;
     }
-    const ChipScenario& chip = probe->chip;
-    std::optional<std::uint32_t> value;
-    if (address == chip.ficrPart()) {
-        value = chip.part;
-    } else if (address == chip.ficrPart() + 4) {
-        value = chip.variant;
+    ChipScenario& chip = probe->chip;
+    const auto out = std::span(data, count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        const std::uint32_t at = address + (i * 4);
+        std::optional<std::uint32_t> value;
+        if (at == chip.ficrPart()) {
+            value = chip.part;
+        } else if (at == chip.ficrPart() + 4) {
+            value = chip.variant;
+        } else {
+            // M6: memory units (little-endian) of flash, UICR and RAM; anything else (e.g. the
+            // FICR of the other family) is unmapped.
+            std::uint32_t word = 0;
+            for (std::uint32_t b = 0; b < 4; ++b) {
+                const std::uint8_t* byte = chip.readableAt(std::uint64_t{at} + b);
+                if (byte == nullptr) {
+                    return -1;
+                }
+                word |= std::uint32_t{*byte} << (8U * b);
+            }
+            value = word;
+        }
+        if (!value) {
+            return -1; // unmapped (e.g. the FICR address of the other family)
+        }
+        out[i] = *value;
+        if (status != nullptr) {
+            std::span(status, count)[i] = 0;
+        }
     }
-    if (!value) {
-        return -1; // unmapped (e.g. the FICR address of the other family)
-    }
-    *data = *value;
-    if (status != nullptr) {
-        *status = 0;
-    }
-    return 1;
+    return static_cast<int>(count);
 }
 
 HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_EraseChip() {
@@ -1178,5 +1357,132 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_WriteAPDPReg(std::uint8_t index, st
     }
     return 0;
 }
+
+// ---- M6: optional target functions (ADR-0151; left out of hio_fake_jlink_basic)
+// ------------------
+
+#ifndef HIO_FAKE_JLINK_BASIC
+
+HIO_FAKE_JLINK_EXPORT signed char JLINKARM_IsHalted() {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    if (!s.connected) {
+        return -1;
+    }
+    return s.halted ? 1 : 0;
+}
+
+HIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_GetId() {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    const ProbeScenario* probe = s.probe();
+    return s.connected && probe != nullptr ? probe->chip.coreId : 0;
+}
+
+namespace {
+
+// JLINKARM_WriteU16 / WriteU32: RAM / peripherals only, little-endian.
+int writeUnit(std::uint32_t address, std::uint32_t value, std::uint32_t size) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    ProbeScenario* probe = s.probe();
+    if (!s.connected || probe == nullptr || address % size != 0) {
+        return -1;
+    }
+    for (std::uint32_t b = 0; b < size; ++b) {
+        if (probe->chip.ramAt(std::uint64_t{address} + b) == nullptr) {
+            State::report(s.errorHandler, "WriteU: address not writable");
+            return -1;
+        }
+    }
+    for (std::uint32_t b = 0; b < size; ++b) {
+        *probe->chip.ramAt(std::uint64_t{address} + b) =
+            static_cast<std::uint8_t>((value >> (8U * b)) & 0xFFU);
+    }
+    return 0;
+}
+
+} // namespace
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_WriteU16(std::uint32_t address, std::uint16_t value) {
+    return writeUnit(address, value, 2);
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_WriteU32(std::uint32_t address, std::uint32_t value) {
+    return writeUnit(address, value, 4);
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_GetRegisterList(std::uint32_t* list, int maxItems) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    const ProbeScenario* probe = s.probe();
+    if (!s.connected || probe == nullptr || list == nullptr || maxItems < 0) {
+        return -1;
+    }
+    const std::size_t count =
+        std::min(probe->chip.registers.size(), static_cast<std::size_t>(maxItems));
+    const auto out = std::span(list, count);
+    for (std::size_t i = 0; i < count; ++i) {
+        out[i] = static_cast<std::uint32_t>(i);
+    }
+    return static_cast<int>(count);
+}
+
+HIO_FAKE_JLINK_EXPORT const char* JLINKARM_GetRegisterName(std::uint32_t index) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    const ProbeScenario* probe = s.probe();
+    if (probe == nullptr || index >= probe->chip.registers.size()) {
+        return nullptr;
+    }
+    return probe->chip.registers.at(index).name.c_str(); // lives as long as the scenario
+}
+
+HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadRegs(const std::uint32_t* indexes, std::uint32_t* values,
+                                            std::uint8_t* statuses, std::uint32_t count) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    const ProbeScenario* probe = s.probe();
+    if (!s.connected || probe == nullptr || indexes == nullptr || values == nullptr) {
+        return -1;
+    }
+    const auto in = std::span(indexes, count);
+    const auto out = std::span(values, count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        if (in[i] >= probe->chip.registers.size()) {
+            return -1;
+        }
+        out[i] = probe->chip.registers.at(in[i]).value;
+        if (statuses != nullptr) {
+            std::span(statuses, count)[i] = 0;
+        }
+    }
+    return 0;
+}
+
+HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_GetMemZones(abi::MemZoneInfo* zones,
+                                                              int maxZones) {
+    State& s = state();
+    const std::scoped_lock lock(s.mutex);
+    const ProbeScenario* probe = s.probe();
+    if (!s.connected || probe == nullptr) {
+        return -1;
+    }
+    const auto& specs = probe->chip.zones;
+    if (zones == nullptr || maxZones <= 0) {
+        return static_cast<int>(specs.size());
+    }
+    const std::size_t count = std::min(specs.size(), static_cast<std::size_t>(maxZones));
+    const auto out = std::span(zones, count);
+    for (std::size_t i = 0; i < count; ++i) {
+        out[i] = abi::MemZoneInfo{.name = specs[i].name.c_str(),
+                                  .description = specs[i].description.c_str(),
+                                  .virtualAddress = specs[i].virtualAddress,
+                                  .reserved = {}};
+    }
+    return static_cast<int>(count);
+}
+
+#endif // HIO_FAKE_JLINK_BASIC
 
 } // extern "C"

@@ -58,5 +58,9 @@ private:
 // Drops trailing '\r's, then keeps the text after the last '\r' (review fix 8, 2026-10-09).
 [[nodiscard]] std::string applyCarriageReturns(std::string_view bytes);
 [[nodiscard]] LogLevel parseZephyrLevel(std::string_view text);
+// True when `partial` (raw bytes of the incomplete line, LineAssembler::partial()) is the shell
+// prompt: ANSI CSI sequences and carriage-return redraws removed, it equals `prompt` (ADR-0082;
+// M6: also the RTT prompt, ADR-0104). An empty prompt or partial line is never a prompt.
+[[nodiscard]] bool isPrompt(std::string_view partial, std::string_view prompt);
 
 } // namespace hio::device

@@ -1,0 +1,514 @@
+{
+    "description": "Modern HTTP header validation (-32020 HeaderMismatch, 400) and the forbidden Mcp-Session-Id.",
+    "steps": [
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32020,
+                        "message": "Header mismatch: MCP-Protocol-Version header is missing"
+                    },
+                    "id": 1,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "Mcp-Method": "tools/list"
+            },
+            "send": {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32020,
+                        "message": "Header mismatch: MCP-Protocol-Version header does not match the body"
+                    },
+                    "id": 2,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2025-11-25",
+                "Mcp-Method": "tools/list"
+            },
+            "send": {
+                "id": 2,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32020,
+                        "message": "Header mismatch: Mcp-Method header is missing"
+                    },
+                    "id": 3,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28"
+            },
+            "send": {
+                "id": 3,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32020,
+                        "message": "Header mismatch: Mcp-Method header does not match the body"
+                    },
+                    "id": 4,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "prompts/list"
+            },
+            "send": {
+                "id": 4,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32020,
+                        "message": "Header mismatch: Mcp-Name header is missing"
+                    },
+                    "id": 5,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "tools/call"
+            },
+            "send": {
+                "id": 5,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "text": "a"
+                    },
+                    "name": "echo"
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32020,
+                        "message": "Header mismatch: Mcp-Name header does not match the body"
+                    },
+                    "id": 6,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "tools/call",
+                "Mcp-Name": "address"
+            },
+            "send": {
+                "id": 6,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "text": "a"
+                    },
+                    "name": "echo"
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "id": 7,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "content": [
+                            {
+                                "text": "{\"count\":1,\"text\":\"a\"}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "resultType": "complete",
+                        "structuredContent": {
+                            "count": 1,
+                            "text": "a"
+                        }
+                    }
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "tools/call",
+                "Mcp-Name": "=?base64?ZWNobw==?="
+            },
+            "send": {
+                "id": 7,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "text": "a"
+                    },
+                    "name": "echo"
+                }
+            },
+            "status": "ok",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32020,
+                        "message": "Header mismatch: Mcp-Name header has invalid characters"
+                    },
+                    "id": 8,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "tools/call",
+                "Mcp-Name": "=?base64?!!!?="
+            },
+            "send": {
+                "id": 8,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "text": "a"
+                    },
+                    "name": "echo"
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "id": 9,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "cacheScope": "private",
+                        "contents": [
+                            {
+                                "mimeType": "text/plain",
+                                "text": "hello",
+                                "uri": "test://static"
+                            }
+                        ],
+                        "resultType": "complete",
+                        "ttlMs": 0
+                    }
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "resources/read",
+                "Mcp-Name": "test://static"
+            },
+            "send": {
+                "id": 9,
+                "jsonrpc": "2.0",
+                "method": "resources/read",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "uri": "test://static"
+                }
+            },
+            "status": "ok",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32600,
+                        "message": "A 2026-07-28 request must not carry Mcp-Session-Id"
+                    },
+                    "id": 10,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "tools/list",
+                "Mcp-Session-Id": "abc"
+            },
+            "send": {
+                "id": 10,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "accept": "json",
+            "expect": [
+                {
+                    "id": 11,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "content": [
+                            {
+                                "text": "{\"count\":1,\"text\":\"a\"}",
+                                "type": "text"
+                            }
+                        ],
+                        "isError": false,
+                        "resultType": "complete",
+                        "structuredContent": {
+                            "count": 1,
+                            "text": "a"
+                        }
+                    }
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "tools/call",
+                "Mcp-Name": "echo"
+            },
+            "send": {
+                "id": 11,
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "arguments": {
+                        "text": "a"
+                    },
+                    "name": "echo"
+                }
+            },
+            "status": "ok",
+            "transport": "http"
+        },
+        {
+            "expect": [
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28"
+            },
+            "send": {
+                "jsonrpc": "2.0",
+                "method": "notifications/cancelled",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "requestId": 1
+                }
+            },
+            "status": "accepted",
+            "transport": "http"
+        },
+        {
+            "accept": "json",
+            "expect": [
+                {
+                    "error": {
+                        "code": -32600,
+                        "message": "subscriptions/listen needs a stream (Accept: text/event-stream)"
+                    },
+                    "id": 12,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "subscriptions/listen"
+            },
+            "send": {
+                "id": 12,
+                "jsonrpc": "2.0",
+                "method": "subscriptions/listen",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    },
+                    "notifications": {
+                        "resourcesListChanged": true
+                    }
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        }
+    ]
+}

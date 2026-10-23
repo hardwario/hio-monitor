@@ -1,0 +1,8 @@
+EGET /mcp HTTP/1.1
+Host: localhost:47800
+Accept: text/event-stream
+Mcp-Session-Id: abc
+
+DELETE /mcp HTTP/1.1
+Host: localhost:47800
+

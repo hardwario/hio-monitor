@@ -1,0 +1,392 @@
+{
+    "description": "Modern version handling: unsupported versions -> -32022 with the supported list, missing _meta fields -> -32602.",
+    "steps": [
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32022,
+                        "data": {
+                            "requested": "1900-01-01",
+                            "supported": [
+                                "2026-07-28",
+                                "2025-11-25"
+                            ]
+                        },
+                        "message": "Unsupported protocol version"
+                    },
+                    "id": 1,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "1900-01-01"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32022,
+                        "data": {
+                            "requested": "2025-11-25",
+                            "supported": [
+                                "2026-07-28",
+                                "2025-11-25"
+                            ]
+                        },
+                        "message": "Unsupported protocol version"
+                    },
+                    "id": 2,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 2,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2025-11-25"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/_meta/io.modelcontextprotocol~1protocolVersion"
+                        },
+                        "message": "Invalid params: _meta io.modelcontextprotocol/protocolVersion is missing or invalid"
+                    },
+                    "id": 3,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 3,
+                "jsonrpc": "2.0",
+                "method": "tools/list"
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/_meta/io.modelcontextprotocol~1protocolVersion"
+                        },
+                        "message": "Invalid params: _meta io.modelcontextprotocol/protocolVersion is missing or invalid"
+                    },
+                    "id": 4,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 4,
+                "jsonrpc": "2.0",
+                "method": "server/discover"
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/_meta/io.modelcontextprotocol~1clientCapabilities"
+                        },
+                        "message": "Invalid params: _meta io.modelcontextprotocol/clientCapabilities is missing or invalid"
+                    },
+                    "id": 5,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "send": {
+                "id": 5,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "id": 6,
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "_meta": {
+                            "io.modelcontextprotocol/serverInfo": {
+                                "name": "hio-monitor",
+                                "version": "test"
+                            }
+                        },
+                        "cacheScope": "private",
+                        "resultType": "complete",
+                        "tools": [
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": true,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": true
+                                },
+                                "description": "Returns the text.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "count": {
+                                            "default": 1,
+                                            "maximum": 10,
+                                            "minimum": 1,
+                                            "type": "integer"
+                                        },
+                                        "text": {
+                                            "description": "Text.",
+                                            "maxLength": 100,
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "text"
+                                    ],
+                                    "type": "object"
+                                },
+                                "name": "echo",
+                                "outputSchema": {
+                                    "type": "object"
+                                },
+                                "title": "Echo"
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Parses an address.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "address": {
+                                            "pattern": "^(0x[0-9a-fA-F]{1,8}|[0-9]{1,10})$",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "address"
+                                    ],
+                                    "type": "object"
+                                },
+                                "name": "address",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Finishes later.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "step_ms": {
+                                            "default": 50,
+                                            "maximum": 10000,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                        },
+                                        "steps": {
+                                            "default": 0,
+                                            "maximum": 1000,
+                                            "minimum": 0,
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "slow",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Fails.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "fail",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": true,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Pretends to flash.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "flash_fake",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            },
+                            {
+                                "annotations": {
+                                    "destructiveHint": false,
+                                    "idempotentHint": false,
+                                    "openWorldHint": false,
+                                    "readOnlyHint": false
+                                },
+                                "description": "Forgets to ask.",
+                                "inputSchema": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                    },
+                                    "type": "object"
+                                },
+                                "name": "no_consent",
+                                "outputSchema": {
+                                    "type": "object"
+                                }
+                            }
+                        ],
+                        "ttlMs": 3600000
+                    }
+                }
+            ],
+            "send": {
+                "id": 6,
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28"
+                    }
+                }
+            }
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32022,
+                        "data": {
+                            "requested": "1900-01-01",
+                            "supported": [
+                                "2026-07-28",
+                                "2025-11-25"
+                            ]
+                        },
+                        "message": "Unsupported protocol version"
+                    },
+                    "id": 7,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "1900-01-01",
+                "Mcp-Method": "server/discover"
+            },
+            "send": {
+                "id": 7,
+                "jsonrpc": "2.0",
+                "method": "server/discover",
+                "params": {
+                    "_meta": {
+                        "io.modelcontextprotocol/clientCapabilities": {
+                        },
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "golden",
+                            "version": "1"
+                        },
+                        "io.modelcontextprotocol/protocolVersion": "1900-01-01"
+                    }
+                }
+            },
+            "status": "bad_request",
+            "transport": "http"
+        },
+        {
+            "expect": [
+                {
+                    "error": {
+                        "code": -32602,
+                        "data": {
+                            "pointer": "/_meta/io.modelcontextprotocol~1protocolVersion"
+                        },
+                        "message": "Invalid params: _meta io.modelcontextprotocol/protocolVersion is missing or invalid"
+                    },
+                    "id": 8,
+                    "jsonrpc": "2.0"
+                }
+            ],
+            "headers": {
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "tools/list"
+            },
+            "send": {
+                "id": 8,
+                "jsonrpc": "2.0",
+                "method": "tools/list"
+            },
+            "status": "bad_request",
+            "transport": "http"
+        }
+    ]
+}

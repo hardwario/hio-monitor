@@ -24,6 +24,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -34,6 +35,7 @@
 #include <thread>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace hio::device {
 
@@ -53,6 +55,12 @@ struct ResumeCommand {};
 struct StartConnectionCommand {
     bool attachRtt = true;
 };
+// M6 (plan/features/0013): DeviceSession::releaseProbe() / reacquireProbe() / setRttAddress().
+struct DetachProbeCommand {};
+struct ReattachProbeCommand {};
+struct SetRttAddressCommand {
+    std::optional<std::uint32_t> address;
+};
 
 // One session operation (plan/features/0003, ADR-0057, ADR-0062). The images are immutable and
 // shared with the owner thread; `stop` is the operation's cancel token (DeviceSession::cancel).
@@ -68,13 +76,16 @@ struct OperationCommand {
     std::optional<nrfutil::LocatorOptions> nrfUtil;
     FlashOptions flash;
     ResetMode reset = ResetMode::Go;
-    std::uint32_t address = 0; // ReadMemory
-    std::size_t size = 0;
+    std::uint32_t address = 0;              // ReadMemory, WriteMemory
+    std::size_t size = 0;                   // ReadMemory
+    AccessWidth width = AccessWidth::Bits8; // ReadMemory, WriteMemory (M6)
+    std::vector<std::byte> data;            // WriteMemory (M6; WriteFlash uses `image`)
     std::stop_token stop;
 };
 
 using Command = std::variant<SendLineCommand, ReconnectCommand, SuspendCommand, ResumeCommand,
-                             OperationCommand, StartConnectionCommand>;
+                             OperationCommand, StartConnectionCommand, DetachProbeCommand,
+                             ReattachProbeCommand, SetRttAddressCommand>;
 
 // ---- events (worker -> owner thread) ----------------------------------------------------------
 
@@ -102,9 +113,10 @@ struct DiagnoseStepEvent {
     DiagnoseStep step;
 };
 
+// M6 (ADR-0104): hio::device::PromptSeen, the RTT shell prompt after output.
 using WorkerEvent =
     std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified, ConsoleFileChanged,
-                 OperationProgressEvent, OperationFinishedEvent, DiagnoseStepEvent>;
+                 OperationProgressEvent, OperationFinishedEvent, DiagnoseStepEvent, PromptSeen>;
 
 // The events the event queue may drop when it is full: shell and log output (Direction::Out).
 // Echoes of written commands (Direction::In) are kept, so a caller that counts the written lines
@@ -147,6 +159,8 @@ struct WorkerConfig {
     bool attachRtt = true;
     bool connectTarget = true;                    // M4: false = probe-only session (ADR-0069)
     std::optional<ConsoleFileConfig> consoleFile; // nullopt = no console file
+    // M6: SessionOptions::rttAddress; changed by SetRttAddressCommand (sticky).
+    std::optional<std::uint32_t> rttAddress;
     std::filesystem::path lockDirectory;
     // The nRF Util locator snapshot of open() (SessionOptions::nrfUtil or the defaults), used by a
     // modem step whose command carries no options (ADR-0114).

@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <span>
+#include <stop_token>
 #include <string_view>
 
 namespace hio::firmware {
@@ -24,12 +25,17 @@ inline constexpr std::uint64_t maxHexFileBytes = 64ULL * 1024 * 1024;   // input
 inline constexpr std::uint64_t maxImageDataBytes = 16ULL * 1024 * 1024; // decoded data
 inline constexpr std::uint64_t maxHexLines = 1024ULL * 1024;            // lines of the file
 
-// `sourceName` (a file name or "catalog <id>") is only used in `detail`.
+// `sourceName` (a file name or "catalog <id>") is only used in `detail`. `stop` is checked before
+// every line (review F2: an offloaded parse ends soon after its call was cancelled); a requested
+// stop gives `cancelled`.
 [[nodiscard]] Result<FirmwareImage> parseIntelHex(std::span<const std::byte> text,
-                                                  std::string_view sourceName);
+                                                  std::string_view sourceName,
+                                                  const std::stop_token& stop = {});
 
 // Reads (at most maxHexFileBytes) and parses a HEX file. Errors: io.file_not_found,
-// io.read_failed, firmware.invalid_image (larger than maxHexFileBytes), those of parseIntelHex().
-[[nodiscard]] Result<FirmwareImage> readIntelHexFile(const std::filesystem::path& path);
+// io.read_failed, firmware.invalid_image (larger than maxHexFileBytes), those of parseIntelHex()
+// (`cancelled` when `stop` is requested).
+[[nodiscard]] Result<FirmwareImage> readIntelHexFile(const std::filesystem::path& path,
+                                                     const std::stop_token& stop = {});
 
 } // namespace hio::firmware

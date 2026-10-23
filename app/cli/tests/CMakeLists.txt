@@ -13,7 +13,11 @@ add_executable(hio_cli_tests
     flash_e2e_test.cpp
     jlink_e2e_test.cpp
     main.cpp
+    mcp_command_test.cpp
+    mcp_e2e_test.cpp
     output_test.cpp
+    target_commands_test.cpp
+    target_e2e_test.cpp
     terminal_test.cpp)
 # `hio ble` end-to-end tests need the fake BLE backend (ADR-0127).
 if(HIO_TEST_OVERRIDES)
@@ -27,9 +31,10 @@ target_include_directories(hio_cli_tests PRIVATE "${PROJECT_SOURCE_DIR}/libs/fir
 target_compile_definitions(hio_cli_tests PRIVATE
     "HIO_CLI_EXECUTABLE=\"$<TARGET_FILE:hio>\""
     "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\""
+    "HIO_FAKE_JLINK_BASIC_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink_basic>\""
     "HIO_FAKE_NRFUTIL=\"$<TARGET_FILE:hio_fake_nrfutil>\""
     "HIO_BLE_SCENARIOS_DIR=\"${PROJECT_SOURCE_DIR}/tests/ble_scenarios\"")
-add_dependencies(hio_cli_tests hio hio_fake_jlink hio_fake_nrfutil)
+add_dependencies(hio_cli_tests hio hio_fake_jlink hio_fake_jlink_basic hio_fake_nrfutil)
 target_compile_definitions(hio_cli_tests PRIVATE ${HIO_TEST_OVERRIDES_DEFINE})
 
 # Under ThreadSanitizer the two catalog downloads are left out (QNetworkAccessManager's HTTP thread

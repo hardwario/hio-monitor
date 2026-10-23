@@ -8,7 +8,8 @@
 //     2026-10-09 12:34:56.789 @ text     connection change
 // (local time), with a header block naming the probe when the file is opened.
 //
-// Default mode: one file per session, <directory>/<profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log
+// Default mode: one file per session (in ConsoleFileConfig::consoleFileDir when set, ADR-0156),
+// <directory>/<profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log
 // for a J-Link session, <directory>/<profile>-ble-YYYYMMDD-HHMMSS-<sanitised id>.log for a BLE
 // session (ADR-0128; sanitisedBleId()) (UTC); at maxDefaultFileBytes the session continues in
 // <name>.part2.log, .part3.log, ...; at open and on every rotation the console files (*.log) in the
@@ -55,6 +56,11 @@ struct ConsoleFileConfig {
     std::string targetId; // J-Link file names; BLE names use "ble"
     // The probe and BLE locks consulted by the retention (review R45); empty = the default.
     std::filesystem::path lockDirectory;
+    // ADR-0156 (M6, `hio mcp --console-file-dir`): default mode in this directory instead of
+    // `directory`, with the same generated file name. The retention bounds apply there too, but
+    // only to files with a generated session file name, so other files of a user's directory are
+    // never deleted. Ignored for an explicit file.
+    std::optional<std::filesystem::path> consoleFileDir = std::nullopt;
 };
 
 class ConsoleFileSink {

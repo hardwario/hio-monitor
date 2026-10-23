@@ -1,6 +1,6 @@
 # ADR-0095 — MCP protocol revisions: 2025-11-25 and 2026-07-28 (dual-era server)
 
-- **Status:** Accepted
+- **Status:** Accepted (amended by ADR-0159: legacy `initialize` with an unknown version is answered with 2025-11-25)
 - **Date:** 2026-10-16
 - **Decided by:** Matej Strnad (M6 planning session)
 

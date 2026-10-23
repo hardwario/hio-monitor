@@ -20,6 +20,7 @@ add_executable(hio_device_tests
     profile_test.cpp
     scripted_api.h
     session_test_support.h
+    target_session_test.cpp
     workflow_test.cpp)
 # The fake BLE backend exists only with HIO_TEST_OVERRIDES (ADR-0127).
 if(HIO_TEST_OVERRIDES)
@@ -36,8 +37,9 @@ target_include_directories(hio_device_tests PRIVATE
 target_link_libraries(hio_device_tests PRIVATE hio::device GTest::gmock)
 target_compile_definitions(hio_device_tests PRIVATE
     "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\""
+    "HIO_FAKE_JLINK_BASIC_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink_basic>\""
     "HIO_BLE_SCENARIOS_DIR=\"${PROJECT_SOURCE_DIR}/tests/ble_scenarios\"")
-add_dependencies(hio_device_tests hio_fake_jlink)
+add_dependencies(hio_device_tests hio_fake_jlink hio_fake_jlink_basic)
 
 gtest_discover_tests(hio_device_tests
     DISCOVERY_TIMEOUT 60

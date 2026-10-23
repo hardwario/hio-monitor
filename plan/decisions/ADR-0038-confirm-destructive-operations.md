@@ -1,6 +1,6 @@
 # ADR-0038 — Confirmation for erase-all and recover
 
-- **Status:** Accepted (amends the py-hardwario compatibility principle of ADR-0017 for these commands)
+- **Status:** Accepted (amends the py-hardwario compatibility principle of ADR-0017 for these commands; amended by ADR-0153: `mem write` and `flash-write` ask too)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M2 planning session)
 

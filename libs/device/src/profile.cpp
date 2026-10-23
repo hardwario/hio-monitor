@@ -1,5 +1,7 @@
 #include "hio/device/profile.h"
 
+#include "hio/core/error.h"
+#include "hio/core/result.h"
 #include "hio/firmware/firmware_image.h"
 #include "profiles/profiles.h"
 
@@ -8,10 +10,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <expected>
+#include <format>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace hio::device {
 
@@ -89,6 +95,124 @@ QString passkeyHint(const DeviceProfile& profile) {
 firmware::AddressRange pibRange(const TargetProfile& target) noexcept {
     const std::uint64_t start = target.uicr.start + target.pibOffset;
     return firmware::AddressRange{.start = start, .end = start + pibSize};
+}
+
+namespace {
+
+// The end of the 32-bit address space (exclusive).
+constexpr std::uint64_t addressSpaceEnd = std::uint64_t{1} << 32U;
+
+std::string rangeText(const firmware::AddressRange& range) {
+    return std::format("0x{:08X}-0x{:08X}", range.start, range.end);
+}
+
+// The start of the Cortex-M Private Peripheral Bus: denied ranges from here on are system or
+// debug registers (ADR-0164), below it the flash controller (ADR-0160).
+constexpr std::uint64_t privatePeripheralBus = 0xE0000000;
+
+QString hexAddress(std::uint64_t address) {
+    return QStringLiteral("0x%1").arg(address, 8, 16, QLatin1Char('0'));
+}
+
+} // namespace
+
+Status checkMemoryRead(std::uint32_t address, std::size_t size) {
+    const firmware::AddressRange requested{.start = address, .end = std::uint64_t{address} + size};
+    if (requested.end <= addressSpaceEnd) {
+        return {};
+    }
+    Error error = makeError(ErrorCode::TargetAddressOutOfRange,
+                            std::format("requested {}; the address space ends at 0x{:X}",
+                                        rangeText(requested), addressSpaceEnd));
+    error.cause = QCoreApplication::translate("hio::device",
+                                              "The range runs past the end of the address space.")
+                      .toStdString();
+    error.suggestion =
+        QCoreApplication::translate("hio::device", "Use a shorter range or a lower address.")
+            .toStdString();
+    return std::unexpected(std::move(error));
+}
+
+Status checkMemoryWrite(const TargetProfile& target, std::uint32_t address, std::size_t size) {
+    const firmware::AddressRange requested{.start = address, .end = std::uint64_t{address} + size};
+    const auto denied =
+        std::ranges::find_if(target.writeDenied, [&](const firmware::AddressRange& range) {
+            return range.overlaps(requested);
+        });
+    if (denied != target.writeDenied.end()) {
+        Error error = makeError(
+            ErrorCode::TargetAddressOutOfRange,
+            std::format("requested {}; denied {}", rangeText(requested), rangeText(*denied)));
+        error.cause = denied->start >= privatePeripheralBus
+                          ? QCoreApplication::translate(
+                                "hio::device",
+                                "The range overlaps system or debug registers of the CPU, through "
+                                "which a write could make the device run arbitrary code.")
+                                .toStdString()
+                          : QCoreApplication::translate(
+                                "hio::device",
+                                "The range overlaps the flash controller registers, whose tasks "
+                                "erase flash, UICR and the product information.")
+                                .toStdString();
+        return std::unexpected(std::move(error));
+    }
+    const auto inside = [&](const firmware::AddressRange& range) {
+        return !range.empty() && range.contains(requested);
+    };
+    if (inside(target.ram) || std::ranges::any_of(target.peripherals, inside)) {
+        return {};
+    }
+    std::string allowed = target.ram.empty() ? std::string() : rangeText(target.ram);
+    for (const firmware::AddressRange& range : target.peripherals) {
+        if (!range.empty()) {
+            allowed += (allowed.empty() ? "" : ", ") + rangeText(range);
+        }
+    }
+    return std::unexpected(
+        makeError(ErrorCode::TargetAddressOutOfRange,
+                  std::format("requested {}; allowed {}", rangeText(requested), allowed)));
+}
+
+Status checkFlashWrite(const TargetProfile& target, std::uint32_t address, std::size_t size,
+                       bool allowUicr) {
+    const firmware::AddressRange range{.start = address, .end = std::uint64_t{address} + size};
+    const firmware::AddressRange pib = pibRange(target);
+    if (range.overlaps(pib)) {
+        Error error = makeError(ErrorCode::FirmwareOutOfRange,
+                                std::format("segment 0x{:08X}-0x{:08X} overlaps the PIB "
+                                            "0x{:08X}-0x{:08X}",
+                                            range.start, range.end, pib.start, pib.end));
+        error.message = QCoreApplication::translate(
+                            "hio::device",
+                            "The firmware writes into the Product Information Block (address %1).")
+                            .arg(hexAddress(std::max(range.start, pib.start)))
+                            .toStdString();
+        return std::unexpected(std::move(error));
+    }
+    if (!target.flash.contains(range) && !target.uicr.contains(range)) {
+        const std::uint64_t outside =
+            target.flash.contains(range.start) ? target.flash.end : range.start;
+        Error error = makeError(ErrorCode::FirmwareOutOfRange,
+                                std::format("segment 0x{:08X}-0x{:08X}; flash 0x{:08X}-0x{:08X}, "
+                                            "UICR 0x{:08X}-0x{:08X}",
+                                            range.start, range.end, target.flash.start,
+                                            target.flash.end, target.uicr.start, target.uicr.end));
+        error.message = QCoreApplication::translate(
+                            "hio::device", "The firmware does not fit the %1 MCU (address %2).")
+                            .arg(targetDisplayName(target), hexAddress(outside))
+                            .toStdString();
+        error.suggestion =
+            QCoreApplication::translate("hio::device", "Check that the firmware is for the %1 MCU.")
+                .arg(targetDisplayName(target))
+                .toStdString();
+        return std::unexpected(std::move(error));
+    }
+    if (!allowUicr && range.overlaps(target.uicr)) {
+        return std::unexpected(
+            makeError(ErrorCode::FirmwareUicrInImage,
+                      std::format("UICR 0x{:08X}-0x{:08X}", target.uicr.start, target.uicr.end)));
+    }
+    return {};
 }
 
 } // namespace hio::device

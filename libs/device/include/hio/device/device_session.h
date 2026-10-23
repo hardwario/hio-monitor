@@ -41,6 +41,11 @@
 // sessions opened with attachRtt = false. cancel() ends the operation with `cancelled` at its next
 // stop check (never inside an erase-all, a recover or one flash-loader download).
 //
+// M6 (plan/features/0013, ADR-0099, ADR-0157): halt, go, targetStatus, readMemory with a width,
+// writeMemory, readRegisters, memoryZones and writeFlash are operations too; the light ones keep
+// RTT attached on the console target. releaseProbe / reacquireProbe and a sticky RTT control
+// block address; the RTT shell prompt of the profile is reported as promptSeen (ADR-0104).
+//
 // M5 (ADR-0079, plan/features/0011): DeviceSession implements the transport-neutral ConsoleSession
 // (identity {JLink, "<sn>", "J-Link <sn>"}, all capabilities, consoleTargetId() = its target);
 // the J-Link operations, suspend/resume, probe(), diagnose and startConnection stay here.
@@ -80,6 +85,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 namespace hio::device {
 
@@ -123,6 +129,12 @@ struct SessionOptions {
     // ADR-0063: nullptr = the session creates its own log; a GUI tab passes one log for all its
     // sessions. Accessed on the owner thread only.
     std::shared_ptr<ConsoleLog> consoleLog;
+    // ADR-0156 (M6): the default console file goes into this directory (same generated name);
+    // an explicit consoleFile (or an empty path = none) wins. nullopt = the default directory.
+    std::optional<std::filesystem::path> consoleFileDir = std::nullopt;
+    // M6 (plan/features/0013): the RTT control block address passed to RTT start (rttt's
+    // --address); nullopt = the library searches for it. setRttAddress() changes it (sticky).
+    std::optional<std::uint32_t> rttAddress = std::nullopt;
 };
 
 // Option ranges checked by open() (usage.invalid_argument). The speed range is pylink's
@@ -180,9 +192,49 @@ public:
                                                   std::filesystem::path modemZip);
     // Replaces M1's reset(bool halt) (ADR-0062).
     [[nodiscard]] Result<OperationId> reset(std::string_view targetId, ResetMode mode);
-    // 1..maxReadMemoryBytes bytes.
+    // 1..maxReadMemoryBytes bytes; M6: `size` a multiple of the width, `address` aligned to it,
+    // any range that does not run past 0xFFFFFFFF (ADR-0160; target.address_out_of_range); an
+    // unmapped address fails in the worker with target.memory_access_failed. 16/32-bit units are
+    // returned little-endian in `data`.
     [[nodiscard]] Result<OperationId> readMemory(std::string_view targetId, std::uint32_t address,
-                                                 std::size_t size);
+                                                 std::size_t size,
+                                                 AccessWidth width = AccessWidth::Bits8);
+
+    // ---- low-level target operations (M6, plan/features/0013, ADR-0099) ----
+    // halt, go, targetStatus, readMemory, writeMemory, readRegisters and memoryZones are light
+    // operations (ADR-0157): on the console target RTT stays attached and the connection state
+    // does not change (a halted core keeps the console Connected); on another target they switch
+    // and restore like the M2 operations. The worker checks the family first (review R7).
+    // Review R20: on a console target whose RTT is not attached (Disconnected, Stopped,
+    // ProbeOpen) the reported state does not change either, and a probe that was closed before
+    // the operation is closed again after it.
+    // Missing optional J-Link functions: dependency.jlink_function_missing (ADR-0151).
+    // Result: targetStatus.halted = true / false. Review S7: halt on the console target stops
+    // auto-reconnect like reset(Halt) (the console stays Connected); go, reset(Go), reconnect()
+    // and resume() end that.
+    [[nodiscard]] Result<OperationId> halt(std::string_view targetId);
+    [[nodiscard]] Result<OperationId> go(std::string_view targetId);
+    // Result: targetStatus {halted, coreId, deviceName}; coreId is nullopt when the library lacks
+    // JLINKARM_GetId (review S6; JLINKARM_IsHalted is still required).
+    [[nodiscard]] Result<OperationId> targetStatus(std::string_view targetId);
+    // 1..maxWriteMemoryBytes bytes (units little-endian), a multiple of the width, aligned, inside
+    // the target's RAM or one peripheral range and not overlapping TargetProfile::writeDenied (the
+    // flash controller, ADR-0160; checked again by the worker). Errors (immediate):
+    // usage.invalid_argument, target.address_out_of_range (detail: requested and allowed ranges,
+    // or the denied range), and those above.
+    [[nodiscard]] Result<OperationId> writeMemory(std::string_view targetId, std::uint32_t address,
+                                                  std::vector<std::byte> data, AccessWidth width);
+    // Result: registers (<= maxRegisters). Worker error: target.not_halted.
+    [[nodiscard]] Result<OperationId> readRegisters(std::string_view targetId);
+    // Result: zones (<= maxMemoryZones; empty when the library reports none).
+    [[nodiscard]] Result<OperationId> memoryZones(std::string_view targetId);
+    // Raw bytes into flash (1..maxWriteFlashBytes): reset + halt, program (the flash loader keeps
+    // the untouched bytes of each sector), verify, reset (go), RTT re-attach (an M2-style
+    // operation; phases of flash). Errors (immediate, planImage of M2): firmware.out_of_range
+    // (outside flash and UICR, or touching the PIB), firmware.uicr_in_image (UICR without
+    // `allowUicr`), usage.invalid_argument.
+    [[nodiscard]] Result<OperationId> writeFlash(std::string_view targetId, std::uint32_t address,
+                                                 std::vector<std::byte> data, bool allowUicr);
     // M4 (ADR-0069): the live connection check of `targetId`: probe, power, connect, identify,
     // rtt, rtt-buffers. Each step is reported by diagnoseStep() as it finishes; the result's
     // `checks` holds all steps. Never resets, halts or writes the target. On the console target of
@@ -201,6 +253,24 @@ public:
     [[nodiscard]] Status cancel(OperationId id);
     // The running operation (nullopt when none).
     [[nodiscard]] std::optional<OperationId> runningOperation() const;
+    // M6: the kind of the running operation (nullopt when none), e.g. for internal.busy details.
+    [[nodiscard]] std::optional<OperationKind> runningOperationKind() const;
+
+    // ---- probe release (M6, plan/features/0013; rttt jlink_close / jlink_open) ----
+    // Queued like suspend(): stops RTT and closes the J-Link connection so that another program
+    // (J-Link Commander, west flash) can use the probe; the session reports Stopped. The
+    // ProbeLock and the registry slot stay held (the lock binds HARDWARIO programs only). While
+    // released (review R19), reconnect() and resume() reacquire the probe like reacquireProbe().
+    // Errors: internal.queue_full, cancelled (closed).
+    [[nodiscard]] Status releaseProbe();
+    // Queued: opens the J-Link again and connects (Connecting -> Connected / Disconnected). When
+    // the probe cannot be opened (taken by the other program) the session reports Stopped with
+    // probe.in_use_by_other_process. Without a prior releaseProbe() it is a no-op (review R19).
+    // Errors (immediate): internal.queue_full, cancelled.
+    [[nodiscard]] Status reacquireProbe();
+    // Queued: the RTT control block address for every later attach (sticky; nullopt = search),
+    // e.g. before reconnect(). Errors: internal.queue_full, cancelled.
+    [[nodiscard]] Status setRttAddress(std::optional<std::uint32_t> address);
     // The result of `id` when it is the last finished operation - also after close(), which takes
     // a result the worker delivered after a waiter gave up (review R13).
     [[nodiscard]] std::optional<OperationResult> finishedResult(OperationId id) const;

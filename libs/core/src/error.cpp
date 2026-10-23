@@ -121,6 +121,21 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::BleDisconnected:
     case ErrorCode::BleInUseByOtherProcess:
     case ErrorCode::BleNoPairingAgent:
+    case ErrorCode::McpPortInUse:
+    case ErrorCode::McpListenFailed:
+    case ErrorCode::McpTokenFile:
+    case ErrorCode::McpToolNotAllowed:
+    case ErrorCode::McpConsentDenied:
+    case ErrorCode::McpConsentTimeout:
+    case ErrorCode::McpDeviceAmbiguous:
+    case ErrorCode::McpDeviceNotOpen:
+    case ErrorCode::McpCapabilityMissing:
+    case ErrorCode::McpTooManyRequests:
+    case ErrorCode::TargetNotHalted:
+    case ErrorCode::TargetAddressOutOfRange:
+    case ErrorCode::TargetMemoryAccessFailed:
+    case ErrorCode::IoFileExists:
+    case ErrorCode::DependencyJLinkFunctionMissing:
         return true;
     }
     return false;
@@ -908,6 +923,178 @@ constexpr std::array defaultTexts{
             "`agent KeyboardOnly`, `default-agent`, `pair <id>`.",
             "ble.no_pairing_agent suggestion"),
         .wizard = WizardId::BlePairing,
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpPortInUse,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The MCP port is already in use.",
+                                      "mcp.port_in_use message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "Another HARDWARIO Monitor, `hio mcp --http` or another MCP "
+                                    "server (for example rttt) is listening on it.",
+                                    "mcp.port_in_use cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Stop the other server or choose another port with --port.",
+            "mcp.port_in_use suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpListenFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The MCP server could not start.",
+                                      "mcp.listen_failed message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The operating system refused to open the listening socket on 127.0.0.1.",
+            "mcp.listen_failed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Choose another port with --port.",
+                                         "mcp.listen_failed suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpTokenFile,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The MCP token file cannot be read or created.",
+                                      "mcp.token_file message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The file or its folder has the wrong permissions, or the file "
+                                    "does not contain a valid token.",
+                                    "mcp.token_file cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Check the file permissions, or delete the file to create a new token.",
+            "mcp.token_file suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpToolNotAllowed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "This MCP tool is not allowed by the server.",
+                                      "mcp.tool_not_allowed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "Destructive tools must be allowed when the server starts.",
+                                    "mcp.tool_not_allowed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Start the server with --allow and the tool's category, or with --allow all.",
+            "mcp.tool_not_allowed suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpConsentDenied,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The user did not allow this action.",
+                                      "mcp.consent_denied message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The user declined the permission request in HARDWARIO Monitor.",
+            "mcp.consent_denied cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Ask the user to allow it in HARDWARIO Monitor.",
+                               "mcp.consent_denied suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpConsentTimeout,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Nobody answered the permission request.",
+                                      "mcp.consent_timeout message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "The permission request in HARDWARIO Monitor was not answered within 2 minutes.",
+            "mcp.consent_timeout cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core",
+                                         "Ask the user to watch HARDWARIO Monitor and try again.",
+                                         "mcp.consent_timeout suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpDeviceAmbiguous,
+        .message = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Several devices are connected and the tool does not know which one to use.",
+            "mcp.device_ambiguous message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The device argument was left out while more than one device is open.",
+            "mcp.device_ambiguous cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Pass the device argument; list_devices shows the ids.",
+                               "mcp.device_ambiguous suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpDeviceNotOpen,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The device is not connected.",
+                                      "mcp.device_not_open message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "It was never connected, it was disconnected, or its tab was closed.",
+            "mcp.device_not_open cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Call connect first.",
+                                         "mcp.device_not_open suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpCapabilityMissing,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "This tool needs a J-Link connection.",
+                                      "mcp.capability_missing message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "The device is connected over Bluetooth, which provides only the console.",
+            "mcp.capability_missing cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Connect the device with a J-Link probe.",
+                                         "mcp.capability_missing suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::McpTooManyRequests,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Too many MCP requests are running.",
+                                      "mcp.too_many_requests message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The server runs at most 32 tool calls at the same time.",
+                                    "mcp.too_many_requests cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Wait for running calls to finish and try again.",
+                               "mcp.too_many_requests suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetNotHalted,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The CPU is running.", "target.not_halted message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "Registers can be read only while the core is halted.",
+                               "target.not_halted cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Halt the core first.", "target.not_halted suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetAddressOutOfRange,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The address range is not allowed for this operation.",
+                               "target.address_out_of_range message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "Memory writes are allowed only in the RAM and peripheral ranges of the target.",
+            "target.address_out_of_range cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Use an address inside the RAM or peripheral ranges of the target.",
+            "target.address_out_of_range suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::TargetMemoryAccessFailed,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Reading or writing target memory failed.",
+                                      "target.memory_access_failed message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The address is not mapped, or the core is in a fault state.",
+                                    "target.memory_access_failed cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Check the address and try again after a reset.",
+                               "target.memory_access_failed suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::IoFileExists,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "The output file already exists.",
+                                      "io.file_exists message"),
+        .cause =
+            QT_TRANSLATE_NOOP3("hio::core", "Existing files are never overwritten by this command.",
+                               "io.file_exists cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core", "Choose a new file name or delete the file first.",
+                               "io.file_exists suggestion"),
+    },
+    DefaultTexts{
+        .code = ErrorCode::DependencyJLinkFunctionMissing,
+        .message = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "The installed J-Link software does not provide a function this operation needs.",
+            "dependency.jlink_function_missing message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "The J-Link library is older than, or different from, the "
+                                    "versions HARDWARIO Monitor was tested with.",
+                                    "dependency.jlink_function_missing cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hio::core", "Install the latest J-Link Software and Documentation Pack.",
+            "dependency.jlink_function_missing suggestion"),
     },
 };
 
