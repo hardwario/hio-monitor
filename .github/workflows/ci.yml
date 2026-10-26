@@ -130,17 +130,29 @@ jobs:
           path: .cpm-cache
           key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
       - name: Configure
-        run: cmake --preset linux-${{ matrix.preset }}
+        shell: bash
+        run: |
+          cmake --preset linux-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/configure.log"
       - name: Build
-        run: cmake --build --preset linux-${{ matrix.preset }}
+        shell: bash
+        run: cmake --build --preset linux-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
       - name: Test
         run: ctest --preset linux-${{ matrix.preset }} --output-on-failure
+      - name: TEMPORARY failure notes (plan 0023)
+        if: failure()
+        shell: bash
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" .github/ci-failure-notes.py "build/linux-${{ matrix.preset }}" \
+            "$RUNNER_TEMP/configure.log" "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/coverage.log"
       - name: QML lint
         if: matrix.preset == 'debug'
         run: cmake --build --preset linux-debug --target all_qmllint
       - name: Coverage report
         if: matrix.preset == 'coverage'
+        shell: bash
         run: |
+          exec > >(tee "$RUNNER_TEMP/coverage.log") 2>&1
           build_dir=build/linux-coverage
           llvm-profdata-${LLVM_MAJOR} merge -sparse "${build_dir}"/profiles/*.profraw \
             -o "${build_dir}/coverage.profdata"
@@ -165,6 +177,10 @@ jobs:
           path: |
             build/linux-coverage/coverage-html
             build/linux-coverage/coverage.lcov
+      - name: TEMPORARY coverage failure notes (plan 0023)
+        if: failure() && matrix.preset == 'coverage'
+        shell: bash
+        run: python3 .github/ci-failure-notes.py build/none "$RUNNER_TEMP/coverage.log"
 
   fuzz:
     # ADR-0152: libFuzzer smoke run of the MCP HTTP parser and JSON-RPC handling, 60 s per target.
@@ -281,11 +297,21 @@ jobs:
           path: .cpm-cache
           key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
       - name: Configure
-        run: cmake --preset macos-${{ matrix.preset }}
+        shell: bash
+        run: |
+          cmake --preset macos-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/configure.log"
       - name: Build
-        run: cmake --build --preset macos-${{ matrix.preset }}
+        shell: bash
+        run: cmake --build --preset macos-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
       - name: Test
         run: ctest --preset macos-${{ matrix.preset }} --output-on-failure
+      - name: TEMPORARY failure notes (plan 0023)
+        if: failure()
+        shell: bash
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" .github/ci-failure-notes.py "build/macos-${{ matrix.preset }}" \
+            "$RUNNER_TEMP/configure.log" "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/coverage.log"
 
   windows:
     name: windows-${{ matrix.preset }}
@@ -339,10 +365,19 @@ jobs:
           path: .cpm-cache
           key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
       - name: Configure
+        shell: bash
         run: |
           clang-cl --version
-          cmake --preset windows-${{ matrix.preset }}
+          cmake --preset windows-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/configure.log"
       - name: Build
-        run: cmake --build --preset windows-${{ matrix.preset }}
+        shell: bash
+        run: cmake --build --preset windows-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
       - name: Test
         run: ctest --preset windows-${{ matrix.preset }} --output-on-failure
+      - name: TEMPORARY failure notes (plan 0023)
+        if: failure()
+        shell: bash
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" .github/ci-failure-notes.py "build/windows-${{ matrix.preset }}" \
+            "$RUNNER_TEMP/configure.log" "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/coverage.log"
