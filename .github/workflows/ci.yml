@@ -8,7 +8,11 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [v2-dev]
+    # v2/m7-packaging: TEMPORARY, so that the package jobs of plan 0015 run on the branch before a
+    # pull request exists (the branch has no PR yet); remove when the branch is merged.
+    branches: [v2-dev, v2/m7-packaging]
+  # release.yml runs the whole matrix as its gate (plan/features/0015 F2, ADR-0125).
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,6 +30,11 @@ env:
   LLVM_WINDOWS_VERSION: "21.1.8"
   LLVM_WINDOWS_SHA256: "7a5386c26497db1691f320121e5b113364dd0274b98e55f15f4dbc00c0450113"
   CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # Packaging (plan/features/0015): WiX >= 4 (MSI through CPack, CMake >= 3.30) and create-dmg
+  # (DMG layout), both pinned; the create-dmg release archive is checked by its SHA-256.
+  WIX_VERSION: "5.0.2"
+  CREATE_DMG_VERSION: "1.2.2"
+  CREATE_DMG_SHA256: "18e8dd7db06c9d6fb590c7877e1714b79b709f17d1d138bd65e4910cc82391bc"
 
 jobs:
   lint:
@@ -322,3 +331,222 @@ jobs:
         run: cmake --build --preset windows-${{ matrix.preset }}
       - name: Test
         run: ctest --preset windows-${{ matrix.preset }} --output-on-failure
+
+  # ---- Packages (plan/features/0015 F1, ADR-0125): unsigned, 7-day artifacts ----------------------
+
+  package-linux:
+    # Ubuntu 22.04 build container (ADR-0121, ADR-0177: g++-13 / libstdc++ 13): .deb and AppImage
+    # from one build tree, then lintian, desktop-file-validate, appstreamcli, the glibc ceiling and
+    # smoke tests in clean ubuntu:22.04 / ubuntu:24.04 containers.
+    name: package-linux
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: false # LFS objects come from the cache below, then `git lfs pull`
+      - name: LFS object list
+        shell: bash
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id', '.gitattributes') }}
+      - name: Git LFS pull
+        shell: bash
+        run: git lfs pull
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cpm-cache
+          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+      # The image is cached by the hash of its Containerfile (never published).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: image-cache
+        with:
+          path: ${{ runner.temp }}/build-image.tar
+          key: build-image-${{ hashFiles('packaging/linux/Containerfile') }}
+      - name: Build image
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: |
+          docker build -t hio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
+          docker save hio-monitor-build:22.04 -o "$RUNNER_TEMP/build-image.tar"
+      - name: Load image
+        if: steps.image-cache.outputs.cache-hit == 'true'
+        run: docker load -i "$RUNNER_TEMP/build-image.tar"
+      - name: Build the .deb and the AppImage
+        run: |
+          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" \
+            -e CPM_SOURCE_CACHE="$PWD/.cpm-cache" hio-monitor-build:22.04 \
+            packaging/linux/build-packages.sh build/packages
+      - name: Check the packages (glibc, lintian, desktop file, AppStream, AppImage CLI)
+        run: |
+          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hio-monitor-build:22.04 \
+            packaging/linux/check-packages.sh build/packages
+      - name: Smoke tests in clean containers
+        run: packaging/linux/smoke-clean.sh build/packages
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-linux
+          retention-days: 7
+          path: |
+            build/packages/*.deb
+            build/packages/*.AppImage
+
+  package-macos:
+    # Universal bundle, ad-hoc inside-out signature with the hardened runtime and the entitlements
+    # (ADR-0126), verified; DMG. Notarization only in release.yml.
+    name: package-macos
+    needs: macos
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: false
+      - name: LFS object list
+        shell: bash
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id', '.gitattributes') }}
+      - name: Git LFS pull
+        shell: bash
+        run: git lfs pull
+      - name: Build tools
+        run: |
+          brew install ninja
+          curl -fsSLo "$RUNNER_TEMP/create-dmg.tar.gz" \
+            "https://github.com/create-dmg/create-dmg/archive/refs/tags/v${CREATE_DMG_VERSION}.tar.gz"
+          echo "${CREATE_DMG_SHA256}  $RUNNER_TEMP/create-dmg.tar.gz" | shasum -a 256 -c -
+          tar -xzf "$RUNNER_TEMP/create-dmg.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/create-dmg-${CREATE_DMG_VERSION}" >> "$GITHUB_PATH"
+      - uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: clang_64
+          aqtversion: ${{ env.AQT_VERSION }}
+          modules: qtconnectivity
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cpm-cache
+          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+      - name: Configure
+        run: cmake --preset macos-package
+      - name: Build
+        run: cmake --build --preset macos-package
+      - name: Install (macdeployqt)
+        run: cmake --install build/macos-package --prefix build/macos-install
+      - name: Installed-tree self-test
+        env:
+          QT_QPA_PLATFORM: offscreen
+          HIO_NO_CRASH_HANDLER: "1"
+        run: |
+          app="build/macos-install/HARDWARIO Monitor.app"
+          "$app/Contents/MacOS/hio" --version --json | tee version.json
+          grep -q '"package":"macos-bundle"' version.json
+          "$app/Contents/MacOS/hio-monitor" --self-test
+          lipo -archs "$app/Contents/MacOS/hio-monitor" | grep -q "x86_64 arm64\|arm64 x86_64"
+      - name: Sign ad-hoc and verify
+        run: packaging/macos/sign-and-notarize.sh sign "build/macos-install/HARDWARIO Monitor.app" -
+      - name: DMG
+        run: |
+          version="$("build/macos-install/HARDWARIO Monitor.app/Contents/MacOS/hio" --version --json \
+            | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["data"]["version"].replace("+", "."))')"
+          packaging/macos/sign-and-notarize.sh dmg "build/macos-install/HARDWARIO Monitor.app" \
+            "build/packages/hio-monitor-${version}-macos-universal.dmg" -
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-macos
+          retention-days: 7
+          path: build/packages/*.dmg
+
+  package-windows:
+    # windeployqt + app-local MSVC runtime, MSI through CPack WIX (WiX >= 4), ICE validation,
+    # Trusted Signing in dry-run mode (no secrets in PR CI).
+    name: package-windows
+    needs: windows
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: false
+      - name: LFS object list
+        shell: bash
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id', '.gitattributes') }}
+      - name: Git LFS pull
+        shell: bash
+        run: git lfs pull
+      - name: Install LLVM ${{ env.LLVM_WINDOWS_VERSION }} (checksum verified)
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "LLVM-$env:LLVM_WINDOWS_VERSION-win64.exe"
+          Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_WINDOWS_VERSION/LLVM-$env:LLVM_WINDOWS_VERSION-win64.exe" -OutFile $installer
+          $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+          if ($hash -ne $env:LLVM_WINDOWS_SHA256) { throw "LLVM installer checksum mismatch: $hash" }
+          $target = "C:\llvm-$env:LLVM_WINDOWS_VERSION"
+          Start-Process -FilePath $installer -ArgumentList "/S", "/D=$target" -Wait
+          "$target\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: WiX ${{ env.WIX_VERSION }}
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version $env:WIX_VERSION
+          wix extension add -g "WixToolset.UI.wixext/$env:WIX_VERSION"
+          wix --version
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+      - uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          aqtversion: ${{ env.AQT_VERSION }}
+          modules: qtconnectivity
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cpm-cache
+          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+      - name: Configure
+        run: |
+          cmake --version
+          cmake --preset windows-package
+      - name: Build
+        run: cmake --build --preset windows-package
+      - name: Signing (dry run)
+        shell: pwsh
+        run: >-
+          packaging/windows/sign.ps1 -DryRun -Files
+          build/windows-package/app/gui/hio-monitor.exe,build/windows-package/app/cli/hio.exe
+      - name: Installed-tree self-test
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          HIO_NO_CRASH_HANDLER: "1"
+        run: |
+          cmake --install build/windows-package --prefix build/windows-install
+          $json = & build/windows-install/hio.exe --version --json
+          $json
+          if ($json -notmatch '"package":"msi"') { throw "package kind is not msi" }
+          $gui = Start-Process -FilePath build/windows-install/hio-monitor.exe -ArgumentList "--self-test" -Wait -PassThru
+          if ($gui.ExitCode -ne 0) { throw "hio-monitor --self-test failed: $($gui.ExitCode)" }
+          Get-ChildItem build/windows-install -Filter "vcruntime140*.dll"
+      - name: MSI
+        run: cpack --preset windows-package -B build/packages
+      - name: ICE validation
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem build/packages -Filter *.msi | Select-Object -First 1
+          wix msi validate $msi.FullName
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-windows
+          retention-days: 7
+          path: build/packages/*.msi
