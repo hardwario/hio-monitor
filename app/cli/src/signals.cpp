@@ -71,7 +71,6 @@ struct PosixState {
     std::atomic<bool> signalled{false}; // set by the signal handler, read by the watcher
     struct sigaction previousInt{};     // restored by ~SignalGuard
     struct sigaction previousTerm{};
-    struct sigaction previousPipe{};
 };
 
 PosixState& posixState() {
@@ -114,7 +113,7 @@ SignalGuard::SignalGuard(std::stop_source source) : m_source(std::move(source)) 
     struct sigaction ignore{};
     ignore.sa_handler = SIG_IGN; // NOLINT(cppcoreguidelines-pro-type-cstyle-cast): POSIX macro
     sigemptyset(&ignore.sa_mask);
-    sigaction(SIGPIPE, &ignore, &state.previousPipe);
+    sigaction(SIGPIPE, &ignore, nullptr); // for the rest of the process (see ~SignalGuard)
 
     m_watcher = std::jthread([source = m_source](const std::stop_token& own) mutable {
         constexpr std::chrono::milliseconds pollInterval{50};
@@ -147,7 +146,9 @@ SignalGuard::~SignalGuard() {
     PosixState& state = posixState();
     sigaction(SIGINT, &state.previousInt, nullptr);
     sigaction(SIGTERM, &state.previousTerm, nullptr);
-    sigaction(SIGPIPE, &state.previousPipe, nullptr);
+    // SIGPIPE stays ignored: the guard lives until main() returns, and the C library still
+    // flushes buffered stdout at exit. macOS does that write again after an EPIPE, so with the
+    // default action restored here `hio ... | head` ended with SIGPIPE (141) instead of 130.
     m_watcher.request_stop();
     if (m_watcher.joinable()) {
         m_watcher.join();
