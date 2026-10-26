@@ -8,7 +8,8 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [v2-dev]
+    # TEMPORARY (plan 0023): CI for the repair branch; removed before merging into v2-dev.
+    branches: [v2-dev, strnad/ci-repair-90059f]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -103,6 +104,10 @@ jobs:
             clang-${LLVM_MAJOR} clang-tidy-${LLVM_MAJOR} llvm-${LLVM_MAJOR} \
             libclang-rt-${LLVM_MAJOR}-dev ninja-build \
             libgl1-mesa-dev libegl1 libxkbcommon-dev libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
+      - name: Czech locale
+        # CliProcess.CzechLocaleStaysEnglish runs `hio` under cs_CZ.UTF-8; the runner image only
+        # has C.UTF-8 and en_US.UTF-8 (plan 0023).
+        run: sudo locale-gen cs_CZ.UTF-8
       - name: Allow TSan memory mappings
         if: matrix.preset == 'tsan'
         # TSan cannot map its shadow memory with the runner's high ASLR entropy.
