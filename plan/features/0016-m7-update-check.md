@@ -173,9 +173,9 @@ with the standard Ctrl+C cancellation.
 - [x] A2 `UpdateCheck` with a local fake HTTP server (`QTcpServer`, as other network tests) — success, 403
   rate-limit, timeout, oversize, redirect to another host refused, cancel.
 - [x] B1 CLI `hio update check [--prerelease] [--json]` + end-to-end test against the fake server (test override).
-- [ ] C1 `UpdateService`, settings keys, scheduling; unit test with an injected clock.
-- [ ] C2 `UpdateViewModel`, `UpdateBanner.qml`, About additions (updates, CLI path, licences); Qt Quick tests.
-- [ ] C3 Translations (`update_translations`, Czech entries), qmllint, clang-tidy clean.
+- [x] C1 `UpdateService`, settings keys, scheduling; unit test with an injected clock.
+- [x] C2 `UpdateViewModel`, `UpdateBanner.qml`, About additions (updates, CLI path, licences); Qt Quick tests.
+- [x] C3 Translations (`update_translations`, Czech entries), qmllint, clang-tidy clean.
 - [ ] D1 Manual: install release N-1 package from 0015's RC pipeline, publish a test pre-release on a fork (URL
   override in a test build) → banner, skip, opt-out, manual check; offline behaviour.
 

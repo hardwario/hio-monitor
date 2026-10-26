@@ -14,16 +14,19 @@
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/jlink/types.h"
 #include "hio/hw/nrfutil/nrfutil.h"
+#include "hio/update/semver.h"
 #include "language_manager.h"
 #include "report_view_model.h"
 #include "settings_store.h"
 #include "system_preferences.h"
+#include "update_service.h"
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/history_store.h"
 #include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
+#include "viewmodels/update_view_model.h"
 #include "wizard_launcher.h"
 #include "wizard_view_model.h"
 #include "workers/diag_worker.h"
@@ -44,6 +47,7 @@
 #include <QLoggingCategory>
 #include <QMetaObject>
 #include <QMetaType>
+#include <QNetworkAccessManager>
 #include <QObject>
 #include <QQmlEngine>
 #include <QRect>
@@ -161,6 +165,21 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
 
     refreshCrashNotice();
 
+    // Plan 0016 C1/C2: the update check (automatic check scheduled 10 s after the start, not in
+    // development builds). Qt parent ownership: the service and the view model are children.
+    m_network = std::make_unique<QNetworkAccessManager>();
+    // update/includePrerelease defaults to on when this version is a pre-release (a release
+    // candidate, not a development build).
+    const update::SemVer running =
+        update::SemVer::parse(hio::buildInfo().version).value_or(update::SemVer{});
+    UpdateService::registerKeys(*m_settings,
+                                running.isPrerelease() && !update::isDevelopmentBuild(running));
+    m_updateService = new UpdateService( // NOLINT(cppcoreguidelines-owning-memory)
+        *m_settings, *m_network, UpdateService::Options{}, this);
+    m_update = new UpdateViewModel( // NOLINT(cppcoreguidelines-owning-memory)
+        *m_updateService, *m_settings, {}, this);
+    m_updateService->start();
+
     connect(m_scanner.get(), &ProbeScanner::scanned, this, &AppViewModel::onScan);
     connect(m_wizard, &WizardViewModel::handOff, this, &AppViewModel::onHandOff);
     connect(m_wizard, &WizardViewModel::copied, this, [this] { showToast(tr("Copied.")); });
@@ -181,6 +200,14 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
 }
 
 AppViewModel::~AppViewModel() {
+    // The update check before its network access manager (a member, destroyed before the
+    // QObject children).
+    for (QObject* update : std::array<QObject*, 2>{m_update, m_updateService}) {
+        update->setParent(nullptr);
+        const std::unique_ptr<QObject> owned(update);
+    }
+    m_update = nullptr;
+    m_updateService = nullptr;
     // The open wizard first (it may use a tab's session): its operation is cancelled.
     if (m_wizard != nullptr) {
         m_wizard->setParent(nullptr);
@@ -1037,6 +1064,7 @@ void AppViewModel::onHandOff(const QString& action, DeviceTabViewModel* tab) {
 }
 
 void AppViewModel::retranslate() {
+    m_update->retranslate();
     m_pageList->retranslate();
     m_tabs->retranslate();
     m_shortcuts->retranslate();

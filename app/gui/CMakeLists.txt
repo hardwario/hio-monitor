@@ -61,6 +61,7 @@ set(HIO_GUI_QML_FILES
     qml/settings/SettingsRow.qml
     qml/shell/AdvancedPopover.qml
     qml/shell/CrashNoticeBanner.qml
+    qml/shell/UpdateBanner.qml
     qml/shell/DeviceBar.qml
     qml/shell/DeviceTabBar.qml
     qml/shell/HelpMenu.qml
@@ -91,6 +92,8 @@ qt_add_qml_module(hio_gui
         src/fonts.h
         src/gui_log.cpp
         src/gui_log.h
+        src/install_paths.cpp
+        src/install_paths.h
         src/language_manager.cpp
         src/language_manager.h
         src/pages/builtin_pages.cpp
@@ -110,6 +113,8 @@ qt_add_qml_module(hio_gui
         src/single_instance.h
         src/system_preferences.cpp
         src/system_preferences.h
+        src/update_service.cpp
+        src/update_service.h
         src/viewmodels/app_view_model.cpp
         src/viewmodels/app_view_model.h
         src/viewmodels/connection_view_model.cpp
@@ -136,6 +141,8 @@ qt_add_qml_module(hio_gui
         src/viewmodels/flash_view_model.h
         src/viewmodels/history_store.cpp
         src/viewmodels/history_store.h
+        src/viewmodels/licenses_model.cpp
+        src/viewmodels/licenses_model.h
         src/viewmodels/page_list_model.cpp
         src/viewmodels/page_list_model.h
         src/viewmodels/page_registry.cpp
@@ -148,6 +155,8 @@ qt_add_qml_module(hio_gui
         src/viewmodels/settings_view_model.h
         src/viewmodels/shortcut_registry.cpp
         src/viewmodels/shortcut_registry.h
+        src/viewmodels/update_view_model.cpp
+        src/viewmodels/update_view_model.h
         src/wizard/check_list_model.cpp
         src/wizard/check_list_model.h
         src/wizard/report_view_model.cpp
@@ -180,12 +189,20 @@ target_link_libraries(hio_gui PUBLIC
     hio::device
     hio::diag
     hio::firmware
+    hio::update
     Qt6::Core
     Qt6::Gui
     Qt6::Network
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2)
+# Plan 0016 C2: development builds show the licence files of the source and build trees in
+# Settings > About when they are not installed (install_paths.cpp); packages use licenses/.
+if(HIO_PACKAGE_KIND STREQUAL "dev")
+    target_compile_definitions(hio_gui PRIVATE
+        "HIO_GUI_DEV_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}\""
+        "HIO_GUI_DEV_BINARY_DIR=\"${PROJECT_BINARY_DIR}\"")
+endif()
 if(WIN32)
     target_compile_definitions(hio_gui PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
     # SetCurrentProcessExplicitAppUserModelID (shell32, a system library).

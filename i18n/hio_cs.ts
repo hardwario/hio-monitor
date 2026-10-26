@@ -4,47 +4,100 @@
 <context>
     <name>AboutSection</name>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="19"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="22"/>
         <source>Version</source>
         <translation>Verze</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="36"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="39"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="136"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="158"/>
         <source>Copy</source>
         <translation>Kopírovat</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="43"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="47"/>
+        <source>Updates</source>
+        <translation>Aktualizace</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="48"/>
+        <source>The check asks GitHub for the list of releases. No data about you or your devices is sent.</source>
+        <translation>Kontrola se GitHubu ptá na seznam vydání. Žádné údaje o vás ani o vašich zařízeních se neodesílají.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="56"/>
+        <source>Check for updates automatically</source>
+        <translation>Automaticky kontrolovat aktualizace</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="63"/>
+        <source>Include pre-releases (beta, release candidates)</source>
+        <translation>Zahrnout předběžné verze (beta, kandidáti na vydání)</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="85"/>
+        <source>Last checked: %1 — %2</source>
+        <translation>Naposledy zkontrolováno: %1 — %2</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="94"/>
+        <source>Download</source>
+        <translation>Stáhnout</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="100"/>
+        <source>Check now</source>
+        <translation>Zkontrolovat nyní</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="111"/>
+        <source>Command line</source>
+        <translation>Příkazový řádek</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="112"/>
+        <source>The hio command is on the PATH of new terminals.</source>
+        <translation>Příkaz hio je v cestě PATH nových terminálů.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="139"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="161"/>
+        <source>Copied.</source>
+        <translation>Zkopírováno.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="150"/>
+        <source>Create a symlink: %1</source>
+        <translation>Vytvořte symbolický odkaz: %1</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="170"/>
         <source>Licences</source>
         <translation>Licence</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="44"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="171"/>
         <source>SEGGER J-Link Software and Nordic nRF Util are not included; they are used from your installation.</source>
         <translation>SEGGER J-Link Software a Nordic nRF Util nejsou součástí aplikace; používají se z vaší instalace.</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="53"/>
-        <source>%1 (%2) — %3</source>
-        <translation>%1 (%2) — %3</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="63"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="196"/>
         <source>Links</source>
         <translation>Odkazy</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="71"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="204"/>
         <source>Documentation ↗</source>
         <translation>Dokumentace ↗</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="77"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="210"/>
         <source>Firmware catalog ↗</source>
         <translation>Katalog firmwarů ↗</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="83"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="216"/>
         <source>Source code ↗</source>
         <translation>Zdrojový kód ↗</translation>
     </message>
@@ -1082,28 +1135,28 @@
         <translation>HARDWARIO Monitor</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="161"/>
+        <location filename="../app/gui/qml/Main.qml" line="166"/>
         <source>Close the tab?</source>
         <translation>Zavřít kartu?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="162"/>
+        <location filename="../app/gui/qml/Main.qml" line="167"/>
         <source>Cancel and close</source>
         <translation>Zrušit a zavřít</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="163"/>
-        <location filename="../app/gui/qml/Main.qml" line="173"/>
+        <location filename="../app/gui/qml/Main.qml" line="168"/>
+        <location filename="../app/gui/qml/Main.qml" line="178"/>
         <source>Keep running</source>
         <translation>Pokračovat</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="171"/>
+        <location filename="../app/gui/qml/Main.qml" line="176"/>
         <source>Quit HARDWARIO Monitor?</source>
         <translation>Ukončit HARDWARIO Monitor?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="172"/>
+        <location filename="../app/gui/qml/Main.qml" line="177"/>
         <source>Cancel and quit</source>
         <translation>Zrušit a ukončit</translation>
     </message>
@@ -1505,45 +1558,45 @@
 <context>
     <name>Shortcuts</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="312"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="337"/>
         <source>New device tab</source>
         <translation>Nová karta zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="315"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="340"/>
         <source>Close the device tab</source>
         <translation>Zavřít kartu zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="318"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="321"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="343"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="346"/>
         <source>Next tab</source>
         <translation>Další karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="324"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="327"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="349"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="352"/>
         <source>Previous tab</source>
         <translation>Předchozí karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="330"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="355"/>
         <source>Settings</source>
         <translation>Nastavení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="333"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="358"/>
         <source>Connect or disconnect</source>
         <translation>Připojit nebo odpojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="336"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="361"/>
         <source>Reconnect</source>
         <translation>Znovu připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="339"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="342"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="364"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="367"/>
         <source>Keyboard shortcuts</source>
         <translation>Klávesové zkratky</translation>
     </message>
@@ -1741,6 +1794,24 @@
         <location filename="../app/gui/qml/console/SuggestionList.qml" line="92"/>
         <source>History: %1</source>
         <translation>Historie: %1</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateBanner</name>
+    <message>
+        <location filename="../app/gui/qml/shell/UpdateBanner.qml" line="57"/>
+        <source>Download</source>
+        <translation>Stáhnout</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/UpdateBanner.qml" line="64"/>
+        <source>Skip this version</source>
+        <translation>Tuto verzi přeskočit</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/UpdateBanner.qml" line="71"/>
+        <source>Later</source>
+        <translation>Později</translation>
     </message>
 </context>
 <context>
@@ -4026,7 +4097,7 @@
 <context>
     <name>hio::gui::AppViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="166"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="183"/>
         <source>Copied.</source>
         <translation>Zkopírováno.</translation>
     </message>
@@ -4861,6 +4932,24 @@
     </message>
 </context>
 <context>
+    <name>hio::gui::LicensesModel</name>
+    <message>
+        <location filename="../app/gui/src/viewmodels/licenses_model.cpp" line="29"/>
+        <source>HARDWARIO licence</source>
+        <translation>Licence HARDWARIO</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/licenses_model.cpp" line="31"/>
+        <source>Qt source code</source>
+        <translation>Zdrojový kód Qt</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/licenses_model.cpp" line="38"/>
+        <source>Third-party notices</source>
+        <translation>Licence třetích stran</translation>
+    </message>
+</context>
+<context>
     <name>hio::gui::ProbePickerViewModel</name>
     <message>
         <location filename="../app/gui/src/viewmodels/probe_picker_view_model.cpp" line="171"/>
@@ -4922,106 +5011,96 @@
 <context>
     <name>hio::gui::SettingsViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="126"/>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="159"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="130"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="163"/>
         <source>System</source>
         <translation>Podle systému</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="161"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="165"/>
         <source>Light</source>
         <translation>Světlý</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="163"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="167"/>
         <source>Dark</source>
         <translation>Tmavý</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="369"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="373"/>
         <source>Detected: %1 · %2 · %3</source>
         <translation>Nalezeno: %1 · %2 · %3</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="372"/>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="391"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="376"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="395"/>
         <source>Checking…</source>
         <translation>Kontrola…</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="389"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="393"/>
         <source>Detected: %1 · %2</source>
         <translation>Nalezeno: %1 · %2</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="394"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="398"/>
         <source>Not found — needed only for LTE modem firmware</source>
         <translation>Nenalezeno — potřeba jen pro firmware LTE modemu</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="417"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="421"/>
         <source>checking…</source>
         <translation>kontrola…</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="421"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="425"/>
         <source>not checked</source>
         <translation>nezkontrolováno</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="426"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="432"/>
         <source>Build: %1</source>
         <translation>Sestavení: %1</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="427"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="433"/>
         <source>J-Link Software: %1</source>
         <translation>J-Link Software: %1</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="430"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="436"/>
         <source>nRF Util: %1</source>
         <translation>nRF Util: %1</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="444"/>
-        <source>Application framework, linked dynamically</source>
-        <translation>Aplikační framework, linkovaný dynamicky</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="445"/>
-        <source>User interface font</source>
-        <translation>Písmo uživatelského rozhraní</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="446"/>
-        <source>Console font</source>
-        <translation>Písmo konzole</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="447"/>
-        <source>Icons</source>
-        <translation>Ikony</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="448"/>
-        <source>Zip archives</source>
-        <translation>Archivy zip</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="449"/>
-        <source>Command line editing (hio)</source>
-        <translation>Úpravy příkazového řádku (hio)</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="451"/>
-        <source>Command line parsing (hio)</source>
-        <translation>Zpracování příkazové řádky (hio)</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="474"/>
+        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="467"/>
         <source>Copied.</source>
         <translation>Zkopírováno.</translation>
+    </message>
+</context>
+<context>
+    <name>hio::gui::UpdateViewModel</name>
+    <message>
+        <location filename="../app/gui/src/viewmodels/update_view_model.cpp" line="83"/>
+        <source>Checking for updates…</source>
+        <translation>Kontroluji aktualizace…</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/update_view_model.cpp" line="85"/>
+        <location filename="../app/gui/src/viewmodels/update_view_model.cpp" line="102"/>
+        <source>You have the latest version.</source>
+        <translation>Máte nejnovější verzi.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/update_view_model.cpp" line="87"/>
+        <location filename="../app/gui/src/viewmodels/update_view_model.cpp" line="100"/>
+        <source>Version %1 is available.</source>
+        <translation>Je k dispozici verze %1.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/update_view_model.cpp" line="106"/>
+        <source>HARDWARIO Monitor %1 is available (you have %2).</source>
+        <translation>Je k dispozici HARDWARIO Monitor %1 (máte %2).</translation>
     </message>
 </context>
 <context>

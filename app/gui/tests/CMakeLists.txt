@@ -72,6 +72,7 @@ add_executable(hio_gui_tests
     viewmodels/shortcut_registry_test.cpp
     viewmodels/single_instance_helper.h
     viewmodels/single_instance_test.cpp
+    viewmodels/update_service_test.cpp
     viewmodels/wizard_test.cpp
     ${HIO_GUI_TEST_SUPPORT})
 hio_apply_target_defaults(hio_gui_tests)
@@ -88,11 +89,12 @@ target_compile_definitions(hio_gui_tests PRIVATE
     "HIO_FAKE_NRFUTIL=\"$<TARGET_FILE:hio_fake_nrfutil>\"")
 set_target_properties(hio_gui_tests PROPERTIES AUTOMOC ON)
 add_dependencies(hio_gui_tests hio_fake_jlink hio_fake_jlink_incomplete hio_fake_nrfutil)
-# Under ThreadSanitizer the test that downloads through QNetworkAccessManager is left out, as in
+# Under ThreadSanitizer the tests that download through QNetworkAccessManager (the catalog, the
+# update check of plan 0016) are left out, as in
 # libs/firmware/tests (Qt's HTTP thread is uninstrumented; plan/features/0003, review R11).
 set(_hio_gui_test_filter "")
 if("thread" IN_LIST HIO_SANITIZERS)
-    set(_hio_gui_test_filter TEST_FILTER "-FlashTest.CatalogDownloadAndErrors:FlashTest.DesignatedLteFirmware:FlashTest.CatalogInfoOfAnId:FlashTest.ACatalogDownloadWaitsForTheLookup")
+    set(_hio_gui_test_filter TEST_FILTER "-FlashTest.CatalogDownloadAndErrors:FlashTest.DesignatedLteFirmware:FlashTest.CatalogInfoOfAnId:FlashTest.ACatalogDownloadWaitsForTheLookup:UpdateTest.AutomaticCheckShowsTheBannerAndStoresTheResult:UpdateTest.NoAutomaticCheckBeforeTheIntervalOrInDevelopmentBuilds:UpdateTest.DownloadOpensTheReleasePage:UpdateTest.SkippedVersionIsNotAnnouncedAgainButManualChecksIgnoreIt:UpdateTest.LaterHidesTheBanner:UpdateTest.UpToDate:UpdateTest.FailuresAreShownOnlyForManualChecks")
 endif()
 gtest_discover_tests(hio_gui_tests
     DISCOVERY_TIMEOUT 60

@@ -4,13 +4,16 @@
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
+#include "hio/core/version.h"
 #include "hio/device/device_session.h"
 #include "hio/device/profile.h"
+#include "install_paths.h"
 #include "pages/firmware_services.h"
 #include "settings_store.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/connection_view_model.h"
 #include "viewmodels/dependency_status.h"
+#include "viewmodels/licenses_model.h"
 #include "viewmodels/page_registry.h"
 #include "workers/firmware_loader.h"
 
@@ -55,7 +58,9 @@ QString pathOf(const QUrl& file) {
 } // namespace
 
 SettingsViewModel::SettingsViewModel(AppViewModel& app, FirmwareServices& services, QObject* parent)
-    : QObject(parent), m_app(app), m_services(services) {
+    : QObject(parent), m_app(app), m_services(services),
+      // Qt parent ownership: the model is a child of this view model.
+      m_licenceFiles(new LicensesModel(this)) { // NOLINT(cppcoreguidelines-owning-memory)
     loadSpeed();
     connect(&m_app, &AppViewModel::languageChanged, this, &SettingsViewModel::retranslate);
     connect(&m_app, &AppViewModel::themeChanged, this, &SettingsViewModel::themeChanged);
@@ -422,7 +427,9 @@ QString SettingsViewModel::aboutText() const {
         }
     };
     QStringList lines;
-    lines.append(QStringLiteral("HARDWARIO Monitor %1").arg(AppViewModel::version()));
+    // Plan 0016: the version line shows the package kind (plan 0015).
+    lines.append(QStringLiteral("HARDWARIO Monitor %1 (%2)")
+                     .arg(AppViewModel::version(), toQString(buildInfo().packageKind)));
     lines.append(tr("Build: %1").arg(AppViewModel::buildInfo()));
     lines.append(tr("J-Link Software: %1")
                      .arg(toolLine(status->jlinkVersion(), status->jlinkPath(),
@@ -433,24 +440,11 @@ QString SettingsViewModel::aboutText() const {
     return lines.join(QLatin1Char('\n'));
 }
 
-QVariantList SettingsViewModel::licences() {
-    const auto entry = [](const QString& name, const QString& licence, const QString& use) {
-        return QVariantMap{{QStringLiteral("name"), name},
-                           {QStringLiteral("licence"), licence},
-                           {QStringLiteral("use"), use}};
-    };
-    return {
-        entry(QStringLiteral("Qt 6"), QStringLiteral("LGPL-3.0"),
-              tr("Application framework, linked dynamically")),
-        entry(QStringLiteral("Inter"), QStringLiteral("OFL-1.1"), tr("User interface font")),
-        entry(QStringLiteral("JetBrains Mono"), QStringLiteral("OFL-1.1"), tr("Console font")),
-        entry(QStringLiteral("Material Symbols"), QStringLiteral("Apache-2.0"), tr("Icons")),
-        entry(QStringLiteral("miniz"), QStringLiteral("MIT"), tr("Zip archives")),
-        entry(QStringLiteral("replxx"), QStringLiteral("BSD"), tr("Command line editing (hio)")),
-        entry(QStringLiteral("CLI11"), QStringLiteral("BSD-3-Clause"),
-              tr("Command line parsing (hio)")),
-    };
-}
+QString SettingsViewModel::cliCommand() { return hio::gui::cliCommand(); }
+
+QString SettingsViewModel::cliSymlinkCommand() { return hio::gui::cliSymlinkCommand(); }
+
+bool SettingsViewModel::cliOnPath() { return hio::gui::cliOnPath(); }
 
 QString SettingsViewModel::documentationUrl() { return AppViewModel::documentationUrl(); }
 
@@ -475,6 +469,7 @@ void SettingsViewModel::copyAbout() {
 }
 
 void SettingsViewModel::retranslate() {
+    m_licenceFiles->retranslate();
     sectionsChanged();     // signal
     languageChanged();     // signal
     valuesChanged();       // signal: speed warning

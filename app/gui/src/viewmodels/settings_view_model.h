@@ -23,6 +23,7 @@
 
 #include "viewmodels/connection_view_model.h"
 #include "viewmodels/dependency_status.h"
+#include "viewmodels/licenses_model.h"
 
 #include <QObject>
 #include <QString>
@@ -93,7 +94,12 @@ class SettingsViewModel : public QObject {
 
     // About
     Q_PROPERTY(QString aboutText READ aboutText NOTIFY aboutChanged)
-    Q_PROPERTY(QVariantList licences READ licences NOTIFY languageChanged)
+    // Plan 0016 C2 (ADR-0119): the licence files of this installation, each opens its file.
+    Q_PROPERTY(hio::gui::LicensesModel* licenceFiles READ licenceFiles CONSTANT)
+    // Plan 0016 C2 (ADR-0122): the CLI of this installation (install_paths.h).
+    Q_PROPERTY(QString cliCommand READ cliCommand CONSTANT)
+    Q_PROPERTY(QString cliSymlinkCommand READ cliSymlinkCommand CONSTANT)
+    Q_PROPERTY(bool cliOnPath READ cliOnPath CONSTANT)
     Q_PROPERTY(QString documentationUrl READ documentationUrl CONSTANT)
     // 0021 (ADR-0167): the documentation page of application firmware in the UI language.
     Q_PROPERTY(QString catalogUrl READ catalogUrl NOTIFY languageChanged)
@@ -161,7 +167,10 @@ public:
     [[nodiscard]] bool nrfUtilStatusProblem() const;
 
     [[nodiscard]] QString aboutText() const;
-    [[nodiscard]] static QVariantList licences();
+    [[nodiscard]] LicensesModel* licenceFiles() const noexcept { return m_licenceFiles; }
+    [[nodiscard]] static QString cliCommand();
+    [[nodiscard]] static QString cliSymlinkCommand();
+    [[nodiscard]] static bool cliOnPath();
     [[nodiscard]] static QString documentationUrl();
     [[nodiscard]] QString catalogUrl() const;
     [[nodiscard]] static QString sourceUrl();
@@ -191,7 +200,8 @@ private:
 
     AppViewModel& m_app;
     FirmwareServices& m_services;
-    ConnectionOptions m_speed; // the default speed: automatic + the last fixed value
+    LicensesModel* m_licenceFiles = nullptr; // child
+    ConnectionOptions m_speed;               // the default speed: automatic + the last fixed value
     bool m_jlinkCustomMode = false;
     bool m_nrfUtilCustomMode = false;
     std::uint64_t m_jlinkCandidate = 0;

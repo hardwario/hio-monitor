@@ -20,12 +20,14 @@
 #include "hio/device/session_registry.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "settings_store.h"
+#include "update_service.h"
 #include "viewmodels/device_tab_list_model.h"
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/history_store.h"
 #include "viewmodels/page_list_model.h"
 #include "viewmodels/page_registry.h"
 #include "viewmodels/shortcut_registry.h"
+#include "viewmodels/update_view_model.h"
 #include "wizard/report_view_model.h"
 #include "wizard/wizard_launcher.h"
 #include "wizard/wizard_registry.h"
@@ -52,6 +54,7 @@
 #include <vector>
 
 class QJSEngine;
+class QNetworkAccessManager;
 class QQmlEngine;
 class QWindow;
 
@@ -112,6 +115,8 @@ class AppViewModel : public QObject {
     // Plan 0015 B3 (ADR-0123): the previous run crashed (the crash handler's marker exists); the
     // shell shows CrashNoticeBanner until reportCrash() or dismissCrashNotice().
     Q_PROPERTY(bool crashedLastRun READ crashedLastRun NOTIFY crashedLastRunChanged)
+    // Plan 0016 C2 (ADR-0116): the update banner and the update block of Settings > About.
+    Q_PROPERTY(hio::gui::UpdateViewModel* update READ update CONSTANT)
 
 public:
     static constexpr int railBreakpoint = 1100; // ADR-0061
@@ -240,6 +245,9 @@ public:
     Q_INVOKABLE void dismissCrashNotice();
     // Reads the crash marker again (start-up; tests).
     void refreshCrashNotice();
+
+    [[nodiscard]] UpdateViewModel* update() const noexcept { return m_update; }
+    [[nodiscard]] UpdateService& updateService() noexcept { return *m_updateService; }
     // One spin-box step on the grid of `step` (review S15): up from 1 → 10, from 10 → 20; down
     // from 15 → 10; clamped to [minimum, maximum]. direction: +1 / -1.
     Q_INVOKABLE [[nodiscard]] static int stepValue(int value, int step, int direction, int minimum,
@@ -321,6 +329,10 @@ private:
     QString m_jlinkLibraryPath;
     QString m_jlinkLibraryVersion;
     bool m_crashedLastRun = false;
+    // Plan 0016: the network access of the update check (owned; destroyed after the service).
+    std::unique_ptr<QNetworkAccessManager> m_network;
+    UpdateService* m_updateService = nullptr; // child
+    UpdateViewModel* m_update = nullptr;      // child
 };
 
 } // namespace hio::gui

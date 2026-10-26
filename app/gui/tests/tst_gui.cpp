@@ -149,6 +149,28 @@ public:
         return QFile::exists(m_dir + QStringLiteral("/crashes/last-crash"));
     }
 
+    // Plan 0016 C2: the automatic update check at once (development builds never schedule it),
+    // against the local fixture (HIO_UPDATE_URL); the update state of the previous test removed.
+    Q_INVOKABLE void checkForUpdatesAutomatically() const {
+        m_app->updateService().checkAutomatically();
+    }
+    Q_INVOKABLE void resetUpdate() const {
+        const auto set = [this](const QString& key, const QVariant& value) {
+            if (!m_app->settingsStore()->setValue(key, value)) {
+                qWarning() << "resetUpdate:" << key << "not written";
+            }
+        };
+        for (const char* key : {"update/skippedVersion", "update/lastCheck", "update/lastResult"}) {
+            set(QString::fromLatin1(key), QString());
+        }
+        set(QStringLiteral("update/autoCheck"), true);
+        set(QStringLiteral("update/includePrerelease"), false);
+        m_app->update()->dismiss();
+    }
+    Q_INVOKABLE [[nodiscard]] QString setting(const QString& key) const {
+        return m_app->settingsStore()->value(key).toString();
+    }
+
     Q_INVOKABLE [[nodiscard]] QObject* testPage(int index) const {
         hio::gui::DeviceTabViewModel* tab = m_app->tabs()->at(index);
         return tab != nullptr ? tab->pageViewModel(QStringLiteral("test")) : nullptr;
@@ -362,6 +384,17 @@ public slots:
                 "0c7a2286d945c1e12bf9b4f0620beff519a8ade36f98c1da33527d18fa568f5a</div>"
                 "<div>Upload date/time</div><div>2026-09-07 12:13:53</div>")));
         qputenv("HIO_CATALOG_URL", m_lteFirmware->baseUrl().toUtf8());
+        // Plan 0016: the release list for the update check (test-only HIO_UPDATE_URL): a version
+        // newer than any build of this source tree, and a newer pre-release.
+        const QByteArray releases =
+            R"([{"tag_name":"v2.999.1-rc.1","draft":false,"prerelease":true},)"
+            R"({"tag_name":"v2.999.0","draft":false,"prerelease":false,)"
+            R"("html_url":"https://github.com/hardwario/hio-monitor/releases/tag/v2.999.0"}])";
+        m_lteFirmware->set(QStringLiteral("/repos/hardwario/hio-monitor/releases"),
+                           hio::firmware::test::HttpFixture::Response::ok(releases));
+        qputenv("HIO_UPDATE_URL",
+                (m_lteFirmware->origin() + QStringLiteral("/repos/hardwario/hio-monitor/releases"))
+                    .toUtf8());
     }
 
     // One AppViewModel per test file (per QML engine): QML bindings of one engine never outlive it

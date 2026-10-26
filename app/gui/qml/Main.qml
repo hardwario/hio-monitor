@@ -69,6 +69,11 @@ ApplicationWindow {
             Layout.fillWidth: true
         }
 
+        UpdateBanner {
+            Layout.fillWidth: true
+            visible: AppViewModel.update.bannerVisible && !AppViewModel.crashedLastRun
+        }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
