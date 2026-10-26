@@ -209,7 +209,9 @@ TEST(Report, ZipHasTheEntriesWithinBounds) {
     for (const auto& [name, data] : entries) {
         EXPECT_EQ(data.find("jdoe"), std::string::npos) << name;
     }
-    EXPECT_EQ(entries.at("settings.ini"), "[jlink]\nlibraryPath=~/x.so\n");
+    std::string settings = entries.at("settings.ini");
+    std::erase(settings, '\r'); // the sample was written in text mode ("\r\n" on Windows)
+    EXPECT_EQ(settings, "[jlink]\nlibraryPath=~/x.so\n");
 }
 
 TEST(Report, FailedWriteLeavesNoFile) {

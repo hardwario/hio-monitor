@@ -32,6 +32,9 @@
 
 #include <csignal>
 #include <cstddef>
+#else
+#include <QDir>
+#include <QLibraryInfo>
 #endif
 
 namespace {
@@ -104,7 +107,14 @@ protected:
         env.insert(QStringLiteral("HIO_JLINK_LIBRARY"), QStringLiteral(HIO_FAKE_JLINK_LIBRARY));
         env.insert(QStringLiteral("HIO_FAKE_NRFUTIL_STEP_MS"), QStringLiteral("5"));
         env.remove(QStringLiteral("HIO_NRFUTIL"));
+        // No nrfutil on PATH. On Windows hio.exe finds the Qt DLLs through PATH, so it keeps Qt's
+        // bin directory (which has no nrfutil).
+#ifdef _WIN32
+        env.insert(QStringLiteral("PATH"),
+                   QDir::toNativeSeparators(QLibraryInfo::path(QLibraryInfo::BinariesPath)));
+#else
         env.insert(QStringLiteral("PATH"), QStringLiteral("/nonexistent-path-for-tests"));
+#endif
         return env;
     }
 
@@ -133,6 +143,7 @@ protected:
         result.exitCode = process.state() == QProcess::NotRunning ? process.exitCode() : -1;
         result.out = process.readAllStandardOutput().toStdString();
         result.err = process.readAllStandardError().toStdString();
+        normalizeLineEnds(result);
         return result;
     }
 };

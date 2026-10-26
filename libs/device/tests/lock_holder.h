@@ -32,13 +32,14 @@ public:
     // Waits (at most 30 s) until the helper holds the lock; false when it could not lock.
     [[nodiscard]] bool waitUntilLocked() {
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-        while (!m_out.contains("locked\n")) {
+        while (!m_out.contains("locked\n")) { // the helper's "\r\n" is normalized below
             if (m_out.contains("failed") || std::chrono::steady_clock::now() > deadline ||
                 m_process.state() == QProcess::NotRunning) {
                 return false;
             }
             m_process.waitForReadyRead(100);
             m_out += m_process.readAllStandardOutput();
+            m_out.replace("\r\n", "\n"); // Windows text-mode stdout
         }
         return true;
     }

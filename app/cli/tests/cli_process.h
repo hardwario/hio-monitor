@@ -12,7 +12,9 @@
 
 #include <gtest/gtest.h>
 
+#include <cstddef>
 #include <string>
+#include <utility>
 
 namespace hio::cli::test {
 
@@ -62,7 +64,23 @@ protected:
         result.exitCode = process.exitCode();
         result.out = process.readAllStandardOutput().toStdString();
         result.err = process.readAllStandardError().toStdString();
+        normalizeLineEnds(result);
         return result;
+    }
+
+    // Human output goes through text-mode streams, which end lines with "\r\n" on Windows; the
+    // tests compare "\n" (`--json` output is the same either way after this).
+    static void normalizeLineEnds(RunResult& result) {
+        for (std::string* text : {&result.out, &result.err}) {
+            std::string normalized;
+            normalized.reserve(text->size());
+            for (std::size_t i = 0; i < text->size(); ++i) {
+                if ((*text)[i] != '\r' || i + 1 >= text->size() || (*text)[i + 1] != '\n') {
+                    normalized += (*text)[i];
+                }
+            }
+            *text = std::move(normalized);
+        }
     }
 
     [[nodiscard]] RunResult run(const QStringList& args) const { return run(args, environment()); }
