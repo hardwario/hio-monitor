@@ -12,6 +12,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QtCore/qnamespace.h>
 

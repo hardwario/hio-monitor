@@ -15,6 +15,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
+#include <QStringLiteral>
 
 #include <CLI/CLI.hpp>
 

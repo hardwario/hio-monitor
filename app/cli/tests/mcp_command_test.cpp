@@ -23,6 +23,7 @@
 #include <QIODevice>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtEnvironmentVariables>
 

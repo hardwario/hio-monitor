@@ -12,6 +12,7 @@
 #include <QCoreApplication>
 #include <QLoggingCategory>
 #include <QString>
+#include <QStringLiteral>
 #include <QtLogging>
 
 #include <algorithm>

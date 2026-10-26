@@ -18,6 +18,7 @@
 
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 
 #include <cstdint>
 #include <expected>

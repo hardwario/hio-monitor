@@ -27,6 +27,7 @@
 #include <QJsonValue>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtCore/qcborcommon.h>
 
 #include <gtest/gtest.h>

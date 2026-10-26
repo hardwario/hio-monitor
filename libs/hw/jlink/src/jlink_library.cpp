@@ -18,6 +18,7 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtCore/qnamespace.h>
 #include <QtLogging>

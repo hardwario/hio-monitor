@@ -12,6 +12,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QStringView>
 #include <QVariant>
 #include <QtAssert>

@@ -28,6 +28,7 @@
 #include <QLoggingCategory>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTemporaryFile>
 #include <QtContainerFwd>
 #include <QtSystemDetection>

@@ -12,6 +12,7 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtCore/qtmetamacros.h>
 #include <QtTypes>

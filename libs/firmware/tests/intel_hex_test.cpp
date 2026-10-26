@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QIODevice>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtEnvironmentVariables>
 #include <QtTypes>

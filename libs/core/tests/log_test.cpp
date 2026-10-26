@@ -1,8 +1,11 @@
 #include "hio/core/error.h"
 #include "hio/core/log.h"
 
+#include <QChar>
+#include <QLatin1Char>
 #include <QLoggingCategory>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtTypes>
 

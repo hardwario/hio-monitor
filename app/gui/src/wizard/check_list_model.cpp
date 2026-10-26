@@ -9,6 +9,7 @@
 #include <QModelIndex>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 #include <QtCore/qtmetamacros.h>
 

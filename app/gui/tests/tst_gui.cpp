@@ -36,6 +36,7 @@
 #include <QQuickStyle>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QUrl>
 #include <QVariant>

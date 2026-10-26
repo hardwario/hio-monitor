@@ -11,6 +11,7 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QString>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 

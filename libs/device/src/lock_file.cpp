@@ -38,6 +38,7 @@
 // NOMINMAX and WIN32_LEAN_AND_MEAN are set by libs/device/CMakeLists.txt.
 #include <windows.h>
 // <psapi.h> needs <windows.h> first.
+#include <QStringLiteral>
 #include <QtEnvironmentVariables>
 
 #include <array>

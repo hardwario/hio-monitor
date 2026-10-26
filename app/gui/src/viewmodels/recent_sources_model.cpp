@@ -20,6 +20,7 @@
 #include <QModelIndex>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 #include <QtCore/qnamespace.h>
 

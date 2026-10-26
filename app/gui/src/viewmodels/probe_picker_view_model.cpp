@@ -17,6 +17,7 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>

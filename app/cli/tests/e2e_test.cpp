@@ -12,6 +12,7 @@
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtContainerFwd>
 

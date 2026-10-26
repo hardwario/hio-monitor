@@ -35,6 +35,7 @@
 
 #if QT_CONFIG(permissions)
 #include <QPermissions>
+#include <QStringLiteral>
 #endif
 
 #include <CLI/CLI.hpp>

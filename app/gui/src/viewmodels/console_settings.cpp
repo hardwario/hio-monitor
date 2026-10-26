@@ -15,6 +15,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QVariant>
 #include <QtCore/qnamespace.h>

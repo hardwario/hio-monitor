@@ -27,6 +27,7 @@
 #include <vector>
 
 #ifndef _WIN32
+#include <QStringLiteral>
 #include <QtContainerFwd>
 
 #include <csignal>

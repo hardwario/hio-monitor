@@ -24,6 +24,7 @@
 #include "hio/hw/jlink/programmer.h"
 
 #include <QString>
+#include <QStringLiteral>
 #include <QtEnvironmentVariables>
 
 #include <gtest/gtest.h>

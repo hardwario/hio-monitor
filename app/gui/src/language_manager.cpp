@@ -15,6 +15,7 @@
 #include <QQmlEngine>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTranslator>
 #include <QVariant>
 #include <QtContainerFwd>

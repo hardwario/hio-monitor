@@ -49,6 +49,7 @@
 #include <QScreen>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QUrl>
 #include <QVariant>

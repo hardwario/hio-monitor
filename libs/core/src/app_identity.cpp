@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QString>
+#include <QStringLiteral>
 
 namespace hio {
 

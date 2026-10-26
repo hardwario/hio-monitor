@@ -20,6 +20,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtEnvironmentVariables>
 

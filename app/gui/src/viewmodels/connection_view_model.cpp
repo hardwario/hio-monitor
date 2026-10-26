@@ -17,6 +17,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>

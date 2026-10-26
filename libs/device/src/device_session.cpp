@@ -34,6 +34,7 @@
 #include <QMetaObject>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QtCore/qnamespace.h>
 #include <QtCore/qtmetamacros.h>

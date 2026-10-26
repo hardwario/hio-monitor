@@ -4,6 +4,7 @@
 #include "hio/firmware/firmware_image.h"
 
 #include <QString>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 

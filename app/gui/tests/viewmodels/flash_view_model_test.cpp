@@ -34,6 +34,7 @@
 #include <QPointer>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QUuid>
 #include <QVariant>

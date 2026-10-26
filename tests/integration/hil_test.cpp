@@ -16,6 +16,7 @@
 #include <QList>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtEnvironmentVariables>
 
 #include <gtest/gtest.h>

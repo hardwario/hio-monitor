@@ -8,6 +8,7 @@
 #include "viewmodels/find_filter_engine.h"
 
 #include <QString>
+#include <QStringLiteral>
 #include <QStringView>
 
 #include <gtest/gtest.h>

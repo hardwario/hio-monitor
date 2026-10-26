@@ -13,6 +13,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtTypes>
 
 #include <gtest/gtest.h>

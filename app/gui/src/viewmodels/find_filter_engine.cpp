@@ -8,6 +8,7 @@
 #include <QRegularExpressionMatch>
 #include <QRegularExpressionMatchIterator>
 #include <QString>
+#include <QStringLiteral>
 #include <QStringView>
 #include <QTimer>
 #include <QtCore/qnamespace.h>

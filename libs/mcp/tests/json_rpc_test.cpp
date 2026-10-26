@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 

@@ -19,6 +19,7 @@
 #include <QJsonValue>
 #include <QLoggingCategory>
 #include <QString>
+#include <QStringLiteral>
 
 #include <CLI/CLI.hpp>
 

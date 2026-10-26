@@ -9,6 +9,7 @@
 #include <QKeySequence>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtAssert>
 #include <QtCore/qttranslation.h>

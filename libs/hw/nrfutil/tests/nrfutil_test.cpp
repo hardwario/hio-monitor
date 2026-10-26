@@ -9,6 +9,7 @@
 #include <QIODevice>
 #include <QJsonDocument>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtEnvironmentVariables>
 

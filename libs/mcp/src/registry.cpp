@@ -8,6 +8,7 @@
 #include <QLatin1StringView>
 #include <QRegularExpression>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtCore/qcborcommon.h>
 #include <QtTypes>

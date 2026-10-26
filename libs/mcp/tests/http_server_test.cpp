@@ -23,6 +23,7 @@
 #include <QLatin1Char>
 #include <QList>
 #include <QObject>
+#include <QStringLiteral>
 #include <QTcpSocket>
 #include <QtCore/qhashfunctions.h>
 #include <QtTypes>

@@ -19,6 +19,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtContainerFwd>
 #include <QtTypes>

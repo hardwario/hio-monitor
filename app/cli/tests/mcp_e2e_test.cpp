@@ -25,6 +25,7 @@
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QThread>

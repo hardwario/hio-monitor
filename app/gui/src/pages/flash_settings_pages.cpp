@@ -18,6 +18,7 @@
 #include <QLoggingCategory>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtCore/qttranslation.h>
 

@@ -14,6 +14,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 

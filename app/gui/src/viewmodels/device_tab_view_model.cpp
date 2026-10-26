@@ -21,6 +21,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QStringLiteral>
 #include <QtCore/qnamespace.h>
 
 #include <cstdint>

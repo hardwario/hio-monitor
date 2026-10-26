@@ -9,6 +9,7 @@
 #include <QJsonValue>
 #include <QLatin1StringView>
 #include <QString>
+#include <QStringLiteral>
 #include <QtTypes>
 
 #include <cstddef>

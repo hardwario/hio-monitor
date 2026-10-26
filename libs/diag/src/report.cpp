@@ -23,6 +23,7 @@
 #include <QLoggingCategory>
 #include <QSaveFile>
 #include <QString>
+#include <QStringLiteral>
 #include <QSysInfo>
 #include <QtTypes>
 

@@ -20,6 +20,7 @@
 #include <QPointer>
 #include <QSignalSpy>
 #include <QString>
+#include <QStringLiteral>
 #include <QtContainerFwd>
 #include <QtEnvironmentVariables>
 

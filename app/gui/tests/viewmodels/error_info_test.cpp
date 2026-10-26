@@ -4,6 +4,7 @@
 #include "viewmodels/error_info.h"
 
 #include <QString>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 

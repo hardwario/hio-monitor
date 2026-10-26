@@ -26,6 +26,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
+#include <QStringLiteral>
 #include <QtTypes>
 
 #include <expected>

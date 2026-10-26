@@ -27,6 +27,7 @@
 #include <QList>
 #include <QRegularExpression>
 #include <QString>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QtTypes>
 
