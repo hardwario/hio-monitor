@@ -695,6 +695,19 @@
     </message>
 </context>
 <context>
+    <name>CrashNoticeBanner</name>
+    <message>
+        <location filename="../app/gui/qml/shell/CrashNoticeBanner.qml" line="11"/>
+        <source>HARDWARIO Monitor quit unexpectedly last time.</source>
+        <translation>HARDWARIO Monitor se minule neočekávaně ukončil.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/shell/CrashNoticeBanner.qml" line="12"/>
+        <source>Create diagnostic report</source>
+        <translation>Vytvořit diagnostickou zprávu</translation>
+    </message>
+</context>
+<context>
     <name>DeviceBar</name>
     <message>
         <location filename="../app/gui/qml/shell/DeviceBar.qml" line="38"/>
@@ -1069,28 +1082,28 @@
         <translation>HARDWARIO Monitor</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="155"/>
+        <location filename="../app/gui/qml/Main.qml" line="161"/>
         <source>Close the tab?</source>
         <translation>Zavřít kartu?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="156"/>
+        <location filename="../app/gui/qml/Main.qml" line="162"/>
         <source>Cancel and close</source>
         <translation>Zrušit a zavřít</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="157"/>
-        <location filename="../app/gui/qml/Main.qml" line="167"/>
+        <location filename="../app/gui/qml/Main.qml" line="163"/>
+        <location filename="../app/gui/qml/Main.qml" line="173"/>
         <source>Keep running</source>
         <translation>Pokračovat</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="165"/>
+        <location filename="../app/gui/qml/Main.qml" line="171"/>
         <source>Quit HARDWARIO Monitor?</source>
         <translation>Ukončit HARDWARIO Monitor?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="166"/>
+        <location filename="../app/gui/qml/Main.qml" line="172"/>
         <source>Cancel and quit</source>
         <translation>Zrušit a ukončit</translation>
     </message>
@@ -1492,45 +1505,45 @@
 <context>
     <name>Shortcuts</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="307"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="312"/>
         <source>New device tab</source>
         <translation>Nová karta zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="310"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="315"/>
         <source>Close the device tab</source>
         <translation>Zavřít kartu zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="313"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="316"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="318"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="321"/>
         <source>Next tab</source>
         <translation>Další karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="319"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="322"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="324"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="327"/>
         <source>Previous tab</source>
         <translation>Předchozí karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="325"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="330"/>
         <source>Settings</source>
         <translation>Nastavení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="328"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="333"/>
         <source>Connect or disconnect</source>
         <translation>Připojit nebo odpojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="331"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="336"/>
         <source>Reconnect</source>
         <translation>Znovu připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="334"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="337"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="339"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="342"/>
         <source>Keyboard shortcuts</source>
         <translation>Klávesové zkratky</translation>
     </message>
@@ -4013,7 +4026,7 @@
 <context>
     <name>hio::gui::AppViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="162"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="166"/>
         <source>Copied.</source>
         <translation>Zkopírováno.</translation>
     </message>

@@ -6,9 +6,11 @@
 #include "cli_app.h"
 #include "exit_codes.h"
 #include "hio/core/app_identity.h"
+#include "hio/core/crash_handler.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/log.h"
+#include "hio/core/version.h"
 #include "output.h"
 #include "signals.h"
 
@@ -126,6 +128,16 @@ int run(int& argc, char** argv) {
 int main(int argc, char** argv) {
     bool json = false;
     try {
+        // ADR-0123: local crash files, first thing (the identity gives the data directory).
+        hio::initApplicationIdentity();
+        const hio::BuildInfo build = hio::buildInfo();
+        const std::string version = std::format("{} (git {})", build.version, build.gitHash);
+        if (auto crash = hio::crash::install({.directory = hio::crash::defaultDirectory(),
+                                              .appName = "hio",
+                                              .version = version});
+            !crash) {
+            std::cerr << "hio: crash handler not installed: " << crash.error().detail << '\n';
+        }
         // Raw argv, only to choose the format of the last-resort error below.
         const std::span<char*> rawArgs(argv, static_cast<std::size_t>(argc));
         if (rawArgs.size() > 1) {

@@ -309,8 +309,8 @@ No new `hio::Error` codes at runtime except in 0016. Package-time failures are C
 
 **Phase B — crash handler**
 - [ ] B1 `hio::crash` POSIX + Windows, unit tests with a crashing child process (each signal / exception), pruning.
-- [ ] B2 Diagnostic report `crashes/` (ADR-0075 bounds), CLI `hio diag report` test.
-- [ ] B3 GUI `CrashNoticeBanner` + view-model property, Qt Quick test, translations.
+- [x] B2 Diagnostic report `crashes/` (ADR-0075 bounds), CLI `hio diag report` test.
+- [x] B3 GUI `CrashNoticeBanner` + view-model property, Qt Quick test, translations.
 
 **Phase C — Linux**
 - [ ] C1 Containerfile + CI build in the container; check `objdump -T` max `GLIBC_` ≤ 2.35.

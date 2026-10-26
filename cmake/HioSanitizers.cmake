@@ -39,6 +39,8 @@ if(HIO_SANITIZERS)
     set(_hio_san_link ${HIO_SANITIZERS})
     list(REMOVE_ITEM _hio_san_link fuzzer)
     list(JOIN _hio_san_compile "," _hio_san_list)
+    # HIO_SANITIZER: code that must not run under sanitizers (the crash handler, ADR-0123).
+    add_compile_definitions(HIO_SANITIZER)
     add_compile_options(
         "-fsanitize=${_hio_san_list}"
         -fno-sanitize-recover=all

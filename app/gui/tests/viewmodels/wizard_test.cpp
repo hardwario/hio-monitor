@@ -56,17 +56,19 @@ using hio::gui::test::waitFor;
 class WizardTest : public hio::gui::test::GuiTest {
 protected:
     [[nodiscard]] std::unique_ptr<AppViewModel> makeWizardApp(bool withWizard = true) const {
-        return std::make_unique<AppViewModel>(
-            hio::gui::AppOptions{.settings = openSettings(),
-                                 .registry = registryOptions(),
-                                 .scanInterval = std::chrono::milliseconds(200),
-                                 .registerExtensions = [withWizard](AppViewModel& app) {
-                                     hio::gui::registerBuiltInPages(app);
-                                     if (withWizard) {
-                                         hio::gui::test::registerTestWizard(
-                                             app, QUrl(QStringLiteral("qrc:/TestEmbedded.qml")));
-                                     }
-                                 }});
+        return std::make_unique<AppViewModel>(hio::gui::AppOptions{
+            .settings = openSettings(),
+            .registry = registryOptions(),
+            .scanInterval = std::chrono::milliseconds(200),
+            .registerExtensions =
+                [withWizard](AppViewModel& app) {
+                    hio::gui::registerBuiltInPages(app);
+                    if (withWizard) {
+                        hio::gui::test::registerTestWizard(
+                            app, QUrl(QStringLiteral("qrc:/TestEmbedded.qml")));
+                    }
+                },
+            .crashDirectory = {}});
     }
 
     static TestWizard* testWizard(AppViewModel& app) {

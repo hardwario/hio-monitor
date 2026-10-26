@@ -32,6 +32,7 @@
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QCryptographicHash>
+#include <QDir>
 #include <QFile>
 #include <QIODevice>
 #include <QObject>
@@ -131,6 +132,21 @@ public:
         m_app->closeTab(0); // replaced by a new Choose device tab
         m_app->closeGlobalPage();
         m_app->setShortcutOverlayVisible(false);
+    }
+
+    // Plan 0015 B3: the crash handler's marker as after a crash, then the start-up check again.
+    Q_INVOKABLE void simulateCrash() const {
+        const QString dir = m_dir + QStringLiteral("/crashes");
+        QDir().mkpath(dir);
+        QFile marker(dir + QStringLiteral("/last-crash"));
+        if (marker.open(QIODevice::WriteOnly)) {
+            marker.write("crash-hio-monitor-20261026-100000.txt\n");
+        }
+        marker.close();
+        m_app->refreshCrashNotice();
+    }
+    Q_INVOKABLE [[nodiscard]] bool crashMarkerExists() const {
+        return QFile::exists(m_dir + QStringLiteral("/crashes/last-crash"));
     }
 
     Q_INVOKABLE [[nodiscard]] QObject* testPage(int index) const {
@@ -376,7 +392,9 @@ public slots:
                         hio::gui::test::registerTestWizard(
                             app, QUrl::fromLocalFile(QStringLiteral(QUICK_TEST_SOURCE_DIR
                                                                     "/qml/TestEmbedded.qml")));
-                    }},
+                    },
+                // Plan 0015 B3: the crash notice reads the marker here (testSupport.simulateCrash).
+                .crashDirectory = root / "crashes"},
             QCoreApplication::instance());
         m_languageManager.emplace(m_app->settingsStore());
         m_app->setLanguageManager(&*m_languageManager);

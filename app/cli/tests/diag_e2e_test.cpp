@@ -5,6 +5,7 @@
 #include "cli_process.h"
 
 #include <QByteArray>
+#include <QDir>
 #include <QFile>
 #include <QIODevice>
 #include <QJsonArray>
@@ -15,6 +16,7 @@
 #include <QString>
 #include <QStringList>
 #include <QtContainerFwd>
+#include <QtSystemDetection>
 
 #include <gtest/gtest.h>
 
@@ -267,6 +269,30 @@ TEST_F(DiagCli, ReportIsWritten) {
     EXPECT_EQ(human.exitCode, 0);
     EXPECT_NE(human.out.find("HARDWARIO Monitor diagnostic report"), std::string::npos)
         << human.out;
+}
+
+// ADR-0123 (plan 0015 B2): crash files of the data folder go into crashes/ of the report.
+TEST_F(DiagCli, ReportIncludesCrashFiles) {
+#ifdef Q_OS_WIN
+    const QString data = home() + QStringLiteral("/localappdata/HARDWARIO/Monitor");
+#elifdef Q_OS_MACOS
+    const QString data = home() + QStringLiteral("/Library/Application Support/HARDWARIO/Monitor");
+#else
+    const QString data = home() + QStringLiteral("/data/HARDWARIO/Monitor");
+#endif
+    ASSERT_TRUE(QDir().mkpath(data + QStringLiteral("/crashes")));
+    QFile crash(data + QStringLiteral("/crashes/crash-hio-monitor-20261016-100000.txt"));
+    ASSERT_TRUE(crash.open(QIODevice::WriteOnly));
+    crash.write("HARDWARIO Monitor crash report\nsignal: 11 (SIGSEGV)\n");
+    crash.close();
+    const QString target = home() + QStringLiteral("/report.zip");
+    const RunResult result =
+        hio({QStringLiteral("diag"), QStringLiteral("report"), QStringLiteral("-o"), target});
+    ASSERT_EQ(result.exitCode, 0) << result.out << result.err;
+    QFile zip(target);
+    ASSERT_TRUE(zip.open(QIODevice::ReadOnly));
+    // The zip's directory holds the entry names as plain text.
+    EXPECT_TRUE(zip.readAll().contains("crashes/crash-hio-monitor-20261016-100000.txt"));
 }
 
 TEST_F(DiagCli, ReportToTheTerminalIsRefused) {

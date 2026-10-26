@@ -63,6 +63,12 @@ ApplicationWindow {
             Layout.fillWidth: true
         }
 
+        // The shell banner area (plan 0015 B3, plan 0016 C2): one banner at a time, the crash
+        // notice before the update notice.
+        CrashNoticeBanner {
+            Layout.fillWidth: true
+        }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true

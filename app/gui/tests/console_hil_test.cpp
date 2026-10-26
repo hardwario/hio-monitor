@@ -72,7 +72,8 @@ protected:
                                                      .lockDirectory = root / "locks",
                                                      .consoleDirectory = root / "console"},
             .scanInterval = std::chrono::milliseconds(2000),
-            .registerExtensions = &hio::gui::registerBuiltInPages});
+            .registerExtensions = &hio::gui::registerBuiltInPages,
+            .crashDirectory = {}});
         m_tab = m_app->currentTabViewModel();
         ASSERT_TRUE(m_tab->configure(QStringLiteral("chester"), QStringLiteral("app"), m_serial));
     }

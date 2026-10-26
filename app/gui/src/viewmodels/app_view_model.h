@@ -44,6 +44,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -67,6 +68,9 @@ struct AppOptions {
     // Registers the pages, settings sections, setting keys and page shortcuts of the GUI plans
     // (0004's placeholders, 0005, 0006), before the first tab exists.
     std::function<void(AppViewModel&)> registerExtensions;
+    // Plan 0015 B3 (ADR-0123): the crash directory (hio::crash::defaultDirectory() in main();
+    // empty: no crash notice).
+    std::filesystem::path crashDirectory;
 };
 
 class AppViewModel : public QObject {
@@ -105,6 +109,9 @@ class AppViewModel : public QObject {
     Q_PROPERTY(hio::gui::WizardLauncher* launcher READ launcher CONSTANT)
     Q_PROPERTY(hio::gui::ReportViewModel* report READ report CONSTANT)
     Q_PROPERTY(QString documentationUrl READ documentationUrl CONSTANT)
+    // Plan 0015 B3 (ADR-0123): the previous run crashed (the crash handler's marker exists); the
+    // shell shows CrashNoticeBanner until reportCrash() or dismissCrashNotice().
+    Q_PROPERTY(bool crashedLastRun READ crashedLastRun NOTIFY crashedLastRunChanged)
 
 public:
     static constexpr int railBreakpoint = 1100; // ADR-0061
@@ -224,6 +231,15 @@ public:
     Q_INVOKABLE void copyToClipboard(const QString& text);
     // Help → Documentation (opens the browser).
     Q_INVOKABLE static void openDocumentation();
+
+    [[nodiscard]] bool crashedLastRun() const noexcept { return m_crashedLastRun; }
+    // [Create diagnostic report] of the crash notice: opens the report dialog (the report contains
+    // the crash files) and acknowledges the crash.
+    Q_INVOKABLE void reportCrash();
+    // [Dismiss]: acknowledges the crash (hio::crash::acknowledge), the notice is not shown again.
+    Q_INVOKABLE void dismissCrashNotice();
+    // Reads the crash marker again (start-up; tests).
+    void refreshCrashNotice();
     // One spin-box step on the grid of `step` (review S15): up from 1 → 10, from 10 → 20; down
     // from 15 → 10; clamped to [minimum, maximum]. direction: +1 / -1.
     Q_INVOKABLE [[nodiscard]] static int stepValue(int value, int step, int direction, int minimum,
@@ -239,6 +255,7 @@ signals:
     void shortcutOverlayVisibleChanged();
     void toastsChanged();
     void jlinkLibraryChanged();
+    void crashedLastRunChanged();
     void closeConfirmationNeeded(hio::gui::DeviceTabViewModel* tab, const QString& text);
     void quitConfirmationNeeded(const QString& text);
     void quitRequested();
@@ -303,6 +320,7 @@ private:
     std::uint64_t m_nextToastId = 1;
     QString m_jlinkLibraryPath;
     QString m_jlinkLibraryVersion;
+    bool m_crashedLastRun = false;
 };
 
 } // namespace hio::gui

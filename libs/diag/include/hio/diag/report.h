@@ -9,6 +9,12 @@
 // Bounds: each log file contributes its last maxLogBytes (cut at the next line start), at most
 // maxLogFiles files, the summary at most maxSummaryBytes, the whole zip at most maxReportBytes
 // (logs are left out, newest kept, when it would grow beyond).
+//
+// Crash files (ADR-0123, plan/features/0015 B2): crashes/ holds the newest crash files of the
+// application (hio::crash, at most 3) and on macOS the newest 3 ~/Library/Logs/DiagnosticReports/
+// hio* reports (recentCrashFiles()). Text files (.txt, .ips, .crash) are redacted, minidumps are
+// copied as they are. They are added before the logs; a file that does not fit into the remaining
+// budget of maxReportBytes is left out and listed as skipped in summary.txt.
 
 #include "hio/core/result.h"
 #include "hio/diag/check.h"
@@ -55,9 +61,10 @@ struct ReportInput {
     QJsonObject tools; // EnvironmentFacts (J-Link Software, nRF Util)
     QJsonArray probes; // EnvironmentFacts probes
     QJsonArray tabs;   // GUI only: profile, target, serial number, state
-    std::vector<std::filesystem::path> logFiles; // current + previous of the GUI and the CLI
-    std::filesystem::path settingsFile;          // "" or missing = left out
-    std::string createdUtc;                      // ISO 8601 report time
+    std::vector<std::filesystem::path> logFiles;   // current + previous of the GUI and the CLI
+    std::vector<std::filesystem::path> crashFiles; // recentCrashFiles()
+    std::filesystem::path settingsFile;            // "" or missing = left out
+    std::string createdUtc;                        // ISO 8601 report time
     RedactionContext redaction;
 };
 
@@ -68,6 +75,11 @@ struct ReportInput {
 // maxLogFiles; part files of one run count as the run's file).
 [[nodiscard]] std::vector<std::filesystem::path>
 recentLogFiles(const std::filesystem::path& logDir);
+
+// The crash files for the report: the newest hio::crash::reportCrashFiles files of `crashDir`
+// and, on macOS, the newest 3 ~/Library/Logs/DiagnosticReports/hio* files.
+[[nodiscard]] std::vector<std::filesystem::path>
+recentCrashFiles(const std::filesystem::path& crashDir);
 
 // The default file name "hio-diagnostics-YYYYMMDD-HHMMSS.zip" (local time).
 [[nodiscard]] std::string defaultReportFileName();
@@ -80,6 +92,10 @@ recentLogFiles(const std::filesystem::path& logDir);
 class ReportBuilder {
 public:
     [[nodiscard]] static std::string summaryText(const ReportInput& input); // redacted
+    // summaryText() whose crash file list marks `skippedCrashes` (file names) as skipped.
+    [[nodiscard]] static std::string
+    summaryTextWithCrashes(const ReportInput& input,
+                           const std::vector<std::string>& skippedCrashes);
     [[nodiscard]] static QJsonObject summaryJson(const ReportInput& input); // redacted
     // Writes the zip to `target` through a temporary file in the same folder, renamed at the end:
     // a failed or cancelled write leaves no partial file. Returns the size in bytes.

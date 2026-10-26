@@ -2,6 +2,7 @@
 
 #include "hio/diag/report.h"
 
+#include "hio/core/crash_handler.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/log.h"
@@ -13,6 +14,7 @@
 #include <QByteArrayView>
 #include <QChar>
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
 #include <QIODevice>
 #include <QJsonArray>
@@ -24,6 +26,7 @@
 #include <QSaveFile>
 #include <QString>
 #include <QSysInfo>
+#include <QtSystemDetection>
 #include <QtTypes>
 
 #include <algorithm>
@@ -113,6 +116,77 @@ struct ZipEntry {
     std::string data;
 };
 
+// settings.ini (redacted, at most maxSummaryBytes); nullopt without a readable settings file.
+std::optional<ZipEntry> settingsEntry(const ReportInput& input) {
+    if (input.settingsFile.empty()) {
+        return std::nullopt;
+    }
+    QFile settings(QString::fromStdU16String(input.settingsFile.u16string()));
+    if (!settings.open(QIODevice::ReadOnly)) {
+        return std::nullopt;
+    }
+    return ZipEntry{.name = "settings.ini",
+                    .data =
+                        redact(settings.read(static_cast<qint64>(maxSummaryBytes)).toStdString(),
+                               input.redaction)};
+}
+
+bool isTextCrashFile(const fs::path& path) {
+    const std::string extension = path.extension().string();
+    return extension == ".txt" || extension == ".ips" || extension == ".crash";
+}
+
+// A crash file for crashes/: the whole file (crash files are bounded: hio::crash, and the macOS
+// reports are read up to maxDumpBytes), text redacted.
+std::optional<ZipEntry> crashEntry(const fs::path& path, const RedactionContext& redaction) {
+    QFile file(QString::fromStdU16String(path.u16string()));
+    if (!file.open(QIODevice::ReadOnly)) {
+        return std::nullopt;
+    }
+    std::string data = file.read(static_cast<qint64>(crash::maxDumpBytes)).toStdString();
+    if (isTextCrashFile(path)) {
+        data = redact(data, redaction);
+    }
+    return ZipEntry{.name = "crashes/" + path.filename().string(), .data = std::move(data)};
+}
+
+struct CrashPlan {
+    std::vector<ZipEntry> entries;
+    std::vector<std::string> skipped; // file names left out (budget)
+};
+
+// The crash entries that fit into `budget` bytes (newest first, as listed).
+CrashPlan planCrashEntries(const ReportInput& input, std::size_t budget) {
+    CrashPlan plan;
+    std::size_t used = 0;
+    for (const fs::path& path : input.crashFiles) {
+        auto entry = crashEntry(path, input.redaction);
+        if (!entry) {
+            continue;
+        }
+        if (used + entry->data.size() > budget) {
+            plan.skipped.push_back(path.filename().string());
+            continue;
+        }
+        used += entry->data.size();
+        plan.entries.push_back(std::move(*entry));
+    }
+    return plan;
+}
+
+std::string crashSection(const ReportInput& input, const std::vector<std::string>& skipped) {
+    if (input.crashFiles.empty()) {
+        return "\nCrash files: none\n";
+    }
+    std::string text = std::format("\nCrash files: {}\n", input.crashFiles.size());
+    for (const fs::path& path : input.crashFiles) {
+        const std::string name = path.filename().string();
+        const bool left = std::ranges::find(skipped, name) != skipped.end();
+        text += std::format("  {}{}\n", name, left ? " (skipped: the report size limit)" : "");
+    }
+    return text;
+}
+
 Error writeError(const fs::path& target, std::string_view what) {
     return makeError(ErrorCode::DiagReportWriteFailed, std::format("{}: {}", toUtf8(target), what));
 }
@@ -148,6 +222,36 @@ QJsonObject appInfoJson(std::string_view uiLanguage) {
     app.insert(QStringLiteral("arch"), QSysInfo::currentCpuArchitecture());
     app.insert(QStringLiteral("language"), toQString(uiLanguage));
     return app;
+}
+
+std::vector<fs::path> recentCrashFiles(const fs::path& crashDir) {
+    std::vector<fs::path> files = crash::recent(crashDir, crash::reportCrashFiles);
+#ifdef Q_OS_MACOS
+    // macOS's own reports of our processes (hio-monitor-*.ips, hio-*.ips), newest 3.
+    const fs::path reports =
+        fs::path(QDir::homePath().toStdU16String()) / "Library" / "Logs" / "DiagnosticReports";
+    std::vector<std::pair<fs::file_time_type, fs::path>> found;
+    std::error_code error;
+    fs::directory_iterator it(reports, error);
+    constexpr std::size_t maxEntries = 4096;
+    std::size_t entries = 0;
+    for (; !error && it != fs::directory_iterator() && entries < maxEntries;
+         it.increment(error), ++entries) {
+        if (!it->path().filename().string().starts_with("hio")) {
+            continue;
+        }
+        std::error_code timeError;
+        const auto time = fs::last_write_time(it->path(), timeError);
+        if (!timeError) {
+            found.emplace_back(time, it->path());
+        }
+    }
+    std::ranges::sort(found, [](const auto& a, const auto& b) { return a.first > b.first; });
+    for (std::size_t i = 0; i < found.size() && i < crash::reportCrashFiles; ++i) {
+        files.push_back(found.at(i).second);
+    }
+#endif
+    return files;
 }
 
 std::string defaultReportFileName() {
@@ -214,6 +318,11 @@ QJsonObject ReportBuilder::summaryJson(const ReportInput& input) {
 }
 
 std::string ReportBuilder::summaryText(const ReportInput& input) {
+    return summaryTextWithCrashes(input, {});
+}
+
+std::string ReportBuilder::summaryTextWithCrashes(const ReportInput& input,
+                                                  const std::vector<std::string>& skippedCrashes) {
     std::string text;
     text += "HARDWARIO Monitor diagnostic report\n";
     text += std::format("Created: {} (UTC)\n", input.createdUtc);
@@ -253,6 +362,7 @@ std::string ReportBuilder::summaryText(const ReportInput& input) {
                 tab.value(QStringLiteral("serialNumber")).toInteger(), str(tab, "state"));
         }
     }
+    text += crashSection(input, skippedCrashes);
     text += "\nChecks:\n";
     text += formatCheckLines(input.doctor);
     for (const CheckResult& result : input.doctor) {
@@ -286,11 +396,20 @@ std::string ReportBuilder::summaryText(const ReportInput& input) {
 Result<std::size_t> ReportBuilder::writeZip(const ReportInput& input, const fs::path& target,
                                             const std::stop_token& stop) {
     std::vector<ZipEntry> entries;
-    entries.push_back({"summary.txt", summaryText(input)});
-    entries.push_back(
-        {"summary.json",
-         QJsonDocument(summaryJson(input)).toJson(QJsonDocument::Indented).toStdString()});
+    std::string json =
+        QJsonDocument(summaryJson(input)).toJson(QJsonDocument::Indented).toStdString();
+    // Crash files first (ADR-0123): the budget left after the two summaries (summary.txt is at
+    // most maxSummaryBytes).
+    const std::size_t reserved = json.size() + maxSummaryBytes;
+    CrashPlan crashes =
+        planCrashEntries(input, reserved < maxReportBytes ? maxReportBytes - reserved : 0);
+    entries.push_back({"summary.txt", summaryTextWithCrashes(input, crashes.skipped)});
+    entries.push_back({"summary.json", std::move(json)});
     std::size_t total = entries[0].data.size() + entries[1].data.size();
+    for (ZipEntry& entry : crashes.entries) {
+        total += entry.data.size();
+        entries.push_back(std::move(entry));
+    }
     for (const fs::path& log : input.logFiles) {
         if (stop.stop_requested()) {
             return fail(ErrorCode::Cancelled);
@@ -308,15 +427,9 @@ Result<std::size_t> ReportBuilder::writeZip(const ReportInput& input, const fs::
         total += data.size();
         entries.push_back({"logs/" + log.filename().string(), std::move(data)});
     }
-    if (!input.settingsFile.empty()) {
-        QFile settings(QString::fromStdU16String(input.settingsFile.u16string()));
-        if (settings.open(QIODevice::ReadOnly)) {
-            std::string data = redact(
-                settings.read(static_cast<qint64>(maxSummaryBytes)).toStdString(), input.redaction);
-            if (total + data.size() <= maxReportBytes) {
-                entries.push_back({"settings.ini", std::move(data)});
-            }
-        }
+    if (auto settings = settingsEntry(input);
+        settings && total + settings->data.size() <= maxReportBytes) {
+        entries.push_back(std::move(*settings));
     }
 
     mz_zip_archive archive{};

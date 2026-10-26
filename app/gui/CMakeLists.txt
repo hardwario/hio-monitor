@@ -60,6 +60,7 @@ set(HIO_GUI_QML_FILES
     qml/settings/NrfUtilSection.qml
     qml/settings/SettingsRow.qml
     qml/shell/AdvancedPopover.qml
+    qml/shell/CrashNoticeBanner.qml
     qml/shell/DeviceBar.qml
     qml/shell/DeviceTabBar.qml
     qml/shell/HelpMenu.qml

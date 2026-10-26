@@ -1,5 +1,6 @@
 // Redaction and the diagnostic report (plan/features/0007, A5; ADR-0075). All names are fake.
 
+#include "hio/core/crash_handler.h"
 #include "hio/core/error.h"
 #include "hio/diag/check.h"
 #include "hio/diag/report.h"
@@ -11,9 +12,11 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <QtSystemDetection>
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -237,6 +240,76 @@ TEST(Report, CancelledWriteLeavesNoFile) {
     for (const auto& entry : fs::directory_iterator(root)) {
         EXPECT_FALSE(entry.path().filename().string().starts_with("r.zip")) << entry.path();
     }
+}
+
+// ADR-0123 (plan 0015 B2): the newest crash files go into crashes/, text redacted, dumps as
+// they are; a file over the remaining budget is skipped and listed as skipped in summary.txt.
+TEST(Report, CrashFilesAreIncludedWithinTheBound) {
+    const QTemporaryDir dir;
+    const fs::path root(dir.path().toStdString());
+    auto input = sampleInput(root);
+    const fs::path crashes = root / "crashes";
+    fs::create_directories(crashes);
+    std::ofstream(crashes / "crash-hio-monitor-20261016-100000.txt")
+        << "HARDWARIO Monitor crash report\n/home/jdoe/build/hio-monitor(+0x10)\n";
+    {
+        std::ofstream dump(crashes / "crash-hio-20261016-090000.dmp", std::ios::binary);
+        dump << std::string(1024, '\x01');
+    }
+    // Two dumps of the maximum size: the second does not fit into what is left (skipped).
+    for (const char* name : {"crash-hio-20261015-090000.dmp", "crash-hio-20261014-090000.dmp"}) {
+        std::ofstream dump(crashes / name, std::ios::binary);
+        dump << std::string(hio::crash::maxDumpBytes, '\x02');
+    }
+    input.crashFiles = {crashes / "crash-hio-monitor-20261016-100000.txt",
+                        crashes / "crash-hio-20261016-090000.dmp",
+                        crashes / "crash-hio-20261015-090000.dmp",
+                        crashes / "crash-hio-20261014-090000.dmp"};
+    const fs::path target = root / "report.zip";
+    const auto bytes = hio::diag::ReportBuilder::writeZip(input, target, {});
+    ASSERT_TRUE(bytes.has_value()) << bytes.error().detail;
+    EXPECT_LE(*bytes, hio::diag::maxReportBytes);
+    const auto entries = unzip(target);
+    ASSERT_TRUE(entries.contains("crashes/crash-hio-monitor-20261016-100000.txt"));
+    EXPECT_EQ(entries.at("crashes/crash-hio-monitor-20261016-100000.txt"),
+              "HARDWARIO Monitor crash report\n~/build/hio-monitor(+0x10)\n");
+    ASSERT_TRUE(entries.contains("crashes/crash-hio-20261016-090000.dmp"));
+    EXPECT_EQ(entries.at("crashes/crash-hio-20261016-090000.dmp"), std::string(1024, '\x01'));
+    EXPECT_TRUE(entries.contains("crashes/crash-hio-20261015-090000.dmp"));
+    EXPECT_FALSE(entries.contains("crashes/crash-hio-20261014-090000.dmp"));
+    const std::string& summary = entries.at("summary.txt");
+    EXPECT_NE(summary.find("Crash files: 4"), std::string::npos) << summary;
+    EXPECT_NE(summary.find("crash-hio-20261014-090000.dmp (skipped: the report size limit)"),
+              std::string::npos)
+        << summary;
+    EXPECT_NE(summary.find("  crash-hio-20261016-090000.dmp\n"), std::string::npos) << summary;
+}
+
+TEST(Report, RecentCrashFilesAreTheNewestThree) {
+    const QTemporaryDir dir;
+    const fs::path crashes(dir.path().toStdString());
+    const auto now = fs::file_time_type::clock::now();
+    for (int i = 0; i < 5; ++i) {
+        const fs::path file = crashes / ("crash-hio-2026101" + std::to_string(i) + "-000000.txt");
+        std::ofstream(file) << i << '\n';
+        fs::last_write_time(file, now - std::chrono::hours(10 - i));
+    }
+    std::ofstream(crashes / "last-crash") << "x\n";
+    const auto files = hio::diag::recentCrashFiles(crashes);
+#ifdef Q_OS_MACOS
+    ASSERT_GE(files.size(), 3U); // plus the user's own DiagnosticReports/hio* files, if any
+#else
+    ASSERT_EQ(files.size(), 3U);
+#endif
+    EXPECT_EQ(files.at(0).filename(), "crash-hio-20261014-000000.txt");
+    EXPECT_EQ(files.at(2).filename(), "crash-hio-20261012-000000.txt");
+}
+
+TEST(Report, SummaryWithoutCrashFiles) {
+    const QTemporaryDir dir;
+    const auto input = sampleInput(fs::path(dir.path().toStdString()));
+    EXPECT_NE(hio::diag::ReportBuilder::summaryText(input).find("Crash files: none"),
+              std::string::npos);
 }
 
 TEST(Report, RecentLogsAreTheTwoNewestRunsPerKind) {

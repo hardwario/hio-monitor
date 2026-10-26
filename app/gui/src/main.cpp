@@ -16,9 +16,11 @@
 #include "fonts.h"
 #include "gui_log.h"
 #include "hio/core/app_identity.h"
+#include "hio/core/crash_handler.h"
 #include "hio/core/json.h"
 #include "hio/core/log.h"
 #include "hio/core/settings.h"
+#include "hio/core/version.h"
 #include "hio/device/session_registry.h"
 #include "language_manager.h"
 #include "pages/builtin_pages.h"
@@ -40,15 +42,22 @@
 #include <QString>
 #include <QStringLiteral>
 #include <QStyleHints>
+#include <QTimer>
 #include <QVariant>
 #include <QWindow>
 #include <QtCore/qnamespace.h>
+#include <QtEnvironmentVariables>
 #include <QtQml/qqmlextensionplugin.h>
 
 #include <array>
+#include <chrono>
+#include <cstdlib>
 #include <exception>
+#include <filesystem>
+#include <format>
 #include <iostream>
 #include <optional>
+#include <string>
 #include <utility>
 
 Q_IMPORT_QML_PLUGIN(HardwarioMonitorPlugin)
@@ -159,7 +168,10 @@ int run(int& argc, char** argv) {
         hio::gui::AppOptions{.settings = std::move(settings),
                              .registry = hio::device::RegistryOptions::defaults(),
                              .scanInterval = hio::gui::ProbeScanner::defaultInterval,
-                             .registerExtensions = &hio::gui::registerBuiltInPages},
+                             .registerExtensions = &hio::gui::registerBuiltInPages,
+                             // The self-test shows no crash notice (and acknowledges nothing).
+                             .crashDirectory = selfTest ? std::filesystem::path()
+                                                        : hio::crash::defaultDirectory()},
         &app);
     hio::gui::LanguageManager languageManager(appViewModel.settingsStore());
     appViewModel.setLanguageManager(&languageManager);
@@ -185,6 +197,13 @@ int run(int& argc, char** argv) {
         std::cout << "hio-monitor self-test: the main window was created\n";
         return 0;
     }
+#ifndef NDEBUG
+    // Plan 0015 manual check: HIO_TEST_CRASH=1 (debug builds only) aborts 3 s after the start, so
+    // that the next start shows the crash notice.
+    if (qEnvironmentVariableIsSet("HIO_TEST_CRASH")) {
+        QTimer::singleShot(std::chrono::seconds(3), &app, [] { std::abort(); });
+    }
+#endif
     const int code = QGuiApplication::exec();
     appViewModel.saveState();
     return code;
@@ -194,6 +213,17 @@ int run(int& argc, char** argv) {
 
 int main(int argc, char** argv) {
     try {
+        // ADR-0123: local crash files, first thing (the identity gives the data directory).
+        hio::initApplicationIdentity();
+        const hio::BuildInfo build = hio::buildInfo();
+        const std::string version = std::format("{} (git {})", build.version, build.gitHash);
+        if (auto crash = hio::crash::install({.directory = hio::crash::defaultDirectory(),
+                                              .appName = "hio-monitor",
+                                              .version = version});
+            !crash) {
+            std::cerr << "hio-monitor: crash handler not installed: " << crash.error().detail
+                      << '\n';
+        }
         return run(argc, argv);
     } catch (const std::exception& exception) {
         std::cerr << "hio-monitor: unexpected internal error: " << exception.what() << '\n';

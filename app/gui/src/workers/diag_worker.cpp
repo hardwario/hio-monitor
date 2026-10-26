@@ -1,6 +1,7 @@
 #include "workers/diag_worker.h"
 
 #include "gui_log.h"
+#include "hio/core/crash_handler.h"
 #include "hio/core/error.h"
 #include "hio/core/log.h"
 #include "hio/core/result.h"
@@ -173,6 +174,7 @@ void DiagWorker::process(Request& request, const std::stop_token& stop) {
                 input->probes = input->tools.value(QStringLiteral("probes")).toArray();
                 input->tabs = collect.tabs;
                 input->logFiles = diag::recentLogFiles(log::defaultLogDirectory());
+                input->crashFiles = diag::recentCrashFiles(crash::defaultDirectory());
                 input->settingsFile = Settings::defaultFilePath();
                 input->createdUtc =
                     QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString();

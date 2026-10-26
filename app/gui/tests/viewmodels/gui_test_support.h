@@ -81,10 +81,12 @@ protected:
             AppOptions{.settings = openSettings(),
                        .registry = registryOptions(),
                        .scanInterval = std::chrono::milliseconds(200),
-                       .registerExtensions = [](AppViewModel& app) {
-                           registerBuiltInPages(app);
-                           registerTestPage(app, QUrl(QStringLiteral("qrc:/TestPage.qml")));
-                       }});
+                       .registerExtensions =
+                           [](AppViewModel& app) {
+                               registerBuiltInPages(app);
+                               registerTestPage(app, QUrl(QStringLiteral("qrc:/TestPage.qml")));
+                           },
+                       .crashDirectory = {}});
     }
 
 private:

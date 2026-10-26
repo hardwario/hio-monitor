@@ -1,6 +1,7 @@
 #include "diag_commands.h"
 
 #include "cli_app.h"
+#include "hio/core/crash_handler.h"
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/log.h"
@@ -186,6 +187,7 @@ Result<CommandResult> report(const Context& context, const GlobalOptions& global
     input.tools = tools;
     input.probes = tools.value(QStringLiteral("probes")).toArray();
     input.logFiles = diag::recentLogFiles(log::defaultLogDirectory());
+    input.crashFiles = diag::recentCrashFiles(crash::defaultDirectory());
     input.settingsFile = Settings::defaultFilePath();
     input.createdUtc = QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString();
     input.redaction = diag::currentRedaction();

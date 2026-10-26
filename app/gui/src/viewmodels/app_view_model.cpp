@@ -1,6 +1,7 @@
 #include "viewmodels/app_view_model.h"
 
 #include "gui_log.h"
+#include "hio/core/crash_handler.h"
 #include "hio/core/i18n.h"
 #include "hio/core/json.h"
 #include "hio/core/log.h"
@@ -57,6 +58,7 @@
 #include <QWindow>
 #include <QtContainerFwd>
 #include <QtCore/qnamespace.h>
+#include <QtCore/qtmetamacros.h>
 #include <QtCore/qttranslation.h>
 #include <QtTypes>
 
@@ -157,6 +159,8 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
     }
     createGlobalPages();
 
+    refreshCrashNotice();
+
     connect(m_scanner.get(), &ProbeScanner::scanned, this, &AppViewModel::onScan);
     connect(m_wizard, &WizardViewModel::handOff, this, &AppViewModel::onHandOff);
     connect(m_wizard, &WizardViewModel::copied, this, [this] { showToast(tr("Copied.")); });
@@ -221,7 +225,8 @@ AppViewModel* AppViewModel::create(QQmlEngine* qmlEngine, QJSEngine* /*jsEngine*
         AppOptions{.settings = std::nullopt,
                    .registry = device::RegistryOptions::defaults(),
                    .scanInterval = ProbeScanner::defaultInterval,
-                   .registerExtensions = {}},
+                   .registerExtensions = {},
+                   .crashDirectory = {}},
         qmlEngine);
 }
 
@@ -371,6 +376,34 @@ void AppViewModel::setLanguageManager(LanguageManager* manager) {
 }
 
 QString AppViewModel::version() { return toQString(hio::buildInfo().version); }
+
+void AppViewModel::refreshCrashNotice() {
+    const bool crashed =
+        !m_options.crashDirectory.empty() && crash::crashedLastRun(m_options.crashDirectory);
+    if (crashed != m_crashedLastRun) {
+        m_crashedLastRun = crashed;
+        emit crashedLastRunChanged();
+    }
+    if (crashed) {
+        qCWarning(lcGui) << "The previous run ended with a crash; crash files are in"
+                         << QString::fromStdU16String(m_options.crashDirectory.u16string());
+    }
+}
+
+void AppViewModel::reportCrash() {
+    dismissCrashNotice();
+    m_report->show();
+}
+
+void AppViewModel::dismissCrashNotice() {
+    if (!m_options.crashDirectory.empty()) {
+        crash::acknowledge(m_options.crashDirectory);
+    }
+    if (m_crashedLastRun) {
+        m_crashedLastRun = false;
+        emit crashedLastRunChanged();
+    }
+}
 
 QString AppViewModel::buildInfo() {
     const BuildInfo info = hio::buildInfo();
