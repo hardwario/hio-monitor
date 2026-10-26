@@ -11,6 +11,7 @@
 #include "jlink_commands.h"
 #include "mcp_command.h"
 #include "selftest.h"
+#include "update_commands.h"
 
 #include <QJsonObject>
 #include <QJsonValue>
@@ -88,6 +89,7 @@ CliApp::CliApp()
     registerBleCommands(app, m_slot, m_options);
     registerDiagCommands(app, m_slot, m_options);
     registerMcpCommand(app, m_slot, m_options);
+    registerUpdateCommands(app, m_slot);
 }
 
 CliApp::~CliApp() = default;

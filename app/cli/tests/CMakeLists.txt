@@ -19,7 +19,8 @@ add_executable(hio_cli_tests
     output_test.cpp
     target_commands_test.cpp
     target_e2e_test.cpp
-    terminal_test.cpp)
+    terminal_test.cpp
+    update_e2e_test.cpp)
 # `hio ble` end-to-end tests need the fake BLE backend (ADR-0127).
 if(HIO_TEST_OVERRIDES)
     target_sources(hio_cli_tests PRIVATE ble_e2e_test.cpp)
@@ -38,11 +39,11 @@ target_compile_definitions(hio_cli_tests PRIVATE
 add_dependencies(hio_cli_tests hio hio_fake_jlink hio_fake_jlink_basic hio_fake_nrfutil)
 target_compile_definitions(hio_cli_tests PRIVATE ${HIO_TEST_OVERRIDES_DEFINE})
 
-# Under ThreadSanitizer the two catalog downloads are left out (QNetworkAccessManager's HTTP thread
+# Under ThreadSanitizer the catalog downloads and the update checks (plan 0016) are left out (QNetworkAccessManager's HTTP thread
 # is uninstrumented Qt code, see libs/firmware/tests/CMakeLists.txt).
 set(_hio_cli_test_filter "")
 if("thread" IN_LIST HIO_SANITIZERS)
-    set(_hio_cli_test_filter TEST_FILTER "-FlashCli.FlashByCatalogId:FlashCli.CatalogNetworkDown:FlashCli.LteFlashDesignatedFirmware:FlashCli.CatalogInfoAndVerifiedIdFlash")
+    set(_hio_cli_test_filter TEST_FILTER "-FlashCli.FlashByCatalogId:FlashCli.CatalogNetworkDown:FlashCli.LteFlashDesignatedFirmware:FlashCli.CatalogInfoAndVerifiedIdFlash:UpdateCli.*")
 endif()
 gtest_discover_tests(hio_cli_tests
     DISCOVERY_TIMEOUT 60

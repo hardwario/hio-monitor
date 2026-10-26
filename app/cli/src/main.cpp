@@ -15,6 +15,7 @@
 #include <QCoreApplication>
 #include <QJsonObject>
 #include <QLocale>
+#include <QNetworkProxyFactory>
 #include <QString>
 #include <QStringList>
 #include <QtContainerFwd>
@@ -52,6 +53,8 @@ int run(int& argc, char** argv) {
     // C locale for numbers (QCoreApplication applies the user's locale on Unix).
     std::setlocale(LC_NUMERIC, "C");
     QLocale::setDefault(QLocale::c());
+    // Plan 0016: downloads and the update check use the system proxy settings.
+    QNetworkProxyFactory::setUseSystemConfiguration(true);
 
     // Arguments from Qt are proper Unicode on every OS; CLI11 gets them as UTF-8.
     std::vector<std::string> args;

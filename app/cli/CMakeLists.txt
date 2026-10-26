@@ -55,11 +55,13 @@ add_library(hio_cli_impl STATIC
     src/target_commands.cpp
     src/target_commands.h
     src/terminal.cpp
-    src/terminal.h)
+    src/terminal.h
+    src/update_commands.cpp
+    src/update_commands.h)
 hio_apply_target_defaults(hio_cli_impl)
 target_include_directories(hio_cli_impl PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(hio_cli_impl PUBLIC
-    hio::core hio::device hio::diag hio::mcp hio::mcp_tools Qt6::Core CLI11::CLI11)
+    hio::core hio::device hio::diag hio::mcp hio::mcp_tools hio::update Qt6::Core CLI11::CLI11)
 # replxx (ADR-0033) only for the interactive console; the backend never links it.
 target_link_libraries(hio_cli_impl PRIVATE replxx::replxx)
 if(WIN32)

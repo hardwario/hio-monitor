@@ -26,6 +26,7 @@
 #include <QEventLoop>
 #include <QGuiApplication>
 #include <QLoggingCategory>
+#include <QNetworkProxyFactory>
 #include <QObject>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
@@ -88,6 +89,8 @@ int run(int& argc, char** argv) {
     QGuiApplication app(argc, argv);
     hio::initApplicationIdentity();
     QGuiApplication::setApplicationDisplayName(QStringLiteral("HARDWARIO Monitor"));
+    // Plan 0016: firmware downloads and the update check use the system proxy settings.
+    QNetworkProxyFactory::setUseSystemConfiguration(true);
 
     auto logging = hio::log::Logging::init(hio::log::AppKind::Gui, {});
     if (!logging) {
