@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata of HARDWARIO Monitor (plan/features/0015 A3). Configured by
+     cmake/HioPackaging.cmake (version and date of the build); validated with
+     `appstreamcli validate - -no-net` in CI. -->
+<component type="desktop-application">
+  <id>com.hardwario.monitor</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary=https://github.com/hardwario/hio-monitor/blob/main/LICENSE</project_license>
+  <name>HARDWARIO Monitor</name>
+  <summary>Console, log and flashing tool for HARDWARIO devices</summary>
+  <summary xml:lang="cs">Konzole, logy a programování zařízení HARDWARIO</summary>
+  <description>
+    <p>
+      HARDWARIO Monitor connects to HARDWARIO devices such as CHESTER through a SEGGER J-Link probe
+      or Bluetooth. It shows the device console and logs, flashes application and modem firmware,
+      and helps to diagnose connection problems.
+    </p>
+    <p>
+      The command-line tool hio is included. SEGGER J-Link Software 8.00 or newer must be installed
+      separately.
+    </p>
+  </description>
+  <developer id="com.hardwario">
+    <name>HARDWARIO a.s.</name>
+  </developer>
+  <url type="homepage">https://www.hardwario.com/</url>
+  <url type="bugtracker">https://github.com/hardwario/hio-monitor/issues</url>
+  <url type="vcs-browser">https://github.com/hardwario/hio-monitor</url>
+  <launchable type="desktop-id">com.hardwario.monitor.desktop</launchable>
+  <provides>
+    <binary>hio-monitor</binary>
+    <binary>hio</binary>
+  </provides>
+  <categories>
+    <category>Development</category>
+    <category>Electronics</category>
+  </categories>
+  <keywords>
+    <keyword>CHESTER</keyword>
+    <keyword>J-Link</keyword>
+    <keyword>RTT</keyword>
+    <keyword>console</keyword>
+  </keywords>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The main window</caption>
+      <image>https://github.com/hardwario/hio-monitor/raw/v2-dev/packaging/linux/screenshots/main-window.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@HIO_VERSION_NUMERIC@" date="@HIO_RELEASE_DATE@"/>
+  </releases>
+</component>

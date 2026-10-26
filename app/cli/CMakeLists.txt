@@ -69,6 +69,15 @@ if(WIN32)
 endif()
 
 qt_add_executable(hio src/main.cpp)
+# Plan 0015 A3: icon and VERSIONINFO on Windows.
+if(WIN32)
+    set(HIO_RC_FILE_DESCRIPTION "HARDWARIO Monitor command-line interface")
+    set(HIO_RC_INTERNAL_NAME "hio")
+    set(HIO_RC_ORIGINAL_FILENAME "hio.exe")
+    configure_file("${PROJECT_SOURCE_DIR}/packaging/windows/version.rc.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/hio.rc" @ONLY)
+    target_sources(hio PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/hio.rc")
+endif()
 hio_apply_target_defaults(hio)
 target_link_libraries(hio PRIVATE hio_cli_impl)
 # A console application on every OS (no WIN32_EXECUTABLE, no MACOSX_BUNDLE).

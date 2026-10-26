@@ -36,6 +36,12 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
     {
+      "name": "linux-package",
+      "displayName": "Linux package: .deb, then AppImage (plan 0015)",
+      "inherits": "linux-release",
+      "cacheVariables": { "HIO_BUILD_TESTS": "OFF", "HIO_PACKAGE_KIND": "deb" }
+    },
+    {
       "name": "linux-asan",
       "displayName": "Linux Debug + ASan/UBSan",
       "inherits": "linux-base",
@@ -103,6 +109,12 @@
       }
     },
     {
+      "name": "macos-package",
+      "displayName": "macOS package: universal bundle + DMG (plan 0015)",
+      "inherits": "macos-release",
+      "cacheVariables": { "HIO_BUILD_TESTS": "OFF", "HIO_PACKAGE_KIND": "macos-bundle" }
+    },
+    {
       "name": "windows-base",
       "hidden": true,
       "inherits": "base",
@@ -123,11 +135,18 @@
       "displayName": "Windows Release (clang-cl)",
       "inherits": "windows-base",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "windows-package",
+      "displayName": "Windows package: MSI, needs CMake >= 3.30 (plan 0015)",
+      "inherits": "windows-release",
+      "cacheVariables": { "HIO_BUILD_TESTS": "OFF", "HIO_PACKAGE_KIND": "msi" }
     }
   ],
   "buildPresets": [
     { "name": "linux-debug", "configurePreset": "linux-debug" },
     { "name": "linux-release", "configurePreset": "linux-release" },
+    { "name": "linux-package", "configurePreset": "linux-package" },
     { "name": "linux-asan", "configurePreset": "linux-asan" },
     { "name": "linux-tsan", "configurePreset": "linux-tsan" },
     { "name": "linux-coverage", "configurePreset": "linux-coverage" },
@@ -140,8 +159,10 @@
     { "name": "macos-debug", "configurePreset": "macos-debug" },
     { "name": "macos-asan", "configurePreset": "macos-asan" },
     { "name": "macos-release", "configurePreset": "macos-release" },
+    { "name": "macos-package", "configurePreset": "macos-package" },
     { "name": "windows-debug", "configurePreset": "windows-debug" },
-    { "name": "windows-release", "configurePreset": "windows-release" }
+    { "name": "windows-release", "configurePreset": "windows-release" },
+    { "name": "windows-package", "configurePreset": "windows-package" }
   ],
   "testPresets": [
     {
@@ -192,5 +213,9 @@
     { "name": "macos-release", "inherits": "test-base", "configurePreset": "macos-release" },
     { "name": "windows-debug", "inherits": "test-base", "configurePreset": "windows-debug" },
     { "name": "windows-release", "inherits": "test-base", "configurePreset": "windows-release" }
+  ],
+  "packagePresets": [
+    { "name": "linux-package", "configurePreset": "linux-package", "generators": ["DEB"] },
+    { "name": "windows-package", "configurePreset": "windows-package", "generators": ["WIX"] }
   ]
 }

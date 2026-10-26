@@ -123,6 +123,7 @@ Result<CommandResult> CliApp::run(const Context& context) const {
         data.insert(QStringLiteral("gitHash"), toQString(info.gitHash));
         data.insert(QStringLiteral("qt"), toQString(info.qtRuntime));
         data.insert(QStringLiteral("compiler"), toQString(info.compiler));
+        data.insert(QStringLiteral("package"), toQString(info.packageKind));
         return CommandResult{.data = data, .humanText = std::format("hio {}", info.version)};
     }
     if (!m_slot.command) {

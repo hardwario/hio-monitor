@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=HARDWARIO Monitor
+GenericName=Device console and flasher
+Comment=Console, log and flashing tool for HARDWARIO devices
+Comment[cs]=Konzole, logy a programování zařízení HARDWARIO
+Exec=hio-monitor
+Icon=com.hardwario.monitor
+Terminal=false
+Categories=Development;Electronics;
+Keywords=CHESTER;J-Link;RTT;console;
+StartupWMClass=hio-monitor

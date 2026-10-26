@@ -7,6 +7,11 @@
 // (settings store, registries, probe scanner, restored tabs) -> LanguageManager applies
 // ui/language -> QML module HardwarioMonitor, type Main.
 // Exceptions never leave main(): the body is wrapped at this top boundary (ADR-0007).
+//
+// Hidden option --self-test (plan/features/0015 A2): loads the main QML with default settings
+// (nothing is read or written), without the single-instance lock, and exits 0 when the window was
+// created (1 otherwise). The installed-tree CTest runs it with QT_QPA_PLATFORM=offscreen to prove
+// that the deployed tree (Qt libraries, plugins, QML modules) is complete.
 
 #include "fonts.h"
 #include "gui_log.h"
@@ -17,6 +22,7 @@
 #include "hio/device/session_registry.h"
 #include "language_manager.h"
 #include "pages/builtin_pages.h"
+#include "platform.h"
 #include "settings_store.h"
 #include "single_instance.h"
 #include "viewmodels/app_view_model.h"
@@ -25,6 +31,7 @@
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QLoggingCategory>
 #include <QNetworkProxyFactory>
 #include <QObject>
@@ -38,6 +45,7 @@
 #include <QtCore/qnamespace.h>
 #include <QtQml/qqmlextensionplugin.h>
 
+#include <array>
 #include <exception>
 #include <iostream>
 #include <optional>
@@ -46,6 +54,15 @@
 Q_IMPORT_QML_PLUGIN(HardwarioMonitorPlugin)
 
 namespace {
+
+// The application icon in all embedded sizes (plan 0015 A3).
+QIcon applicationIcon() {
+    QIcon icon;
+    for (const int size : std::array{16, 32, 48, 64, 128, 256}) {
+        icon.addFile(QStringLiteral(":/appicon/hio-monitor-%1.png").arg(size));
+    }
+    return icon;
+}
 
 // "HARDWARIO Monitor is already running but does not respond." [Quit] [Start anyway].
 // True for "Start anyway".
@@ -86,9 +103,14 @@ bool askStartAnyway() {
 }
 
 int run(int& argc, char** argv) {
+    hio::gui::applyPlatformIdentity(); // Windows AppUserModelID, before the first window
     QGuiApplication app(argc, argv);
     hio::initApplicationIdentity();
     QGuiApplication::setApplicationDisplayName(QStringLiteral("HARDWARIO Monitor"));
+    // ADR-0018: the desktop file / Wayland app id (packaging/linux/com.hardwario.monitor.desktop).
+    QGuiApplication::setDesktopFileName(QStringLiteral("com.hardwario.monitor"));
+    QGuiApplication::setWindowIcon(applicationIcon());
+    const bool selfTest = QCoreApplication::arguments().contains(QStringLiteral("--self-test"));
     // Plan 0016: firmware downloads and the update check use the system proxy settings.
     QNetworkProxyFactory::setUseSystemConfiguration(true);
 
@@ -103,22 +125,26 @@ int run(int& argc, char** argv) {
     QQuickStyle::setStyle(QStringLiteral("Material"));
     hio::gui::loadBundledFonts();
 
-    hio::gui::SingleInstance instance;
-    switch (instance.start()) {
-    case hio::gui::SingleInstance::Result::Primary:
-        break;
-    case hio::gui::SingleInstance::Result::Activated:
-        return 0;
-    case hio::gui::SingleInstance::Result::NotResponding:
-        if (!askStartAnyway()) {
+    hio::gui::SingleInstance instance; // not started by the self-test
+    if (!selfTest) {
+        switch (instance.start()) {
+        case hio::gui::SingleInstance::Result::Primary:
+            break;
+        case hio::gui::SingleInstance::Result::Activated:
             return 0;
+        case hio::gui::SingleInstance::Result::NotResponding:
+            if (!askStartAnyway()) {
+                return 0;
+            }
+            instance.startWithoutLock();
+            break;
         }
-        instance.startWithoutLock();
-        break;
     }
 
     std::optional<hio::Settings> settings;
-    if (auto opened = hio::Settings::openDefault(); opened) {
+    if (selfTest) {
+        // Default settings in memory: the self-test reads and writes no settings file.
+    } else if (auto opened = hio::Settings::openDefault(); opened) {
         settings.emplace(std::move(*opened));
     } else {
         qCWarning(hio::gui::lcGui)
@@ -155,6 +181,10 @@ int run(int& argc, char** argv) {
         return 1;
     }
     appViewModel.attachWindow(qobject_cast<QWindow*>(engine.rootObjects().constFirst()));
+    if (selfTest) {
+        std::cout << "hio-monitor self-test: the main window was created\n";
+        return 0;
+    }
     const int code = QGuiApplication::exec();
     appViewModel.saveState();
     return code;

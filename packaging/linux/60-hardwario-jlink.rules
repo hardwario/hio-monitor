@@ -1,0 +1,4 @@
+# HARDWARIO Monitor (ADR-0072, ADR-0121): SEGGER J-Link probes (USB vendor 1366) are accessible to
+# the logged-in user. Installed by the hardwario-monitor .deb; the same rule is shown by the setup
+# wizard for other installations.
+SUBSYSTEM=="usb", ATTR{idVendor}=="1366", MODE="0666", TAG+="uaccess"

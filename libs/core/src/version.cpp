@@ -1,5 +1,6 @@
 #include "hio/core/version.h"
 
+#include "hio/core/package_kind.h"
 #include "hio/core/version_generated.h"
 
 #include <QtVersion> // qVersion()
@@ -15,6 +16,7 @@ BuildInfo buildInfo() {
         .compiler = generated::compiler,
         .qtRuntime = std::string_view(qVersion()),
         .qtCompiled = generated::qtCompiled,
+        .packageKind = generated::packageKind,
     };
 }
 

@@ -102,6 +102,7 @@ qt_add_qml_module(hio_gui
         src/pages/flash_settings_pages.h
         src/pages/placeholder_view_model.cpp
         src/pages/placeholder_view_model.h
+        src/platform.h
         src/settings_store.cpp
         src/settings_store.h
         src/single_instance.cpp
@@ -186,6 +187,11 @@ target_link_libraries(hio_gui PUBLIC
     Qt6::QuickControls2)
 if(WIN32)
     target_compile_definitions(hio_gui PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    # SetCurrentProcessExplicitAppUserModelID (shell32, a system library).
+    target_sources(hio_gui PRIVATE src/platform_win.cpp)
+    target_link_libraries(hio_gui PRIVATE shell32)
+else()
+    target_sources(hio_gui PRIVATE src/platform_default.cpp)
 endif()
 
 # ADR-0044: Material, Dense variant (read by QQuickStyle from :/qtquickcontrols2.conf).
@@ -204,9 +210,34 @@ qt_add_resources(hio_gui "hio_gui_fonts"
         assets/fonts/JetBrainsMono-Bold.ttf
         assets/fonts/JetBrainsMono-Regular.ttf
     OUTPUT_TARGETS _hio_gui_font_targets)
-hio_skip_linting(${_hio_gui_style_targets} ${_hio_gui_font_targets})
+# Plan 0015 A3: the window icon (the v1 icon, packaging/common/icons, Git LFS) under :/appicon.
+qt_add_resources(hio_gui "hio_gui_app_icon"
+    PREFIX "/appicon"
+    BASE "${PROJECT_SOURCE_DIR}/packaging/common/icons"
+    FILES
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-16.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-32.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-48.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-64.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-128.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-256.png"
+    OUTPUT_TARGETS _hio_gui_app_icon_targets)
+hio_skip_linting(${_hio_gui_style_targets} ${_hio_gui_font_targets} ${_hio_gui_app_icon_targets})
 
 qt_add_executable(hio-monitor src/main.cpp)
+# Plan 0015 A3: icon and VERSIONINFO (Windows), icon in the bundle (macOS).
+if(WIN32)
+    set(HIO_RC_FILE_DESCRIPTION "HARDWARIO Monitor")
+    set(HIO_RC_INTERNAL_NAME "hio-monitor")
+    set(HIO_RC_ORIGINAL_FILENAME "hio-monitor.exe")
+    configure_file("${PROJECT_SOURCE_DIR}/packaging/windows/version.rc.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/hio-monitor.rc" @ONLY)
+    target_sources(hio-monitor PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/hio-monitor.rc")
+elseif(APPLE)
+    set(_hio_icns "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor.icns")
+    target_sources(hio-monitor PRIVATE "${_hio_icns}")
+    set_source_files_properties("${_hio_icns}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+endif()
 hio_apply_target_defaults(hio-monitor)
 target_link_libraries(hio-monitor PRIVATE hio_gui hio_guiplugin)
 set_target_properties(hio-monitor PROPERTIES
@@ -216,6 +247,8 @@ set_target_properties(hio-monitor PROPERTIES
     MACOSX_BUNDLE_BUNDLE_NAME "HARDWARIO Monitor"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_ICON_FILE "hio-monitor.icns"
+    MACOSX_BUNDLE_COPYRIGHT "Copyright © HARDWARIO a.s."
     # ADR-0086: CMake's default keys + NSBluetoothAlwaysUsageDescription.
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/macos/Info.plist.in"
     # Qt is linked dynamically (ADR-0002), so Qt's own QML plugins are loaded at runtime and the

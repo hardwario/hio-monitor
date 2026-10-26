@@ -88,8 +88,10 @@ qt_standard_project_setup(REQUIRES 6.8
     I18N_TRANSLATED_LANGUAGES cs)
 
 include(HioDeps)
+include(HioPackaging)
 
 hio_generate_version_header()
+hio_generate_package_kind_header()
 
 if(HIO_BUILD_TESTS)
     enable_testing()
@@ -109,6 +111,9 @@ add_subdirectory(app/cli)
 add_subdirectory(app/gui)
 
 include(HioTranslations)
+
+# Install tree, Qt deployment, CPack and the installed-tree tests (plan/features/0015).
+hio_add_packaging()
 
 if(HIO_BUILD_TESTS)
     add_subdirectory(tests/cmake)

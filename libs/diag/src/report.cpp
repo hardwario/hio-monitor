@@ -141,6 +141,7 @@ QJsonObject appInfoJson(std::string_view uiLanguage) {
     app.insert(QStringLiteral("gitHash"), toQString(info.gitHash));
     app.insert(QStringLiteral("qt"), toQString(info.qtRuntime));
     app.insert(QStringLiteral("compiler"), toQString(info.compiler));
+    app.insert(QStringLiteral("package"), toQString(info.packageKind));
     app.insert(QStringLiteral("os"), QSysInfo::prettyProductName());
     app.insert(QStringLiteral("kernel"),
                QSysInfo::kernelType() + QLatin1Char(' ') + QSysInfo::kernelVersion());
@@ -216,9 +217,9 @@ std::string ReportBuilder::summaryText(const ReportInput& input) {
     std::string text;
     text += "HARDWARIO Monitor diagnostic report\n";
     text += std::format("Created: {} (UTC)\n", input.createdUtc);
-    text +=
-        std::format("Application: {} (git {}), Qt {}, {}\n", str(input.app, "version"),
-                    str(input.app, "gitHash"), str(input.app, "qt"), str(input.app, "compiler"));
+    text += std::format("Application: {} (git {}), Qt {}, {}, package {}\n",
+                        str(input.app, "version"), str(input.app, "gitHash"), str(input.app, "qt"),
+                        str(input.app, "compiler"), str(input.app, "package"));
     text += std::format("System: {} ({}), {}\n", str(input.app, "os"), str(input.app, "kernel"),
                         str(input.app, "arch"));
     text += std::format("Language: {}\n\n", str(input.app, "language"));

@@ -3,7 +3,7 @@
 <!-- HARDWARIO Monitor GUI bundle (ADR-0086, plan/features/0011 D1): the keys of CMake's default
      MacOSXBundleInfo.plist.in, filled from the MACOSX_BUNDLE_* properties of hio-monitor
      (app/gui/CMakeLists.txt), plus the Bluetooth usage description macOS requires before
-     CoreBluetooth may be used. -->
+     CoreBluetooth may be used. Plan 0015 A3: icon, minimum macOS version, copyright, category. -->
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
@@ -34,6 +34,10 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>${MACOSX_BUNDLE_COPYRIGHT}</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>HARDWARIO Monitor uses Bluetooth to connect to the console of your devices.</string>
 </dict>
