@@ -29,7 +29,7 @@ ControllerCloser::~ControllerCloser() {
     // Whatever is left goes with its owner; nothing is called back any more.
     for (Entry& entry : m_entries) {
         QObject::disconnect(entry.connection);
-        if (entry.object) {
+        if (!entry.object.isNull()) {
             entry.object->deleteLater();
         }
     }
@@ -66,7 +66,7 @@ void ControllerCloser::finish(std::uint64_t serial, bool expired) {
                               << "ms; deleting it";
     }
     QObject::disconnect(it->connection);
-    if (it->object) {
+    if (!it->object.isNull()) {
         it->object->deleteLater();
     }
     m_entries.erase(it);

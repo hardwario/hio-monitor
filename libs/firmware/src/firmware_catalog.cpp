@@ -85,7 +85,7 @@ CatalogOperation::CatalogOperation(Passkey /*key*/, FirmwareCatalog& catalog, Fi
 }
 
 CatalogOperation::~CatalogOperation() {
-    if (m_reply) {
+    if (!m_reply.isNull()) {
         QObject::disconnect(m_reply, nullptr, this, nullptr);
         m_reply->abort();
         m_reply->deleteLater();
@@ -125,7 +125,7 @@ void CatalogOperation::start(QNetworkAccessManager& network, const QUrl& url) {
 }
 
 void CatalogOperation::onReadyRead() {
-    if (!m_reply) {
+    if (m_reply.isNull()) {
         return;
     }
     const QByteArray chunk = m_reply->readAll();
@@ -143,7 +143,7 @@ void CatalogOperation::cancel() {
         return;
     }
     m_cancelled = true;
-    if (m_reply) {
+    if (!m_reply.isNull()) {
         m_reply->abort(); // finished() follows
         return;
     }
@@ -151,7 +151,7 @@ void CatalogOperation::cancel() {
 }
 
 void CatalogOperation::onFinished() {
-    if (!m_reply || isFinished()) {
+    if (m_reply.isNull() || isFinished()) {
         return;
     }
     QNetworkReply* reply = m_reply;

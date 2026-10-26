@@ -406,10 +406,10 @@ QtBleApi::Link* QtBleApi::find(LinkId id) {
 }
 
 void QtBleApi::release(Link& link) {
-    if (link.service) {
+    if (!link.service.isNull()) {
         QObject::disconnect(link.service, nullptr, this, nullptr);
     }
-    if (link.controller) {
+    if (!link.controller.isNull()) {
         QLowEnergyController* controller = link.controller;
         QObject::disconnect(controller, nullptr, this, nullptr);
         controller->disconnectFromDevice();
@@ -530,7 +530,7 @@ void QtBleApi::startController(LinkId id) {
 
 void QtBleApi::servicesDiscovered(LinkId id) {
     Link* link = find(id);
-    if (link == nullptr || !link->controller) {
+    if (link == nullptr || link->controller.isNull()) {
         return;
     }
     const QBluetoothUuid serviceUuid = uuidOf(link->uuids.service);
@@ -615,7 +615,7 @@ void QtBleApi::servicesDiscovered(LinkId id) {
 
 void QtBleApi::detailsDiscovered(LinkId id) {
     Link* link = find(id);
-    if (link == nullptr || !link->service) {
+    if (link == nullptr || link->service.isNull()) {
         return;
     }
     link->rx = link->service->characteristic(uuidOf(link->uuids.rx));
@@ -647,7 +647,7 @@ Status QtBleApi::write(LinkId id, std::span<const std::byte> chunk, WriteMode mo
         link == nullptr && pending != m_pendingLoss.end()) {
         return std::unexpected(pending->second); // N5: the real reason, not ble.write_failed
     }
-    if (link == nullptr || !link->ready || !link->service) {
+    if (link == nullptr || !link->ready || link->service.isNull()) {
         return std::unexpected(makeError(ErrorCode::BleWriteFailed, "the link is not ready"));
     }
     if (mode == WriteMode::WithResponse) {
