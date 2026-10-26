@@ -82,9 +82,9 @@ Unchanged (ADR-0170 bounds). The flag adds one boolean per cached firmware.
 | # | Question | Options | Decision (by user) | ADR |
 |---|---|---|---|---|
 | D1 | How to avoid running commands with `-h` | keep `-h` / never `-h` / `-h` only with the `CONFIG_SHELL_HELP` marker in `help` | `-h` only with the marker (2026-10-26) | ADR-0178 |
-| D2 | Old cache entries (schema 1, no flag) | discard and relearn with `help` / keep and assume no `-h` | _pending_ — proposed: discard (one extra `help` per known firmware) | ADR-0178 |
-| D3 | Top-level names without `CONFIG_SHELL_HELP` (bare names, no help text) | parse them / ignore them | _pending_ — proposed: parse them | ADR-0178 |
-| D4 | Marker match | substring `<-h> or <--help>` / the full Zephyr sentence | _pending_ — proposed: substring (survives small rewording around it) | ADR-0178 |
+| D2 | Old cache entries (schema 1, no flag) | discard and relearn with `help` / keep and assume no `-h` | Discard and relearn (one extra `help` per known firmware) (2026-10-26) | ADR-0178 |
+| D3 | Top-level names without `CONFIG_SHELL_HELP` (bare names, no help text) | parse them / ignore them | Parse them (2026-10-26) | ADR-0178 |
+| D4 | Marker match | substring `<-h> or <--help>` / the full Zephyr sentence | Substring `<-h> or <--help>` (survives small rewording around it) (2026-10-26) | ADR-0178 |
 
 ## Implementation steps
 
