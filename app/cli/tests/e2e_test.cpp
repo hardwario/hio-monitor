@@ -94,14 +94,14 @@ TEST_F(CliProcess, InternalErrorNamesTheLogFile) {
     const std::string marker = "Details: Log file: ";
     const std::size_t at = result.err.find(marker);
     ASSERT_NE(at, std::string::npos) << result.err;
-    // The named file exists (logDir() of the test home on Linux and macOS; on Windows
-    // QStandardPaths takes the known folder, not the LOCALAPPDATA of the child environment).
+    // The named file exists. It is in logDir() of the test home on Linux only: on macOS and
+    // Windows QStandardPaths takes the system folders, not XDG_DATA_HOME / LOCALAPPDATA.
     const std::size_t begin = at + marker.size();
     const QString logFile =
         QString::fromStdString(result.err.substr(begin, result.err.find('\n', begin) - begin));
     EXPECT_TRUE(QFileInfo(logFile).fileName().startsWith(QStringLiteral("cli-"))) << result.err;
     EXPECT_TRUE(QFileInfo::exists(logFile)) << result.err;
-#ifndef _WIN32
+#ifdef __linux__
     EXPECT_FALSE(QDir(logDir()).entryList({QStringLiteral("cli-*.log")}).isEmpty());
 #endif
 }

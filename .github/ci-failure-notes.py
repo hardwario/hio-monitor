@@ -7,7 +7,7 @@ import re
 import sys
 
 MAX_NOTES = 10
-MAX_LINES = 80
+MAX_LINES = 40
 
 
 def note(title, lines):
