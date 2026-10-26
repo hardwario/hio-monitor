@@ -63,12 +63,19 @@ struct LoadedSource {
     // IntelHex: the image; LteBundle: the bundle's application image; ModemZip: null.
     std::shared_ptr<const firmware::FirmwareImage> image;
     std::shared_ptr<const firmware::LteBundle> bundle; // LteBundle only
+
+    // ADR-0177: Result<LoadedSource> is a signal argument (Qt meta type). Images compare by
+    // identity.
+    [[nodiscard]] bool operator==(const LoadedSource& other) const = default;
 };
 
 struct JLinkFound {
     std::filesystem::path path;
     jlink::LibrarySource source = jlink::LibrarySource::Discovered;
     std::uint32_t version = 0; // read from the loaded library
+
+    // ADR-0177: Result<JLinkFound> is a signal argument (Qt meta type).
+    [[nodiscard]] bool operator==(const JLinkFound& other) const = default;
 };
 
 struct NrfUtilStatus {

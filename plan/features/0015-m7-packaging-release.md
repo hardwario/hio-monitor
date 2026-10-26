@@ -1,6 +1,6 @@
 # 0015 — M7 packaging and release pipeline: AppImage, .deb, DMG, MSI, signing, crash dumps
 
-- **Status:** Approved (2026-10-26, with ADR-0177)
+- **Status:** In progress (approved 2026-10-26, with ADR-0177; implementation started 2026-10-26)
 - **Milestone:** M7 (plan 1 of 2, ADR-0115; [0016](0016-m7-update-check.md) is the update check)
 - **Author:** Matej Strnad (with Claude), 2026-10-19
 - **Related ADRs:** ADR-0002, ADR-0006, ADR-0011, ADR-0012, ADR-0018, ADR-0020, ADR-0021, ADR-0022, ADR-0025,
@@ -297,7 +297,7 @@ No new `hio::Error` codes at runtime except in 0016. Package-time failures are C
 ## Implementation steps
 
 **Phase 0 — ADR-0177**
-- [ ] 01 `operator==` on `hio::mcp::ToolResult` and on every other type inside a meta-registered `std::expected`;
+- [x] 01 `operator==` on `hio::mcp::ToolResult` and on every other type inside a meta-registered `std::expected`;
   checked by a libstdc++ 13 build (phase C1 container).
 
 **Phase A — common install tree**
