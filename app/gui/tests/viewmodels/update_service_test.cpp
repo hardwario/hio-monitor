@@ -14,6 +14,7 @@
 #include <QDateTime>
 #include <QNetworkAccessManager>
 #include <QString>
+#include <QStringLiteral>
 #include <QTime>
 #include <QTimeZone>
 #include <QUrl>

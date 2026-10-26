@@ -16,6 +16,7 @@
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 #include <QtCore/qnamespace.h>
 #include <QtCore/qtmetamacros.h>

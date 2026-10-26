@@ -221,6 +221,12 @@ endfunction()
 
 # ---- installed-tree tests --------------------------------------------------------------------------
 function(_hio_add_installed_tree_tests)
+    # Not under ThreadSanitizer: the installed GUI runs Qt's uninstrumented threads (QML engine,
+    # scene graph), which TSan reports (exit code 66), as documented for the network tests in
+    # libs/firmware/tests/CMakeLists.txt. Every other preset runs it.
+    if("thread" IN_LIST HIO_SANITIZERS)
+        return()
+    endif()
     set(_prefix "${PROJECT_BINARY_DIR}/installed-tree")
     if(APPLE)
         set(_bin "${_prefix}/${HIO_INSTALL_BINDIR}")
@@ -237,12 +243,10 @@ function(_hio_add_installed_tree_tests)
             "-DHIO_PACKAGE_KIND=${HIO_PACKAGE_KIND}"
             "-DHIO_CONFIG=$<CONFIG>"
             -P "${PROJECT_SOURCE_DIR}/cmake/HioInstalledTreeTest.cmake")
-    # The GUI's self-test loads QML: under TSan with the suppressions of the Qt Quick tests.
     set_tests_properties(Packaging.InstalledTreeSelfTest PROPERTIES
         LABELS "package"
         TIMEOUT 300
-        RUN_SERIAL TRUE
-        ENVIRONMENT "TSAN_OPTIONS=suppressions=${PROJECT_SOURCE_DIR}/tools/sanitizers/tsan-qml.supp:halt_on_error=1:second_deadlock_stack=1")
+        RUN_SERIAL TRUE)
     if(APPLE)
         # ADR-0126 / plan 0015 D2: the installed bundle signed ad hoc, inside-out, with the
         # hardened runtime; the entitlements of both binaries are checked (sign-and-notarize.sh).

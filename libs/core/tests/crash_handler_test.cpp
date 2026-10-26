@@ -9,6 +9,7 @@
 #include <QProcess>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtSystemDetection>
 

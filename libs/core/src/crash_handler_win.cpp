@@ -18,6 +18,7 @@
 #include "hio/core/result.h"
 
 #include <QString>
+#include <QStringLiteral>
 #include <QtEnvironmentVariables>
 
 #include <array>

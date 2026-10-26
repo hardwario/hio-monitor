@@ -305,7 +305,7 @@ No new `hio::Error` codes at runtime except in 0016. Package-time failures are C
   translations, `qt.conf`, `HIO_PACKAGE_KIND` + `package_kind.h`, `*-package` presets.
 - [ ] A2 `--self-test` GUI option and the installed-tree CTest (offscreen) on all three OSes.
 - [ ] A3 Icons (v1 icon reused), `.rc` + VERSIONINFO, `setDesktopFileName`, AppUserModelID, Info.plist keys.
-- [ ] A4 Licences: `packaging/common/licenses/`, `licenses.cmake`, `THIRD-PARTY-NOTICES.txt`, CPM coverage CTest.
+- [x] A4 Licences: `packaging/common/licenses/`, `licenses.cmake`, `THIRD-PARTY-NOTICES.txt`, CPM coverage CTest.
 
 **Phase B — crash handler**
 - [ ] B1 `hio::crash` POSIX + Windows, unit tests with a crashing child process (each signal / exception), pruning.
@@ -314,8 +314,8 @@ No new `hio::Error` codes at runtime except in 0016. Package-time failures are C
 
 **Phase C — Linux**
 - [ ] C1 Containerfile + CI build in the container; check `objdump -T` max `GLIBC_` ≤ 2.35.
-- [ ] C2 .deb (CPack DEB, symlinks, udev rule, postinst/postrm, desktop/metainfo/icons), lintian clean.
-- [ ] C3 AppImage (AppDir, linuxdeploy, AppRun dispatch + checkrt, appimagetool).
+- [x] C2 .deb (CPack DEB, symlinks, udev rule, postinst/postrm, desktop/metainfo/icons), lintian clean.
+- [x] C3 AppImage (AppDir, linuxdeploy, AppRun dispatch + checkrt, appimagetool).
 
 **Phase D — macOS**
 - [ ] D1 Bundle layout, `hio` inside, entitlements, inside-out signing script, verify (ad-hoc in PR CI).

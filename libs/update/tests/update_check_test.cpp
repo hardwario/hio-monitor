@@ -14,6 +14,7 @@
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QUrl>
 #include <QtTypes>

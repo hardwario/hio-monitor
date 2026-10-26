@@ -16,6 +16,7 @@
 #include <QLoggingCategory>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtCore/qnamespace.h>
 #include <QtCore/qtmetamacros.h>

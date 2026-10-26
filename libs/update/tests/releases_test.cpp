@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QIODevice>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtCore/qnamespace.h>
 #include <QtTypes>

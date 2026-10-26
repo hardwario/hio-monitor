@@ -14,6 +14,7 @@
 #include <QJsonValue>
 #include <QLatin1StringView>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtCore/qnamespace.h>
 #include <QtEnvironmentVariables>

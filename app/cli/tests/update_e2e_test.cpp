@@ -14,6 +14,7 @@
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QtContainerFwd>
 
 #include <gtest/gtest.h>

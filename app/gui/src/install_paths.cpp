@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtEnvironmentVariables>
 
