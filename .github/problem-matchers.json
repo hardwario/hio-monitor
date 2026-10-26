@@ -31,10 +31,13 @@
       "severity": "error",
       "pattern": [
         {
-          "regexp": "^CMake Error at (.+?):(\\d+) (.*)$",
+          "regexp": "^CMake Error at (.+?):(\\d+) \\((.*)\\):$",
           "file": 1,
-          "line": 2,
-          "message": 3
+          "line": 2
+        },
+        {
+          "regexp": "^\\s+(\\S.*)$",
+          "message": 1
         }
       ]
     },

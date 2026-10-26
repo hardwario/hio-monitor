@@ -52,7 +52,10 @@ std::optional<DateKey> parseCompileDate(std::string_view firmware) {
     }
     static constexpr std::array<std::string_view, 12> months{
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    const auto* const month = std::ranges::find(months, fields[0]);
+    // std::array's iterator is a pointer in libstdc++ and libc++ but a class in the MSVC STL
+    // (`auto*` does not compile there).
+    // NOLINTNEXTLINE(readability-qualified-auto)
+    const auto month = std::ranges::find(months, fields[0]);
     if (month == months.end()) {
         return std::nullopt;
     }
