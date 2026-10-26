@@ -193,6 +193,7 @@ public:
     [[nodiscard]] const std::vector<QByteArray>& lines() const { return m_lines; }
     [[nodiscard]] std::string err() {
         m_err += m_process.readAllStandardError();
+        m_err.replace("\r\n", "\n"); // stderr is a text-mode stream ("\r\n" on Windows)
         return m_err.toStdString();
     }
 
@@ -214,6 +215,7 @@ private:
             m_messages.push_back(QJsonDocument::fromJson(line).object());
         }
         m_err += m_process.readAllStandardError();
+        m_err.replace("\r\n", "\n");
     }
 
     QProcess m_process;

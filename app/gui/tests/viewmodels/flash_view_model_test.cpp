@@ -28,6 +28,7 @@
 #include "zip_builder.h"
 
 #include <QByteArray>
+#include <QDir>
 #include <QFile>
 #include <QIODevice>
 #include <QObject>
@@ -226,8 +227,9 @@ TEST_F(FlashTest, LoadedHexIsReadyWithSummaryAndRecent) {
     EXPECT_TRUE(flash().canFlash());
     EXPECT_EQ(flash().flashSummary(), QStringLiteral("Application firmware · app.hex"));
     ASSERT_EQ(source().recent()->count(), 1);
+    // The recent list keeps the path of the file URL ('/' separators on Windows too).
     EXPECT_EQ(source().recent()->sourceAt(0),
-              QString::fromStdString((root() / "app.hex").string()));
+              QDir::fromNativeSeparators(QString::fromStdString((root() / "app.hex").string())));
 }
 
 TEST_F(FlashTest, AKindChangeDoesNotAddToRecent) {

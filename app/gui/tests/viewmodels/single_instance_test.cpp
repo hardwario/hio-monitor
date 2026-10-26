@@ -108,6 +108,9 @@ TEST_F(SingleInstanceTest, AStaleLockIsTakenOver) {
     EXPECT_EQ(next.start(), SingleInstance::Result::Primary);
 }
 
+// Unix only: QLocalServer uses named pipes on Windows, so a name is not a file there (no socket
+// file beside the lock, and a "path below a file" listens anyway).
+#ifndef Q_OS_WIN
 TEST_F(SingleInstanceTest, AListenFailureTurnsSingleInstanceOff) {
     // Review S11: without the server the lock is given up, so a later launch is not told that a
     // running instance "does not respond".
@@ -129,6 +132,7 @@ TEST_F(SingleInstanceTest, ActivationThroughASocketBesideTheLock) {
     EXPECT_TRUE(first.serving());
     EXPECT_TRUE(QFileInfo::exists(socket));
 }
+#endif
 
 TEST(SingleInstanceNames, DefaultServerNameIsPrivate) {
     const QString name = SingleInstance::defaultServerName();

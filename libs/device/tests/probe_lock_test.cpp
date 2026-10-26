@@ -470,9 +470,13 @@ TEST_F(Lock, WindowsComparesTheAppNameWithoutExtension) {
     fs::create_directories(dir());
     hio::device::test::LockHolder holder(lockFile(62));
     ASSERT_TRUE(holder.waitUntilLocked());
-    writeLock(68, contentFor(68, holder.pid(), recordedAppName().toUtf8()));
+    // Both contents first: contentFor() takes lock 68, which the first one makes the helper's.
+    const QByteArray withoutExtension = contentFor(68, holder.pid(), recordedAppName().toUtf8());
+    const QByteArray withExtension =
+        contentFor(68, holder.pid(), recordedAppName().toUtf8() + ".exe");
+    writeLock(68, withoutExtension);
     EXPECT_TRUE(ProbeLock::owner(68, dir()).has_value());
-    writeLock(68, contentFor(68, holder.pid(), recordedAppName().toUtf8() + ".exe"));
+    writeLock(68, withExtension);
     EXPECT_FALSE(ProbeLock::owner(68, dir()).has_value());
     EXPECT_TRUE(ProbeLock::acquire(68, dir()));
 }

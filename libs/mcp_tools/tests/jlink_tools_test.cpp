@@ -602,7 +602,10 @@ TEST_F(JLinkTools, FlashArgumentRules) {
     EXPECT_TRUE(listed);
     auto relative = harness.call(QStringLiteral("flash"), args({{"path", "a.hex"}}));
     EXPECT_EQ(relative.errorCode(), "usage.invalid_argument");
-    auto missing = harness.call(QStringLiteral("flash"), args({{"path", "/nonexistent/a.hex"}}));
+    // Absolute on every OS ("/nonexistent" has no drive letter on Windows, so it is relative).
+    const fs::path absent = provider().root() / "nonexistent" / "a.hex";
+    auto missing = harness.call(QStringLiteral("flash"),
+                                args({{"path", QString::fromStdString(absent.string())}}));
     EXPECT_EQ(missing.errorCode(), "io.file_not_found");
     auto noCatalog = harness.call(QStringLiteral("flash"),
                                   args({{"catalog_id", "0123456789abcdef0123456789abcdef"}}));
