@@ -390,6 +390,10 @@ struct Error {
     std::string suggestion; // what the user should do (translated, UTF-8)
     std::string detail;     // technical detail: codes, paths, versions (not translated)
     std::optional<WizardId> wizard;
+
+    // ADR-0177: hio::Error is the error type of every meta-registered Result<T> (signal
+    // arguments); libstdc++ < 15 instantiates std::expected's operator== for them.
+    [[nodiscard]] bool operator==(const Error& other) const = default;
 };
 
 // Error with the default texts of `code`, translated into the current process language

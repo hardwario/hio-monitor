@@ -52,6 +52,9 @@ struct ToolResult {
     QJsonObject structured;
     QString text;
     bool isError = false;
+
+    // ADR-0177: Result<ToolResult> is a Qt meta type (signal argument); libstdc++ < 15 needs this.
+    [[nodiscard]] bool operator==(const ToolResult& other) const = default;
 };
 
 // structuredContent = `structured`, text = its compact JSON.
