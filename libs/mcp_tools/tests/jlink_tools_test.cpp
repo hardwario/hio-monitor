@@ -379,9 +379,10 @@ TEST_F(JLinkTools, ReadMemoryToFilePathRules) {
     Harness harness(provider(), limits(), nullptr, options);
     connectDevice(harness);
     const fs::path missing = provider().root() / "missing" / "dump.bin";
-    auto noFolder = harness.call(
-        QStringLiteral("read_memory"),
-        args({{"address", "0x0"}, {"length", 16}, {"to_file", QString::fromStdString(missing)}}));
+    auto noFolder = harness.call(QStringLiteral("read_memory"),
+                                 args({{"address", "0x0"},
+                                       {"length", 16},
+                                       {"to_file", QString::fromStdString(missing.string())}}));
     EXPECT_EQ(noFolder.errorCode(), "io.write_failed");
     EXPECT_NE(noFolder.errorDetail().find(missing.string()), std::string::npos)
         << noFolder.errorDetail();
