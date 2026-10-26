@@ -31,7 +31,10 @@ constexpr std::array<const DeviceProfile*, 1> registeredProfiles{
 } // namespace
 
 const DeviceProfile* ProfileRegistry::find(std::string_view id) noexcept {
-    const auto* const it = std::ranges::find_if(
+    // std::array's iterator is a pointer in libstdc++ and libc++ but a class in the MSVC STL
+    // (`auto*` does not compile there).
+    // NOLINTNEXTLINE(readability-qualified-auto)
+    const auto it = std::ranges::find_if(
         registeredProfiles, [id](const DeviceProfile* profile) { return profile->id == id; });
     return it == registeredProfiles.end() ? nullptr : *it;
 }

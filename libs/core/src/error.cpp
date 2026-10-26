@@ -1148,7 +1148,10 @@ std::unexpected<Error> fail(ErrorCode code, std::string detail) {
 }
 
 std::optional<ErrorCode> errorCodeFromId(std::string_view id) noexcept {
-    const auto* const it =
+    // std::array's iterator is a pointer in libstdc++ and libc++ but a class in the MSVC STL
+    // (`auto*` does not compile there).
+    // NOLINTNEXTLINE(readability-qualified-auto)
+    const auto it =
         std::ranges::find_if(errorTable, [id](const ErrorInfo& info) { return info.id == id; });
     if (it == errorTable.end()) {
         return std::nullopt;
