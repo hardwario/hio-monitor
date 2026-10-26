@@ -52,7 +52,8 @@ std::optional<std::string> readAttribute(const fs::path& path) {
     return std::string(text);
 }
 
-std::optional<int> readNumber(const fs::path& path) {
+// Used on Linux only (checkUsbAccess); [[maybe_unused]] keeps -Wunused-function quiet elsewhere.
+[[maybe_unused]] std::optional<int> readNumber(const fs::path& path) {
     const auto text = readAttribute(path);
     if (!text) {
         return std::nullopt;
@@ -65,7 +66,7 @@ std::optional<int> readNumber(const fs::path& path) {
     return value;
 }
 
-bool canReadAndWrite([[maybe_unused]] const fs::path& node) {
+[[maybe_unused]] bool canReadAndWrite([[maybe_unused]] const fs::path& node) {
 #ifdef Q_OS_LINUX
     return ::access(node.c_str(), R_OK | W_OK) == 0;
 #else
