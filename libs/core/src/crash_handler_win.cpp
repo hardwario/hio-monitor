@@ -35,6 +35,13 @@ namespace hio::crash {
 
 namespace {
 
+// Sanitizer builds (HIO_SANITIZER) install nothing; the code is compiled in every build.
+#ifdef HIO_SANITIZER
+constexpr bool sanitizerBuild = true;
+#else
+constexpr bool sanitizerBuild = false;
+#endif
+
 // Process-wide filter state, written once by install() before the filter is set.
 struct FilterState {
     std::array<wchar_t, 1024> directory{}; // with a trailing backslash
@@ -129,10 +136,9 @@ LONG WINAPI handleCrash(EXCEPTION_POINTERS* exception) {
 } // namespace
 
 Result<void> install(const Config& config) {
-#ifdef HIO_SANITIZER
-    (void)config;
-    return {};
-#else
+    if (sanitizerBuild) {
+        return {}; // the sanitizers install their own handlers
+    }
     if (qEnvironmentVariable("HIO_NO_CRASH_HANDLER") == QStringLiteral("1")) {
         return {};
     }
@@ -167,7 +173,6 @@ Result<void> install(const Config& config) {
     SetUnhandledExceptionFilter(handleCrash);
     installed.store(true);
     return {};
-#endif
 }
 
 bool isInstalled() noexcept { return installed.load(); }

@@ -1,0 +1,64 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "hio-clang",
+      "pattern": [
+        {
+          "regexp": "^(.+?):(\\d+):(\\d+): (?:fatal )?(error|warning): (.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      ]
+    },
+    {
+      "owner": "hio-clang-cl",
+      "pattern": [
+        {
+          "regexp": "^(.+?)\\((\\d+),(\\d+)\\): (?:fatal )?(error|warning)\\s*:?\\s*(.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      ]
+    },
+    {
+      "owner": "hio-cmake",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^CMake Error at (.+?):(\\d+) (.*)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      ]
+    },
+    {
+      "owner": "hio-gtest",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^(.+?):(\\d+): (Failure)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      ]
+    },
+    {
+      "owner": "hio-tool-errors",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^(FAIL!\\s+:.+|E: .+|W: .+|ERROR: .+|ninja: build stopped: .+|\\s+\\d+ - .+ \\(Failed\\).*|.*Validation failed.*|.* failed \\(\\d+\\):.*)$",
+          "message": 1
+        }
+      ]
+    }
+  ]
+}

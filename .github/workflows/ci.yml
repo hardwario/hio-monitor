@@ -45,6 +45,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: false
+      # Errors as annotations (compiler, CMake, GoogleTest, Qt Test, packaging tools).
+      - name: Problem matchers
+        run: echo "::add-matcher::.github/problem-matchers.json"
       - name: Git LFS rule
         run: tools/check-lfs.sh
       - name: Portable includes (no <bits/...>)
@@ -89,6 +92,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: false # LFS objects come from the cache below, then `git lfs pull`
+      # Errors as annotations (compiler, CMake, GoogleTest, Qt Test, packaging tools).
+      - name: Problem matchers
+        run: echo "::add-matcher::.github/problem-matchers.json"
       # The bundled GUI fonts (ADR-0048) are LFS objects: cache .git/lfs keyed by the LFS object list
       # (review S22: LFS bandwidth quota), then fetch only what the cache does not have.
       - name: LFS object list
@@ -174,6 +180,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: false # the fuzz targets and seed corpora need no LFS objects
+      # Errors as annotations (compiler, CMake, GoogleTest, Qt Test, packaging tools).
+      - name: Problem matchers
+        run: echo "::add-matcher::.github/problem-matchers.json"
       - name: Install LLVM ${{ env.LLVM_MAJOR }} and build tools
         run: |
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
@@ -243,6 +252,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: false # LFS objects come from the cache below, then `git lfs pull`
+      # Errors as annotations (compiler, CMake, GoogleTest, Qt Test, packaging tools).
+      - name: Problem matchers
+        run: echo "::add-matcher::.github/problem-matchers.json"
       # The bundled GUI fonts (ADR-0048) are LFS objects: cache .git/lfs keyed by the LFS object list
       # (review S22: LFS bandwidth quota), then fetch only what the cache does not have.
       - name: LFS object list
@@ -287,6 +299,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: false # LFS objects come from the cache below, then `git lfs pull`
+      # Errors as annotations (compiler, CMake, GoogleTest, Qt Test, packaging tools).
+      - name: Problem matchers
+        run: echo "::add-matcher::.github/problem-matchers.json"
       # The bundled GUI fonts (ADR-0048) are LFS objects: cache .git/lfs keyed by the LFS object list
       # (review S22: LFS bandwidth quota), then fetch only what the cache does not have.
       - name: LFS object list
@@ -346,6 +361,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: false # LFS objects come from the cache below, then `git lfs pull`
+      # Errors as annotations (compiler, CMake, GoogleTest, Qt Test, packaging tools).
+      - name: Problem matchers
+        run: echo "::add-matcher::.github/problem-matchers.json"
       - name: LFS object list
         shell: bash
         run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
@@ -404,6 +422,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: false
+      # Errors as annotations (compiler, CMake, GoogleTest, Qt Test, packaging tools).
+      - name: Problem matchers
+        run: echo "::add-matcher::.github/problem-matchers.json"
       - name: LFS object list
         shell: bash
         run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
@@ -474,6 +495,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           lfs: false
+      # Errors as annotations (compiler, CMake, GoogleTest, Qt Test, packaging tools).
+      - name: Problem matchers
+        run: echo "::add-matcher::.github/problem-matchers.json"
       - name: LFS object list
         shell: bash
         run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id

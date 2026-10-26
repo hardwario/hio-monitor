@@ -40,6 +40,13 @@ namespace hio::crash {
 
 namespace {
 
+// Sanitizer builds (HIO_SANITIZER) install nothing; the code is compiled in every build.
+#ifdef HIO_SANITIZER
+constexpr bool sanitizerBuild = true;
+#else
+constexpr bool sanitizerBuild = false;
+#endif
+
 constexpr std::array handledSignals{SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT};
 constexpr std::size_t maxFrames = 128;
 constexpr std::size_t altStackBytes = 64ULL * 1024;
@@ -227,10 +234,9 @@ bool copyText(std::string_view text, std::span<char> target, std::size_t& length
 } // namespace
 
 Result<void> install(const Config& config) {
-#ifdef HIO_SANITIZER
-    (void)config;
-    return {}; // the sanitizers install their own handlers
-#else
+    if (sanitizerBuild) {
+        return {}; // the sanitizers install their own handlers
+    }
     if (qEnvironmentVariable("HIO_NO_CRASH_HANDLER") == QStringLiteral("1")) {
         return {};
     }
@@ -272,7 +278,6 @@ Result<void> install(const Config& config) {
     }
     installed.store(true);
     return {};
-#endif
 }
 
 bool isInstalled() noexcept { return installed.load(); }

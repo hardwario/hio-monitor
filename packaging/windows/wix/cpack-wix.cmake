@@ -4,7 +4,7 @@
 # WiX 4 or newer through CPack's WIX generator (CPACK_WIX_VERSION 4, CMake >= 3.30), per-machine,
 # %ProgramFiles%\HARDWARIO\Monitor, fixed UpgradeCode (every release is a major upgrade; downgrades
 # are refused with "A newer version of HARDWARIO Monitor is already installed."), LICENSE as RTF,
-# the product icon. Own parts (packaging/windows/wix/):
+# the product icon; the WiX UI extension is added by CPack. Own parts (packaging/windows/wix/):
 #   WIX.template.in   CMake's v4 template with our MajorUpgrade message, the feature tree UI and
 #                     the features below
 #   features.wxs      Start-menu shortcut "HARDWARIO Monitor" with System.AppUserModel.ID
@@ -30,7 +30,6 @@ set(CPACK_WIX_PROGRAM_MENU_FOLDER ".")
 set(CPACK_WIX_UI_REF "WixUI_FeatureTree")
 set(CPACK_WIX_TEMPLATE "${PROJECT_SOURCE_DIR}/packaging/windows/wix/WIX.template.in")
 set(CPACK_WIX_EXTRA_SOURCES "${PROJECT_SOURCE_DIR}/packaging/windows/wix/features.wxs")
-set(CPACK_WIX_EXTENSIONS "WixToolset.UI.wixext")
 set(CPACK_WIX_PROPERTY_ARPURLINFOABOUT "https://www.hardwario.com/")
 set(CPACK_WIX_PROPERTY_ARPHELPLINK "https://github.com/hardwario/hio-monitor")
 set(CPACK_WIX_PROPERTY_ARPCONTACT "HARDWARIO a.s.")
