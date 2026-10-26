@@ -273,9 +273,11 @@ TEST_F(FlashCli, CatalogNetworkDown) {
 #endif
     QProcessEnvironment env = fakeEnvironment();
     env.insert(QStringLiteral("HIO_CATALOG_URL"), QStringLiteral("http://127.0.0.1:1/chester"));
+    // Not the ID FlashByCatalogId downloads: on macOS and Windows the firmware cache is in the
+    // system folders, not in the test home, so that one may already be cached.
     const RunResult result =
         run({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("flash"), QStringLiteral("0123456789abcdef0123456789abcdef")},
+             QStringLiteral("flash"), QStringLiteral("fedcba9876543210fedcba9876543210")},
             env);
     EXPECT_EQ(result.exitCode, 8) << result.out;
     EXPECT_EQ(errorCode(result), QStringLiteral("network.download_failed"));

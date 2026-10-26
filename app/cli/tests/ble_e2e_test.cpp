@@ -260,10 +260,12 @@ TEST_F(FakeBleCli, ConsoleWritesTheDefaultConsoleFile) {
             QByteArray("version\n"));
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_NE(result.out.find("Firmware version: v3.1.0"), std::string::npos) << result.out;
+#ifdef __linux__ // elsewhere QStandardPaths takes the system folders, not the test's XDG_DATA_HOME
     const QDir console(home() + QStringLiteral("/data/HARDWARIO/Monitor/console"));
     const QStringList files =
         console.entryList({QStringLiteral("chester-ble-*-F1-22-33-44-55-66.log")}, QDir::Files);
     EXPECT_EQ(files.size(), 1) << console.absolutePath().toStdString();
+#endif
 }
 
 TEST_F(FakeBleCli, PairOutcomes) {
@@ -303,7 +305,7 @@ TEST_F(FakeBleCli, CommandWithManyLinesWritesThemAll) {
     ASSERT_EQ(result.exitCode, 0) << result.err;
     const QJsonArray output =
         data(envelopes(result.out).at(0)).value(QStringLiteral("output")).toArray();
-    EXPECT_EQ(output.size(), 300);
+    EXPECT_EQ(output.size(), 300) << result.out.substr(0, 3000);
 }
 
 // Review B6: another spelling of the address is the same device.
@@ -323,6 +325,9 @@ TEST_F(FakeBleCli, LowerCaseAddressIsTheSameDevice) {
 // Review B8: an undecided permission is asked for before the first scan (here the system answers
 // at once) and the scan runs.
 TEST_F(FakeBleCli, UndecidedPermissionIsAskedForFirst) {
+#ifdef Q_OS_MACOS
+    GTEST_SKIP() << "macOS answers the request itself (TCC); the fake scenario cannot";
+#endif
     const RunResult result =
         hio("permission_undetermined.json",
             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
@@ -332,6 +337,9 @@ TEST_F(FakeBleCli, UndecidedPermissionIsAskedForFirst) {
 
 // Review N6: after the permission was granted the adapter is read again (here it is off).
 TEST_F(FakeBleCli, AdapterIsReadAgainAfterThePermission) {
+#ifdef Q_OS_MACOS
+    GTEST_SKIP() << "macOS answers the request itself (TCC); the fake scenario cannot";
+#endif
     const RunResult result =
         hio("permission_then_off.json",
             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),

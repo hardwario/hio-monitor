@@ -117,7 +117,7 @@ TEST_F(LibraryLocator, InstallPathsAreSearched) {
     EXPECT_EQ(location->path, library);
 }
 
-#ifndef _WIN32
+#ifdef __linux__ // the libjlinkarm.so.* names exist on Linux only (macOS: libjlinkarm*.dylib)
 TEST_F(LibraryLocator, SymlinkedNamesCountOnceWithTheirHighestVersion) {
     const fs::path real = touch("SEGGER/JLink/libjlinkarm.so.8.10.1");
     fs::create_symlink(real.filename(), root() / "SEGGER/JLink/libjlinkarm.so.8");
