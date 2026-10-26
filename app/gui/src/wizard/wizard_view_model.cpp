@@ -30,7 +30,7 @@ WizardViewModel::WizardViewModel(const WizardRegistry& registry, QObject* parent
     : QObject(parent), m_registry(registry) {}
 
 WizardViewModel::~WizardViewModel() {
-    if (m_wizard) {
+    if (!m_wizard.isNull()) {
         m_wizard->disconnect(this);
         m_wizard->cancelOperation();
     }
@@ -40,7 +40,7 @@ bool WizardViewModel::start(Wizard* wizard, const ErrorInfo& context, DeviceTabV
     if (wizard == nullptr) {
         return false;
     }
-    if (m_wizard) {
+    if (!m_wizard.isNull()) {
         qCInfo(lcGui).noquote() << "Wizard" << wizard->id() << "refused:" << m_wizard->id()
                                 << "is open";
         wizard->deleteLater();
@@ -76,7 +76,7 @@ bool WizardViewModel::start(Wizard* wizard, const ErrorInfo& context, DeviceTabV
 DeviceTabViewModel* WizardViewModel::tab() const { return m_tab.data(); }
 
 void WizardViewModel::tabClosing(const DeviceTabViewModel* tab) {
-    if (!m_wizard || tab == nullptr || m_tab.data() != tab) {
+    if (m_wizard.isNull() || tab == nullptr || m_tab.data() != tab) {
         return;
     }
     qCInfo(lcGui).noquote() << "Wizard" << m_wizard->id() << "closed with its tab";
@@ -84,13 +84,17 @@ void WizardViewModel::tabClosing(const DeviceTabViewModel* tab) {
     close(false); // also when the cancelled operation has not ended yet: the tab goes away
 }
 
-QString WizardViewModel::wizardId() const { return m_wizard ? m_wizard->id() : QString(); }
+QString WizardViewModel::wizardId() const {
+    return !m_wizard.isNull() ? m_wizard->id() : QString();
+}
 
-QString WizardViewModel::title() const { return m_wizard ? m_wizard->title() : QString(); }
+QString WizardViewModel::title() const {
+    return !m_wizard.isNull() ? m_wizard->title() : QString();
+}
 
 QVariantList WizardViewModel::steps() const {
     QVariantList list;
-    if (!m_wizard) {
+    if (m_wizard.isNull()) {
         return list;
     }
     const WizardStep current = m_wizard->current();
@@ -125,7 +129,7 @@ QVariantList WizardViewModel::steps() const {
 }
 
 int WizardViewModel::currentIndex() const {
-    if (!m_wizard) {
+    if (m_wizard.isNull()) {
         return -1;
     }
     const QString current = m_wizard->current().id;
@@ -143,12 +147,12 @@ int WizardViewModel::currentIndex() const {
 }
 
 QVariantMap WizardViewModel::step() const {
-    return m_wizard ? m_wizard->current().toMap() : QVariantMap();
+    return !m_wizard.isNull() ? m_wizard->current().toMap() : QVariantMap();
 }
 
 QString WizardViewModel::stepLabel() const {
     const int index = currentIndex();
-    if (!m_wizard || index < 0) {
+    if (m_wizard.isNull() || index < 0) {
         return {};
     }
     return tr("Step %1 of %2 · %3")
@@ -159,7 +163,7 @@ QString WizardViewModel::stepLabel() const {
 
 QString WizardViewModel::stepAnnouncement() const {
     const int index = currentIndex();
-    if (!m_wizard) {
+    if (m_wizard.isNull()) {
         return {};
     }
     if (index < 0) {
@@ -172,25 +176,27 @@ QString WizardViewModel::stepAnnouncement() const {
 }
 
 bool WizardViewModel::canBack() const {
-    return m_wizard && busyCancelText().isEmpty() && m_wizard->canBack();
+    return !m_wizard.isNull() && busyCancelText().isEmpty() && m_wizard->canBack();
 }
 
 bool WizardViewModel::canPrimary() const {
-    return m_wizard && !m_closing && m_wizard->canPrimary();
+    return !m_wizard.isNull() && !m_closing && m_wizard->canPrimary();
 }
 
 QString WizardViewModel::busyCancelText() const {
-    return m_wizard ? m_wizard->busyCancelText() : QString();
+    return !m_wizard.isNull() ? m_wizard->busyCancelText() : QString();
 }
 
-CheckListModel* WizardViewModel::checks() const { return m_wizard ? m_wizard->checks() : nullptr; }
+CheckListModel* WizardViewModel::checks() const {
+    return !m_wizard.isNull() ? m_wizard->checks() : nullptr;
+}
 
 QObject* WizardViewModel::embedded() const {
-    return m_wizard ? m_wizard->embeddedViewModel() : nullptr;
+    return !m_wizard.isNull() ? m_wizard->embeddedViewModel() : nullptr;
 }
 
 QUrl WizardViewModel::embeddedSource() const {
-    if (!m_wizard) {
+    if (m_wizard.isNull()) {
         return {};
     }
     const WizardStep current = m_wizard->current();
@@ -213,19 +219,19 @@ void WizardViewModel::back() {
 }
 
 void WizardViewModel::choose(const QString& choiceId) {
-    if (m_wizard) {
+    if (!m_wizard.isNull()) {
         m_wizard->choose(choiceId);
     }
 }
 
 void WizardViewModel::action(const QString& actionId) {
-    if (m_wizard) {
+    if (!m_wizard.isNull()) {
         m_wizard->action(actionId);
     }
 }
 
 void WizardViewModel::cancel(bool force) {
-    if (!m_wizard) {
+    if (m_wizard.isNull()) {
         return;
     }
     if (busyCancelText().isEmpty()) {
@@ -239,7 +245,7 @@ void WizardViewModel::cancel(bool force) {
     // [Cancel and close]: the dialog closes when the operation has ended (onWizardChanged).
     m_closing = true;
     m_wizard->cancelOperation();
-    if (m_wizard && busyCancelText().isEmpty()) {
+    if (!m_wizard.isNull() && busyCancelText().isEmpty()) {
         close(false);
         return;
     }
@@ -286,7 +292,7 @@ bool WizardViewModel::hasIllustration(const QString& slot) {
 }
 
 void WizardViewModel::onWizardChanged() {
-    if (m_closing && m_wizard && busyCancelText().isEmpty()) {
+    if (m_closing && !m_wizard.isNull() && busyCancelText().isEmpty()) {
         close(false);
         return;
     }
@@ -294,13 +300,13 @@ void WizardViewModel::onWizardChanged() {
 }
 
 void WizardViewModel::close(bool completed) {
-    if (!m_wizard) {
+    if (m_wizard.isNull()) {
         return;
     }
     qCInfo(lcGui).noquote() << "Wizard" << m_wizard->id() << (completed ? "completed" : "closed");
     Wizard* wizard = m_wizard.data();
     wizard->disconnect(this);
-    if (m_tab) {
+    if (!m_tab.isNull()) {
         m_tab->disconnect(this);
     }
     m_wizard.clear();

@@ -192,7 +192,8 @@ QString TestWizard::busyCancelText() const { return m_busy ? busyText : QString(
 
 void TestWizard::cancelOperation() {
     ++m_cancelCalls;
-    m_tabSessionAtCancel = m_tab && m_tab->session() != nullptr; // QPointer: checked first
+    m_tabSessionAtCancel =
+        !m_tab.isNull() && m_tab->session() != nullptr; // QPointer: checked first
     if (m_busy && m_cancelImmediately) {
         finishOperation();
         return;
@@ -202,7 +203,7 @@ void TestWizard::cancelOperation() {
 
 void TestWizard::startOperation() {
     m_busy = true;
-    if (m_tab) {
+    if (!m_tab.isNull()) {
         m_tab->setBusy(id(), QStringLiteral("Working…"), busyText, [this] { cancelOperation(); });
     }
     emit changed();
@@ -213,7 +214,7 @@ void TestWizard::finishOperation() {
         return;
     }
     m_busy = false;
-    if (m_tab) {
+    if (!m_tab.isNull()) {
         m_tab->clearBusy(id());
     }
     if (m_index == 4) {

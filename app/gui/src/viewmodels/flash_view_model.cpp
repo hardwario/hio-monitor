@@ -254,7 +254,7 @@ bool FlashViewModel::otherOperationRunning() const {
     if (m_tab->isBusy() && m_tab->busyPage() != pageId) {
         return true;
     }
-    return !m_running && m_session && m_session->runningOperation().has_value();
+    return !m_running && !m_session.isNull() && m_session->runningOperation().has_value();
 }
 
 QString FlashViewModel::cannotFlashReason() const {
@@ -470,7 +470,7 @@ void FlashViewModel::cancel() {
         return;
     }
     m_cancelRequested = true;
-    if (!m_running->session) {
+    if (m_running->session.isNull()) {
         finish(m_running->kind,
                Status(std::unexpected(makeError(ErrorCode::Cancelled, "the session is gone"))), {},
                std::nullopt);
@@ -490,7 +490,7 @@ void FlashViewModel::onSessionChanged() {
     }
     m_sessionConnections.clear();
     m_session = m_tab->session();
-    if (m_session) {
+    if (!m_session.isNull()) {
         m_sessionConnections.push_back(connect(m_session, &device::DeviceSession::operationProgress,
                                                this, &FlashViewModel::onProgress));
         m_sessionConnections.push_back(connect(m_session, &device::DeviceSession::operationFinished,

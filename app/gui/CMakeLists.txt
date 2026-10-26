@@ -206,6 +206,7 @@ qt_add_resources(hio_gui "hio_gui_fonts"
     OUTPUT_TARGETS _hio_gui_font_targets)
 # Generated only: the qt_add_qml_module resource init objects and the two resources above.
 hio_skip_linting(${_hio_gui_qml_targets} ${_hio_gui_style_targets} ${_hio_gui_font_targets})
+hio_skip_linting_generated_sources(hio_gui hio_guiplugin)
 
 qt_add_executable(hio-monitor src/main.cpp)
 hio_apply_target_defaults(hio-monitor)

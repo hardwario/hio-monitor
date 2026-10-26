@@ -8,6 +8,10 @@
 #   hio_skip_linting(<target>...)
 #       Disables clang-tidy for targets that contain only generated code (e.g. the object
 #       libraries returned by OUTPUT_TARGETS of qt_add_resources / qt_add_qml_module).
+#   hio_skip_linting_generated_sources(<target>...)
+#       Disables clang-tidy for the generated sources (qmlcachegen, qmltyperegistrar, rcc) inside
+#       an own target, at the end of the current directory (after Qt's deferred finalizers).
+#       Qt 6.10 marks them SKIP_LINTING itself; Qt 6.8 does not (plan 0023).
 #   hio_restrict_own_links(<target> ALLOW <hio::target>...)
 #       Restricts the own (hio:: / hio_) targets that <target> may link directly
 #       (LINK_LIBRARIES and INTERFACE_LINK_LIBRARIES) to the ALLOW list plus hio::warnings and
@@ -40,6 +44,23 @@ function(hio_skip_linting)
     if(ARGN)
         set_target_properties(${ARGN} PROPERTIES CXX_CLANG_TIDY "" SKIP_LINTING ON)
     endif()
+endfunction()
+
+function(hio_skip_linting_generated_sources)
+    foreach(_target IN LISTS ARGN)
+        cmake_language(EVAL CODE "
+            cmake_language(DEFER CALL _hio_skip_linting_generated_sources_now [[${_target}]])")
+    endforeach()
+endfunction()
+
+function(_hio_skip_linting_generated_sources_now target)
+    get_target_property(_sources ${target} SOURCES)
+    foreach(_source IN LISTS _sources)
+        get_source_file_property(_generated "${_source}" GENERATED)
+        if(_generated)
+            set_source_files_properties("${_source}" PROPERTIES SKIP_LINTING ON)
+        endif()
+    endforeach()
 endfunction()
 
 function(hio_add_backend_library name)

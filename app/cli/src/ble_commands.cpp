@@ -29,13 +29,13 @@
 #include <QMetaObject>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtCore/qnamespace.h>
 #include <QtCore/qtconfigmacros.h>
 #include <QtGlobal>
 
 #if QT_CONFIG(permissions)
 #include <QPermissions>
-#include <QStringLiteral>
 #endif
 
 #include <CLI/CLI.hpp>

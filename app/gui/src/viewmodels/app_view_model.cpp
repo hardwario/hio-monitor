@@ -359,11 +359,11 @@ void AppViewModel::createGlobalPages() {
 }
 
 void AppViewModel::setLanguageManager(LanguageManager* manager) {
-    if (m_languageManager) {
+    if (!m_languageManager.isNull()) {
         m_languageManager->disconnect(this);
     }
     m_languageManager = manager;
-    if (m_languageManager) {
+    if (!m_languageManager.isNull()) {
         connect(m_languageManager, &LanguageManager::languageChanged, this,
                 &AppViewModel::languageChanged);
         connect(m_languageManager, &LanguageManager::languageChanged, this,
@@ -380,11 +380,11 @@ QString AppViewModel::buildInfo() {
 }
 
 QString AppViewModel::language() const {
-    return m_languageManager ? m_languageManager->language() : QStringLiteral("system");
+    return !m_languageManager.isNull() ? m_languageManager->language() : QStringLiteral("system");
 }
 
 void AppViewModel::setLanguage(const QString& code) {
-    if (!m_languageManager) {
+    if (m_languageManager.isNull()) {
         qCWarning(lcGui) << "setLanguage" << code << "ignored: no LanguageManager";
         return;
     }
@@ -751,7 +751,7 @@ void AppViewModel::attachWindow(QWindow* window) {
 }
 
 void AppViewModel::saveGeometry() {
-    if (!m_window || m_settings->readOnly()) {
+    if (m_window.isNull() || m_settings->readOnly()) {
         return;
     }
     const bool maximized = (m_window->windowStates() & Qt::WindowMaximized) != 0;
@@ -781,7 +781,7 @@ void AppViewModel::saveGeometry() {
 }
 
 void AppViewModel::activateWindow() {
-    if (!m_window) {
+    if (m_window.isNull()) {
         return;
     }
     if ((m_window->windowStates() & Qt::WindowMinimized) != 0) {

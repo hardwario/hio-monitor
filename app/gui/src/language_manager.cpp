@@ -37,7 +37,7 @@ const QString languageKey = QStringLiteral("ui/language");
 
 LanguageManager::LanguageManager(SettingsStore* settings, QObject* parent)
     : QObject(parent), m_settings(settings), m_language(systemLanguage) {
-    if (m_settings) {
+    if (!m_settings.isNull()) {
         const QString stored = m_settings->value(languageKey).toString();
         if (stored == systemLanguage || isSupported(stored)) {
             m_language = stored;
@@ -70,13 +70,13 @@ Status LanguageManager::apply(const QString& code) {
         m_effectiveLanguage = effective;
         removeTranslators();
         installTranslators(effective);
-        if (m_engine) {
+        if (!m_engine.isNull()) {
             m_engine->retranslate();
         }
         qCInfo(lcGui) << "Language switched to" << m_language << "->" << m_effectiveLanguage;
     }
 
-    if (m_settings) {
+    if (!m_settings.isNull()) {
         if (const Status stored = m_settings->setValue(languageKey, code); !stored) {
             qCWarning(lcGui) << "The language choice could not be saved:"
                              << toQString(stored.error().message)

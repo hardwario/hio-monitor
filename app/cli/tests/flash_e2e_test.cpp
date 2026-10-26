@@ -18,6 +18,7 @@
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 
@@ -27,7 +28,6 @@
 #include <vector>
 
 #ifndef _WIN32
-#include <QStringLiteral>
 #include <QtContainerFwd>
 
 #include <csignal>
