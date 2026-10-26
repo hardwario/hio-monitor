@@ -114,6 +114,11 @@ jobs:
         # CliProcess.CzechLocaleStaysEnglish runs `hio` under cs_CZ.UTF-8; the runner image only
         # has C.UTF-8 and en_US.UTF-8 (plan 0023).
         run: sudo locale-gen cs_CZ.UTF-8
+      - name: glibc debug symbols (TSan)
+        if: matrix.preset == 'tsan'
+        # The race:tzset_internal suppression (plan 0019) matches a static glibc function, which the
+        # stripped libc.so.6 of the runner image does not name without its debug info (plan 0023).
+        run: sudo apt-get install -y --no-install-recommends libc6-dbg
       - name: Allow TSan memory mappings
         if: matrix.preset == 'tsan'
         # TSan cannot map its shadow memory with the runner's high ASLR entropy.
