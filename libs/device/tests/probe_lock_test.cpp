@@ -12,6 +12,7 @@
 #include <QProcess>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QSysInfo>
 #include <QTemporaryDir>
 #include <QtTypes>
@@ -19,7 +20,6 @@
 #include <gtest/gtest.h>
 
 #ifdef _WIN32
-#include <QStringLiteral>
 #include <QtEnvironmentVariables>
 #else
 #include <sys/file.h>
@@ -305,8 +305,9 @@ TEST_F(Lock, ConcurrentAcquireAndReleaseOfTheSameProbe) {
 }
 
 // The application name QLockFile records for this test binary (Qt 6.8.3 processNameByPid():
-// Windows the module name without extension, Linux the file name of /proc/<pid>/exe).
-QString recordedAppName() {
+// Windows the module name without extension, Linux the file name of /proc/<pid>/exe). Not used on
+// macOS (proc_name() may be shortened); [[maybe_unused]] keeps -Wunused-function quiet there.
+[[maybe_unused]] QString recordedAppName() {
     const QFileInfo exe(QCoreApplication::applicationFilePath());
 #ifdef _WIN32
     return exe.completeBaseName();
