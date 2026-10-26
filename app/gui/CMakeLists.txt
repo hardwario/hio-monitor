@@ -164,7 +164,8 @@ qt_add_qml_module(hio_gui
         src/workers/firmware_loader.cpp
         src/workers/firmware_loader.h
         src/workers/probe_scanner.cpp
-        src/workers/probe_scanner.h)
+        src/workers/probe_scanner.h
+    OUTPUT_TARGETS _hio_gui_qml_targets)
 target_include_directories(hio_gui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # The generated QML type registration includes the view model headers by file name.
 target_include_directories(hio_gui PRIVATE
@@ -203,7 +204,8 @@ qt_add_resources(hio_gui "hio_gui_fonts"
         assets/fonts/JetBrainsMono-Bold.ttf
         assets/fonts/JetBrainsMono-Regular.ttf
     OUTPUT_TARGETS _hio_gui_font_targets)
-hio_skip_linting(${_hio_gui_style_targets} ${_hio_gui_font_targets})
+# Generated only: the qt_add_qml_module resource init objects and the two resources above.
+hio_skip_linting(${_hio_gui_qml_targets} ${_hio_gui_style_targets} ${_hio_gui_font_targets})
 
 qt_add_executable(hio-monitor src/main.cpp)
 hio_apply_target_defaults(hio-monitor)
