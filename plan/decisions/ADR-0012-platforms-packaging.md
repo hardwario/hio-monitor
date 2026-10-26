@@ -1,6 +1,6 @@
 # ADR-0012 — Supported platforms and packaging
 
-- **Status:** Accepted (amended by ADR-0118: v2.0 Linux packages are AppImage + .deb, Flatpak deferred, .deb requires Ubuntu 24.04+; Windows format MSI per ADR-0117)
+- **Status:** Accepted (amended by ADR-0118: v2.0 Linux packages are AppImage + .deb, Flatpak deferred, .deb requires Ubuntu 24.04+; Windows format MSI per ADR-0117; macOS minimum 13.3 per ADR-0179)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (bootstrap planning session)
 

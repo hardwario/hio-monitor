@@ -103,7 +103,7 @@ File names `snake_case.h` / `.cpp`; 4-space indent; namespaces `hio`, `hio::log`
   (ASan+UBSan, `-fno-sanitize-recover=all`), `linux-tsan`, `linux-coverage`
   (`-fprofile-instr-generate -fcoverage-mapping`), `linux-tidy` (`CMAKE_CXX_CLANG_TIDY`),
   `macos-debug`, `macos-asan`, `macos-release` (`CMAKE_OSX_ARCHITECTURES=arm64;x86_64`),
-  `windows-debug`, `windows-release` (clang-cl). All `macos-*` presets set `CMAKE_OSX_DEPLOYMENT_TARGET=13.0`.
+  `windows-debug`, `windows-release` (clang-cl). All `macos-*` presets set `CMAKE_OSX_DEPLOYMENT_TARGET=13.3` (ADR-0179; was 13.0).
   Matching build and test presets; test presets set `QT_QPA_PLATFORM=offscreen`, `QT_IM_MODULE(S)=none` (no
   desktop input-method plugin such as IBus/D-Bus in tests) and sanitizer options
   (`TSAN_OPTIONS=suppressions=…`). `tools/sanitizers/tsan.supp` holds two commented Qt entries
@@ -517,7 +517,7 @@ Phase E — CI and docs
 
 - **Apple libc++ C++23 gaps** (`std::jthread`, `stop_token`, float `std::to_chars` vs. the macOS 13
   deployment target). Mitigation: feature checks fail early; minimum Xcode 16; if a gap blocks, stop and
-  ask (possible deployment target change → ADR).
+  ask (possible deployment target change → ADR). Outcome: `std::format` needs 13.3, minimum raised by ADR-0179.
 - **TSan with uninstrumented Qt** binaries produces false positives → suppression file, kept minimal.
 - **Open-source Qt 6.8 patch releases** may end before the next LTS → tracked; an upgrade needs an ADR.
 - **clang-tidy on Qt-generated code** → `SKIP_LINTING` / header filter; if noisy, document exclusions.

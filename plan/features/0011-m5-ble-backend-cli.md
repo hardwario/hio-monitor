@@ -371,7 +371,7 @@ ConsoleLog 100 000 lines/channel · console files and history as M1 · sessions 
 | BLE line assembly + console file (2026-10-19) | BLE thread / owner thread + flush timer | BLE thread; sink keyed by `SessionKey` | ADR-0128 |
 | Bluetooth checks | doctor / setup step / pairing wizard only | doctor + setup step | ADR-0088 |
 | Profile shape | `DeviceProfile::ble` / BLE target / separate registry | `DeviceProfile::ble` | ADR-0089 |
-| Minor defaults: all bounds and timeouts above; error codes and categories (adapter → dependency, device → target, busy → probe); `lcBle` = `hio.ble`; console file name `<profile>-ble-…`; `--name` substring match; supported stacks = BlueZ of Ubuntu 22.04 (5.64) or newer, Windows 10 22H2+, macOS 13+ (ADR-0012) | accept / change | accepted (2026-10-19) | — |
+| Minor defaults: all bounds and timeouts above; error codes and categories (adapter → dependency, device → target, busy → probe); `lcBle` = `hio.ble`; console file name `<profile>-ble-…`; `--name` substring match; supported stacks = BlueZ of Ubuntu 22.04 (5.64) or newer, Windows 10 22H2+, macOS 13.3+ (ADR-0012) | accept / change | accepted (2026-10-19) | — |
 
 ## Decisions during implementation (2026-10-19, by Matej Strnad)
 
@@ -582,7 +582,7 @@ Phase F — hardware and docs
 - **HIL (CHESTER with Bluetooth shell):** scan; console with an existing bond; remove bond on both sides → pairing
   with passkey; `ble command version`; device restart → reconnect with `--auto-reconnect`; out of range →
   `ble.disconnected`; one J-Link and one BLE session to the same CHESTER at once.
-- **Manual (by the user, before Done):** Linux (GNOME agent and headless `bluetoothctl`), Windows 10/11, macOS 13+
+- **Manual (by the user, before Done):** Linux (GNOME agent and headless `bluetoothctl`), Windows 10/11, macOS 13.3+
   (permission prompt for the GUI bundle and for `hio` in Terminal; denied → `ble.permission_denied`).
 
 ## Risks and open points
