@@ -1,6 +1,6 @@
 # 0016 — M7 update check and release UX: `libs/update`, banner, About, `hio update check`
 
-- **Status:** Draft
+- **Status:** Approved (2026-10-26)
 - **Milestone:** M7 (plan 2 of 2, ADR-0115; [0015](0015-m7-packaging-release.md) is packaging and release)
 - **Author:** Matej Strnad (with Claude), 2026-10-19
 - **Related ADRs:** ADR-0004, ADR-0007, ADR-0018, ADR-0019, ADR-0024, ADR-0025, ADR-0027, ADR-0037, ADR-0071,

@@ -1,11 +1,11 @@
 # 0015 — M7 packaging and release pipeline: AppImage, .deb, DMG, MSI, signing, crash dumps
 
-- **Status:** Draft
+- **Status:** Approved (2026-10-26, with ADR-0177)
 - **Milestone:** M7 (plan 1 of 2, ADR-0115; [0016](0016-m7-update-check.md) is the update check)
 - **Author:** Matej Strnad (with Claude), 2026-10-19
 - **Related ADRs:** ADR-0002, ADR-0006, ADR-0011, ADR-0012, ADR-0018, ADR-0020, ADR-0021, ADR-0022, ADR-0025,
   ADR-0027, ADR-0030, ADR-0048, ADR-0058, ADR-0071, ADR-0072, ADR-0073, ADR-0075, ADR-0086, ADR-0106, ADR-0108,
-  ADR-0115, ADR-0117–ADR-0126
+  ADR-0115, ADR-0117–ADR-0126, ADR-0177
 - **Depends on:** 0001 (M0) implemented. Packages are meaningful once M3 (GUI) is merged; the BLE-related checks
   (Info.plist under hardened runtime, `bluez` dependency) need 0011. Phases A–E can start before M4–M6 are merged;
   the release candidate (phase F) is built from the integrated `v2-dev`.
@@ -153,6 +153,14 @@ cmake/HioPackaging.cmake        install(), deploy scripts, CPack config, package
   `g++-13`/`libstdc++-13-dev` (toolchain PPA), Ninja, CMake ≥ 3.28 (Kitware APT), aqtinstall (pinned) Qt 6.8.x
   `linux_gcc_64` + qtconnectivity, Git LFS, `dpkg-dev`, `desktop-file-utils`, `appstream`. Built in CI and cached by
   digest; the image is not published.
+  > **ADR-0177 (2026-10-26):** the ad-hoc 2.0.0-alpha.1 build showed that libstdc++ 13/14 did not compile the code:
+  > `std::expected<hio::mcp::ToolResult, hio::Error>` is a Qt meta type, and libstdc++ before 15 has an
+  > unconstrained `operator==` for `std::expected` that needs `ToolResult ==`. Resolved in code: every type inside a
+  > meta-registered `std::expected` gets `operator==`, so `g++-13` stays and the .deb keeps `libstdc++6 (>= 13)`.
+  > The container build is the regression check. Other results of that build: Qt 6.8.3 (aqtinstall 3.3.0) builds the
+  > code cleanly; the AppImage needs GLIBC_2.35 at most; `libdbus-1` must stay bundled (excluding it breaks `hio` on
+  > a clean 22.04); the container needs a UTF-8 locale for the tests. Ad-hoc scripts (reference only):
+  > `/home/hardwario/src/monitor/appimage-adhoc/`.
 - **.deb** (CPack DEB): package `hardwario-monitor`, maintainer "HARDWARIO a.s. <support e-mail, pending>", section
   `electronics`, `CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON` with the private Qt dir excluded from lookups, explicit
   `bluez` and `libstdc++6 (>= 13)`; files under `/opt/hardwario-monitor`, symlinks `/usr/bin/hio-monitor`,
@@ -283,9 +291,14 @@ No new `hio::Error` codes at runtime except in 0016. Package-time failures are C
 | macOS library validation | disable-library-validation / re-sign | disable-library-validation | ADR-0126 |
 | App icon source | brand team SVG / reuse v1 icon / drafted SVG | reuse the v1 icon (`icons.icns`, `icons.ico` from `main`) | — |
 | MCP consent as native notification (ADR-0108 asked M7) | keep own window / + info notification / native with buttons | keep the own window (ADR-0108 unchanged) | ADR-0108 |
+| libstdc++ 13/14 vs `std::expected` meta types (2026-10-26) | `operator==` on the types / require libstdc++ 15 | `operator==` on the types; g++-13 stays | ADR-0177 |
 | Minor defaults: install paths and names above; .deb package `hardwario-monitor`, section `electronics`, maintainer e-mail; udev file `60-hardwario-jlink.rules`; macOS bundle `HARDWARIO Monitor.app`; desktop categories; AppImage tooling (CMake deploy + linuxdeploy without Qt plugin + appimagetool, no zsync); MSVC runtime app-local; WiX ≥ 4 via CPack (CMake ≥ 3.30 for Windows packaging only); desktop shortcut off; crash retention 5 files / report includes 3; `--self-test` hidden GUI option; `"package"` field in `--version --json`; unsigned PR packages, 7-day retention; artifact names above | accept / change | accepted (2026-10-19); the .deb maintainer e-mail is supplied by HARDWARIO | — |
 
 ## Implementation steps
+
+**Phase 0 — ADR-0177**
+- [ ] 01 `operator==` on `hio::mcp::ToolResult` and on every other type inside a meta-registered `std::expected`;
+  checked by a libstdc++ 13 build (phase C1 container).
 
 **Phase A — common install tree**
 - [ ] A1 `cmake/HioPackaging.cmake`: install rules per OS, `qt_generate_deploy_qml_app_script`, Qt `cs`
@@ -355,6 +368,7 @@ Manual (clean VMs / machines; J-Link + CHESTER for the hardware rows):
 - WiX ≥ 4 support in CPack needs CMake ≥ 3.30 on the Windows runner; if it is not adequate, use `wix build` directly
   on own `.wxs` (same decisions).
 - The 22.04 container must keep LLVM 21 and libstdc++ 13 packages available; pin package versions and cache the image.
+  libstdc++ 13 also guards ADR-0177 (meta-registered `std::expected` types need `operator==`).
 - Old-app coexistence: v1 installs as "HARDWARIO Monitor" too (Windows Start menu / Program Files folder
   `HARDWARIO Monitor`; macOS bundle built from `hiomon`). v2 uses `Program Files\HARDWARIO\Monitor` and
   `HARDWARIO Monitor.app`; check on a machine with v1 installed that the two entries are distinguishable (v2 adds no
