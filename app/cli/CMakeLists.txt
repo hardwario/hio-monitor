@@ -24,6 +24,8 @@ add_library(hio_cli_impl STATIC
     src/diag_commands.h
     src/console_events.cpp
     src/console_events.h
+    src/console_learning.cpp
+    src/console_learning.h
     src/console_ui.cpp
     src/console_ui.h
     src/exit_codes.cpp

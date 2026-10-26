@@ -203,6 +203,54 @@ TEST_F(FakeLibrarySession, OpenDoesNotWaitForASlowConnect) {
     EXPECT_EQ((*session)->probe().serialNumber, 9U);
 }
 
+// ADR-0176 (plan 0021 review): output already waiting in the target's buffer when a line is sent
+// comes before the line's echo, although the next read cycle is far away (1 s latency).
+TEST_F(FakeLibrarySession, BufferedOutputComesBeforeTheEcho) {
+    useScenario(R"({"probes": [{"serialNumber": 7,
+        "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "first\n"},
+                           {"atMs": 250, "buffer": 0, "text": "pending\n"}]}}]})");
+    auto opts = options(7);
+    opts.latencyMs = hio::device::maxLatencyMs;
+    auto session = DeviceSession::open(registry(), location(), std::move(opts));
+    ASSERT_TRUE(session) << session.error().message;
+    Recorder recorder(**session);
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::seconds(10)));
+    ASSERT_TRUE(waitFor([&] { return !recorder.texts(Channel::Shell, Direction::Out).empty(); }));
+    hio::device::test::spin(std::chrono::milliseconds(450));
+    ASSERT_TRUE((*session)->sendLine("version"));
+    ASSERT_TRUE(waitFor([&] { return !recorder.texts(Channel::Shell, Direction::In).empty(); }));
+    std::vector<std::string> shell;
+    for (const auto& line : recorder.lines) {
+        if (line.channel == Channel::Shell) {
+            shell.push_back(line.text);
+        }
+    }
+    EXPECT_EQ(shell, (std::vector<std::string>{"first", "pending", "version"}));
+}
+
+// ADR-0176: when that read fails, the link is reported down and the line is not written.
+TEST_F(FakeLibrarySession, ALineIsNotWrittenWhenTheReadBeforeItFails) {
+    useScenario(R"({"probes": [{"serialNumber": 7,
+        "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "first\n"}],
+                "readErrors": [[300, 600000]]}}]})");
+    auto opts = options(7);
+    opts.latencyMs = hio::device::maxLatencyMs;
+    auto session = DeviceSession::open(registry(), location(), std::move(opts));
+    ASSERT_TRUE(session) << session.error().message;
+    Recorder recorder(**session);
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::seconds(10)));
+    ASSERT_TRUE(waitFor([&] { return !recorder.texts(Channel::Shell, Direction::Out).empty(); }));
+    hio::device::test::spin(std::chrono::milliseconds(450));
+    ASSERT_TRUE((*session)->sendLine("version"));
+    ASSERT_TRUE(waitFor([&] {
+        return std::ranges::any_of(recorder.connections, [](const auto& event) {
+            return event.state == ConnectionState::Disconnected;
+        });
+    }));
+    hio::device::test::spin(std::chrono::milliseconds(100));
+    EXPECT_TRUE(recorder.texts(Channel::Shell, Direction::In).empty());
+}
+
 TEST_F(FakeLibrarySession, ResetRestartsTheTargetAndReattaches) {
     useScenario(R"({"probes": [{"serialNumber": 3,
         "rtt": {"foundAfterMs": 50, "staleUntilMs": 100,

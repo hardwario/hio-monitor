@@ -499,15 +499,21 @@ Status BleSession::sendLine(std::string line) {
     }
     // Review B4: synchronous back-pressure as DeviceSession (R39): the caller keeps the line and
     // sends it again later instead of losing it in the link's queue.
-    if (m_linesInFlight >= maxLinesInFlight) {
-        return std::unexpected(
-            makeError(ErrorCode::InternalQueueFull,
-                      std::format("{} lines are not written yet", m_linesInFlight)));
+    // Held lines (plan 0021) count too: they are sent when the shell query ends (review P8).
+    if (m_linesInFlight.size() + heldLineCount() >= maxLinesInFlight) {
+        return std::unexpected(makeError(
+            ErrorCode::InternalQueueFull,
+            std::format("{} lines are not written yet", m_linesInFlight.size() + heldLineCount())));
     }
+    if (Status held; holdLine(line, held)) {
+        return held; // plan 0021: a shell query runs (ADR-0175)
+    }
+    const std::uint64_t origin = sendingOrigin();
     Status posted =
         m_host->post(ble::SendLine{.client = m_internals->client, .line = std::move(line)});
     if (posted) {
-        ++m_linesInFlight;
+        m_linesInFlight.push_back(origin);
+        lineQueued();
     }
     return posted;
 }
@@ -686,8 +692,12 @@ bool BleSession::handleEvent(detail::BleSessionEvent& event, QList<ConsoleLine>&
     bool stateChanged = false;
     std::visit(Overloaded{
                    [&](ConsoleLine& line) {
-                       if (line.dir == Direction::In && m_linesInFlight > 0) {
-                           --m_linesInFlight; // the echo: written (B4)
+                       if (line.dir == Direction::In && !m_linesInFlight.empty()) {
+                           line.origin = m_linesInFlight.front(); // the echo: written (B4)
+                           m_linesInFlight.pop_front();
+                       }
+                       if (captureLine(line)) {
+                           return; // a silent shell query took it (plan 0021, ADR-0175)
                        }
                        line.seq = m_internals->log->append(line);
                        batch.push_back(std::move(line));
@@ -724,8 +734,8 @@ bool BleSession::handleEvent(detail::BleSessionEvent& event, QList<ConsoleLine>&
                        m_consoleFile = std::move(changed.file);
                    },
                    [&](const detail::BleLineRejected&) {
-                       if (m_linesInFlight > 0) {
-                           --m_linesInFlight;
+                       if (!m_linesInFlight.empty()) {
+                           m_linesInFlight.pop_front();
                        }
                    },
                    [&](const detail::BleAttemptEnded&) {

@@ -156,7 +156,10 @@ Rectangle {
                     // 0021 (ADR-0170): ghost text after the cursor.
                     Text {
                         objectName: "ghostText"
-                        x: field.positionToRectangle(field.length).x
+                        // The cursor is at the end whenever the ghost text shows; cursorRectangle
+                        // notifies after the layout (positionToRectangle() in a binding does not
+                        // re-evaluate when the text changes).
+                        x: field.cursorRectangle.x
                         // Never past the field (over the Send button) when the text scrolls.
                         width: Math.max(0, field.width - x)
                         clip: true
@@ -272,6 +275,16 @@ Rectangle {
         onPicked: text => {
             input.accept(text);
             field.forceActiveFocus();
+        }
+    }
+
+    // 0021: the device command tree was learned (or is being read): update the open list.
+    Connections {
+        target: input.viewModel
+
+        function onCommandTreeChanged() {
+            if (field.activeFocus && field.text !== "" && !input.suppressed)
+                input.refreshSuggestions();
         }
     }
 

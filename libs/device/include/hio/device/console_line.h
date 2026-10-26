@@ -41,6 +41,11 @@ struct ConsoleLine {
     std::chrono::system_clock::time_point time;
     LogLevel level = LogLevel::None;
     std::string text; // UTF-8, without line terminator and ANSI CSI sequences
+    // Plan 0021 (ADR-0175): on the echo (dir In) of a line sent with
+    // ConsoleSession::sendCaptureLine() the token it returned, so that a silent shell query
+    // recognises its own echo by origin, not by text; 0 for every other line. Not stored in
+    // console files or JSON.
+    std::uint64_t origin = 0;
 };
 
 // Stable lowercase ids used in JSON and console files.

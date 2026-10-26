@@ -217,6 +217,32 @@ TestCase {
         verify(find("flashBar") !== null);
     }
 
+    // Plan 0021 phase 2 (ADR-0166): "In the device" on the Application card from `info show` after
+    // the attach, "Now in the device" on the result card after the flash.
+    function test_firmwareInTheDevice() {
+        verify(testSupport.useScenario(JSON.stringify({
+            libraryVersion: 81000,
+            probes: [{ serialNumber: 801000001, product: "Test Probe",
+                       rtt: { output: [{ atMs: 0, buffer: 0, text: "uart:~$ booted\n" }],
+                              responses: { "info show": "fw-name: hio-chester-push-fm\nfw-version: v4.0.1\n" } } }]
+        })));
+        verify(!find("deviceFirmware") || !find("deviceFirmware").visible);
+        AppViewModel.currentTabViewModel.connection.connectDevice();
+        tryVerify(() => find("deviceFirmware") !== null && find("deviceFirmware").visible, 10000);
+        compare(find("deviceFirmware").text, "In the device: hio-chester-push-fm v4.0.1");
+        const flash = vm();
+        flash.source.loadFile(testSupport.writeHex("app.hex", 4096, false));
+        tryVerify(() => flash.canFlash, 5000);
+        flash.flash();
+        tryVerify(() => flash.opState === FlashViewModel.Succeeded, 30000);
+        tryVerify(() => find("resultDeviceText") !== null && find("resultDeviceText").visible, 10000);
+        compare(find("resultDeviceText").text, "Now in the device: hio-chester-push-fm v4.0.1");
+        mouseClick(find("flashAgain"));
+        AppViewModel.currentTabViewModel.connection.disconnectDevice();
+        tryVerify(() => !find("deviceFirmware") || !find("deviceFirmware").visible);
+        verify(testSupport.useScenario(""));
+    }
+
     function test_uicrOption() {
         const flash = vm();
         flash.source.loadFile(testSupport.writeHex("uicr.hex", 64, true));

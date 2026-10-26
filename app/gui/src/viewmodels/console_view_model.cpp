@@ -5,9 +5,12 @@
 #include "hio/core/json.h"
 #include "hio/core/result.h"
 #include "hio/device/command_tree.h"
+#include "hio/device/command_tree_cache.h"
+#include "hio/device/command_tree_learner.h"
 #include "hio/device/completer.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
+#include "hio/device/device_info.h"
 #include "hio/device/device_session.h"
 #include "hio/device/operation.h"
 #include "hio/device/profile.h"
@@ -73,7 +76,20 @@ ConsoleViewModel::ConsoleViewModel(DeviceTabViewModel* tab, ConsoleContext conte
           m_consoleLog, device::Channel::Shell, this)),
       m_log(new ConsoleLineModel( // NOLINT(cppcoreguidelines-owning-memory)
           m_consoleLog, device::Channel::Log, this)),
-      m_batch(new BatchRunner(this)) { // NOLINT(cppcoreguidelines-owning-memory)
+      m_batch(new BatchRunner(this)), // NOLINT(cppcoreguidelines-owning-memory)
+      m_treeCache(device::CommandTreeCache::defaultDirectory()),
+      // 0021 (ADR-0170): the device command tree, learned through the tab's shell queries.
+      m_learner(new device::CommandTreeLearner( // NOLINT(cppcoreguidelines-owning-memory)
+          tab->shellQueries(), &m_treeCache, this)) {
+    connect(m_learner, &device::CommandTreeLearner::treeChanged, this, [this] {
+        m_commandTree = m_learner->tree();
+        commandTreeChanged(); // signal
+    });
+    connect(m_learner, &device::CommandTreeLearner::readingChanged, this,
+            &ConsoleViewModel::commandTreeChanged);
+    // After `info show` of an attach: the cached tree of this firmware, else `help` (on connect
+    // when console/readCommandsOnConnect is on, else at the first suggestion).
+    connect(m_tab, &DeviceTabViewModel::deviceInfoQueried, this, &ConsoleViewModel::startLearning);
     m_refreshTimer.setSingleShot(true);
     m_refreshTimer.setInterval(refreshDelay);
     connect(&m_refreshTimer, &QTimer::timeout, this, &ConsoleViewModel::refresh);
@@ -158,6 +174,8 @@ void ConsoleViewModel::attachSession() {
     }
     m_batch->stop(); // a new (or no) session: the batch belonged to the old one
     m_resetOperation.reset();
+    m_learner->reset(); // learned again after the next attach's `info show`
+    m_learningStarted = false;
     m_session = session;
     if (m_session) {
         connect(m_session, &device::DeviceSession::linesReceived, this,
@@ -174,6 +192,11 @@ void ConsoleViewModel::attachSession() {
 }
 
 void ConsoleViewModel::onConnectionChanged(const device::ConnectionEvent& event) {
+    if (event.state == device::ConnectionState::Disconnected ||
+        event.state == device::ConnectionState::Stopped) {
+        m_learner->reset(); // another firmware may come back
+        m_learningStarted = false;
+    }
     if (event.state != device::ConnectionState::Connected) {
         stopBatchWithError(ErrorCode::TargetNotConnected, tr("the device disconnected."),
                            tr("Reconnect and run the batch file again."));
@@ -483,12 +506,55 @@ const std::deque<std::string>& noHistory() {
 
 } // namespace
 
-QVariantList ConsoleViewModel::suggestions(const QString& text) const {
+void ConsoleViewModel::startLearning() {
+    const device::DeviceInfo& info = m_tab->deviceInfoFields();
+    std::optional<device::FirmwareKey> key;
+    if (info.hasFirmware()) {
+        key = device::FirmwareKey{.profileId = toStdString(m_tab->profileId()),
+                                  .targetId = toStdString(m_tab->consoleTargetId()),
+                                  .fwName = std::string(info.fwName()),
+                                  .fwVersion = std::string(info.fwVersion())};
+    }
+    // Once per attach and firmware (a repeated `info show`, e.g. after a flash, changes nothing
+    // unless the firmware changed).
+    const std::string identity = key ? key->fwName + '\n' + key->fwVersion : std::string();
+    if (m_learningStarted && identity == m_learnedFirmware) {
+        return;
+    }
+    m_learningStarted = true;
+    m_learnedFirmware = identity;
+    const bool readOnConnect =
+        m_context.settings == nullptr || m_context.settings->readCommandsOnConnect();
+    m_learner->start(std::move(key), readOnConnect);
+}
+
+void ConsoleViewModel::learnFor(const QString& text) {
+    if (m_context.settings != nullptr && !m_context.settings->suggestions()) {
+        return;
+    }
+    if (!m_session || m_session->connection().state != device::ConnectionState::Connected ||
+        !m_learningStarted) {
+        return; // learning starts after the attach's `info show` (the cache key)
+    }
+    if (!m_commandTree) {
+        m_learner->requestTopLevel(); // console/readCommandsOnConnect off: now
+        return;
+    }
+    const device::Completer completer(m_commandTree.get());
+    if (auto path = completer.pathToLearn(toStdString(text))) {
+        m_learner->requestChildren(*path); // `<command> -h`, once
+    }
+}
+
+bool ConsoleViewModel::readingCommands() const { return m_learner->reading(); }
+
+QVariantList ConsoleViewModel::suggestions(const QString& text) {
+    learnFor(text);
     const std::shared_ptr<SharedHistory> history =
         m_history != nullptr || m_context.history == nullptr
             ? m_history
             : m_context.history->history(m_tab->profileId(), m_tab->consoleTargetId());
-    const device::Completer completer(m_commandTree ? &*m_commandTree : nullptr);
+    const device::Completer completer(m_commandTree.get());
     QVariantList rows;
     for (const device::Suggestion& row :
          completer.suggest(toStdString(text), history ? history->entries() : noHistory())) {
@@ -515,8 +581,9 @@ QString ConsoleViewModel::suggestion(const QString& text) const {
     return hint ? toQString(*hint) : QString();
 }
 
-QVariantMap ConsoleViewModel::complete(const QString& text) const {
-    const device::Completer completer(m_commandTree ? &*m_commandTree : nullptr);
+QVariantMap ConsoleViewModel::complete(const QString& text) {
+    learnFor(text);
+    const device::Completer completer(m_commandTree.get());
     const device::Completion completion = completer.complete(toStdString(text));
     QStringList candidates;
     for (const std::string& name : completion.candidates) {
@@ -527,7 +594,7 @@ QVariantMap ConsoleViewModel::complete(const QString& text) const {
 }
 
 void ConsoleViewModel::setCommandTree(std::optional<device::CommandTree> tree) {
-    m_commandTree = std::move(tree);
+    m_commandTree = tree ? std::make_shared<const device::CommandTree>(std::move(*tree)) : nullptr;
     commandTreeChanged(); // signal
 }
 

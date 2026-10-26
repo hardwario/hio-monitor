@@ -104,6 +104,19 @@ FlashViewModel::FlashViewModel(DeviceTabViewModel* tab, FirmwareServices& servic
     });
     connect(m_services.dependencies(), &DependencyStatus::nrfUtilChanged, this,
             &FlashViewModel::stateChanged);
+    // 0021 (ADR-0166): "In the device" and, after an application flash, "Now in the device".
+    connect(m_tab, &DeviceTabViewModel::deviceInfoChanged, this,
+            &FlashViewModel::onDeviceInfoChanged);
+    m_deviceInfoDeadline.setSingleShot(true);
+    m_deviceInfoDeadline.setInterval(deviceInfoWindow);
+    connect(&m_deviceInfoDeadline, &QTimer::timeout, this, [this] { m_deviceInfoRetry.stop(); });
+    m_deviceInfoRetry.setInterval(deviceInfoRetryInterval);
+    connect(&m_deviceInfoRetry, &QTimer::timeout, this, [this] { m_tab->refreshDeviceInfo(); });
+    connect(m_tab, &DeviceTabViewModel::consoleAttached, this, [this] {
+        if (std::exchange(m_awaitingAttach, false)) {
+            startDeviceInfoWindow();
+        }
+    });
     connect(&m_services, &FirmwareServices::languageChanged, this, &FlashViewModel::retranslate);
 
     applyDefaultKind();
@@ -418,6 +431,7 @@ void FlashViewModel::start(
     m_lastTarget = target;
     m_error.reset();
     m_chip.reset();
+    stopDeviceInfoWatch();
     m_cancelRequested = false;
     // A tab without a working session opens one on its console target (review S2); the operation
     // carries its own target (ADR-0057). sessionChanged may be emitted inside this call.
@@ -578,6 +592,10 @@ void FlashViewModel::finish(OperationKind kind, const Status& status,
     if (m_opState == Succeeded && !m_services.isFlashPageVisible(m_tab)) {
         m_tab->showToast(resultText());
     }
+    if (m_opState == Succeeded && kind == OperationKind::Flash &&
+        m_lastTarget == QStringLiteral("app")) {
+        watchNewDeviceInfo();
+    }
     progressChanged(); // signal
     stateChanged();    // signal
     const QString text =
@@ -591,7 +609,59 @@ void FlashViewModel::dismissResult() {
     }
     m_opState = Idle;
     m_error.reset();
+    stopDeviceInfoWatch();
     stateChanged(); // signal
+}
+
+// ---- 0021 (ADR-0166): the firmware in the device --------------------------------------------
+
+QString FlashViewModel::deviceFirmwareText() const {
+    const QString text = m_tab->deviceInfo().value(QStringLiteral("text")).toString();
+    return text.isEmpty() ? QString() : tr("In the device: %1").arg(text);
+}
+
+QString FlashViewModel::resultDeviceText() const {
+    return m_newDeviceFirmware.isEmpty() ? QString()
+                                         : tr("Now in the device: %1").arg(m_newDeviceFirmware);
+}
+
+void FlashViewModel::watchNewDeviceInfo() {
+    // "Now in the device" when `info show` answers within 10 s after the console re-attaches
+    // after a successful application flash (review P9, as the plan says): asked again shortly
+    // after (the firmware boots) until then. The session restores the console before the
+    // operation ends, so a console that is connected now has re-attached.
+    m_newDeviceFirmware.clear();
+    if (m_tab->state() == DeviceTabViewModel::Connected) {
+        startDeviceInfoWindow();
+    } else {
+        m_awaitingAttach = true;
+    }
+}
+
+void FlashViewModel::startDeviceInfoWindow() {
+    m_deviceInfoDeadline.start();
+    m_deviceInfoRetry.start();
+}
+
+void FlashViewModel::stopDeviceInfoWatch() {
+    m_awaitingAttach = false;
+    m_deviceInfoDeadline.stop();
+    m_deviceInfoRetry.stop();
+    m_newDeviceFirmware.clear();
+}
+
+void FlashViewModel::onDeviceInfoChanged() {
+    deviceInfoChanged(); // signal
+    if (!m_deviceInfoDeadline.isActive()) {
+        return;
+    }
+    const QString text = m_tab->deviceInfo().value(QStringLiteral("text")).toString();
+    if (!text.isEmpty()) {
+        m_deviceInfoDeadline.stop();
+        m_deviceInfoRetry.stop();
+        m_newDeviceFirmware = text;
+        stateChanged(); // signal
+    }
 }
 
 void FlashViewModel::openConsole() {

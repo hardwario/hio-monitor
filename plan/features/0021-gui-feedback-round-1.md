@@ -1,12 +1,12 @@
 # 0021 — GUI feedback round 1: flash page, target picker, console, Settings tab
 
-- **Status:** In progress (phase 1 implemented 2026-10-23 on `v2/gui-feedback-1`, see § Phase 2 for what waits for
-  the M6 merge). Approved 2026-10-20 by Matej Strnad, with all minor defaults as proposed; amendments applied to
+- **Status:** In progress (phase 1 implemented 2026-10-23 on `v2/gui-feedback-1`; phase 2 (§ Phase 2, ADR-0175)
+  implemented 2026-10-23 after the M6 merge; HIL (§ Tests and verification) still open). Approved 2026-10-20 by Matej Strnad, with all minor defaults as proposed; amendments applied to
   0004, 0005, 0006 and 0010 the same day; amendment N10 (log scroll bars, ADR-0173) approved 2026-10-23
 - **Milestone:** M3 follow-up (changes the implemented plans 0004, 0005, 0006 and the flash wizard 0010)
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0174, ADR-0165, ADR-0166, ADR-0167, ADR-0168, ADR-0169, ADR-0170, ADR-0171, ADR-0172,
-  ADR-0173 (N10, 2026-10-23);
+  ADR-0173 (N10, 2026-10-23), ADR-0175 (phase 2, 2026-10-23), ADR-0176 (phase 2 review, 2026-10-23);
   amended: ADR-0033, ADR-0043, ADR-0045, ADR-0046, ADR-0055; context: ADR-0037, ADR-0040, ADR-0054, ADR-0058, ADR-0104
 - **Depends on:** [0004](0004-m3-gui-shell.md), [0005](0005-m3-console.md), [0006](0006-m3-flash-settings.md),
   [0010](0010-m4-flash-wizard.md) implemented (all on `v2-dev`); 0003 (M2: catalog download, LTE operations);
@@ -220,6 +220,21 @@ the cross-process lock.
 Catalog page 1 MiB / 15 s · designated download 32 MiB / 60 s (ADR-0037) · shell query 2 s, 2 000 lines · command
 tree 2 000 nodes, 64 KiB per firmware, 20 firmwares · completion popup 50 rows · `info show` 64 fields.
 
+**Phase 2 minor defaults (approved by the user 2026-10-26):**
+
+- a queued shell query waits at most 5 s for an idle shell, then answers "no result";
+- a sent line without an echo counts as busy for at most 2 s (a failed write has no echo);
+- with a known prompt, "waiting for the prompt" expires after 2 s without shell output (the query timeout): the
+  shell then counts as idle again;
+- a learning step whose query ran without a usable answer (timeout, truncated, no command list) is asked again
+  after 30 s; one that did not run, at once;
+- at most 64 user lines are held during a query (`internal.queue_full` beyond) and at most 8 queries are queued;
+- "Now in the device": `info show` is asked again every 2.5 s within the 10 s window; a console that is already
+  Connected when the flash ends counts as re-attached (the worker re-attaches RTT before the operation ends);
+- CLI `hio chester app info`: bounded by 5 s idle wait + 2 × 2 s;
+- the echo origin token (`ConsoleLine::origin`) is not written to console files or JSON;
+- the CLI console's learning lives in its own file `app/cli/src/console_learning.*` (testable).
+
 ### Settings keys
 
 | Key | Type | Default |
@@ -251,6 +266,10 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 | CLI names `catalog-info`, `info`; `lte flash` without FILE | as proposed / other | As proposed (2026-10-20) | — |
 | Tab in the shell input completes instead of moving focus; the focus leaves the field with Shift+Tab, or Esc then Tab (Ctrl+Tab keeps switching tabs) | as proposed / other | As proposed (2026-10-20) | ADR-0170 |
 | Designated LTE download starts automatically when the LTE kind is chosen | automatic / on [Download] | Automatic (2026-10-20) | ADR-0165 |
+| Where the ADR-0104 end rule for `ShellQuery` lives (phase 2) | shared `CommandCapture` in `libs/device`, also used by MCP `send_command` / own copy in `ShellQuery` | Shared `CommandCapture` (2026-10-23) | ADR-0175 |
+| J-Link worker reads the target's buffers before writing a line (phase 2 review) | read first / leave the worker, work around in `ShellQuery` | Read first (2026-10-23) | ADR-0176 |
+| When a silent query may start; how it knows its echo (phase 2 review P1) | idle shell + echo by origin / as implemented | Only on an idle shell (with a prompt: no echoed line without a prompt after it; without: 300 ms of shell silence since the last line or sent line), the queue waits; the echo is matched by origin, other lines' echoes are never taken (2026-10-23) | ADR-0175 |
+| "Now in the device" window (phase 2 review P9) | from the end of the flash / from the console re-attach | From the re-attach, as planned (2026-10-23) | ADR-0166 |
 
 ## Implementation steps
 
@@ -260,21 +279,18 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
       written for the `linux-fuzz` preset of ADR-0152, which comes with M6; until then a deterministic mutation test
       runs in every preset)*
 - [x] A3 `LogLevel::Hexdump` classification + tests on recorded output; `levelId` "hex" in console files / JSON
-- [ ] A4 `ShellQuery`, `parseInfoShow`, `CommandTree` + `parseHelp`, `CommandTreeCache` (lock, LRU, bounds),
-      `Completer` + tests (fake J-Link scenario with a Zephyr shell) *(phase 1: everything but `ShellQuery` and the
-      fake-shell scenario - see § Phase 2)*
-- [ ] B1 CLI: `lte flash` without FILE, `app catalog-info`, `app info`, ID info before `app flash`, replxx hints and
-      completion + CLI end-to-end tests *(phase 1: all but `app info`; Tab completion is wired to the cached tree,
-      which phase 2 fills)*
-- [ ] C1 Flash page two kinds, LTE source (designated / own file), catalog info, device info, docs link, kind hints;
-      flash wizard 0010 step 2 + Firmware step aligned *(phase 1: all but the device info ("In the device" / "Now in
-      the device"); the flash wizard 0010 is not implemented yet - it reuses `FirmwareSourceViewModel`, which has
-      the two kinds and the LTE sources)*
+- [x] A4 `ShellQuery`, `parseInfoShow`, `CommandTree` + `parseHelp`, `CommandTreeCache` (lock, LRU, bounds),
+      `Completer` + tests (fake J-Link scenario with a Zephyr shell) *(phase 2: `CommandCapture` (ADR-0175),
+      `ShellQuery` / `ShellQueryQueue`, `CommandTreeLearner`; MCP `send_command` on `CommandCapture`)*
+- [x] B1 CLI: `lte flash` without FILE, `app catalog-info`, `app info`, ID info before `app flash`, replxx hints and
+      completion + CLI end-to-end tests *(phase 2: `app info`; the console learns the tree like the GUI)*
+- [x] C1 Flash page two kinds, LTE source (designated / own file), catalog info, device info, docs link, kind hints;
+      flash wizard 0010 step 2 + Firmware step aligned *(device info in phase 2; the flash wizard 0010 is not
+      implemented yet - it reuses `FirmwareSourceViewModel`, which has the two kinds and the LTE sources)*
 - [x] C2 Target pickers ids only (device bar, Choose device, wizards) *(no wizard has a target picker yet)*
 - [x] C3 Settings tab (tab model entry, rail item + Ctrl+, open/switch, `openSettings(section)`)
-- [ ] C4 Console: line scrolling, ghost suggestion, automatic suggestion list above the input, Tab completion, the
-      two console settings, H chip default off *(phase 1: all; the device command tree is learned in phase 2, so
-      the list shows history only until then)*
+- [x] C4 Console: line scrolling, ghost suggestion, automatic suggestion list above the input, Tab completion, the
+      two console settings, H chip default off *(device command tree learned in phase 2)*
 - [x] C5 Console scroll bars beside the rows, Follow suspended while a row is pressed, drag auto-scroll (N10,
       ADR-0173)
 - [x] D1 `update_translations`, Czech for every new string; `check_translations`
@@ -284,7 +300,8 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 
 ## Phase 2 (after M6 merge)
 
-`ShellQuery` needs the ADR-0104 send-command end rule, which exists only in the M6 code. Left for phase 2:
+`ShellQuery` needs the ADR-0104 send-command end rule, which exists only in the M6 code. Left for phase 2
+(implemented 2026-10-23; the end rule is the shared `CommandCapture` of ADR-0175):
 
 - **A4** `ShellQuery` on `DeviceSession` (silent query: captured lines, 2 s / 2 000 lines, a user `sendLine` waits,
   refused while busy, lines not in the console log but in the app log at debug) + tests with a fake J-Link
@@ -294,12 +311,25 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
   the result card's "Now in the device: …" (within 10 s after the console re-attaches).
 - **Command tree learning:** `help` on connect when `console/readCommandsOnConnect` is on (else at the first
   suggestion), `<cmd> -h` for `Completer::pathToLearn()`, the tree kept per firmware in `CommandTreeCache`
-  (key from `info show`), `ConsoleViewModel::readingCommands` while a query runs. Marked in the code with
-  `TODO(plan 0021 phase 2)` (`hio chester app console`); the GUI already uses `ConsoleViewModel::setCommandTree`.
+  (key from `info show`), `ConsoleViewModel::readingCommands` while a query runs (`CommandTreeLearner`, shared by
+  the GUI and the CLI console; the phase-1 `TODO(plan 0021 phase 2)` markers are removed).
 - **CLI:** `hio chester app info [--json]` (`info show`, parsed fields); the CLI console learns and loads the
-  tree the same way (`ConsoleUiOptions::commandTree`).
+  tree the same way (`ConsoleUiOptions::learner`).
 - **Tests:** ViewModel tests "device info after attach and after flash", Qt Quick test "`help` sent on connect or
   lazily per setting", CLI end-to-end `app info --json` with the fake shell.
+- **Implementation notes (2026-10-23):** the J-Link session worker reads the target's pending RTT output before it
+  writes a command line, so output already waiting comes before the echo (ADR-0176; without it a silent
+  query right after the attach swallowed that output). Silent capture is a `ConsoleSession` hook
+  (`setShellCapture`; user lines held, at most 64, `internal.queue_full` beyond); the session's console file still
+  records the queries. Learning starts after the attach's `info show` (its fields are the cache key).
+- **Review fixes (2026-10-23):** a query starts only on an idle shell (`ConsoleSession::shellBusyFor()`; a line
+  without an echo counts for at most 2 s, a missing prompt for at most 2 s of silence (2026-10-26); the queue waits at most 5 s, then answers "no result") and knows its echo
+  by `ConsoleLine::origin`; it never takes another line's echo. A refused, aborted (disconnect), timed-out or
+  truncated query changes nothing: no device info is replaced, no tree step is applied or cached; a step whose query
+  ran is asked again after 30 s, one that did not run at once. Answers of an earlier attach are ignored (attach
+  counter). The CLI console (`app/cli/src/console_learning.*`) forgets the tree on disconnect and asks again after
+  the re-attach. Lines held during a query are validated first (BLE: the held lines count toward
+  `BleSession::maxLinesInFlight`); an MCP `send_command` held by a query starts its timeout when it is sent. "Now in the device" waits up to 10 s from the console re-attach.
 
 ## Tests and verification
 

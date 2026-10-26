@@ -7,6 +7,7 @@
 #   HIO_HIL_SN2=SERIAL_NUMBER  a second probe with a second CHESTER (two-session test)
 #   M2 flashing (hil_flash_test.cpp, plan/features/0003 G1): HIO_HIL_APP_HEX, HIO_HIL_FIRMWARE_ID,
 #   HIO_HIL_LTE_SN, HIO_HIL_LTE_BUNDLE, HIO_HIL_DESTRUCTIVE=1 (erase --all / recover erase the PIB)
+#   Plan 0021 phase 2 (hil_test.cpp): Hil.InfoShowAndCommandTreeThroughSilentQueries (HIO_HIL_SN)
 # Run: ctest --preset linux-debug -L hil --output-on-failure   (with HIO_HIL=1 exported)
 
 add_executable(hio_hil_tests

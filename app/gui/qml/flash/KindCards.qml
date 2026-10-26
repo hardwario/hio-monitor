@@ -110,6 +110,18 @@ FlashCard {
                             color: Theme.textMuted
                             wrapMode: Text.Wrap
                         }
+
+                        // 0021 (ADR-0166): the firmware in the device (application MCU only).
+                        Label {
+                            objectName: "deviceFirmware"
+                            Layout.fillWidth: true
+                            visible: kindCard.modelData.kind === FirmwareSourceViewModel.AppFirmware
+                                     && card.vm.deviceFirmwareText !== ""
+                            text: card.vm.deviceFirmwareText
+                            font: Theme.fontUiSmall
+                            color: Theme.text
+                            wrapMode: Text.Wrap
+                        }
                     }
                 }
             }

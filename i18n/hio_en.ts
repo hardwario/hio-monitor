@@ -53,7 +53,7 @@
 <context>
     <name>hio::gui::ConsoleViewModel</name>
     <message numerus="yes">
-        <location filename="../../../app/gui/src/viewmodels/console_view_model.cpp" line="625"/>
+        <location filename="../../../app/gui/src/viewmodels/console_view_model.cpp" line="692"/>
         <source>Only the first %Ln lines were copied (copy limit).</source>
         <translation type="unfinished">
             <numerusform></numerusform>

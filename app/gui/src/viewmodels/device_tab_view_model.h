@@ -25,12 +25,15 @@
 // Ownership: child of DeviceTabListModel (Qt parent). GUI thread only.
 
 #include "hio/core/result.h"
+#include "hio/device/device_info.h"
 #include "hio/device/session_events.h"
+#include "hio/device/shell_query.h"
 #include "viewmodels/connection_view_model.h"
 #include "viewmodels/probe_picker_view_model.h"
 
 #include <QObject>
 #include <QString>
+#include <QVariantMap>
 #include <QtCore/qobjectdefs.h>
 #include <QtQmlIntegration>
 #include <QtTypes>
@@ -90,6 +93,9 @@ class DeviceTabViewModel : public QObject {
     Q_PROPERTY(QString currentPage READ currentPage WRITE setCurrentPage NOTIFY currentPageChanged)
     Q_PROPERTY(QString busyPage READ busyPage NOTIFY busyChanged) // "" when idle
     Q_PROPERTY(QString busyText READ busyText NOTIFY busyChanged)
+    // 0021 (ADR-0166): the firmware in the device from `info show` after the console attached:
+    // {valid, fwName, fwVersion, text ("hio-chester-push-fm v4.0.1")}; invalid while unknown.
+    Q_PROPERTY(QVariantMap deviceInfo READ deviceInfo NOTIFY deviceInfoChanged)
 
 public:
     // Unscoped: QML compares DeviceTabViewModel.Connected etc. with the int property.
@@ -168,6 +174,15 @@ public:
     // Back to the picker (closes the session, keeps the log).
     void chooseAnotherProbe();
     [[nodiscard]] bool isBusy() const noexcept { return m_busy.has_value(); }
+    // 0021: the silent shell queries of this tab (one at a time; ADR-0175).
+    [[nodiscard]] device::ShellQueryQueue& shellQueries() const { return *m_queries; }
+    [[nodiscard]] QVariantMap deviceInfo() const;
+    // Asks `info show` again (after a flash).
+    void refreshDeviceInfo() { queryDeviceInfo(); }
+    // The parsed `info show` of the current attach (empty while unknown).
+    [[nodiscard]] const device::DeviceInfo& deviceInfoFields() const noexcept {
+        return m_deviceInfo;
+    }
     [[nodiscard]] QString busyConfirmText() const;
     // [Cancel and close] / quit: calls the busy page's cancel callback (once); with `close`, the
     // tab emits closeReady when the page clears its busy state.
@@ -188,6 +203,12 @@ signals:
     void configurationChanged(); // profile, target or probe changed (ui/tabs is saved)
     void closeReady();           // the busy page finished after cancelBusy(true)
     void tabActivationRequested(int tabIndex);
+    // 0021: deviceInfo changed; deviceInfoQueried when `info show` of the current attach answered
+    // (not when it was refused or aborted, review P7).
+    void deviceInfoChanged();
+    void deviceInfoQueried();
+    // 0021: the console (re-)attached (Connected).
+    void consoleAttached();
 
 private:
     struct BusyState {
@@ -206,6 +227,8 @@ private:
     void onConnectionChanged(const device::ConnectionEvent& event);
     void addMarker(const QString& text);
     void updateState();
+    void queryDeviceInfo();
+    void clearDeviceInfo();
 
     TabContext m_context;
     ProbePickerViewModel* m_picker = nullptr;         // child
@@ -227,6 +250,9 @@ private:
     bool m_closePending = false;
     State m_state = ChoosingDevice;
     bool m_hasError = false;
+    device::ShellQueryQueue* m_queries = nullptr; // child
+    device::DeviceInfo m_deviceInfo;
+    unsigned m_attach = 0; // +1 per Connected / Disconnected / Stopped (review P3)
 };
 
 } // namespace hio::gui

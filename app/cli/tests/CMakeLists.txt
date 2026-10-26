@@ -5,6 +5,7 @@ add_executable(hio_cli_tests
     cli_process.h
     command_response_test.cpp
     console_events_test.cpp
+    console_learning_test.cpp
     console_view_test.cpp
     diag_e2e_test.cpp
     e2e_test.cpp

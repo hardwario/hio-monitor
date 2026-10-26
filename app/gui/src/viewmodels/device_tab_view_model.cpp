@@ -6,9 +6,11 @@
 #include "hio/core/result.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
+#include "hio/device/device_info.h"
 #include "hio/device/device_session.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
+#include "hio/device/shell_query.h"
 #include "hio/hw/jlink/library_locator.h"
 #include "hio/hw/nrfutil/nrfutil.h"
 #include "settings_store.h"
@@ -21,6 +23,8 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QVariantMap>
+#include <QtContainerFwd>
 #include <QtCore/qnamespace.h>
 
 #include <cstdint>
@@ -37,6 +41,10 @@ namespace hio::gui {
 DeviceTabViewModel::DeviceTabViewModel(TabContext context, QObject* parent)
     : QObject(parent), m_context(std::move(context)),
       m_consoleLog(std::make_shared<device::ConsoleLog>()) {
+    // 0021 (ADR-0175): silent shell queries of this tab; none while a page is busy. Qt parent
+    // ownership: this tab (created first, so the pages can use it).
+    m_queries = new device::ShellQueryQueue( // NOLINT(cppcoreguidelines-owning-memory)
+        [this] { return isBusy(); }, this);
     const auto profiles = device::ProfileRegistry::all();
     if (!profiles.empty()) {
         m_profile = profiles.front();
@@ -265,6 +273,7 @@ Status DeviceTabViewModel::openSession(bool connectTarget) {
         return std::unexpected(std::move(opened).error());
     }
     m_session = std::move(*opened);
+    m_queries->setSession(m_session.get());
     connect(m_session.get(), &device::DeviceSession::connectionChanged, this,
             &DeviceTabViewModel::onConnectionChanged);
     connect(m_session.get(), &device::DeviceSession::warning, this,
@@ -282,6 +291,9 @@ void DeviceTabViewModel::releaseSession() {
         return;
     }
     m_session->disconnect(this);
+    ++m_attach;
+    m_queries->setSession(nullptr);
+    clearDeviceInfo();
     // Joins the worker, releases the probe lock and the registry slot. The worker unloads its
     // library copy under the process-wide load lock (ADR-0093): this can wait for a library load
     // of the probe scanner in progress (review S19, see probe_scanner.h).
@@ -378,9 +390,14 @@ void DeviceTabViewModel::onConnectionChanged(const device::ConnectionEvent& even
     switch (event.state) {
     case device::ConnectionState::Connected:
         addMarker(tr("— connected —"));
+        ++m_attach;
+        queryDeviceInfo(); // 0021 (ADR-0166): also after a flash, when the console re-attaches
+        consoleAttached(); // signal
         break;
     case device::ConnectionState::Disconnected:
     case device::ConnectionState::Stopped:
+        ++m_attach; // review P3: answers of the earlier attach are ignored
+        clearDeviceInfo();
         addMarker(
             event.error
                 ? tr("— disconnected: %1 —").arg(ConnectionViewModel::shortCause(*event.error))
@@ -405,6 +422,51 @@ void DeviceTabViewModel::onConnectionChanged(const device::ConnectionEvent& even
             },
             Qt::QueuedConnection);
     }
+}
+
+// ---- 0021: the firmware in the device (ADR-0166)
+// --------------------------------------------------
+
+QVariantMap DeviceTabViewModel::deviceInfo() const {
+    const bool valid = m_deviceInfo.hasFirmware();
+    return {{QStringLiteral("valid"), valid},
+            {QStringLiteral("fwName"), toQString(m_deviceInfo.fwName())},
+            {QStringLiteral("fwVersion"), toQString(m_deviceInfo.fwVersion())},
+            {QStringLiteral("text"),
+             valid ? QStringLiteral("%1 %2").arg(toQString(m_deviceInfo.fwName()),
+                                                 toQString(m_deviceInfo.fwVersion()))
+                   : QString()}};
+}
+
+void DeviceTabViewModel::queryDeviceInfo() {
+    const device::TargetProfile* target =
+        m_profile != nullptr ? device::findTarget(*m_profile, toStdString(m_targetId)) : nullptr;
+    if (target == nullptr || target->rttTerminal.empty()) {
+        return; // no console (lte): nothing to ask
+    }
+    const QPointer<device::DeviceSession> session(m_session.get());
+    const unsigned attach = m_attach;
+    m_queries->run("info show", [this, session,
+                                 attach](const std::optional<device::ShellQueryResult>& result) {
+        // Review P3/P7: only a real answer of this attach of this session counts; a refused
+        // or aborted query keeps what is known.
+        if (!result || !session || session.data() != m_session.get() || attach != m_attach) {
+            return;
+        }
+        m_deviceInfo = device::parseInfoShow(result->lines);
+        qCInfo(lcGui).noquote() << "Firmware in the device:" << toQString(m_deviceInfo.fwName())
+                                << toQString(m_deviceInfo.fwVersion());
+        deviceInfoChanged(); // signal
+        deviceInfoQueried(); // signal
+    });
+}
+
+void DeviceTabViewModel::clearDeviceInfo() {
+    if (m_deviceInfo.fields.empty()) {
+        return;
+    }
+    m_deviceInfo = {};
+    deviceInfoChanged(); // signal
 }
 
 void DeviceTabViewModel::addMarker(const QString& text) {
@@ -482,6 +544,8 @@ void DeviceTabViewModel::shutdown() {
         // Pages drop their pointers on sessionChanged (contract), before the session is deleted.
         std::unique_ptr<device::DeviceSession> session = std::move(m_session);
         session->disconnect(this);
+        m_queries->setSession(nullptr);
+        clearDeviceInfo();
         session->close();
         sessionChanged(); // signal
     }

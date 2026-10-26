@@ -23,8 +23,11 @@
 #include <QtTypes>
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
+#include <functional>
 #include <stop_token>
 #include <string>
 #include <string_view>
@@ -76,6 +79,38 @@ public:
     // The console log file the session writes now; empty for none (plan 0005 rules).
     [[nodiscard]] virtual std::filesystem::path consoleFile() const = 0;
 
+    // ---- silent shell captures (plan 0021 phase 2, ADR-0175: ShellQuery) ----
+    // Returns true when it takes the line (it is then neither appended to the log nor emitted).
+    using ShellCapture = std::function<bool(const ConsoleLine& line)>;
+    static constexpr std::size_t maxHeldLines = 64;
+    // The shell is idle (a query may start) after this much shell silence when the session has no
+    // prompt (the ADR-0104 silence interval).
+    static constexpr std::chrono::milliseconds shellQuietTime{300};
+    // A sent line whose echo has not come back counts as in flight for at most this long (a write
+    // that failed produces no echo).
+    static constexpr std::chrono::milliseconds unechoedExpiry{2000};
+    // With a prompt, an echoed line without a prompt after it counts as busy until the prompt or
+    // this much shell silence (the ShellQuery timeout; user decision 2026-10-26).
+    static constexpr std::chrono::milliseconds promptWaitExpiry{2000};
+    // Installs (or, with an empty function, removes) the capture. While one is installed every
+    // shell-channel line is offered to it first, and sendLine() holds the lines of other users
+    // (at most maxHeldLines, then internal.queue_full); removing the capture sends the held lines
+    // in order and emits shellCaptureEnded(). Owner thread only.
+    void setShellCapture(ShellCapture capture);
+    [[nodiscard]] bool shellCaptureActive() const noexcept { return static_cast<bool>(m_capture); }
+    // A new origin token for sendCaptureLine() (taken before sending: an echo may come at once).
+    [[nodiscard]] std::uint64_t newCaptureOrigin() noexcept { return ++m_nextOrigin; }
+    // Sends the capture's own line past the hold; its echo carries `origin`
+    // (ConsoleLine::origin).
+    [[nodiscard]] Status sendCaptureLine(std::string line, std::uint64_t origin);
+    // Plan 0021 review P1: how long the shell is still busy; 0 = idle. Busy while a line sent
+    // through this session has no echo yet (at most unechoedExpiry), and with a prompt
+    // (shellPromptOf) while an echoed line has no prompt after it (at most promptWaitExpiry of
+    // shell silence), without one until
+    // shellQuietTime passed since the last shell line or sent line. A non-zero result is the time
+    // after which to ask again.
+    [[nodiscard]] std::chrono::milliseconds shellBusyFor() const;
+
 signals:
     void linesReceived(const QList<hio::device::ConsoleLine>& lines);
     void connectionChanged(const hio::device::ConnectionEvent& event);
@@ -85,9 +120,24 @@ signals:
     // BLE BleProfile::shellPrompt (ADR-0082), J-Link RTT TargetProfile::shellPrompt (M6,
     // ADR-0104; empty for CHESTER until confirmed, open question 25). Never emitted without one.
     void promptSeen();
+    // Plan 0021: a shell capture was removed (the held lines were sent).
+    void shellCaptureEnded();
 
 protected:
-    ConsoleSession() = default;
+    ConsoleSession();
+
+    // For the implementations (plan 0021): call for every received line before it is appended to
+    // the log (it also tracks the shell activity of shellBusyFor()); true = the capture took it
+    // (skip it).
+    [[nodiscard]] bool captureLine(const ConsoleLine& line);
+    // Call in sendLine() after the line was validated and before it is queued: true = the line is
+    // held while a capture runs (`status` is then the result of sendLine()).
+    [[nodiscard]] bool holdLine(std::string& line, Status& status);
+    // The origin token for the line sendLine() queues now (0 unless sendCaptureLine() sends it).
+    [[nodiscard]] std::uint64_t sendingOrigin() const noexcept { return m_sendingOrigin; }
+    // Call after sendLine() queued a line (not held) for the transport.
+    void lineQueued();
+    [[nodiscard]] std::size_t heldLineCount() const noexcept { return m_held.size(); }
 
     // The concrete close. Each final class's destructor calls its own close path directly (no
     // virtual call from a destructor).
@@ -95,6 +145,15 @@ protected:
 
 private:
     bool m_closeCalled = false;
+    ShellCapture m_capture;
+    std::deque<std::string> m_held; // <= maxHeldLines
+    std::uint64_t m_sendingOrigin = 0;
+    std::uint64_t m_nextOrigin = 0;
+    // Shell activity for shellBusyFor() (owner thread).
+    std::size_t m_unechoed = 0;
+    std::chrono::steady_clock::time_point m_lastSent;
+    std::chrono::steady_clock::time_point m_lastShellActivity;
+    bool m_promptPending = false;
 };
 
 // CLI helper (ADR-0053): runs a local QEventLoop until the first Connected (success), a

@@ -4,6 +4,7 @@
 #include "hio/core/error.h"
 #include "hio/core/json.h"
 #include "hio/core/result.h"
+#include "hio/device/command_capture.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
 #include "hio/device/console_session.h"
@@ -336,28 +337,27 @@ public:
                     hio::mcp::ToolEnv& env, ResolvedDevice device, QString command,
                     std::chrono::milliseconds timeout)
         : DeviceCall(tools, context, env, std::move(device)), m_command(std::move(command)),
-          m_commandUtf8(m_command.toStdString()),
-          m_promptMode(!shellPromptOf(*ref().console).empty()), m_hint(true) {
-        const hio::device::ConsoleSession& session = *ref().console;
+          m_hint(true) {
+        hio::device::ConsoleSession& session = *ref().console;
         provider().marker(id(), markerStart(this->context(), QStringLiteral("send_command")));
         provider().setAiCommandHint(id(), true);
         m_start = session.log().lastSeq();
-        connect(ref().console.data(), &hio::device::ConsoleSession::linesReceived, this,
-                [this](const QList<ConsoleLine>& lines) { onLines(lines); });
-        connect(ref().console.data(), &hio::device::ConsoleSession::promptSeen, this,
-                [this] { onPrompt(); });
-        m_deadline.setSingleShot(true);
-        m_deadline.setInterval(timeout);
-        connect(&m_deadline, &QTimer::timeout, this, [this] { end(QStringLiteral("timeout")); });
-        m_silence.setSingleShot(true);
-        m_silence.setInterval(limits().sendCommandSilence);
-        connect(&m_silence, &QTimer::timeout, this, [this] { end(QStringLiteral("silence")); });
-        if (auto sent = ref().console->sendLine(m_commandUtf8); !sent) {
+        // The ADR-0104 end rule lives in libs/device (ADR-0175); this tool keeps the result
+        // format, the markers, the AI hint and the cursors.
+        auto capture = hio::device::CommandCapture::start(
+            session, m_command.toStdString(),
+            hio::device::CaptureOptions{.timeout = timeout,
+                                        .silence = limits().sendCommandSilence,
+                                        .maxLines = limits().sendCommandMaxLines,
+                                        .maxBytes = limits().sendCommandMaxBytes,
+                                        .silent = false});
+        if (!capture) {
             clearHint();
-            completeError(std::move(sent).error());
+            completeError(std::move(capture).error());
             return;
         }
-        m_deadline.start();
+        m_capture = std::move(*capture);
+        connect(m_capture.get(), &hio::device::CommandCapture::finished, this, [this] { end(); });
     }
 
     ~SendCommandCall() override { clearHint(); }
@@ -368,98 +368,51 @@ public:
 
 protected:
     void onCancel() override {
-        stopTimers();
+        stopCapture();
         clearHint();
         ToolCall::onCancel();
     }
     void deviceGone() override {
-        stopTimers();
+        stopCapture();
         m_hint = false;
     }
 
 private:
-    void onLines(const QList<ConsoleLine>& lines) {
-        if (isFinished()) {
+    void end() {
+        if (isFinished() || !m_capture || !m_capture->result()) {
             return;
         }
-        bool output = false;
-        for (const ConsoleLine& line : lines) {
-            if (line.seq <= m_start || line.channel != Channel::Shell) {
-                continue;
-            }
-            if (!m_echoSeen) {
-                // Output before the echo belongs to an earlier command (ADR-0104).
-                m_echoSeen = line.dir == Direction::In && line.text == m_commandUtf8;
-                continue;
-            }
-            if (line.dir == Direction::Marker) {
-                continue;
-            }
-            if (line.dir == Direction::In) {
-                m_interleaved = true; // ADR-0105: another command was sent meanwhile
-                append(line);
-                continue;
-            }
-            // A shell that echoes the typed line itself: drop that copy (first line only).
-            if (!m_outputStarted && line.text == m_commandUtf8) {
-                m_outputStarted = true;
-                continue;
-            }
-            m_outputStarted = true;
-            output = true;
-            append(line);
-        }
-        if (output && !m_promptMode) {
-            m_silence.start();
-        }
-    }
-
-    void append(const ConsoleLine& line) {
-        if (m_output.size() >= static_cast<qsizetype>(limits().sendCommandMaxLines) ||
-            m_bytes + line.text.size() > limits().sendCommandMaxBytes) {
-            m_truncated = true;
-            return;
-        }
-        m_bytes += line.text.size();
-        QJsonObject item;
-        item.insert(QStringLiteral("dir"), qs(hio::device::directionId(line.dir)));
-        item.insert(QStringLiteral("text"), qs(line.text));
-        m_output.append(item);
-    }
-
-    void onPrompt() {
-        if (m_echoSeen && m_promptMode) {
-            end(QStringLiteral("prompt"));
-        }
-    }
-
-    void end(const QString& reason) {
-        if (isFinished()) {
-            return;
-        }
-        stopTimers();
+        const hio::device::CaptureResult& captured = *m_capture->result();
         clearHint();
         if (!alive()) {
             completeError(deviceNotOpen(id()));
             return;
         }
+        QJsonArray output;
+        for (const ConsoleLine& line : captured.lines) {
+            QJsonObject item;
+            item.insert(QStringLiteral("dir"), qs(hio::device::directionId(line.dir)));
+            item.insert(QStringLiteral("text"), qs(line.text));
+            output.append(item);
+        }
         const std::uint64_t cursor = ref().console->log().lastSeq();
         QJsonObject result;
         result.insert(QStringLiteral("command"), m_command);
-        result.insert(QStringLiteral("output"), m_output);
-        result.insert(QStringLiteral("end"), reason);
-        result.insert(QStringLiteral("interleaved"), m_interleaved);
+        result.insert(QStringLiteral("output"), output);
+        result.insert(QStringLiteral("end"), qs(hio::device::captureEndId(captured.end)));
+        result.insert(QStringLiteral("interleaved"), captured.interleaved);
         result.insert(QStringLiteral("log_cursor"), seqJson(m_start));
         result.insert(QStringLiteral("log_cursor_end"), seqJson(cursor));
         result.insert(QStringLiteral("terminal_cursor_end"), seqJson(cursor));
-        result.insert(QStringLiteral("truncated"), m_truncated);
+        result.insert(QStringLiteral("truncated"), captured.truncated);
         result.insert(QStringLiteral("paused_by_operation"), pausedByOperation(ref()));
         complete(result);
     }
 
-    void stopTimers() {
-        m_deadline.stop();
-        m_silence.stop();
+    void stopCapture() {
+        if (m_capture) {
+            m_capture->cancel();
+        }
     }
 
     void clearHint() {
@@ -470,17 +423,8 @@ private:
     }
 
     QString m_command;
-    std::string m_commandUtf8;
-    QTimer m_deadline;
-    QTimer m_silence;
-    QJsonArray m_output;
-    std::size_t m_bytes = 0;
+    std::unique_ptr<hio::device::CommandCapture> m_capture;
     std::uint64_t m_start = 0;
-    bool m_promptMode = false;
-    bool m_echoSeen = false;
-    bool m_outputStarted = false;
-    bool m_interleaved = false;
-    bool m_truncated = false;
     bool m_hint = false;
 };
 

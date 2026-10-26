@@ -5,6 +5,7 @@
 add_executable(hio_device_tests
     ble_lock_test.cpp
     ble_session_test.cpp
+    command_capture_test.cpp
     command_history_test.cpp
     completion_test.cpp
     console_file_sink_test.cpp

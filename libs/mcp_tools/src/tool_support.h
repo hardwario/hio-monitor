@@ -121,8 +121,6 @@ resolveTarget(const hio::device::ConsoleSession& session, const QJsonObject& arg
 [[nodiscard]] hio::Error busyError(hio::device::OperationKind kind);
 // The running operation pauses RTT (it is not a light operation, ADR-0157).
 [[nodiscard]] bool pausedByOperation(const DeviceRef& ref);
-// The shell prompt of the session's transport ("" = none, ADR-0104).
-[[nodiscard]] std::string_view shellPromptOf(const hio::device::ConsoleSession& session);
 
 // An absolute path to a regular file of at most `maxBytes` (ADR-0100). Errors:
 // usage.invalid_argument (relative, not a regular file, too large), io.file_not_found.

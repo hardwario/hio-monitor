@@ -92,9 +92,14 @@ public:
     [[nodiscard]] int reconnects() const { return m_reconnects; }
 
     hio::Status sendLine(std::string line) override {
+        if (hio::Status held; holdLine(line, held)) {
+            return held; // plan 0021: a silent shell query runs
+        }
         m_sent.push_back(line);
+        lineQueued();
         if (m_echo) { // like the real sessions: the line is echoed (dir In) once written
-            emitLine(hio::device::Channel::Shell, hio::device::Direction::In, line);
+            emitLines({{hio::device::Channel::Shell, line}}, hio::device::Direction::In,
+                      sendingOrigin());
         }
         return {};
     }
@@ -117,8 +122,10 @@ public:
     [[nodiscard]] std::filesystem::path consoleFile() const override { return {}; }
 
     // Appends lines to the log and emits them as one batch (like the real sessions).
+    // A silent shell capture (plan 0021) takes its lines first, like in the real sessions.
     void emitLines(const std::vector<std::pair<hio::device::Channel, std::string>>& lines,
-                   hio::device::Direction dir = hio::device::Direction::Out) {
+                   hio::device::Direction dir = hio::device::Direction::Out,
+                   std::uint64_t origin = 0) {
         QList<hio::device::ConsoleLine> batch;
         for (const auto& [channel, text] : lines) {
             hio::device::ConsoleLine line;
@@ -128,10 +135,16 @@ public:
             line.level = channel == hio::device::Channel::Log ? hio::device::LogLevel::Info
                                                               : hio::device::LogLevel::None;
             line.text = text;
+            line.origin = origin;
+            if (captureLine(line)) {
+                continue;
+            }
             line.seq = m_log->append(line);
             batch.push_back(line);
         }
-        emit linesReceived(batch);
+        if (!batch.isEmpty()) {
+            emit linesReceived(batch);
+        }
     }
     void emitLine(hio::device::Channel channel, hio::device::Direction dir,
                   const std::string& text) {

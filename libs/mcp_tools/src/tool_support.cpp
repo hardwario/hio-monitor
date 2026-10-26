@@ -386,15 +386,6 @@ bool pausedByOperation(const DeviceRef& ref) {
     return kind.has_value() && !hio::device::isLightOperation(*kind);
 }
 
-std::string_view shellPromptOf(const hio::device::ConsoleSession& session) {
-    if (session.identity().transport == hio::device::Transport::Ble) {
-        const auto& ble = session.profile().ble;
-        return ble ? ble->shellPrompt : std::string_view();
-    }
-    const auto* target = hio::device::findTarget(session.profile(), session.consoleTargetId());
-    return target != nullptr ? target->shellPrompt : std::string_view();
-}
-
 hio::Result<ResolvedDevice> resolveDevice(IDeviceProvider& provider, const QJsonObject& arguments) {
     std::string id = arguments.value(QStringLiteral("device")).toString().toStdString();
     if (id.empty()) {

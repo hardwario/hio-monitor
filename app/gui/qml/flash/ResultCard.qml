@@ -54,6 +54,16 @@ ColumnLayout {
                     color: Theme.textMuted
                     wrapMode: Text.Wrap
                 }
+
+                // 0021 (ADR-0166): what `info show` reports after the flash.
+                Label {
+                    objectName: "resultDeviceText"
+                    Layout.fillWidth: true
+                    visible: result.vm ? result.vm.resultDeviceText !== "" : false
+                    text: result.vm ? result.vm.resultDeviceText : ""
+                    color: Theme.text
+                    wrapMode: Text.Wrap
+                }
             }
         }
 

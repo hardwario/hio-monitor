@@ -19,7 +19,7 @@
 #include "cli_app.h"
 #include "hio/core/error.h"
 #include "hio/core/result.h"
-#include "hio/device/command_tree.h"
+#include "hio/device/command_tree_learner.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_session.h"
 #include "hio/device/session_events.h"
@@ -103,10 +103,10 @@ struct ConsoleUiOptions {
     bool interactive = false;
     std::optional<std::filesystem::path> historyFile; // interactive only
     // Plan 0021 (ADR-0170), interactive only: replxx hints from the history (console/suggestions,
-    // --no-suggestions) and Tab completion from the device command tree (nullptr = none known;
-    // it must outlive runConsole()).
+    // --no-suggestions) and Tab completion from the device command tree the learner learns on the
+    // main thread (nullptr = none; it must outlive runConsole()).
     bool suggestions = false;
-    const device::CommandTree* commandTree = nullptr;
+    device::CommandTreeLearner* learner = nullptr;
     std::string prompt = "uart:~$ "; // the local prompt (BLE: the profile's shell prompt)
     // Plain / --json mode: output is collected this long after the end of input (--linger).
     std::chrono::milliseconds linger{1000};

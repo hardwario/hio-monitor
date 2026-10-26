@@ -3,6 +3,7 @@
 #include "cli_app.h"
 #include "cli_log.h"
 #include "command_collector.h"
+#include "console_learning.h"
 #include "console_ui.h"
 #include "diag_commands.h"
 #include "flash_commands.h"
@@ -11,11 +12,14 @@
 #include "hio/core/result.h"
 #include "hio/core/settings.h"
 #include "hio/device/command_history.h"
+#include "hio/device/command_tree_cache.h"
 #include "hio/device/completer.h"
 #include "hio/device/console_session.h"
+#include "hio/device/device_info.h"
 #include "hio/device/device_session.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_registry.h"
+#include "hio/device/shell_query.h"
 #include "hio/hw/jlink/rtt_channel.h"
 #include "jlink_commands.h"
 #include "output.h"
@@ -49,6 +53,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace hio::cli {
 
@@ -192,12 +197,17 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
         auto settings = Settings::openDefault();
         ui.suggestions =
             !options.noSuggestions && (!settings || settings->get(device::suggestionsSetting));
-        // TODO(plan 0021 phase 2): learn the command tree through ShellQuery - `info show` for the
-        // firmware key (CommandTreeCache::load), then `help` on connect when
-        // device::readCommandsOnConnectSetting is on (else at the first Tab) and `<cmd> -h` for
-        // Completer::pathToLearn(); until then Tab completes from no tree (ui.commandTree is null).
+    }
+    std::optional<ConsoleLearning> learning;
+    if (interactive) {
+        auto settings = Settings::openDefault();
+        learning.emplace(**session, profileId, targetId,
+                         !settings || settings->get(device::readCommandsOnConnectSetting),
+                         device::CommandTreeCache::defaultDirectory());
+        ui.learner = &learning->learner();
     }
     const Status status = runConsole(consoleContext, **session, view, ui);
+    learning.reset();
     (*session)->close(); // writes the console file's trailer and flushes it
     view.printStopped();
     if (!status) {
@@ -254,6 +264,62 @@ Result<CommandResult> command(const Context& context, const GlobalOptions& globa
         return std::unexpected(status.error());
     }
     return commandResult(context, options.command, collector.response());
+}
+
+// ---- info (plan 0021, ADR-0166, ADR-0175) -----------------------------------------------------
+
+struct InfoOptions {
+    ProbeOptions probe;
+};
+
+// `info show` through a silent ShellQuery; the parsed fields (fw-name, fw-version, ...).
+Result<CommandResult> info(const Context& context, const GlobalOptions& globals,
+                           const ProbeOptions& group, const InfoOptions& options) {
+    auto location = locateJLinkLibrary(globals);
+    if (!location) {
+        return std::unexpected(std::move(location).error());
+    }
+    device::SessionRegistry registry;
+    auto sessionOpts = sessionOptions(group, options.probe, chesterApp().defaultLatencyMs, false,
+                                      false, {}, false);
+    if (!sessionOpts) {
+        return std::unexpected(std::move(sessionOpts).error());
+    }
+    const std::optional<int> speed = sessionOpts->speedKhz;
+    warnAboutSlowSpeed(context, speed);
+    auto session = device::DeviceSession::open(registry, *location, std::move(*sessionOpts));
+    if (!session) {
+        return std::unexpected(std::move(session).error());
+    }
+    device::DeviceSession& device = **session;
+    if (const Status connected =
+            device::waitUntilConnected(device, device::connectTimeoutForSpeed(speed), context.stop);
+        !connected) {
+        device.close();
+        return std::unexpected(connected.error());
+    }
+    // Through the queue: it waits until the shell is idle (review P1).
+    device::ShellQueryQueue queries;
+    queries.setSession(&device);
+    const std::optional<device::ShellQueryResult> answer = device::runAndWait(queries, "info show");
+    queries.setSession(nullptr);
+    device.close();
+    const device::DeviceInfo parsed =
+        device::parseInfoShow(answer ? answer->lines : std::vector<std::string>{});
+    if (parsed.fields.empty()) {
+        Error error = makeError(ErrorCode::Timeout, "info show: no fields in the answer");
+        error.message = "The device did not answer `info show`.";
+        error.cause = "The firmware has no `info show` command, or the shell is busy.";
+        error.suggestion = "Check the console with `hio chester app console`.";
+        return std::unexpected(std::move(error));
+    }
+    QJsonObject data;
+    std::string human;
+    for (const device::DeviceInfoField& field : parsed.fields) {
+        data.insert(toQString(field.key), toQString(field.value));
+        human += (human.empty() ? "" : "\n") + field.key + ": " + field.value;
+    }
+    return CommandResult{.data = data, .humanText = std::move(human), .streamed = false};
 }
 
 } // namespace
@@ -357,6 +423,17 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
         commandOptions->consoleFileGiven = commandConsoleFile->count() > 0;
         slot.command = [&globals, group, commandOptions](const Context& context) {
             return command(context, globals, *group, *commandOptions);
+        };
+    });
+
+    // Plan 0021: info (`info show` parsed).
+    auto infoOptions = std::make_shared<InfoOptions>();
+    CLI::App* infoCommand = appGroup->add_subcommand(
+        "info", "Show what the device reports with `info show` (firmware name and version, ...)");
+    addProbeOptions(*infoCommand, infoOptions->probe);
+    infoCommand->callback([&slot, &globals, group, infoOptions] {
+        slot.command = [&globals, group, infoOptions](const Context& context) {
+            return info(context, globals, *group, *infoOptions);
         };
     });
 

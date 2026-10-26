@@ -47,6 +47,7 @@ namespace detail {
 
 struct SendLineCommand {
     std::string line;
+    std::uint64_t origin = 0; // ConsoleLine::origin of the echo (plan 0021, ADR-0175)
 };
 struct ReconnectCommand {};
 struct SuspendCommand {};

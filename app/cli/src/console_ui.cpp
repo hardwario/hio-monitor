@@ -8,6 +8,8 @@
 #include "hio/core/json.h"
 #include "hio/core/result.h"
 #include "hio/device/command_history.h"
+#include "hio/device/command_tree.h"
+#include "hio/device/command_tree_learner.h"
 #include "hio/device/completer.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_session.h"
@@ -34,6 +36,8 @@
 #include <format>
 #include <functional>
 #include <iostream>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <replxx.hxx>
 #include <stop_token>
@@ -41,6 +45,7 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#include <vector>
 
 namespace hio::cli {
 
@@ -381,16 +386,61 @@ private:
     }
 
     // Plan 0021 (ADR-0170). The callbacks run on the input thread (inside replxx's input()); they
-    // use only m_completer, m_inputHistory and m_options (read-only), which that thread owns
-    // while it runs.
+    // use m_inputHistory and m_options (read-only), which that thread owns while it runs, the
+    // tree snapshot published by the main thread (m_treeMutex) and post learning requests to it
+    // (m_learnRequests).
+    [[nodiscard]] std::shared_ptr<const device::CommandTree> treeSnapshot() {
+        const std::scoped_lock lock(m_treeMutex);
+        return m_sharedTree;
+    }
+
+    // Input thread: the main thread learns the top level (empty path) or a command's subcommands.
+    void requestLearning(const std::string& input, const device::CommandTree* tree) {
+        if (m_options->learner == nullptr) {
+            return;
+        }
+        std::optional<std::vector<std::string>> path;
+        if (tree == nullptr) {
+            path = std::vector<std::string>{};
+        } else {
+            path = device::Completer(tree).pathToLearn(input);
+        }
+        if (!path) {
+            return;
+        }
+        if (const Status pushed = m_learnRequests.push(std::move(*path)); !pushed) {
+            return; // full (16 waiting): asked again with a later keystroke
+        }
+    }
+
+    // Main thread: publishes a new tree snapshot and passes the input thread's requests on.
+    void syncLearning() {
+        device::CommandTreeLearner* learner = m_options->learner;
+        if (learner == nullptr) {
+            return;
+        }
+        if (std::shared_ptr<const device::CommandTree> tree = learner->tree();
+            tree != m_publishedTree) {
+            m_publishedTree = tree;
+            const std::scoped_lock lock(m_treeMutex);
+            m_sharedTree = std::move(tree);
+        }
+        while (auto path = m_learnRequests.pop({}, std::chrono::milliseconds(0))) {
+            if (path->empty()) {
+                learner->requestTopLevel();
+            } else {
+                learner->requestChildren(*path);
+            }
+        }
+    }
+
     void configureCompletion() {
-        m_completer.setTree(m_options->commandTree);
         if (m_options->suggestions) {
             m_rx.set_max_hint_rows(static_cast<int>(maxHintRows));
             m_rx.set_hint_callback(
                 [this](const std::string& input, int& contextLen, replxx::Replxx::Color& color) {
                     replxx::Replxx::hints_t hints;
-                    for (const device::Suggestion& row : m_completer.suggest(
+                    for (const device::Suggestion& row : device::Completer().suggest(
                              input, m_inputHistory, device::Completer::maxSuggestions)) {
                         if (row.kind == device::Suggestion::Kind::History &&
                             hints.size() < maxHintRows) {
@@ -404,7 +454,9 @@ private:
         }
         m_rx.set_completion_callback([this](const std::string& input, int& contextLen) {
             replxx::Replxx::completions_t completions;
-            const device::Completion completion = m_completer.complete(input);
+            const std::shared_ptr<const device::CommandTree> tree = treeSnapshot();
+            requestLearning(input, tree.get());
+            const device::Completion completion = device::Completer(tree.get()).complete(input);
             const std::string_view prefix(input.data(), input.find_last_of(' ') == std::string::npos
                                                             ? 0
                                                             : input.find_last_of(' ') + 1);
@@ -490,6 +542,7 @@ private:
             m_loop.finish();
             return;
         }
+        syncLearning();
         if (m_reconnect.exchange(false)) {
             m_view->printStatus("-- reconnecting --");
             if (const Status status = m_session->reconnect(); !status) {
@@ -516,9 +569,14 @@ private:
 
     replxx::Replxx m_rx;
     std::optional<device::CommandHistory> m_history;
-    // Input thread only once it runs (filled before): the hints' history and the completer.
+    // Input thread only once it runs (filled before): the hints' history.
     std::deque<std::string> m_inputHistory; // <= CommandHistory::maxEntries
-    device::Completer m_completer;
+    // The command tree: the main thread publishes snapshots (m_treeMutex), the input thread asks
+    // for learning (bounded; a full queue drops the request - the next Tab asks again).
+    std::mutex m_treeMutex;
+    std::shared_ptr<const device::CommandTree> m_sharedTree;    // guarded by m_treeMutex
+    std::shared_ptr<const device::CommandTree> m_publishedTree; // main thread only
+    BoundedQueue<std::vector<std::string>> m_learnRequests{16, OverflowPolicy::Reject};
     // Shared with the input thread: the entered lines (bounded) and two flags.
     BoundedQueue<std::string> m_entered{64, OverflowPolicy::Block};
     std::atomic<bool> m_quit{false};

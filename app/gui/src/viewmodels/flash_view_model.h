@@ -33,6 +33,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtQmlIntegration>
@@ -91,6 +92,11 @@ class FlashViewModel : public QObject {
     Q_PROPERTY(QString consoleNote READ consoleNote NOTIFY stateChanged)
     Q_PROPERTY(QString resultText READ resultText NOTIFY stateChanged)
     Q_PROPERTY(QString chipText READ chipText NOTIFY stateChanged)
+    // 0021 (ADR-0166): "In the device: hio-chester-push-fm v4.0.1" (Application card; "" while
+    // unknown) and, on the result card of an application flash, "Now in the device: …" when
+    // `info show` answered within 10 s.
+    Q_PROPERTY(QString deviceFirmwareText READ deviceFirmwareText NOTIFY deviceInfoChanged)
+    Q_PROPERTY(QString resultDeviceText READ resultDeviceText NOTIFY stateChanged)
     Q_PROPERTY(hio::gui::ErrorInfo error READ error NOTIFY stateChanged)
     // The result ErrorPanel's primary action: Firmware errors keep "Choose another file"; other
     // errors of a flash retry it (Retry), of a maintenance action go back to the form (Dismiss).
@@ -117,6 +123,8 @@ public:
     Q_ENUM(OpState)
 
     static inline const QString pageId = QStringLiteral("flash");
+    static constexpr std::chrono::milliseconds deviceInfoWindow{10000};
+    static constexpr std::chrono::milliseconds deviceInfoRetryInterval{2500};
 
     FlashViewModel(DeviceTabViewModel* tab, FirmwareServices& services);
     ~FlashViewModel() override;
@@ -152,6 +160,8 @@ public:
     [[nodiscard]] QString consoleNote() const;
     [[nodiscard]] QString resultText() const;
     [[nodiscard]] QString chipText() const;
+    [[nodiscard]] QString deviceFirmwareText() const;
+    [[nodiscard]] QString resultDeviceText() const;
     [[nodiscard]] ErrorInfo error() const;
     [[nodiscard]] int errorAction() const;
     [[nodiscard]] QString maintenanceTitle() const;
@@ -194,6 +204,7 @@ signals:
     void stateChanged();
     void progressChanged();
     void textsChanged();
+    void deviceInfoChanged();
     void chooseFileRequested();
     // QML opens the Settings tab at `sectionId` (0021: "nrfutil", "jlink" or "").
     void settingsRequested(const QString& sectionId);
@@ -235,6 +246,10 @@ private:
     void finish(device::OperationKind kind, const Status& status,
                 std::chrono::milliseconds duration, const std::optional<device::ChipInfo>& chip);
     void applyDefaultKind();
+    void watchNewDeviceInfo();
+    void stopDeviceInfoWatch();
+    void startDeviceInfoWindow();
+    void onDeviceInfoChanged();
     void retranslate();
     [[nodiscard]] const device::DeviceProfile* profile() const;
     [[nodiscard]] const device::TargetProfile* targetProfile(const QString& id) const;
@@ -274,6 +289,11 @@ private:
     bool m_resetHalt = false; // of the last reset (result text)
     QVariantMap m_confirmation;
     std::optional<PendingConfirmation> m_pending; // of the open confirmation
+    // 0021: the window after an application flash in which `info show` answers.
+    QTimer m_deviceInfoDeadline;
+    QTimer m_deviceInfoRetry;
+    QString m_newDeviceFirmware;
+    bool m_awaitingAttach = false; // the 10 s window starts when the console re-attaches (P9)
 };
 
 } // namespace hio::gui

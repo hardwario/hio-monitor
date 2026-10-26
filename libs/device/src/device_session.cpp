@@ -380,7 +380,19 @@ Status post(detail::SessionInternals& internals, bool closed, detail::Command co
 } // namespace
 
 Status DeviceSession::sendLine(std::string line) {
-    return post(*m_internals, m_closed, detail::SendLineCommand{.line = std::move(line)});
+    if (m_closed) {
+        return fail(ErrorCode::Cancelled); // checked before a line is held (review P8)
+    }
+    if (Status held; holdLine(line, held)) {
+        return held; // plan 0021: a shell query runs (ADR-0175)
+    }
+    Status posted =
+        post(*m_internals, m_closed,
+             detail::SendLineCommand{.line = std::move(line), .origin = sendingOrigin()});
+    if (posted) {
+        lineQueued();
+    }
+    return posted;
 }
 
 Status DeviceSession::reconnect() {
@@ -740,6 +752,14 @@ void DeviceSession::wakeUp() {
     }
 }
 
+void DeviceSession::receiveLine(ConsoleLine&& line, QList<ConsoleLine>& batch) {
+    if (captureLine(line)) {
+        return; // a silent shell query took it (plan 0021, ADR-0175)
+    }
+    line.seq = m_internals->log->append(line);
+    batch.push_back(std::move(line));
+}
+
 void DeviceSession::drainEvents() {
     m_wakePending.store(false);
     if (m_closed) {
@@ -768,10 +788,7 @@ void DeviceSession::drainEvents() {
         }
         std::visit(
             Overloaded{
-                [&](ConsoleLine& line) {
-                    line.seq = m_internals->log->append(line);
-                    batch.push_back(std::move(line));
-                },
+                [&](ConsoleLine& line) { receiveLine(std::move(line), batch); },
                 [&](ConnectionEvent& connection) {
                     flushBatch();
                     if (connection.state != ConnectionState::ProbeOpen) {

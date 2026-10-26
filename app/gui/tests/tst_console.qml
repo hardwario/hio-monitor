@@ -4,7 +4,8 @@
 // round 1: plain-text rows with highlight rectangles (K4/K5), the view is not re-centred on the
 // current match by new lines (K2), scrolling while lines stream stops following (K3), the split
 // handle's focus ring (K11), a command that was not sent stays in the input (K9); Down keeps the
-// typed text when not walking the history.
+// typed text when not walking the history; plan 0021 phase 2: device commands learned on connect
+// or lazily (fake Zephyr shell).
 // Lines are added to the tab's log by testSupport (no device needed).
 import QtQuick
 import QtTest
@@ -449,6 +450,9 @@ TestCase {
         // The ghost text is the rest of the highlighted row.
         compare(ghost().text, "te ");
         verify(ghost().visible);
+        // After the typed text, not over it.
+        fuzzyCompare(ghost().x, field.positionToRectangle(field.length).x, 1);
+        verify(ghost().x > 0);
         // Enter sends the typed line unless the highlight was moved.
         keyClick(Qt.Key_Down);
         compare(list.currentIndex, 1);
@@ -480,6 +484,85 @@ TestCase {
         compare(ghost().text, "d on");
         ConsoleSettings.suggestions = true;
         field.text = "";
+    }
+
+    SignalSpy {
+        id: treeSpy
+        signalName: "commandTreeChanged"
+    }
+
+    // The fake Zephyr shell; a new firmware version per call, so no cached tree is found.
+    function useZephyrShell() {
+        verify(testSupport.useScenario(JSON.stringify({
+            libraryVersion: 81000,
+            probes: [{ serialNumber: 801000001, product: "Test Probe",
+                       rtt: { output: [{ atMs: 0, buffer: 0, text: "uart:~$ booted A\n" }],
+                              responses: {
+                                  "info show": "fw-name: hio-test-qml-learning\nfw-version: v0.0." + Date.now() + "\n",
+                                  "help": "Available commands:\n  app   :Application commands\n"
+                                          + "  lte   :LTE commands\n",
+                                  "lte -h": "Subcommands:\n  state  :Get LTE state\n  test   :Test mode\n" } } }]
+        })));
+    }
+
+    function connectToZephyrShell() {
+        treeSpy.target = vm();
+        treeSpy.clear();
+        AppViewModel.currentTabViewModel.connection.connectDevice();
+        tryCompare(AppViewModel.currentTabViewModel, "state", DeviceTabViewModel.Connected, 10000);
+        tryVerify(() => AppViewModel.currentTabViewModel.deviceInfo.valid, 5000);
+    }
+
+    // Plan 0021 phase 2 (C4): `help` on connect (console/readCommandsOnConnect on), then the
+    // suggestion list with the learned device commands and `lte -h` when "lte " is typed, through
+    // silent queries of the fake Zephyr shell.
+    function test_learnedDeviceCommands() {
+        useZephyrShell();
+        connectToZephyrShell();
+        // Learned without typing anything.
+        tryVerify(() => treeSpy.count > 0 && !vm().readingCommands, 5000);
+        const input = one("shellInput");
+        const field = one("commandInput");
+        field.forceActiveFocus();
+        field.text = "";
+        const list = input.suggestionList;
+        keyClick(Qt.Key_L);
+        tryVerify(() => list.opened && list.rows.length > 0);
+        compare(list.rows[0].kind, "command");
+        compare(list.rows[0].label, "lte");
+        compare(list.rows[0].help, "LTE commands");
+        keyClick(Qt.Key_T);
+        keyClick(Qt.Key_E);
+        keyClick(Qt.Key_Space);
+        tryVerify(() => list.opened && list.rows.length === 2 && list.rows[1].label === "test", 5000);
+        compare(list.rows[0].label, "state");
+        // The ghost text starts after the typed text (also after a trailing space).
+        compare(ghost().text, "state ");
+        fuzzyCompare(ghost().x, field.positionToRectangle(field.length).x, 1);
+        field.text = "";
+        verify(testSupport.useScenario(""));
+    }
+
+    // With console/readCommandsOnConnect off `help` waits for the first suggestion.
+    function test_learnedLazily() {
+        ConsoleSettings.readCommandsOnConnect = false;
+        useZephyrShell();
+        connectToZephyrShell();
+        wait(800);
+        compare(treeSpy.count, 0);
+        verify(!vm().readingCommands);
+        const input = one("shellInput");
+        const field = one("commandInput");
+        field.forceActiveFocus();
+        field.text = "";
+        keyClick(Qt.Key_L); // asks the device now
+        tryVerify(() => treeSpy.count > 0);
+        // The list is refreshed when the tree arrives while the field has focus.
+        tryVerify(() => input.suggestionList.opened && input.suggestionList.rows.length > 0
+                        && input.suggestionList.rows[0].label === "lte", 5000);
+        field.text = "";
+        ConsoleSettings.readCommandsOnConnect = true;
+        verify(testSupport.useScenario(""));
     }
 
     // Review F6 and the ADR-0170 key rules: ↑ on the first row does not count as moving the

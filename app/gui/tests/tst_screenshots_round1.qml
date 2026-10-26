@@ -1,6 +1,8 @@
 // Screenshots of plan 0021 (GUI feedback round 1) at 960 x 600 in Czech, light and dark: the
 // Flash page with both kinds (catalog info and the docs link; the designated LTE firmware and an
-// own file), the Settings tab, and the console with the suggestion list and the H chip. Only when
+// own file), the Settings tab, and the console with the suggestion list and the H chip; phase 2:
+// "In the device" on the Application card, the list with device commands learned through the fake
+// Zephyr shell and "Reading commands from the device…". Only when
 // HIO_SCREENSHOT_DIR is set (QT_QUICK_BACKEND=software for the offscreen platform).
 import QtQuick
 import QtTest
@@ -163,5 +165,91 @@ TestCase {
         save("r07-console-hexdump-shown");
         consoleVm.log.clearFilter();
         save("r08-console-hexdump-hidden");
+
+        // Phase 2: the firmware in the device on the Application card.
+        verify(testSupport.useScenario(zephyrShell(0, "v4.0.1")));
+        freshTab("app");
+        AppViewModel.showPage("flash");
+        tryVerify(() => find("flashPage") !== null);
+        vm = testSupport.flashPage(0);
+        vm.kind = FirmwareSourceViewModel.AppFirmware;
+        AppViewModel.currentTabViewModel.connection.connectDevice();
+        tryVerify(() => find("deviceFirmware") !== null, 10000);
+        scrollTo("kindCard0");
+        save("r09-flash-app-in-the-device");
+
+        // Phase 2: device commands learned with `help` on connect, then `lte -h`.
+        AppViewModel.showPage("console");
+        tryVerify(() => find("consolePage") !== null);
+        const learning = testSupport.consoleViewModel(0);
+        tryVerify(() => learning.inputEnabled && !learning.readingCommands, 10000);
+        let command = find("commandInput");
+        command.forceActiveFocus();
+        command.text = "";
+        keyClick(Qt.Key_L);
+        tryVerify(() => {
+            const list = findAll(window.contentItem, "shellInput")[0].suggestionList;
+            return list.opened && list.rows.length > 0 && list.rows[0].kind === "command";
+        }, 5000);
+        save("r10-console-device-commands");
+        keyClick(Qt.Key_T);
+        keyClick(Qt.Key_E);
+        keyClick(Qt.Key_Space);
+        tryVerify(() => {
+            const list = findAll(window.contentItem, "shellInput")[0].suggestionList;
+            return list.opened && list.rows.length > 2 && list.rows[0].label === "config";
+        }, 5000);
+        save("r11-console-device-subcommands");
+        keyClick(Qt.Key_Escape);
+        command.text = "";
+
+        // Phase 2: "Reading commands from the device…" (learned lazily, a slow answer).
+        ConsoleSettings.readCommandsOnConnect = false;
+        verify(testSupport.useScenario(zephyrShell(1200, "v4.0.1-" + Date.now())));
+        freshTab("app");
+        AppViewModel.showPage("console");
+        tryVerify(() => find("consolePage") !== null);
+        AppViewModel.currentTabViewModel.connection.connectDevice();
+        tryVerify(() => AppViewModel.currentTabViewModel.deviceInfo.valid, 15000);
+        command = find("commandInput");
+        command.forceActiveFocus();
+        command.text = "";
+        keyClick(Qt.Key_L);
+        const lazyList = findAll(window.contentItem, "shellInput")[0].suggestionList;
+        tryVerify(() => lazyList.opened && lazyList.reading, 5000,
+                  `opened ${lazyList.opened} reading ${lazyList.reading} vm ${testSupport.consoleViewModel(0).readingCommands}`);
+        save("r12-console-reading-commands");
+        keyClick(Qt.Key_Escape);
+        command.text = "";
+        ConsoleSettings.readCommandsOnConnect = true;
+        verify(testSupport.useScenario(""));
+    }
+
+    // A CHESTER-like Zephyr shell (the command tree is cached per firmware version).
+    function zephyrShell(delayMs, version) {
+        return JSON.stringify({
+            libraryVersion: 81000,
+            probes: [{ serialNumber: 801000001, product: "Test Probe",
+                       rtt: { output: [{ atMs: 0, buffer: 1, text: "[00:00:00.012,000] <inf> app: Booted\n" }],
+                              responseDelayMs: delayMs,
+                              responses: {
+                                  "info show": "vendor-name: HARDWARIO\nproduct-name: CHESTER-M\n"
+                                               + "fw-name: hio-chester-push-fm\nfw-version: " + version + "\n",
+                                  "help": "Please press the <Tab> button to see all available commands.\n"
+                                          + "Available commands:\n"
+                                          + "  app      :Application commands.\n"
+                                          + "  config   :Configuration commands.\n"
+                                          + "  info     :Device information commands.\n"
+                                          + "  kernel   :Kernel commands\n"
+                                          + "  led      :LED commands.\n"
+                                          + "  lrw      :LoRaWAN commands.\n"
+                                          + "  lte      :LTE commands.\n"
+                                          + "  version  :Show firmware version.\n",
+                                  "lte -h": "lte - LTE commands.\nSubcommands:\n"
+                                            + "  config  :Configuration commands.\n"
+                                            + "  eval    :Evaluate network quality.\n"
+                                            + "  state   :Get LTE state.\n"
+                                            + "  test    :LTE test commands.\n" } } }]
+        });
     }
 }

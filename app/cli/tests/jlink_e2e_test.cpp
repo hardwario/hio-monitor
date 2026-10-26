@@ -36,7 +36,8 @@ constexpr const char* twoProbes = R"({
     {"serialNumber": 801000001, "product": "Test Probe",
      "rtt": {"output": [{"atMs": 0, "buffer": 1, "text": "[00:00:00.001,000] <inf> app: Boot\n"}],
              "responses": {"version": "Firmware version: v3.1.0\n",
-                           "status": "line 1\nline 2\n"}}},
+                           "status": "line 1\nline 2\n",
+                           "info show": "vendor-name: HARDWARIO\nfw-name: hio-chester-push-fm\nfw-version: v4.0.1\n"}}},
     {"serialNumber": 801000002, "product": "Test Probe 2"}
   ]})";
 
@@ -211,6 +212,36 @@ TEST_F(FakeJLinkCli, CommandHumanOutputAndSerialOnStderr) {
     EXPECT_EQ(result.exitCode, 0) << result.err;
     EXPECT_EQ(result.out, "line 1\nline 2\n");
     EXPECT_NE(result.err.find("Using J-Link 801000001"), std::string::npos) << result.err;
+}
+
+// Plan 0021 phase 2: `app info` through a silent ShellQuery (`info show` on the Zephyr shell).
+TEST_F(FakeJLinkCli, AppInfoJsonAndHuman) {
+    const RunResult json = hio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                QStringLiteral("app"), QStringLiteral("info")});
+    ASSERT_TRUE(json.normalExit);
+    EXPECT_EQ(json.exitCode, 0) << json.err;
+    const auto all = envelopes(json.out);
+    ASSERT_EQ(all.size(), 1U) << json.out;
+    const QJsonObject fields = data(all[0]);
+    EXPECT_EQ(fields.value(QStringLiteral("fw-name")).toString(),
+              QStringLiteral("hio-chester-push-fm"));
+    EXPECT_EQ(fields.value(QStringLiteral("fw-version")).toString(), QStringLiteral("v4.0.1"));
+    EXPECT_EQ(fields.value(QStringLiteral("vendor-name")).toString(), QStringLiteral("HARDWARIO"))
+        << json.out;
+
+    const RunResult human =
+        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("info")});
+    EXPECT_EQ(human.exitCode, 0) << human.err;
+    EXPECT_NE(human.out.find("fw-version: v4.0.1\n"), std::string::npos) << human.out;
+}
+
+TEST_F(FakeJLinkCli, AppInfoWithoutAnAnswerIsATimeout) {
+    useScenario(R"({"probes": [{"serialNumber": 801000001, "rtt": {"responses": {}}}]})");
+    const RunResult result = hio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                  QStringLiteral("app"), QStringLiteral("info")});
+    ASSERT_TRUE(result.normalExit);
+    EXPECT_NE(result.exitCode, 0);
+    EXPECT_EQ(errorCode(result), QStringLiteral("timeout")) << result.out;
 }
 
 TEST_F(FakeJLinkCli, ConsoleJsonWithPipedStdin) {

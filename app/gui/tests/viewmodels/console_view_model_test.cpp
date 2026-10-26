@@ -9,7 +9,9 @@
 #include "hio/core/json.h"
 #include "hio/core/result.h"
 #include "hio/device/command_tree.h"
+#include "hio/device/command_tree_cache.h"
 #include "hio/device/console_line.h"
+#include "hio/device/console_log.h"
 #include "hio/device/device_session.h"
 #include "support/test_page_view_model.h"
 #include "viewmodels/app_view_model.h"
@@ -38,6 +40,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <expected>
 #include <filesystem>
 #include <fstream>
@@ -45,6 +48,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -74,6 +78,19 @@ constexpr const char* consoleScenario = R"({
              "responses": {"version": "Firmware version: v9.9.9\n"}}}
   ]})";
 
+// Plan 0021 phase 2: a Zephyr shell that answers `info show`, `help` and `lte -h` (the firmware
+// name is unique to these tests: the command tree cache is shared by the test processes).
+constexpr const char* zephyrShellScenario = R"({
+  "libraryVersion": 81000,
+  "probes": [
+    {"serialNumber": 801000001, "product": "Test Probe",
+     "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "uart:~$ booted A\n"}],
+             "responses": {
+               "info show": "fw-name: hio-test-console-learning\nfw-version: v1.2.3\n",
+               "help": "Available commands:\n  app   :Application commands\n  lte   :LTE commands\n",
+               "lte -h": "lte - LTE commands\nSubcommands:\n  state  :Get LTE state\n  test   :Test mode\n"}}}
+  ]})";
+
 class ConsoleViewModelTest : public hio::gui::test::GuiTest {
 protected:
     void SetUp() override {
@@ -99,6 +116,38 @@ protected:
     static bool connectAndWait(DeviceTabViewModel& tab) {
         tab.connectDevice();
         return waitFor([&] { return tab.state() == DeviceTabViewModel::Connected; });
+    }
+
+    // Removes the cached command tree of the Zephyr shell scenario's firmware.
+    static void forgetCachedTree() {
+        const hio::device::CommandTreeCache cache(
+            hio::device::CommandTreeCache::defaultDirectory());
+        std::error_code ignored;
+        std::filesystem::remove(cache.fileFor({.profileId = "chester",
+                                               .targetId = "app",
+                                               .fwName = "hio-test-console-learning",
+                                               .fwVersion = "v1.2.3"}),
+                                ignored);
+    }
+
+    [[nodiscard]] static QStringList labels(const QVariantList& rows) {
+        QStringList result;
+        for (const QVariant& row : rows) {
+            const QVariantMap map = row.toMap();
+            if (map.value(QStringLiteral("kind")).toString() == QStringLiteral("command")) {
+                result.append(map.value(QStringLiteral("label")).toString());
+            }
+        }
+        return result;
+    }
+
+    [[nodiscard]] std::size_t sentLines(const QString& text) const {
+        std::size_t count = 0;
+        for (const auto& line :
+             m_tab->consoleLog()->linesSince(0, hio::device::ChannelMask::Shell)) {
+            count += line.dir == Direction::In && hio::toQString(line.text) == text ? 1 : 0;
+        }
+        return count;
     }
 
     [[nodiscard]] static QStringList rows(const ConsoleLineModel& model) {
@@ -274,6 +323,110 @@ TEST_F(ConsoleViewModelTest, SuggestionsAndCompletion) {
         app().settingsStore()->value(QStringLiteral("console/readCommandsOnConnect")).toBool());
     settings.setSuggestions(true);
     settings.setReadCommandsOnConnect(true);
+}
+
+// Plan 0021 phase 2 (A4, C4): `info show` after the attach, the command tree learned with `help`
+// on connect and `lte -h` on demand, all silent (not in the console log); cached per firmware.
+TEST_F(ConsoleViewModelTest, LearnsTheCommandTreeOnConnect) {
+    forgetCachedTree();
+    useScenario(zephyrShellScenario);
+    QSignalSpy treeChanges(&console(), &ConsoleViewModel::commandTreeChanged);
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(
+        waitFor([&] { return tab().deviceInfo().value(QStringLiteral("valid")).toBool(); }));
+    EXPECT_EQ(tab().deviceInfo().value(QStringLiteral("text")).toString(),
+              QStringLiteral("hio-test-console-learning v1.2.3"));
+    ASSERT_TRUE(waitFor([&] {
+        return !console().readingCommands() &&
+               labels(console().suggestions(QStringLiteral("l"))) == QStringList{"lte"};
+    }));
+    EXPECT_GE(treeChanges.count(), 1);
+    EXPECT_EQ(labels(console().suggestions(QStringLiteral("a"))), QStringList{"app"});
+    // Subcommands on demand.
+    (void)console().suggestions(QStringLiteral("lte "));
+    ASSERT_TRUE(waitFor([&] {
+        return labels(console().suggestions(QStringLiteral("lte s"))) == QStringList{"state"};
+    }));
+    EXPECT_EQ(console().complete(QStringLiteral("lte t")).value(QStringLiteral("replacement")),
+              QStringLiteral("lte test "));
+    // Silent: neither the queries nor their answers are in the console log.
+    EXPECT_EQ(sentLines(QStringLiteral("info show")), 0U);
+    EXPECT_EQ(sentLines(QStringLiteral("help")), 0U);
+    EXPECT_EQ(sentLines(QStringLiteral("lte -h")), 0U);
+    EXPECT_FALSE(
+        rows(*console().shell()).join('\n').contains(QStringLiteral("Available commands")));
+    // A user command still works and is logged.
+    EXPECT_TRUE(console().send(QStringLiteral("help")));
+    ASSERT_TRUE(waitFor([&] { return sentLines(QStringLiteral("help")) == 1U; }));
+
+    // Disconnect forgets the tree and the device info; the next attach loads the cache.
+    tab().disconnectDevice();
+    EXPECT_FALSE(tab().deviceInfo().value(QStringLiteral("valid")).toBool());
+    EXPECT_TRUE(labels(console().suggestions(QStringLiteral("l"))).isEmpty());
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(waitFor([&] {
+        return labels(console().suggestions(QStringLiteral("lte s"))) == QStringList{"state"};
+    }));
+    EXPECT_FALSE(console().readingCommands());
+    forgetCachedTree();
+}
+
+// Review P7: a refused `info show` (the tab is busy) keeps the known device info and does not
+// count as an answer (no deviceInfoQueried, learning is not restarted).
+TEST_F(ConsoleViewModelTest, ARefusedInfoQueryKeepsWhatIsKnown) {
+    forgetCachedTree();
+    useScenario(zephyrShellScenario);
+    QSignalSpy queried(&tab(), &DeviceTabViewModel::deviceInfoQueried);
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(waitFor([&] { return queried.count() == 1; }));
+    ASSERT_TRUE(waitFor([&] { return !console().readingCommands(); }));
+    tab().setBusy(QStringLiteral("test"), QStringLiteral("Working…"), QStringLiteral("Stop?"), {});
+    tab().refreshDeviceInfo();
+    spin(std::chrono::milliseconds(500));
+    EXPECT_TRUE(tab().deviceInfo().value(QStringLiteral("valid")).toBool());
+    EXPECT_EQ(queried.count(), 1);
+    EXPECT_FALSE(console().readingCommands());
+    tab().clearBusy(QStringLiteral("test"));
+    forgetCachedTree();
+}
+
+// Review P3/P4: a disconnect while `info show` runs ends the query without an answer (no device
+// info, no learning) and sends nothing more to the released session; the next attach asks again.
+TEST_F(ConsoleViewModelTest, ADisconnectDuringTheInfoQueryIgnoresIt) {
+    forgetCachedTree();
+    useScenario(R"({"libraryVersion": 81000, "probes": [{"serialNumber": 801000001,
+        "product": "Test Probe", "rtt": {"responses": {}}}]})");
+    QSignalSpy queried(&tab(), &DeviceTabViewModel::deviceInfoQueried);
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(waitFor([&] { return tab().shellQueries().running(); }));
+    tab().disconnectDevice();
+    EXPECT_FALSE(tab().shellQueries().running());
+    spin(std::chrono::milliseconds(300));
+    EXPECT_EQ(queried.count(), 0);
+    EXPECT_FALSE(tab().deviceInfo().value(QStringLiteral("valid")).toBool());
+    EXPECT_FALSE(console().readingCommands());
+    useScenario(zephyrShellScenario);
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(waitFor([&] { return queried.count() == 1; }));
+    EXPECT_TRUE(tab().deviceInfo().value(QStringLiteral("valid")).toBool());
+    forgetCachedTree();
+}
+
+TEST_F(ConsoleViewModelTest, LearnsLazilyWhenReadingOnConnectIsOff) {
+    forgetCachedTree();
+    useScenario(zephyrShellScenario);
+    console().settings()->setReadCommandsOnConnect(false);
+    QSignalSpy queried(&tab(), &DeviceTabViewModel::deviceInfoQueried);
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(waitFor([&] { return queried.count() == 1; }));
+    spin(std::chrono::milliseconds(400));
+    EXPECT_FALSE(console().readingCommands());
+    EXPECT_TRUE(labels(console().suggestions(QStringLiteral("x"))).isEmpty()); // asks now
+    EXPECT_TRUE(console().readingCommands());
+    ASSERT_TRUE(waitFor(
+        [&] { return labels(console().suggestions(QStringLiteral("l"))) == QStringList{"lte"}; }));
+    console().settings()->setReadCommandsOnConnect(true);
+    forgetCachedTree();
 }
 
 // Down while not walking the history keeps the typed text; while walking it goes forward and

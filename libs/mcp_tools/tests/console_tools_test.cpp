@@ -7,6 +7,7 @@
 #include "hio/core/error.h"
 #include "hio/device/console_line.h"
 #include "hio/device/session_events.h"
+#include "hio/device/shell_query.h"
 #include "hio/mcp/limits.h"
 #include "tools_test_support.h"
 
@@ -181,6 +182,28 @@ TEST_F(ConsoleTools, SendCommandReportsInterleavedCommands) {
     ASSERT_EQ(output.size(), 3);
     EXPECT_EQ(output[1].toObject().value(QStringLiteral("dir")).toString(), QStringLiteral("in"));
     EXPECT_EQ(output[1].toObject().value(QStringLiteral("text")).toString(), QStringLiteral("b"));
+}
+
+// Plan 0021 review P8: a send_command line held by a running silent shell query is sent when the
+// query ends; its timeout starts only then.
+TEST_F(ConsoleTools, SendCommandHeldByAShellQueryStartsItsTimeoutAtRelease) {
+    Harness harness(provider(), limits());
+    auto& session = provider().add("jlink:1");
+    auto query = hio::device::ShellQuery::start(session, "info show");
+    ASSERT_TRUE(query) << query.error().detail;
+    auto call = harness.start(QStringLiteral("send_command"),
+                              args({{"command", "version"}, {"timeout", 0.3}}));
+    EXPECT_EQ(session.sent(), std::vector<std::string>{"info show"}); // held
+    runFor(500ms); // longer than the timeout: not running while held
+    EXPECT_FALSE(call.done());
+    session.shell("fw-name: hio-chester-push-fm"); // the query's answer (silent)
+    ASSERT_TRUE(runUntil([&] { return (*query)->isFinished(); }));
+    ASSERT_EQ(session.sent(), (std::vector<std::string>{"info show", "version"}));
+    session.shell("Firmware version: v3");
+    ASSERT_TRUE(runUntil([&] { return call.done(); }));
+    ASSERT_FALSE(call.isError()) << call.errorCode();
+    EXPECT_EQ(call.structured().value(QStringLiteral("end")).toString(), QStringLiteral("silence"));
+    EXPECT_EQ(outputTexts(call), std::vector<std::string>{"Firmware version: v3"});
 }
 
 TEST_F(ConsoleTools, SendCommandOutputIsCapped) {

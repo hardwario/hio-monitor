@@ -7,9 +7,11 @@
 hio_add_backend_library(hio_device
     include/hio/device/ble_lock.h
     include/hio/device/ble_session.h
+    include/hio/device/command_capture.h
     include/hio/device/command_history.h
     include/hio/device/command_tree.h
     include/hio/device/command_tree_cache.h
+    include/hio/device/command_tree_learner.h
     include/hio/device/completer.h
     include/hio/device/console_file_sink.h
     include/hio/device/console_line.h
@@ -26,12 +28,15 @@ hio_add_backend_library(hio_device
     include/hio/device/session_events.h
     include/hio/device/session_key.h
     include/hio/device/session_registry.h
+    include/hio/device/shell_query.h
     src/ble_lock.cpp
     src/ble_session.cpp
     src/ble_session_internal.h
+    src/command_capture.cpp
     src/command_history.cpp
     src/command_tree.cpp
     src/command_tree_cache.cpp
+    src/command_tree_learner.cpp
     src/completer.cpp
     src/console_file_sink.cpp
     src/console_line.cpp
@@ -56,6 +61,7 @@ hio_add_backend_library(hio_device
     src/session_internal.h
     src/session_registry.cpp
     src/session_worker.cpp
+    src/shell_query.cpp
     src/session_worker_target.cpp
     src/session_worker_target.h)
 add_library(hio::device ALIAS hio_device)

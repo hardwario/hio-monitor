@@ -46,6 +46,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -173,7 +174,9 @@ private:
     bool m_scanning = false; // a background scan was requested (autoReconnect)
     std::chrono::steady_clock::time_point m_nextScan; // background scan restarts (B2)
     std::optional<ErrorCode> m_scanErrorShown;        // reported once per code (B2)
-    std::size_t m_linesInFlight = 0;                  // <= maxLinesInFlight (B4)
+    // The origin tokens (ConsoleLine::origin, plan 0021) of the lines not written or rejected yet,
+    // in order: each gets exactly one echo or rejection. <= maxLinesInFlight (B4).
+    std::deque<std::uint64_t> m_linesInFlight;
     bool m_attemptPending = false; // an automatic attempt was posted and has not ended
     std::chrono::steady_clock::time_point m_nextRetry;
     QTimer m_retryTimer;

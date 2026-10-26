@@ -397,6 +397,34 @@ TEST_F(FlashTest, FlashFromADisconnectedTab) {
     EXPECT_TRUE(flash().canFlash()); // the source stays loaded
 }
 
+// Plan 0021 phase 2 (ADR-0166): "In the device" from `info show` after the attach, "Now in the
+// device" after a successful application flash, cleared on disconnect.
+TEST_F(FlashTest, TheFirmwareInTheDeviceBeforeAndAfterAFlash) {
+    start(R"({"libraryVersion": 81000, "probes": [{"serialNumber": 801000001,
+        "product": "Test Probe",
+        "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "uart:~$ booted\n"}],
+                "responses": {"info show": "fw-name: hio-chester-push-fm\nfw-version: v4.0.1\n"}},
+        "chip": {}}]})");
+    EXPECT_TRUE(flash().deviceFirmwareText().isEmpty());
+    tab().connectDevice();
+    ASSERT_TRUE(waitFor([&] { return !flash().deviceFirmwareText().isEmpty(); }));
+    EXPECT_EQ(flash().deviceFirmwareText(),
+              QStringLiteral("In the device: hio-chester-push-fm v4.0.1"));
+    ASSERT_TRUE(load(hexFile()));
+    flash().flash();
+    ASSERT_TRUE(finished());
+    ASSERT_EQ(flash().opState(), FlashViewModel::Succeeded)
+        << flash().error().detail().toStdString();
+    ASSERT_TRUE(
+        waitFor([&] { return !flash().resultDeviceText().isEmpty(); }, std::chrono::seconds(10)));
+    EXPECT_EQ(flash().resultDeviceText(),
+              QStringLiteral("Now in the device: hio-chester-push-fm v4.0.1"));
+    flash().dismissResult();
+    EXPECT_TRUE(flash().resultDeviceText().isEmpty());
+    tab().disconnectDevice();
+    EXPECT_TRUE(flash().deviceFirmwareText().isEmpty());
+}
+
 TEST_F(FlashTest, CancelDuringVerify) {
     start(probeScenario(R"({"readDelayMs": 200})"));
     ASSERT_TRUE(load(hexFile("big.hex", image(0x1000, std::size_t{64} * 1024))));

@@ -319,6 +319,8 @@ private:
 
     // Owner thread: invoked (queued, by name) by wakeUp().
     Q_INVOKABLE void drainEvents();
+    // A received line: to a silent shell query (plan 0021, ADR-0175) or into the log and `batch`.
+    void receiveLine(ConsoleLine&& line, QList<ConsoleLine>& batch);
 
     [[nodiscard]] Result<OperationId> startOperation(detail::OperationCommand command,
                                                      std::string_view targetId);

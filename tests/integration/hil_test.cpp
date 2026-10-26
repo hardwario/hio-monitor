@@ -1,14 +1,22 @@
 // Hardware-in-the-loop tests with a CHESTER and a J-Link (plan/features/0002, phase G1).
 // Skipped unless HIO_HIL=1 (see CMakeLists.txt). The manual checks of phase G2 (power-cycle,
 // reflash with JLinkExe while attached, outdated probe firmware) are listed in the plan.
+// Plan 0021 phase 2: `info show` and the command tree (`help`, `<cmd> -h`) through silent shell
+// queries on the real firmware (HIO_HIL_SN as above).
 
 #include "hio/core/error.h"
+#include "hio/device/command_capture.h"
+#include "hio/device/command_tree.h"
+#include "hio/device/command_tree_cache.h"
+#include "hio/device/command_tree_learner.h"
 #include "hio/device/console_line.h"
+#include "hio/device/device_info.h"
 #include "hio/device/device_session.h"
 #include "hio/device/operation.h"
 #include "hio/device/profile.h"
 #include "hio/device/session_events.h"
 #include "hio/device/session_registry.h"
+#include "hio/device/shell_query.h"
 #include "hio/hw/jlink/library_locator.h"
 
 #include <QCoreApplication>
@@ -16,6 +24,7 @@
 #include <QList>
 #include <QObject>
 #include <QString>
+#include <QTemporaryDir>
 #include <QtEnvironmentVariables>
 
 #include <gtest/gtest.h>
@@ -25,6 +34,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -181,6 +191,60 @@ TEST_F(Hil, TwoChestersWithTwoProbesInOneProcess) {
     ASSERT_TRUE((*b)->sendLine("version"));
     EXPECT_TRUE(waitFor([&] { return ra.hasShellOutput() && rb.hasShellOutput(); },
                         std::chrono::seconds(10)));
+}
+
+TEST_F(Hil, InfoShowAndCommandTreeThroughSilentQueries) {
+    auto session = DeviceSession::open(registry(), location(), options(serialFrom("HIO_HIL_SN")));
+    ASSERT_TRUE(session) << session.error().message;
+    Recorder recorder(**session);
+    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::seconds(20)));
+    recorder.lines.clear();
+
+    auto info = hio::device::ShellQuery::start(**session, "info show");
+    ASSERT_TRUE(info) << info.error().message;
+    const auto answered = hio::device::waitForQuery(**info);
+    ASSERT_TRUE(answered.has_value());
+    const hio::device::ShellQueryResult answer = answered.value_or(hio::device::ShellQueryResult{});
+    const hio::device::DeviceInfo fields = hio::device::parseInfoShow(answer.lines);
+    EXPECT_TRUE(fields.hasFirmware());
+    std::cout << "info show: " << fields.fwName() << " " << fields.fwVersion() << " ("
+              << answer.lines.size() << " lines, end " << hio::device::captureEndId(answer.end)
+              << ")\n";
+
+    QTemporaryDir dir;
+    hio::device::CommandTreeCache cache(std::filesystem::path(dir.path().toStdU16String()));
+    hio::device::ShellQueryQueue queue;
+    queue.setSession(session->get());
+    hio::device::CommandTreeLearner learner(queue, &cache);
+    learner.start(hio::device::FirmwareKey{.profileId = "chester",
+                                           .targetId = "app",
+                                           .fwName = std::string(fields.fwName()),
+                                           .fwVersion = std::string(fields.fwVersion())},
+                  true);
+    ASSERT_TRUE(waitFor([&] { return !learner.reading(); }, std::chrono::seconds(10)));
+    const auto tree = learner.tree();
+    ASSERT_TRUE(tree);
+    ASSERT_FALSE(tree->empty());
+    std::cout << "help: " << tree->root().children.size() << " commands\n";
+    const std::string first = tree->root().children.front().name;
+    learner.requestChildren({first});
+    ASSERT_TRUE(waitFor([&] { return !learner.reading(); }, std::chrono::seconds(10)));
+    const auto* node = learner.tree()->find(std::vector<std::string>{first});
+    ASSERT_NE(node, nullptr);
+    EXPECT_TRUE(node->childrenKnown);
+    std::cout << first << " -h: " << node->children.size() << " subcommands\n";
+
+    // Silent: none of the queries reached the console.
+    for (const ConsoleLine& line : recorder.lines) {
+        EXPECT_FALSE(
+            line.dir == Direction::In &&
+            (line.text == "info show" || line.text == "help" || line.text == first + " -h"))
+            << line.text;
+    }
+    // A user command afterwards works as before.
+    recorder.lines.clear();
+    ASSERT_TRUE((*session)->sendLine("version"));
+    EXPECT_TRUE(waitFor([&] { return recorder.hasShellOutput(); }, std::chrono::seconds(5)));
 }
 
 } // namespace

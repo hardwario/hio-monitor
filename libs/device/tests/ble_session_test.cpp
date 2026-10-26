@@ -864,6 +864,37 @@ TEST_F(BleSessionTest, LinesInFlightAreBounded) {
     ASSERT_TRUE(waitFor([&] { return session->sendLine("after").has_value(); }));
 }
 
+// Plan 0021 review P8: while a silent shell query holds the user's lines, a line is still
+// validated first (too long, back-pressure); held lines count against maxLinesInFlight, and they
+// are written in order when the query ends.
+TEST_F(BleSessionTest, HeldLinesAreValidatedFirstAndCountAsInFlight) {
+    Events* events = nullptr;
+    BleSession* session = connected(events);
+    ASSERT_NE(session, nullptr);
+    session->setShellCapture([](const hio::device::ConsoleLine&) { return false; });
+    const auto tooLong = session->sendLine(std::string(hio::ble::NusLink::maxLineBytes + 1, 'x'));
+    ASSERT_FALSE(tooLong);
+    EXPECT_EQ(tooLong.error().code, ErrorCode::UsageInvalidArgument);
+    std::size_t accepted = 0;
+    std::optional<hio::Error> refused;
+    for (std::size_t i = 0; i < BleSession::maxLinesInFlight + 10 && !refused; ++i) {
+        if (hio::Status sent = session->sendLine("h" + std::to_string(i)); sent) {
+            ++accepted;
+        } else {
+            refused = sent.error();
+        }
+    }
+    EXPECT_EQ(accepted,
+              std::min(BleSession::maxLinesInFlight, hio::device::ConsoleSession::maxHeldLines));
+    ASSERT_TRUE(refused.has_value());
+    EXPECT_EQ(refused.value_or(hio::Error{}).code, ErrorCode::InternalQueueFull);
+    spin(50ms);
+    EXPECT_TRUE(driver()->written().empty()); // held
+    session->setShellCapture({});
+    ASSERT_TRUE(waitFor([this] { return !driver()->written().empty(); }));
+    EXPECT_TRUE(driver()->written().front().first.starts_with("h0"));
+}
+
 // Review B6: the device id is canonical: another spelling is the same session, lock and file.
 TEST_F(BleSessionTest, DeviceIdIsCanonical) {
     Events* events = nullptr;
