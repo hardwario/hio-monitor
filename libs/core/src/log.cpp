@@ -43,6 +43,7 @@ Q_LOGGING_CATEGORY(lcFlash, "hio.flash")
 Q_LOGGING_CATEGORY(lcDiag, "hio.diag")
 Q_LOGGING_CATEGORY(lcBle, "hio.ble")
 Q_LOGGING_CATEGORY(lcMcp, "hio.mcp")
+Q_LOGGING_CATEGORY(lcUpdate, "hio.update")
 
 namespace {
 

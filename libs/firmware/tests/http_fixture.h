@@ -6,6 +6,7 @@
 
 #include <QByteArray>
 #include <QHostAddress>
+#include <QList>
 #include <QMap>
 #include <QObject>
 #include <QString>
@@ -27,30 +28,40 @@ public:
         QByteArray location; // Location header (redirects)
         bool hang = false;   // accept the request and never answer
         int trickleMs = 0;   // > 0: the headers at once, then one body byte per trickleMs
+        // Plan 0016: extra response headers ("Name: value" lines without CRLF).
+        QList<QByteArray> headers;
 
         static Response ok(QByteArray body) {
             return {.status = 200,
                     .body = std::move(body),
                     .location = {},
                     .hang = false,
-                    .trickleMs = 0};
+                    .trickleMs = 0,
+                    .headers = {}};
         }
         static Response withStatus(int code, QByteArray body = {}) {
             return {.status = code,
                     .body = std::move(body),
                     .location = {},
                     .hang = false,
-                    .trickleMs = 0};
+                    .trickleMs = 0,
+                    .headers = {}};
         }
         static Response redirect(QByteArray location) {
             return {.status = 302,
                     .body = {},
                     .location = std::move(location),
                     .hang = false,
-                    .trickleMs = 0};
+                    .trickleMs = 0,
+                    .headers = {}};
         }
         static Response hanging() {
-            return {.status = 0, .body = {}, .location = {}, .hang = true, .trickleMs = 0};
+            return {.status = 0,
+                    .body = {},
+                    .location = {},
+                    .hang = true,
+                    .trickleMs = 0,
+                    .headers = {}};
         }
         // Plan 0021 (review F9): a slow server that keeps sending.
         static Response trickling(QByteArray body, int intervalMs) {
@@ -58,7 +69,8 @@ public:
                     .body = std::move(body),
                     .location = {},
                     .hang = false,
-                    .trickleMs = intervalMs};
+                    .trickleMs = intervalMs,
+                    .headers = {}};
         }
     };
 
@@ -70,6 +82,10 @@ public:
     [[nodiscard]] bool listening() const { return m_server.isListening(); }
     [[nodiscard]] QString baseUrl() const {
         return QStringLiteral("http://127.0.0.1:%1/chester").arg(m_server.serverPort());
+    }
+    // Plan 0016: "http://127.0.0.1:<port>" (paths of other services, e.g. the release list).
+    [[nodiscard]] QString origin() const {
+        return QStringLiteral("http://127.0.0.1:%1").arg(m_server.serverPort());
     }
     void set(const QString& path, const Response& response) { m_responses.insert(path, response); }
     [[nodiscard]] int requests(const QString& path) const { return m_requests.value(path); }
@@ -97,6 +113,9 @@ private:
                 reply += "Content-Length: " + QByteArray::number(response.body.size()) + "\r\n";
                 if (!response.location.isEmpty()) {
                     reply += "Location: " + response.location + "\r\n";
+                }
+                for (const QByteArray& header : response.headers) {
+                    reply += header + "\r\n";
                 }
                 reply += "Connection: close\r\n\r\n";
                 if (response.trickleMs > 0) {

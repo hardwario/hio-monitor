@@ -325,6 +325,29 @@ TEST(MakeError, ChecksumMismatchCode) {
     EXPECT_EQ(error.wizard, std::nullopt);
 }
 
+// Plan 0016 (ADR-0116): the update check errors; network exit code. update.too_large uses the
+// bad_response texts (an internal bound, the bound in `detail`).
+TEST(MakeError, UpdateCodes) {
+    EXPECT_EQ(hio::idOf(ErrorCode::UpdateNetwork), "update.network");
+    EXPECT_EQ(hio::idOf(ErrorCode::UpdateRateLimited), "update.rate_limited");
+    EXPECT_EQ(hio::idOf(ErrorCode::UpdateBadResponse), "update.bad_response");
+    EXPECT_EQ(hio::idOf(ErrorCode::UpdateTooLarge), "update.too_large");
+    for (const ErrorCode code : {ErrorCode::UpdateNetwork, ErrorCode::UpdateRateLimited,
+                                 ErrorCode::UpdateBadResponse, ErrorCode::UpdateTooLarge}) {
+        EXPECT_EQ(hio::categoryOf(code), ErrorCategory::Network);
+        const hio::Error error = hio::makeError(code);
+        EXPECT_FALSE(error.cause.empty());
+        EXPECT_EQ(error.wizard, std::nullopt);
+    }
+    EXPECT_EQ(hio::makeError(ErrorCode::UpdateNetwork).message,
+              "Could not reach GitHub to check for updates.");
+    EXPECT_EQ(hio::makeError(ErrorCode::UpdateRateLimited).suggestion, "Try again in an hour.");
+    const hio::Error tooLarge = hio::makeError(ErrorCode::UpdateTooLarge);
+    const hio::Error badResponse = hio::makeError(ErrorCode::UpdateBadResponse);
+    EXPECT_EQ(tooLarge.message, badResponse.message);
+    EXPECT_EQ(tooLarge.suggestion, badResponse.suggestion);
+}
+
 TEST(MakeError, OutputClosedIsCancelledWithItsOwnMessage) {
     const hio::Error error = hio::outputClosedError("the standard output was closed");
     const hio::Error cancelled = hio::makeError(ErrorCode::Cancelled);

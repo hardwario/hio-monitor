@@ -35,11 +35,12 @@ Q_DECLARE_LOGGING_CATEGORY(
     lcJLink) // "hio.jlink"  (libs/hw/jlink, incl. the J-Link library's own output)
 Q_DECLARE_LOGGING_CATEGORY(lcDevice) // "hio.device" (libs/device)
 Q_DECLARE_LOGGING_CATEGORY(
-    lcFirmware)                     // "hio.firmware" (libs/firmware: images, zips, catalog, cache)
-Q_DECLARE_LOGGING_CATEGORY(lcFlash) // "hio.flash" (programming workflows, nRF Util; plan 0003)
-Q_DECLARE_LOGGING_CATEGORY(lcDiag)  // "hio.diag" (libs/diag: checks, report; plan 0007)
-Q_DECLARE_LOGGING_CATEGORY(lcBle)   // "hio.ble" (libs/hw/ble, BLE sessions; plan 0011)
-Q_DECLARE_LOGGING_CATEGORY(lcMcp)   // "hio.mcp" (libs/mcp, libs/mcp_tools, `hio mcp`; plan 0013)
+    lcFirmware)                      // "hio.firmware" (libs/firmware: images, zips, catalog, cache)
+Q_DECLARE_LOGGING_CATEGORY(lcFlash)  // "hio.flash" (programming workflows, nRF Util; plan 0003)
+Q_DECLARE_LOGGING_CATEGORY(lcDiag)   // "hio.diag" (libs/diag: checks, report; plan 0007)
+Q_DECLARE_LOGGING_CATEGORY(lcBle)    // "hio.ble" (libs/hw/ble, BLE sessions; plan 0011)
+Q_DECLARE_LOGGING_CATEGORY(lcMcp)    // "hio.mcp" (libs/mcp, libs/mcp_tools, `hio mcp`; plan 0013)
+Q_DECLARE_LOGGING_CATEGORY(lcUpdate) // "hio.update" (libs/update, the update check; plan 0016)
 
 enum class AppKind : std::uint8_t {
     Gui,

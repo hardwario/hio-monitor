@@ -168,9 +168,9 @@ with the standard Ctrl+C cancellation.
 
 ## Implementation steps
 
-- [ ] A1 `libs/update`: `SemVer` (parse, precedence), `pickLatest`, unit tests (SemVer spec examples, v1 tags
+- [x] A1 `libs/update`: `SemVer` (parse, precedence), `pickLatest`, unit tests (SemVer spec examples, v1 tags
   ignored, drafts, pre-releases, malformed JSON, size bound).
-- [ ] A2 `UpdateCheck` with a local fake HTTP server (`QTcpServer`, as other network tests) — success, 403
+- [x] A2 `UpdateCheck` with a local fake HTTP server (`QTcpServer`, as other network tests) — success, 403
   rate-limit, timeout, oversize, redirect to another host refused, cancel.
 - [ ] B1 CLI `hio update check [--prerelease] [--json]` + end-to-end test against the fake server (test override).
 - [ ] C1 `UpdateService`, settings keys, scheduling; unit test with an injected clock.

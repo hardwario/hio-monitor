@@ -117,6 +117,11 @@ enum class ErrorCode : std::uint8_t {
     DependencyJLinkFunctionMissing,
     // GUI feedback round 1 (plan/features/0021-gui-feedback-round-1.md)
     FirmwareChecksumMismatch,
+    // M7 update check (plan/features/0016-m7-update-check.md, ADR-0116)
+    UpdateNetwork,
+    UpdateRateLimited,
+    UpdateBadResponse,
+    UpdateTooLarge,
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -369,6 +374,18 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::FirmwareChecksumMismatch,
               .id = "firmware.checksum_mismatch",
               .category = ErrorCategory::Firmware},
+    ErrorInfo{.code = ErrorCode::UpdateNetwork,
+              .id = "update.network",
+              .category = ErrorCategory::Network},
+    ErrorInfo{.code = ErrorCode::UpdateRateLimited,
+              .id = "update.rate_limited",
+              .category = ErrorCategory::Network},
+    ErrorInfo{.code = ErrorCode::UpdateBadResponse,
+              .id = "update.bad_response",
+              .category = ErrorCategory::Network},
+    ErrorInfo{.code = ErrorCode::UpdateTooLarge,
+              .id = "update.too_large",
+              .category = ErrorCategory::Network},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every

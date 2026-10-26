@@ -97,6 +97,7 @@ endif()
 
 add_subdirectory(libs/core)
 add_subdirectory(libs/firmware)
+add_subdirectory(libs/update)
 add_subdirectory(libs/hw/jlink)
 add_subdirectory(libs/hw/nrfutil)
 add_subdirectory(libs/hw/ble)

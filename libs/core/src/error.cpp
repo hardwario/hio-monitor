@@ -137,6 +137,10 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::IoFileExists:
     case ErrorCode::DependencyJLinkFunctionMissing:
     case ErrorCode::FirmwareChecksumMismatch:
+    case ErrorCode::UpdateNetwork:
+    case ErrorCode::UpdateRateLimited:
+    case ErrorCode::UpdateBadResponse:
+    case ErrorCode::UpdateTooLarge:
         return true;
     }
     return false;
@@ -1108,6 +1112,63 @@ constexpr std::array defaultTexts{
         .suggestion =
             QT_TRANSLATE_NOOP3("hio::core", "Try again; if it repeats, report it to HARDWARIO.",
                                "firmware.checksum_mismatch suggestion"),
+        .wizard = std::nullopt,
+    },
+    // M7 update check (plan/features/0016, ADR-0116).
+    DefaultTexts{
+        .code = ErrorCode::UpdateNetwork,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "Could not reach GitHub to check for updates.",
+                                      "update.network message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core", "There is no internet connection, or a firewall or proxy blocks GitHub.",
+            "update.network cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Check your connection or try again later.",
+                                         "update.network suggestion"),
+        .wizard = std::nullopt,
+    },
+    DefaultTexts{
+        .code = ErrorCode::UpdateRateLimited,
+        .message = QT_TRANSLATE_NOOP3("hio::core", "GitHub temporarily refused the update check.",
+                                      "update.rate_limited message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hio::core",
+            "GitHub limits how often a network address may ask; other computers on the same "
+            "network may have used up the limit.",
+            "update.rate_limited cause"),
+        .suggestion = QT_TRANSLATE_NOOP3("hio::core", "Try again in an hour.",
+                                         "update.rate_limited suggestion"),
+        .wizard = std::nullopt,
+    },
+    DefaultTexts{
+        .code = ErrorCode::UpdateBadResponse,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The update information from GitHub could not be read.",
+                               "update.bad_response message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "GitHub sent an unexpected answer, or a proxy changed it.",
+                                    "update.bad_response cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core",
+                               "Try again later; if it persists, check the releases page: "
+                               "https://github.com/hardwario/hio-monitor/releases",
+                               "update.bad_response suggestion"),
+        .wizard = std::nullopt,
+    },
+    // Plan 0016: an internal bound was hit; reported with the bad_response texts (the bound in
+    // `detail`).
+    DefaultTexts{
+        .code = ErrorCode::UpdateTooLarge,
+        .message =
+            QT_TRANSLATE_NOOP3("hio::core", "The update information from GitHub could not be read.",
+                               "update.bad_response message"),
+        .cause = QT_TRANSLATE_NOOP3("hio::core",
+                                    "GitHub sent an unexpected answer, or a proxy changed it.",
+                                    "update.bad_response cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hio::core",
+                               "Try again later; if it persists, check the releases page: "
+                               "https://github.com/hardwario/hio-monitor/releases",
+                               "update.bad_response suggestion"),
         .wizard = std::nullopt,
     },
 };
