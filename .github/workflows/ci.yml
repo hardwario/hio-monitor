@@ -254,6 +254,21 @@ jobs:
         run: git lfs pull
       - name: Build tools
         run: brew install ninja
+      - name: TEMPORARY jthread probe (plan 0023)
+        if: matrix.preset == 'debug'
+        shell: bash
+        run: |
+          printf '#include <stop_token>\n#include <thread>\n#include <version>\nint main(){std::jthread t([](std::stop_token){}); return 0;}\n' > "$RUNNER_TEMP/jt.cpp"
+          for x in /Applications/Xcode*.app; do
+            cxx="$x/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++"
+            sdk=$(DEVELOPER_DIR="$x/Contents/Developer" xcrun --show-sdk-path 2>/dev/null)
+            ver=$("$cxx" --version 2>/dev/null | head -1)
+            plain=fail; exp=fail
+            "$cxx" -std=c++23 -isysroot "$sdk" -mmacosx-version-min=13.3 "$RUNNER_TEMP/jt.cpp" -o "$RUNNER_TEMP/a" 2>/dev/null && plain=ok
+            "$cxx" -std=c++23 -fexperimental-library -isysroot "$sdk" -mmacosx-version-min=13.3 "$RUNNER_TEMP/jt.cpp" -o "$RUNNER_TEMP/a" 2>/dev/null && exp=ok
+            echo "::warning::$x | $ver | plain=$plain experimental=$exp"
+          done
+          echo "::warning::default: $(xcode-select -p) $(clang++ --version | head -1)"
       - uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
         with:
           version: ${{ env.QT_VERSION }}
