@@ -12,6 +12,7 @@
 
 #include <QAbstractItemModelTester>
 #include <QBuffer>
+#include <QCoreApplication>
 #include <QIODevice>
 #include <QList>
 #include <QMetaType>
@@ -417,7 +418,13 @@ TEST_F(ConsoleLineModelTest, ResumeDuringAScanKeepsTheRowsSorted) {
     ASSERT_EQ(model().pendingLines(), 10'000);
     model().scan().setSliceLines(5);
     model().setFilterText(QStringLiteral("line"));
-    ASSERT_TRUE(waitFor([this] { return model().scan().slicesRun() >= 6; })); // in the pending part
+    // One event-loop pass runs at most one slice (a slice posted during a pass runs in the next
+    // one). waitFor() processes events for 5 ms at a time, in which a Release build finishes the
+    // whole scan, so step pass by pass until the scan is in the pending part.
+    for (int pass = 0; pass < 1000 && model().scan().slicesRun() < 6; ++pass) {
+        QCoreApplication::processEvents();
+    }
+    ASSERT_GE(model().scan().slicesRun(), 6U);
     ASSERT_TRUE(model().searching());
     model().setPaused(false);
     ASSERT_TRUE(scanDone());

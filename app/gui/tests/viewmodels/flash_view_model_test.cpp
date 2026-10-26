@@ -299,6 +299,9 @@ TEST_F(FlashTest, CatalogIdValidation) {
 }
 
 TEST_F(FlashTest, CatalogDownloadAndErrors) {
+#ifndef HIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_CATALOG_URL)";
+#endif
     hio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
     qputenv("HIO_CATALOG_URL", http.baseUrl().toUtf8());

@@ -86,6 +86,8 @@ target_compile_definitions(hio_gui_tests PRIVATE
     "HIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink>\""
     "HIO_FAKE_JLINK_INCOMPLETE_LIBRARY=\"$<TARGET_FILE:hio_fake_jlink_incomplete>\""
     "HIO_FAKE_NRFUTIL=\"$<TARGET_FILE:hio_fake_nrfutil>\"")
+# HIO_CATALOG_URL is honoured only with HIO_TEST_OVERRIDES (not in Release builds).
+target_compile_definitions(hio_gui_tests PRIVATE ${HIO_TEST_OVERRIDES_DEFINE})
 set_target_properties(hio_gui_tests PROPERTIES AUTOMOC ON)
 add_dependencies(hio_gui_tests hio_fake_jlink hio_fake_jlink_incomplete hio_fake_nrfutil)
 # Under ThreadSanitizer the test that downloads through QNetworkAccessManager is left out, as in
