@@ -26,6 +26,13 @@ if(WIN32 AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
         "not with the GNU-style clang driver.")
 endif()
 
+# ADR-0180: Apple's libc++ (Xcode 16) still ships std::jthread / std::stop_token as experimental.
+# The flag enables them and links Apple's static libc++experimental.a (nothing extra to ship). Global,
+# so that the feature checks and every target, own or third-party, see the same library.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    string(APPEND CMAKE_CXX_FLAGS " -fexperimental-library")
+endif()
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

@@ -3,7 +3,7 @@
 - **Status:** In progress (approved 2026-10-26)
 - **Milestone:** maintenance (blocks M7 packaging jobs, plan 0015)
 - **Author:** Matej Strnad (with Claude), 2026-10-26
-- **Related ADRs:** ADR-0179 (macOS 13.3, amends ADR-0012), ADR-0001, ADR-0002, ADR-0010, ADR-0023
+- **Related ADRs:** ADR-0179 (macOS 13.3, amends ADR-0012), ADR-0180 (Apple clang `-fexperimental-library`), ADR-0177, ADR-0001, ADR-0002, ADR-0010, ADR-0023
 - **Depends on:** none. Branch `strnad/ci-repair-90059f`, cut from local `v2-dev` 499411b.
 
 ## Context
@@ -78,7 +78,8 @@ Each fix is a separate commit. Any fix that needs an architectural or otherwise 
 | Plan/ADR numbers | 0022 / ADR-0178 are taken on `v2/console-help-gate-plan`; 0019/0020 by the TSan branches | 0023 / ADR-0179 (2026-10-26) | — |
 | Missing `cs_CZ` locale | **generate in CI** / skip test when missing | generate in CI (session brief) | — |
 | How CI runs for this branch (no `gh` CLI here; `origin/v2-dev` is 6 commits behind local `v2-dev`) | **user opens a PR** from the pushed branch to `v2-dev` / temporary `push` trigger for this branch in `ci.yml`, removed before merge | temporary push trigger (2026-10-26) | — |
-| TSan Qt Quick failure fix | depends on the cause found | _pending (asked when known, if not a plain bug fix)_ | — |
+| TSan Qt Quick failure fix | depends on the cause found | the glib wakeup-fd false positive of plan 0020 (deterministic with Qt 6.8.3): bring plan 0019 (cherry-pick 9a979f7) and plan 0020 A2 (uncommitted in worktree kind-mcclintock-5da9a4) into this branch (2026-10-26) | — (plans 0019/0020) |
+| `std::jthread` on macOS: every Xcode 16 on `macos-15` needs `-fexperimental-library` | **flag for Apple clang** / Homebrew LLVM 21 / own jthread | flag for Apple clang (2026-10-26) | ADR-0180 |
 
 ## Implementation steps
 
