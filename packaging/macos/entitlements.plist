@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Hardened-runtime entitlements of HARDWARIO Monitor.app and the embedded hio (ADR-0126): the
+     SEGGER-signed JLinkARM library and its per-session copies (ADR-0006, ADR-0030) may be loaded.
+     No other exceptions (no JIT, no unsigned executable memory, no DYLD environment variables).
+     Checked by packaging/macos/sign-and-notarize.sh (verify) and the CI package job. -->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

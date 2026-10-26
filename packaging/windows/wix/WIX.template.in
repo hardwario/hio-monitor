@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- HARDWARIO Monitor MSI (plan/features/0015 E1, ADR-0117): CMake's WIX v4 template
+     (Modules/Internal/CPack/WIX.template.in) with the downgrade message of the plan, the feature
+     tree UI and the features of features.wxs. -->
+
+<?include "cpack_variables.wxi"?>
+
+<Wix
+    xmlns="http://wixtoolset.org/schemas/v4/wxs"@CPACK_WIX_CUSTOM_XMLNS_EXPANDED@
+    RequiredVersion="4.0"
+    >
+
+    <Package
+        Name="$(var.CPACK_PACKAGE_NAME)"
+        Version="$(var.CPACK_PACKAGE_VERSION)"
+        Manufacturer="$(var.CPACK_PACKAGE_VENDOR)"
+        UpgradeCode="$(var.CPACK_WIX_UPGRADE_GUID)"
+        ProductCode="$(var.CPACK_WIX_PRODUCT_GUID)"
+        Scope="$(var.CPACK_WIX_INSTALL_SCOPE)"
+        InstallerVersion="500"
+        Language="1033"
+        Compressed="yes"
+        >
+
+        <Media Id="1" Cabinet="media1.cab" EmbedCab="yes"/>
+
+        <MajorUpgrade
+            Schedule="afterInstallInitialize"
+            AllowSameVersionUpgrades="yes"
+            DowngradeErrorMessage="A newer version of HARDWARIO Monitor is already installed."/>
+
+        <WixVariable Id="WixUILicenseRtf" Value="$(var.CPACK_WIX_LICENSE_RTF)"/>
+        <Property Id="WIXUI_INSTALLDIR" Value="INSTALL_ROOT"/>
+
+        <?ifdef CPACK_WIX_PRODUCT_ICON?>
+        <Property Id="ARPPRODUCTICON" Value="ProductIcon.ico" />
+        <Icon Id="ProductIcon.ico" SourceFile="$(var.CPACK_WIX_PRODUCT_ICON)"/>
+        <?endif?>
+
+        <FeatureRef Id="ProductFeature">
+            <ComponentRef Id="HioStartMenuShortcut"/>
+        </FeatureRef>
+        <FeatureRef Id="AddToPath"/>
+        <FeatureRef Id="DesktopShortcut"/>
+
+        <ui:WixUI Id="$(var.CPACK_WIX_UI_REF)" />
+        <UIRef Id="WixUI_ErrorProgressText" />
+
+        <?include "properties.wxi"?>
+        <?include "product_fragment.wxi"?>
+    </Package>
+</Wix>

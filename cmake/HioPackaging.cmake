@@ -243,6 +243,19 @@ function(_hio_add_installed_tree_tests)
         TIMEOUT 300
         RUN_SERIAL TRUE
         ENVIRONMENT "TSAN_OPTIONS=suppressions=${PROJECT_SOURCE_DIR}/tools/sanitizers/tsan-qml.supp:halt_on_error=1:second_deadlock_stack=1")
+    if(APPLE)
+        # ADR-0126 / plan 0015 D2: the installed bundle signed ad hoc, inside-out, with the
+        # hardened runtime; the entitlements of both binaries are checked (sign-and-notarize.sh).
+        set_tests_properties(Packaging.InstalledTreeSelfTest PROPERTIES
+            FIXTURES_SETUP hio_installed_tree)
+        add_test(NAME Packaging.MacosSignatureAndEntitlements
+            COMMAND "${PROJECT_SOURCE_DIR}/packaging/macos/sign-and-notarize.sh" sign
+                "${_prefix}/${HIO_MACOS_BUNDLE_DIR}" -)
+        set_tests_properties(Packaging.MacosSignatureAndEntitlements PROPERTIES
+            LABELS "package"
+            FIXTURES_REQUIRED hio_installed_tree
+            RUN_SERIAL TRUE)
+    endif()
     add_test(NAME Packaging.LicenceTableCoversCpmDependencies
         COMMAND "${CMAKE_COMMAND}"
             "-DHIO_DEPS_FILE=${PROJECT_SOURCE_DIR}/cmake/HioDeps.cmake"
