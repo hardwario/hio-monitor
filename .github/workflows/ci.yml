@@ -165,7 +165,7 @@ jobs:
             "${build_dir}/libs/core/tests/hio_core_tests"
             -object "${build_dir}/app/cli/tests/hio_cli_tests"
             -object "${build_dir}/app/cli/hio"
-            -object "${build_dir}/app/gui/tst_gui"
+            -object "${build_dir}/app/gui/tests/tst_gui"
           )
           ignore='(\.cpm-cache|/build/|/tests/)'
           llvm-cov-${LLVM_MAJOR} show "${objects[@]}" -instr-profile="${build_dir}/coverage.profdata" \
@@ -371,3 +371,12 @@ jobs:
           py=$(command -v python3 || command -v python)
           "$py" .github/ci-failure-notes.py "build/windows-${{ matrix.preset }}" \
             "$RUNNER_TEMP/configure.log" "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/coverage.log"
+      - name: TEMPORARY death test probe (plan 0023)
+        if: failure() && matrix.preset == 'debug'
+        shell: bash
+        run: |
+          exe=$(find build/windows-debug -name hio_gui_tests.exe | head -n 1)
+          timeout 90 "$exe" --gtest_filter=PageRegistry.DuplicatePageIsAProgrammingError \
+            > "$RUNNER_TEMP/death.log" 2>&1; echo "exit $?" >> "$RUNNER_TEMP/death.log"
+          py=$(command -v python3 || command -v python)
+          "$py" .github/ci-failure-notes.py build/none "$RUNNER_TEMP/death.log"

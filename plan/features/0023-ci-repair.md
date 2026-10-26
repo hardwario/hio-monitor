@@ -70,6 +70,30 @@ None.
 Each fix is a separate commit. Any fix that needs an architectural or otherwise important change
 (new dependency, interface change, test policy) stops and is asked first.
 
+### Findings during implementation (2026-10-26)
+
+Job logs need a GitHub sign-in; annotations do not. The branch therefore carries the problem
+matchers of `v2/m7-packaging` (permanent) and a TEMPORARY failure-notes step
+(`.github/ci-failure-notes.py`: failed test output and failed build edges as `::notice`
+annotations), removed before the merge together with the push trigger.
+
+| Area | Cause | Fix |
+|---|---|---|
+| Linux / Windows build | `std::expected<ToolResult>` meta type: libstdc++ < 15 and MSVC STL instantiate `operator==` | ADR-0177 (cherry-picked from `v2/m7-packaging` 61fc854 / 44efd03) |
+| macOS configure | `std::format` needs deployment target 13.3 | ADR-0179 |
+| macOS configure | Xcode 16 libc++: `std::jthread` / `stop_token` only with `-fexperimental-library` | ADR-0180 |
+| macOS build | `recordedAppName()` unused on macOS | `[[maybe_unused]]` |
+| `linux-tidy` (Qt 6.8.3) | include-cleaner wants `<QStringLiteral>` (and `<QChar>`, `<QLatin1Char>`); `QPointer` converts implicitly to `T*` (Qt 6.10: explicit `operator bool`); Qt 6.8 does not mark generated QML sources `SKIP_LINTING` | includes; `isNull()`; `hio_skip_linting_generated_sources()` and the `qt_add_qml_module` `OUTPUT_TARGETS` through `hio_skip_linting()` |
+| `linux-tsan` | glib wakeup-fd false positive fires on every `tst_gui` run with Qt 6.8.3; `race:tzset_internal` cannot match the stripped runner glibc | plans 0019 + 0020 brought in; `libc6-dbg` in the TSan job |
+| `linux-*` | no `cs_CZ.UTF-8` on the runner | `locale-gen` in the Linux jobs |
+| `linux-release` | `FlashTest.CatalogDownloadAndErrors` reached the real catalog (Release ignores `HIO_CATALOG_URL`); a scan test raced the 5 ms `waitFor()` slices | skip without `HIO_TEST_OVERRIDES`; step one event-loop pass at a time |
+| Windows build | MSVC STL array iterators; Linux-only helpers; `getenv` deprecation; `fs::path` → `std::wstring` | afa42dc, 57e0008 (cherry-picked); `_CRT_SECURE_NO_WARNINGS` for the fake nRF Util only; `.string()` |
+| Windows tests | text-mode `\r\n`; empty `PATH` hid the Qt DLLs (0xC0000135); `QStandardPaths` ignores the child's `LOCALAPPDATA` | test-side normalization; Qt `bin` on `PATH`; check the log file the message names |
+| Windows tests (round 2) | helper / MCP banner `\r\n`; recent list keeps `/` separators; `/nonexistent` is relative without a drive; a Windows-only lock test took its own lock; `QLocalServer` names are pipes, not files | normalization; `fromNativeSeparators`; absolute path from the test root; contents computed first; two socket-file tests Unix only |
+| macOS tests | `~SignalGuard` restored the default SIGPIPE action before exit, the C library's final stdout flush then killed `hio … \| head` (141); `detect_leaks` is fatal with ASan on Apple silicon; `QStandardPaths` ignores `HOME` / `XDG_*`; `.so` names; the real Bluetooth permission (TCC) answers instead of the fake scenario | SIGPIPE stays ignored; macOS ASan test preset without `detect_leaks`; Linux-only path checks and tests (with the reason); two permission tests skipped on macOS (with the reason) |
+| macOS + Windows | the firmware cache is in the system folders, so `CatalogNetworkDown` found `FlashByCatalogId`'s download | an ID that is never downloaded |
+| `linux-coverage` | `tst_gui` moved to `app/gui/tests/` | path in the coverage step |
+
 ## Decisions requiring user confirmation
 
 | Question | Options | Decision (by user) | ADR |
@@ -83,9 +107,9 @@ Each fix is a separate commit. Any fix that needs an architectural or otherwise 
 
 ## Implementation steps
 
-- [ ] A. ADR-0179, presets to 13.3, docs/plans updated
+- [x] A. ADR-0179, presets to 13.3, docs/plans updated
 - [ ] B. Qt 6.8.3 tidy: generated sources excluded, Qt includes added; zero findings on 6.8.3 and 6.10
-- [ ] C. `cs_CZ.UTF-8` generated in the Linux CI jobs
+- [x] C. `cs_CZ.UTF-8` generated in the Linux CI jobs
 - [ ] D. TSan `tst_gui` failures reproduced, cause fixed (documented)
 - [ ] E. Windows: cherry-picks + remaining compile and test fixes
 - [ ] F. macOS: build and tests pass on `macos-15`
@@ -100,6 +124,12 @@ Each fix is a separate commit. Any fix that needs an architectural or otherwise 
 - GitHub CI: one run where all jobs pass; run URLs recorded here.
 
 ## Risks and open points
+
+- Follow-up (not in this plan): on macOS and Windows the CLI end-to-end tests write logs, console
+  files and the firmware cache into the runner's real user folders, because `QStandardPaths`
+  ignores the `HOME` / `XDG_*` / `LOCALAPPDATA` the tests set for the child. Harmless on the
+  ephemeral CI runners, not on a developer's machine. Needs a decision (e.g. a test-only data-root
+  override under `HIO_TEST_OVERRIDES`).
 
 - Windows and macOS can only be tested on CI (slow iterations, ~1 h per round).
 - Follow-up on `v2/m7-packaging` after merge: plan 0015 `LSMinimumSystemVersion` 13.0 → 13.3, drop

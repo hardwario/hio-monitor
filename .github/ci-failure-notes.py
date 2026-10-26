@@ -25,8 +25,9 @@ def ctest_notes(build):
         return 0
     names = [l.split(":", 1)[1].strip() for l in failed.read_text(errors="replace").splitlines() if ":" in l]
     log = last.read_text(errors="replace")
-    count = 0
-    for name in names[:MAX_NOTES]:
+    note("failed tests (%d)" % len(names), names)
+    count = 1
+    for name in names[: MAX_NOTES - 1]:
         m = re.search(r"\d+/\d+ Testing: " + re.escape(name) + r"\n(.*?)(?=\n\d+/\d+ Testing: |\Z)", log, re.S)
         if m:
             note("test " + name, m.group(1).splitlines())
