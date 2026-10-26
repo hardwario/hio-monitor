@@ -48,6 +48,7 @@ protected:
             }
             process.waitForReadyRead(100);
             out += process.readAllStandardOutput();
+            out.replace("\r\n", "\n"); // Windows text-mode stdout
         }
         return true;
     }
