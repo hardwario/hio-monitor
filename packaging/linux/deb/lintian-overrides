@@ -1,0 +1,8 @@
+# hardwario-monitor lintian overrides (plan/features/0015 C2): only for the private Qt under
+# /opt/hardwario-monitor (ADR-0121) and what comes with it. Syntax of lintian 2.114 (the Ubuntu
+# 22.04 build container, packaging/linux/Containerfile).
+hardwario-monitor: dir-or-file-in-opt *
+# Qt's JPEG image format plugin links libjpeg statically (part of the official Qt binaries).
+hardwario-monitor: embedded-library libjpeg opt/hardwario-monitor/plugins/imageformats/libqjpeg.so
+# The ICU data library of the Qt binaries is a data-only shared object.
+hardwario-monitor: shared-library-lacks-prerequisites opt/hardwario-monitor/lib/libicudata.so.*

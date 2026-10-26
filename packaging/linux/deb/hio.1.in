@@ -1,0 +1,28 @@
+.TH HIO 1 "" "HARDWARIO Monitor @HIO_VERSION@" "User Commands"
+.SH NAME
+hio \- HARDWARIO Monitor command-line interface
+.SH SYNOPSIS
+.B hio
+[\fIoptions\fR] \fIcommand\fR ...
+.SH DESCRIPTION
+.B hio
+is the command-line interface of HARDWARIO Monitor: console, logs and flashing of HARDWARIO
+devices (such as CHESTER) through a SEGGER J-Link probe or Bluetooth, diagnostics
+(\fBhio doctor\fR, \fBhio diag report\fR), the update check (\fBhio update check\fR) and the
+MCP server (\fBhio mcp\fR). Every command has \fB\-\-help\fR; \fB\-\-json\fR gives
+machine-readable output.
+.PP
+SEGGER J-Link Software 8.00 or newer must be installed separately.
+.SH OPTIONS
+.TP
+.B \-h, \-\-help
+Print the help and exit.
+.TP
+.B \-\-version
+Print the version and exit.
+.TP
+.B \-\-json
+Machine-readable output: one JSON envelope per line on stdout.
+.SH SEE ALSO
+.BR hio-monitor (1),
+https://github.com/hardwario/hio-monitor

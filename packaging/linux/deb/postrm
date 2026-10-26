@@ -1,0 +1,11 @@
+#!/bin/sh
+# hardwario-monitor postrm (plan/features/0015 C2, ADR-0072): the udev rule is gone; reload udev.
+# Errors are ignored (e.g. no udev inside containers).
+set -e
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload-rules >/dev/null 2>&1 || true
+        udevadm trigger --subsystem-match=usb --attr-match=idVendor=1366 >/dev/null 2>&1 || true
+    fi
+fi
+exit 0

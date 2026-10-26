@@ -1,0 +1,16 @@
+.TH HIO-MONITOR 1 "" "HARDWARIO Monitor @HIO_VERSION@" "User Commands"
+.SH NAME
+hio-monitor \- HARDWARIO Monitor, console, log and flashing tool for HARDWARIO devices
+.SH SYNOPSIS
+.B hio-monitor
+.SH DESCRIPTION
+.B hio-monitor
+starts the HARDWARIO Monitor desktop application: device console and logs, application and
+modem firmware flashing and connection diagnostics for HARDWARIO devices such as CHESTER,
+through a SEGGER J-Link probe or Bluetooth. A second start brings the running window to the
+front.
+.PP
+SEGGER J-Link Software 8.00 or newer must be installed separately.
+.SH SEE ALSO
+.BR hio (1),
+https://github.com/hardwario/hio-monitor

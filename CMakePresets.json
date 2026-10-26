@@ -39,7 +39,11 @@
       "name": "linux-package",
       "displayName": "Linux package: .deb, then AppImage (plan 0015)",
       "inherits": "linux-release",
-      "cacheVariables": { "HIO_BUILD_TESTS": "OFF", "HIO_PACKAGE_KIND": "deb" }
+      "cacheVariables": {
+        "HIO_BUILD_TESTS": "OFF",
+        "HIO_PACKAGE_KIND": "deb",
+        "CMAKE_CXX_FLAGS": "-g"
+      }
     },
     {
       "name": "linux-asan",
@@ -112,7 +116,11 @@
       "name": "macos-package",
       "displayName": "macOS package: universal bundle + DMG (plan 0015)",
       "inherits": "macos-release",
-      "cacheVariables": { "HIO_BUILD_TESTS": "OFF", "HIO_PACKAGE_KIND": "macos-bundle" }
+      "cacheVariables": {
+        "HIO_BUILD_TESTS": "OFF",
+        "HIO_PACKAGE_KIND": "macos-bundle",
+        "CMAKE_CXX_FLAGS": "-g"
+      }
     },
     {
       "name": "windows-base",
@@ -140,7 +148,12 @@
       "name": "windows-package",
       "displayName": "Windows package: MSI, needs CMake >= 3.30 (plan 0015)",
       "inherits": "windows-release",
-      "cacheVariables": { "HIO_BUILD_TESTS": "OFF", "HIO_PACKAGE_KIND": "msi" }
+      "cacheVariables": {
+        "HIO_BUILD_TESTS": "OFF",
+        "HIO_PACKAGE_KIND": "msi",
+        "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "ProgramDatabase",
+        "CMAKE_EXE_LINKER_FLAGS": "/DEBUG /OPT:REF /OPT:ICF"
+      }
     }
   ],
   "buildPresets": [

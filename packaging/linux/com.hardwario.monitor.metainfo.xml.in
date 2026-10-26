@@ -25,7 +25,7 @@
   </developer>
   <url type="homepage">https://www.hardwario.com/</url>
   <url type="bugtracker">https://github.com/hardwario/hio-monitor/issues</url>
-  <url type="vcs-browser">https://github.com/hardwario/hio-monitor</url>
+  <url type="help">https://github.com/hardwario/hio-monitor</url>
   <launchable type="desktop-id">com.hardwario.monitor.desktop</launchable>
   <provides>
     <binary>hio-monitor</binary>

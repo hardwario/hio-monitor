@@ -1,0 +1,101 @@
+# HARDWARIO Monitor v2 - Linux package build image (plan/features/0015 phase C1, ADR-0121, ADR-0177).
+#
+# Ubuntu 22.04 (glibc 2.35 baseline) with:
+#   - LLVM/clang 21 from apt.llvm.org (jammy),
+#   - g++-13 / libstdc++-13-dev from the ubuntu-toolchain-r/test PPA: the C++ standard library the
+#     packages are built against (.deb: libstdc++6 >= 13). libstdc++ 13 is also the regression check
+#     of ADR-0177 (meta-registered std::expected types need operator==); do not raise it to 15.
+#   - CMake >= 3.28 from the Kitware APT repository, Ninja,
+#   - Qt 6.8.3 linux_gcc_64 + qtconnectivity installed by aqtinstall (pinned) into /opt/qt,
+#   - packaging tools: dpkg-dev, lintian, desktop-file-utils, appstream, file, patchelf,
+#   - linuxdeploy, appimagetool and the type-2 runtime (pinned releases, SHA-256 checked),
+#   - a UTF-8 locale (the tests need it).
+#
+# The image is built by CI (ci.yml package-linux, release.yml) and cached; it is never published.
+# Local use (packaging/README.md):
+#   docker build -t hio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
+FROM ubuntu:22.04@sha256:0a9887931b0e38af2e3487ed39e29436b0535c4f3f52e57745baaf79d1898956
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+ARG LLVM_MAJOR=21
+ARG GCC_MAJOR=13
+ARG QT_VERSION=6.8.3
+ARG AQT_VERSION=3.3.0
+ARG LINUXDEPLOY_RELEASE=1-alpha-20251107-1
+ARG LINUXDEPLOY_SHA256=c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d
+ARG APPIMAGETOOL_RELEASE=1.9.1
+ARG APPIMAGETOOL_SHA256=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+ARG RUNTIME_RELEASE=20251108
+ARG RUNTIME_SHA256=2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
+
+# Base tools and the libraries Qt 6.8 (xcb, wayland, GL, fontconfig, D-Bus) needs at build and test time.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl gnupg software-properties-common \
+        git git-lfs ninja-build python3 python3-venv \
+        file binutils patchelf squashfs-tools \
+        dpkg-dev fakeroot lintian desktop-file-utils appstream \
+        libgl1-mesa-dev libegl1-mesa-dev libglib2.0-0 libfontconfig1 libfreetype6 libdbus-1-3 \
+        libxkbcommon-dev libxkbcommon-x11-0 libx11-xcb1 libxcb1 libxcb-cursor0 libxcb-icccm4 \
+        libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 \
+        libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 libxcb-xkb1 libxcb-glx0 libxcb-xinput0 \
+        libwayland-client0 libwayland-cursor0 libwayland-egl1 libvulkan-dev libssl3 \
+        fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+# clang 21 (apt.llvm.org), CMake (Kitware APT), g++-13 / libstdc++-13 (toolchain PPA).
+RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+        | gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${LLVM_MAJOR} main" \
+        > /etc/apt/sources.list.d/llvm.list \
+    && curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc \
+        | gpg --dearmor -o /usr/share/keyrings/kitware.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/kitware.gpg] https://apt.kitware.com/ubuntu/ jammy main" \
+        > /etc/apt/sources.list.d/kitware.list \
+    && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        clang-${LLVM_MAJOR} lld-${LLVM_MAJOR} llvm-${LLVM_MAJOR} libclang-rt-${LLVM_MAJOR}-dev \
+        g++-${GCC_MAJOR} libstdc++-${GCC_MAJOR}-dev cmake \
+    && rm -rf /var/lib/apt/lists/* \
+    && test "$(ls /usr/include/c++ | sort -V | tail -n 1)" = "${GCC_MAJOR}" \
+    && cmake --version
+
+# Qt 6.8 LTS official binaries (glibc >= 2.28) via a pinned aqtinstall in its own venv.
+RUN python3 -m venv /opt/aqt \
+    && /opt/aqt/bin/pip install --no-cache-dir "aqtinstall==${AQT_VERSION}" \
+    && /opt/aqt/bin/aqt install-qt linux desktop "${QT_VERSION}" linux_gcc_64 \
+        -m qtconnectivity -O /opt/qt \
+    && rm -rf /root/.cache aqtinstall.log
+ENV QT_ROOT_DIR=/opt/qt/${QT_VERSION}/gcc_64
+
+# AppImage tools: official releases, SHA-256 checked, extracted (no FUSE inside containers).
+RUN set -eu; mkdir -p /opt/appimage && cd /opt/appimage \
+    && curl -fsSLo linuxdeploy.AppImage \
+        "https://github.com/linuxdeploy/linuxdeploy/releases/download/${LINUXDEPLOY_RELEASE}/linuxdeploy-x86_64.AppImage" \
+    && curl -fsSLo appimagetool.AppImage \
+        "https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_RELEASE}/appimagetool-x86_64.AppImage" \
+    && curl -fsSLo runtime-x86_64 \
+        "https://github.com/AppImage/type2-runtime/releases/download/${RUNTIME_RELEASE}/runtime-x86_64" \
+    && printf '%s  %s\n' "${LINUXDEPLOY_SHA256}" linuxdeploy.AppImage \
+        "${APPIMAGETOOL_SHA256}" appimagetool.AppImage "${RUNTIME_SHA256}" runtime-x86_64 \
+        | sha256sum -c - \
+    && chmod +x linuxdeploy.AppImage appimagetool.AppImage \
+    && ./linuxdeploy.AppImage --appimage-extract >/dev/null && mv squashfs-root linuxdeploy \
+    && ./appimagetool.AppImage --appimage-extract >/dev/null && mv squashfs-root appimagetool \
+    && rm linuxdeploy.AppImage appimagetool.AppImage \
+    && ln -s /opt/appimage/linuxdeploy/AppRun /usr/local/bin/linuxdeploy \
+    && ln -s /opt/appimage/appimagetool/AppRun /usr/local/bin/appimagetool
+ENV HIO_APPIMAGE_RUNTIME=/opt/appimage/runtime-x86_64
+
+# Locales for the tests: C.UTF-8 is the default; cs_CZ.UTF-8 checks that the CLI stays English
+# (app/cli/tests/e2e_test.cpp) and that the GUI's Czech texts load.
+RUN apt-get update && apt-get install -y --no-install-recommends locales \
+    && rm -rf /var/lib/apt/lists/* \
+    && sed -i -e 's/^# *\(cs_CZ.UTF-8\)/\1/' -e 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
+    && locale-gen
+
+# The build runs as the invoking user (docker run -u); give it a writable HOME.
+ENV HOME=/tmp/home
+RUN mkdir -m 1777 -p /tmp/home && git config --system --add safe.directory '*'

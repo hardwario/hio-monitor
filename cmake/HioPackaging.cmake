@@ -185,7 +185,9 @@ function(_hio_add_deploy_script)
     # Qt modules found in app/gui must be known here too.
     find_package(Qt6 6.8 REQUIRED COMPONENTS Gui Qml Quick QuickControls2)
     set(_script "${PROJECT_BINARY_DIR}/packaging/hio_deploy.cmake")
-    configure_file("${PROJECT_SOURCE_DIR}/cmake/HioDeploy.cmake.in" "${_script}" @ONLY)
+    # @VARIABLES@ first, then the generator expressions ($<TARGET_FILE:...>).
+    configure_file("${PROJECT_SOURCE_DIR}/cmake/HioDeploy.cmake.in" "${_script}.in" @ONLY)
+    file(GENERATE OUTPUT "${_script}" INPUT "${_script}.in")
     qt_generate_deploy_script(
         TARGET hio-monitor
         OUTPUT_SCRIPT _hio_deploy_script
@@ -235,10 +237,12 @@ function(_hio_add_installed_tree_tests)
             "-DHIO_PACKAGE_KIND=${HIO_PACKAGE_KIND}"
             "-DHIO_CONFIG=$<CONFIG>"
             -P "${PROJECT_SOURCE_DIR}/cmake/HioInstalledTreeTest.cmake")
+    # The GUI's self-test loads QML: under TSan with the suppressions of the Qt Quick tests.
     set_tests_properties(Packaging.InstalledTreeSelfTest PROPERTIES
         LABELS "package"
         TIMEOUT 300
-        RUN_SERIAL TRUE)
+        RUN_SERIAL TRUE
+        ENVIRONMENT "TSAN_OPTIONS=suppressions=${PROJECT_SOURCE_DIR}/tools/sanitizers/tsan-qml.supp:halt_on_error=1:second_deadlock_stack=1")
     add_test(NAME Packaging.LicenceTableCoversCpmDependencies
         COMMAND "${CMAKE_COMMAND}"
             "-DHIO_DEPS_FILE=${PROJECT_SOURCE_DIR}/cmake/HioDeps.cmake"
@@ -257,6 +261,8 @@ function(_hio_configure_cpack)
     set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE")
     set(CPACK_PACKAGE_DIRECTORY "${PROJECT_BINARY_DIR}/packages")
     set(CPACK_STRIP_FILES OFF) # symbols are split by the release workflow (ADR-0123)
+    # The version in artifact names (ADR-0125): the tag's version; build metadata with '.'.
+    string(REPLACE "+" "." HIO_VERSION_FILE_NAME "${HIO_VERSION}")
 
     if(HIO_PACKAGE_KIND STREQUAL "deb")
         include("${PROJECT_SOURCE_DIR}/packaging/linux/deb/cpack-deb.cmake")
@@ -295,10 +301,11 @@ function(hio_add_packaging)
             # ADR-0072 / ADR-0121: J-Link USB access for the logged-in user.
             install(FILES "${PROJECT_SOURCE_DIR}/packaging/linux/60-hardwario-jlink.rules"
                 DESTINATION "usr/lib/udev/rules.d")
-            # ADR-0122: hio-monitor and hio on PATH (relative links into /opt).
+            # ADR-0122: hio-monitor and hio on PATH (absolute links into /opt, Debian policy for
+            # links between top-level directories).
             file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/packaging/usr-bin")
             foreach(_exe IN ITEMS hio-monitor hio)
-                file(CREATE_LINK "../../${HIO_INSTALL_APPDIR}/bin/${_exe}"
+                file(CREATE_LINK "/${HIO_INSTALL_APPDIR}/bin/${_exe}"
                     "${PROJECT_BINARY_DIR}/packaging/usr-bin/${_exe}" SYMBOLIC)
                 install(FILES "${PROJECT_BINARY_DIR}/packaging/usr-bin/${_exe}"
                     DESTINATION "usr/bin")

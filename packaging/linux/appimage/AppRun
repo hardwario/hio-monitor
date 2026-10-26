@@ -1,0 +1,39 @@
+#!/bin/sh
+# HARDWARIO Monitor AppRun (plan/features/0015 C3, ADR-0121, ADR-0122).
+#
+# checkrt: usr/optional/{libstdc++,libgcc_s} hold the build's C++ runtime (libstdc++ 13 from the
+# Ubuntu 22.04 build container). They are put on LD_LIBRARY_PATH only when the bundled libstdc++ is
+# newer than the system one (e.g. on Ubuntu 22.04 itself, which has libstdc++ 12).
+#
+# Dispatch: started through a link named `hio` (basename of $ARGV0, set by the AppImage runtime) or
+# with `hio` as the first argument -> usr/bin/hio with the remaining arguments; otherwise the GUI.
+HERE="$(dirname "$(readlink -f "$0")")"
+
+ldconfig_bin=ldconfig
+[ -x /sbin/ldconfig ] && ldconfig_bin=/sbin/ldconfig
+system_lib() { "$ldconfig_bin" -p 2>/dev/null | awk -v n="$1" '$1 == n && /x86-64/ { print $NF; exit }'; }
+bundled="$(basename "$(readlink -f "$HERE/usr/optional/libstdc++/libstdc++.so.6")")"
+system="$(system_lib libstdc++.so.6)"
+system="${system:+$(basename "$(readlink -f "$system")")}"
+use_bundled=0
+if [ -z "$system" ]; then
+    use_bundled=1
+elif [ "$bundled" != "$system" ] && \
+     [ "$(printf '%s\n%s\n' "$bundled" "$system" | sort -V | tail -n 1)" = "$bundled" ]; then
+    use_bundled=1
+fi
+if [ "$use_bundled" = 1 ]; then
+    LD_LIBRARY_PATH="$HERE/usr/optional/libstdc++:$HERE/usr/optional/libgcc_s${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export LD_LIBRARY_PATH
+fi
+[ -n "${HIO_APPRUN_DEBUG:-}" ] && echo "AppRun: bundled=$bundled system=$system use_bundled=$use_bundled" >&2
+
+self="${ARGV0:-$0}"
+if [ "$(basename "$self")" = "hio" ]; then
+    exec "$HERE/usr/bin/hio" "$@"
+fi
+if [ "${1:-}" = "hio" ]; then
+    shift
+    exec "$HERE/usr/bin/hio" "$@"
+fi
+exec "$HERE/usr/bin/hio-monitor" "$@"

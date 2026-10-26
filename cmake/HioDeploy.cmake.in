@@ -29,11 +29,14 @@ if(_hio_os STREQUAL "linux")
     # of the linked Qt modules and differs between Qt versions; here the plugins and QML modules are
     # explicit allow-lists, and only libraries from Qt's own lib directory are copied (the rest is
     # the system's: the .deb depends on it, the AppImage gets it from linuxdeploy).
-    set(_hio_prefix "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
+    # _hio_prefix: the application directory as install destination (file(INSTALL) adds DESTDIR
+    # itself); _hio_staged: the same directory on disk (DESTDIR included) for reading and writing.
+    set(_hio_prefix "${CMAKE_INSTALL_PREFIX}")
     set(_hio_app "@HIO_INSTALL_APPDIR@")
     if(_hio_app)
         string(APPEND _hio_prefix "/${_hio_app}")
     endif()
+    set(_hio_staged "$ENV{DESTDIR}${_hio_prefix}")
     set(_hio_qt_lib_dir "@HIO_DEPLOY_QT_LIB_DIR@")
 
     # Qt plugins: the allow-list HIO_LINUX_QT_PLUGINS (cmake/HioPackaging.cmake).
@@ -79,10 +82,10 @@ if(_hio_os STREQUAL "linux")
     if(_hio_qt_lib_dir MATCHES "^/(usr/)?lib")
         message(STATUS "Qt libraries are system libraries (${_hio_qt_lib_dir}): not deployed")
     else()
+        # The build-tree executables: their build RPATH points at Qt's lib directory.
         file(GET_RUNTIME_DEPENDENCIES
-            EXECUTABLES "${_hio_prefix}/bin/hio-monitor" "${_hio_prefix}/bin/hio"
+            EXECUTABLES "$<TARGET_FILE:hio-monitor>" "$<TARGET_FILE:hio>"
             MODULES ${_hio_modules}
-            DIRECTORIES "${_hio_qt_lib_dir}"
             RESOLVED_DEPENDENCIES_VAR _resolved
             UNRESOLVED_DEPENDENCIES_VAR _unresolved)
         if(_unresolved)
@@ -104,7 +107,7 @@ if(_hio_os STREQUAL "linux")
     endif()
 
     # qt.conf next to the executables: Qt's paths relative to the application directory.
-    file(WRITE "${_hio_prefix}/bin/qt.conf" "[Paths]\nPrefix = ..\n")
+    file(WRITE "${_hio_staged}/bin/qt.conf" "[Paths]\nPrefix = ..\n")
     _hio_deploy_qt_translations("${_hio_prefix}/translations")
 
 elseif(_hio_os STREQUAL "macos")
@@ -119,7 +122,8 @@ elseif(_hio_os STREQUAL "macos")
     # macdeployqt's Contents/Resources/qt.conf has no Translations entry.
     file(APPEND "${QT_DEPLOY_PREFIX}/${_hio_bundle}/Contents/Resources/qt.conf"
         "Translations = Resources/translations\n")
-    _hio_deploy_qt_translations("${QT_DEPLOY_PREFIX}/${_hio_bundle}/Contents/Resources/translations")
+    # file(INSTALL) destinations without DESTDIR (it is added by file(INSTALL) itself).
+    _hio_deploy_qt_translations("${CMAKE_INSTALL_PREFIX}/${_hio_bundle}/Contents/Resources/translations")
 
 elseif(_hio_os STREQUAL "windows")
     # windeployqt: Qt DLLs next to the executables, plugins/ and qml/ (scanned from app/gui/qml);
@@ -136,5 +140,5 @@ elseif(_hio_os STREQUAL "windows")
         NO_COMPILER_RUNTIME
         DEPLOY_TOOL_OPTIONS --qmldir "${_hio_qml_source}" --no-system-d3d-compiler --no-opengl-sw
             --skip-plugin-types qmltooling,generic,networkinformation)
-    _hio_deploy_qt_translations("${QT_DEPLOY_PREFIX}/translations")
+    _hio_deploy_qt_translations("${CMAKE_INSTALL_PREFIX}/translations")
 endif()

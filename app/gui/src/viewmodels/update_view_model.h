@@ -21,8 +21,8 @@
 #include <QString>
 #include <QUrl>
 #include <QtQmlIntegration>
+#include <QtTypes>
 
-#include <cstdint>
 #include <functional>
 
 namespace hio::gui {
@@ -48,7 +48,7 @@ class UpdateViewModel : public QObject {
     Q_PROPERTY(QString bannerText READ bannerText NOTIFY changed)
 
 public:
-    enum class State : std::uint8_t { Idle, Checking, UpToDate, Available, Failed };
+    enum class State : quint8 { Idle, Checking, UpToDate, Available, Failed };
     Q_ENUM(State)
 
     // `openUrl` empty: QDesktopServices::openUrl (the tests pass their own).

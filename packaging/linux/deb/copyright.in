@@ -1,0 +1,24 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: hio-monitor
+Upstream-Contact: HARDWARIO a.s. <https://www.hardwario.com/>
+Source: https://github.com/hardwario/hio-monitor
+
+Files: *
+Copyright: 2026 HARDWARIO a.s.
+License: LicenseRef-HARDWARIO-5-Clause
+ See /opt/hardwario-monitor/licenses/LICENSE.
+
+Files: opt/hardwario-monitor/lib/* opt/hardwario-monitor/plugins/* opt/hardwario-monitor/qml/*
+ opt/hardwario-monitor/translations/*
+Copyright: The Qt Company Ltd. and other contributors
+License: LGPL-3.0-only
+ Qt @QT_VERSION@ under the GNU Lesser General Public License version 3. On Debian systems the full
+ text is in /usr/share/common-licenses/LGPL-3; it is also in
+ /opt/hardwario-monitor/licenses/Qt-LGPL-3.0.txt. The Qt source code: see
+ /opt/hardwario-monitor/licenses/Qt-SOURCE.txt.
+
+Files: */licenses/THIRD-PARTY-NOTICES.txt
+Copyright: see the file
+License: various
+ The other third-party components (CLI11, replxx, miniz, Inter, JetBrains Mono, Material Symbols)
+ and their licences are listed in /opt/hardwario-monitor/licenses/THIRD-PARTY-NOTICES.txt.
