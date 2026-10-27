@@ -264,8 +264,13 @@ void FakeBleApi::stopScan() {
 Result<LinkId> FakeBleApi::connect(const BleDeviceId& deviceId, const NusUuids& /*uuids*/) {
     checkThread();
     const LinkId id = m_nextLink++;
-    Link link{
-        .id = id, .device = 0, .context = std::make_unique<QObject>(), .input = {}, .ready = false};
+    Link link{.id = id,
+              .device = 0,
+              .context = std::make_unique<QObject>(),
+              .input = {},
+              .ready = false,
+              .nextAnswer = {},
+              .answers = {}};
     const FakeDevice* item = device(deviceId);
     if (item == nullptr) {
         QTimer::singleShot(std::chrono::milliseconds(20), link.context.get(), [this, id] {
@@ -392,10 +397,25 @@ void FakeBleApi::received(LinkId id, std::string_view bytes) {
 void FakeBleApi::answer(Link& link, std::chrono::milliseconds delay, std::string text) {
     const auto now = std::chrono::steady_clock::now();
     link.nextAnswer = std::max(now + delay, link.nextAnswer);
-    // Qt fires timers with the same deadline in the order they were started.
+    link.answers.push_back({.due = link.nextAnswer, .text = std::move(text)});
     QTimer::singleShot(std::chrono::ceil<std::chrono::milliseconds>(link.nextAnswer - now),
                        Qt::PreciseTimer, link.context.get(),
-                       [this, id = link.id, text = std::move(text)] { send(id, text); });
+                       [this, id = link.id] { sendDueAnswers(id); });
+}
+
+void FakeBleApi::sendDueAnswers(LinkId id) {
+    // One timer per answer: each wake sends the oldest answer (as its own timer would have), then
+    // the later ones that are due already.
+    const auto now = std::chrono::steady_clock::now();
+    bool first = true;
+    for (Link* link = find(id);
+         link != nullptr && !link->answers.empty() && (first || link->answers.front().due <= now);
+         first = false) {
+        const std::string text = std::move(link->answers.front().text);
+        link->answers.pop_front();
+        send(id, text);
+        link = find(id); // send() may end the link
+    }
 }
 
 Status FakeBleApi::write(LinkId id, std::span<const std::byte> chunk, WriteMode /*mode*/,
