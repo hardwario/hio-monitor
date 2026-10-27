@@ -6,9 +6,12 @@
 
 #include <QByteArray>
 #include <QDir>
+#include <QFile>
+#include <QIODevice>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QList>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QStandardPaths>
@@ -19,6 +22,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <format>
 #include <qcontainerfwd.h>
@@ -300,10 +304,11 @@ TEST_F(FakeBleCli, CommandWithManyLinesWritesThemAll) {
     for (int i = 0; i < 300; ++i) {
         many += QStringLiteral("version\n");
     }
-    const RunResult result =
-        hio("chester.json",
-            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"), many,
-             QStringLiteral("-a"), device, QStringLiteral("-t"), QStringLiteral("5")});
+    const QString consoleFile = home() + QStringLiteral("/many.log");
+    const RunResult result = hio(
+        "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
+                         many, QStringLiteral("-a"), device, QStringLiteral("-t"),
+                         QStringLiteral("5"), QStringLiteral("--console-file"), consoleFile});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     const QJsonArray output =
         data(envelopes(result.out).at(0)).value(QStringLiteral("output")).toArray();
@@ -313,7 +318,23 @@ TEST_F(FakeBleCli, CommandWithManyLinesWritesThemAll) {
             unexpected += std::format("[{}] '{}' ", i, output.at(i).toString().toStdString());
         }
     }
-    EXPECT_EQ(output.size(), 300) << unexpected;
+    // TEMPORARY (plan 0023): the console file around the first unexpected line, with timestamps.
+    std::string context;
+    if (output.size() != 300) {
+        QFile file(consoleFile);
+        if (file.open(QIODevice::ReadOnly)) {
+            const QList<QByteArray> lines = file.readAll().split('\n');
+            qsizetype first = 0;
+            while (first < lines.size() && !lines.at(first).trimmed().endsWith(" >")) {
+                ++first;
+            }
+            for (qsizetype i = std::max<qsizetype>(0, first - 25);
+                 i < std::min(lines.size(), first + 15); ++i) {
+                context += lines.at(i).toStdString() + "\n";
+            }
+        }
+    }
+    EXPECT_EQ(output.size(), 300) << unexpected << "\n" << context;
 }
 
 // Review B6: another spelling of the address is the same device.
