@@ -96,9 +96,26 @@ TEST(Offloader, RunsFourQueuesSixteenRefusesTheTwentyFirst) {
         expected.push_back(i);
     }
     EXPECT_EQ(sorted, expected);
-    // The queue is FIFO: the queued jobs (4..19) start in order, so 4 finishes before 19.
-    const auto position = [&results](int value) { return std::ranges::find(results, value); };
-    EXPECT_LT(position(4), position(19));
+}
+
+// The queue is FIFO. With one running job the order of the results is the order of the queue;
+// with four, the finish order also depends on the scheduling of the worker threads (linux-release
+// CI once finished 19 before 4, plan 0023).
+TEST(Offloader, QueuedJobsRunInOrder) {
+    Offloader offloader(1, 8);
+    QObject receiver;
+    auto gate = std::make_shared<Gate>();
+    std::vector<int> results;
+    std::vector<Offloader::Handle> handles;
+    for (int i = 0; i < 8; ++i) {
+        auto handle = offloader.submit<int>(receiver, waitingJob(gate, i),
+                                            [&results](int value) { results.push_back(value); });
+        ASSERT_TRUE(handle.has_value()) << i;
+        handles.push_back(std::move(*handle));
+    }
+    gate->open = true;
+    ASSERT_TRUE(runUntil([&] { return results.size() == 8; }));
+    EXPECT_EQ(results, (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7}));
 }
 
 TEST(Offloader, CancelWhileQueued) {

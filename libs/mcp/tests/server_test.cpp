@@ -462,7 +462,9 @@ TEST_F(ServerTest, LegacyHttpSessionGetStreamReceivesNotifications) {
 
 TEST_F(ServerTest, LegacySessionsExpireAndAreLimited) {
     Limits limits;
-    limits.legacySessionIdle = 100ms;
+    // 300 ms against pings every 30 ms: a busy Windows runner once let 100 ms pass between two
+    // pings, and `second` expired as well (plan 0023).
+    limits.legacySessionIdle = 300ms;
     limits.maxLegacySessions = 2;
     makeServer(limits);
     const std::string first = legacyHttpSession();
@@ -472,12 +474,12 @@ TEST_F(ServerTest, LegacySessionsExpireAndAreLimited) {
     EXPECT_EQ(third->meta.status, ReplyStatus::ServiceUnavailable);
 
     // Keep `second` alive; `first` expires.
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 12; ++i) {
         runFor(30ms);
         server->handle(request(10 + i, QStringLiteral("ping"), {}, false),
                        std::make_shared<RecordingReplyChannel>(), http(second));
     }
-    ASSERT_TRUE(runUntil([&] { return server->legacySessionCount() == 1; }, 1000ms));
+    ASSERT_TRUE(runUntil([&] { return server->legacySessionCount() == 1; }, 2000ms));
     auto expired = std::make_shared<RecordingReplyChannel>();
     server->handle(request(3, QStringLiteral("ping"), {}, false), expired, http(first));
     EXPECT_EQ(expired->meta.status, ReplyStatus::NotFound);
