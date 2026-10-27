@@ -15,10 +15,12 @@
 #include <QString>
 #include <QStringList>
 #include <QStringLiteral>
+#include <QtTypes>
 
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <format>
 #include <qcontainerfwd.h>
 #include <string>
 #include <utility>
@@ -305,7 +307,13 @@ TEST_F(FakeBleCli, CommandWithManyLinesWritesThemAll) {
     ASSERT_EQ(result.exitCode, 0) << result.err;
     const QJsonArray output =
         data(envelopes(result.out).at(0)).value(QStringLiteral("output")).toArray();
-    EXPECT_EQ(output.size(), 300) << result.out.substr(0, 3000);
+    std::string unexpected; // the entries that are not the answer to "version"
+    for (qsizetype i = 0; i < output.size(); ++i) {
+        if (output.at(i).toString() != QStringLiteral("Firmware version: v3.1.0")) {
+            unexpected += std::format("[{}] '{}' ", i, output.at(i).toString().toStdString());
+        }
+    }
+    EXPECT_EQ(output.size(), 300) << unexpected;
 }
 
 // Review B6: another spelling of the address is the same device.

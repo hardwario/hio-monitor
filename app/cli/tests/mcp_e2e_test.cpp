@@ -703,7 +703,9 @@ TEST_F(McpHttpCli, TokenFileIsCreatedAndGeneratedTokenIsPrinted) {
                        fakeEnvironment());
         ASSERT_TRUE(mcp.started());
         ASSERT_TRUE(waitForBanner(mcp)) << mcp.err();
-        EXPECT_NE(mcp.err().find("Token: from " + tokenFile.toStdString() + "\n"),
+        // The path as the OS writes it ('\\' separators on Windows).
+        EXPECT_NE(mcp.err().find("Token: from " +
+                                 QDir::toNativeSeparators(tokenFile).toStdString() + "\n"),
                   std::string::npos)
             << mcp.err();
         EXPECT_NE(mcp.err().find("Allowed destructive tools: none\n"), std::string::npos);

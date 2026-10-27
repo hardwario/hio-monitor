@@ -376,7 +376,9 @@ jobs:
         shell: bash
         run: |
           exe=$(find build/windows-debug -name hio_gui_tests.exe | head -n 1)
-          timeout 90 "$exe" --gtest_filter=PageRegistry.DuplicatePageIsAProgrammingError \
-            > "$RUNNER_TEMP/death.log" 2>&1; echo "exit $?" >> "$RUNNER_TEMP/death.log"
+          status=0
+          /usr/bin/timeout 90 "$exe" --gtest_filter=PageRegistry.DuplicatePageIsAProgrammingError \
+            > "$RUNNER_TEMP/death.log" 2>&1 || status=$?
+          echo "exit $status" >> "$RUNNER_TEMP/death.log"
           py=$(command -v python3 || command -v python)
           "$py" .github/ci-failure-notes.py build/none "$RUNNER_TEMP/death.log"
