@@ -9,6 +9,12 @@
 #include <QString>
 #include <QtEnvironmentVariables>
 
+#ifdef _WIN32
+#include <QtLogging>
+
+#include <cstdlib>
+#endif
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -36,9 +42,25 @@ int holdLockFile(int argc, char** argv, const QString& path) {
     return 0;
 }
 
+#ifdef _WIN32
+// Windows: Qt's default handler writes to the debugger (OutputDebugString) when stderr is not a
+// console, and its fatal path does not end the process cleanly on the CI runner, so the death
+// tests (debug assertions of the registries) waited for their child until the ctest timeout and
+// never saw the message. Here every message goes to stderr and a fatal one ends the process.
+void testMessageHandler(QtMsgType type, const QMessageLogContext& context, const QString& text) {
+    std::cerr << qFormatLogMessage(type, context, text).toStdString() << '\n' << std::flush;
+    if (type == QtFatalMsg) {
+        std::_Exit(EXIT_FAILURE);
+    }
+}
+#endif
+
 } // namespace
 
 int main(int argc, char** argv) {
+#ifdef _WIN32
+    qInstallMessageHandler(testMessageHandler);
+#endif
     if (const QString lockFile = qEnvironmentVariable("HIO_TEST_HOLD_LOCK_FILE");
         !lockFile.isEmpty()) {
         return holdLockFile(argc, argv, lockFile);
