@@ -1,6 +1,6 @@
 # ADR-0170 — Console autocompletion: history suggestions and device commands
 
-- **Status:** Accepted (amends ADR-0033 for the CLI; refined 2026-10-20: `help` on connect with a setting, automatic list)
+- **Status:** Accepted (amends ADR-0033 for the CLI; refined 2026-10-20: `help` on connect with a setting, automatic list; subcommand queries amended by ADR-0178 (Proposed))
 - **Date:** 2026-10-20
 - **Decided by:** Matej Strnad (GUI feedback round 1, plan 0021)
 
