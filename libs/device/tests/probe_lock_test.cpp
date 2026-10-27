@@ -192,7 +192,7 @@ TEST_F(Lock, StaleLockOfADeadProcessIsTakenOver) {
 // Review R51: owner() of another process holds a stale lock file's flock for a moment while it
 // checks it (as QLockFile's removeStaleLock() would), so QLockFile cannot take the stale lock
 // over meanwhile. acquire() tries once more 10 ms later instead of reporting the dead owner (here
-// a thread of this process holds the flock for 5 ms through its own file description).
+// a thread of this process holds the flock for 1 ms through its own file description).
 TEST_F(Lock, StaleLockBrieflyHeldByAnOwnerCheckIsTakenOver) {
     QProcess gone;
     const QByteArray app = startSleep(gone, QStringLiteral("0.1"));
@@ -209,7 +209,9 @@ TEST_F(Lock, StaleLockBrieflyHeldByAnOwnerCheckIsTakenOver) {
             static_cast<void>(::flock(file.handle(), LOCK_EX));
         }
         held.count_down();
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        // 1 ms: well below acquire()'s 10 ms retry delay even on a busy runner (macOS CI woke
+        // this thread more than 10 ms after a 5 ms sleep; plan 0023, decided by the user).
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         file.close(); // releases the flock
     });
     held.wait();

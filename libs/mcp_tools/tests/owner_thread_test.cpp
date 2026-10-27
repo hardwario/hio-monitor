@@ -28,9 +28,10 @@ namespace {
 
 using namespace std::chrono_literals;
 
-// The bound applies to the normal (debug / release) builds. ASan/UBSan slow everything down by
-// about 2-3x (bound 100 ms); under TSan (5-15x, and DeviceSession's own event batches dominate) the
-// latency is only recorded, not checked.
+// The bound applies to the normal (debug / release) builds: 20 ms, 50 ms on macOS, whose CI
+// runners showed 29-37 ms of timer and scheduler jitter in Debug (plan 0023, decided by the user).
+// ASan/UBSan slow everything down by about 2-3x (bound 100 ms); under TSan (5-15x, and
+// DeviceSession's own event batches dominate) the latency is only recorded, not checked.
 #ifdef __has_feature
 #if __has_feature(thread_sanitizer)
 constexpr bool checkLatency = false;
@@ -38,6 +39,9 @@ constexpr auto allowedLatency = 1000ms;
 #elif __has_feature(address_sanitizer)
 constexpr bool checkLatency = true;
 constexpr auto allowedLatency = 100ms;
+#elifdef __APPLE__
+constexpr bool checkLatency = true;
+constexpr auto allowedLatency = 50ms;
 #else
 constexpr bool checkLatency = true;
 constexpr auto allowedLatency = 20ms;
