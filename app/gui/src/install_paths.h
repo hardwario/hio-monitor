@@ -20,11 +20,17 @@ namespace hwio::gui {
 // file URL; empty when it does not exist).
 [[nodiscard]] QUrl licenceFile(const QString& fileName);
 
-// The command that runs the CLI of this installation (a path, or `"<AppImage>" hwio`).
+// The command that runs the CLI of this installation (a path, or `'<AppImage>' hwio` with the
+// AppImage path shell-quoted).
 [[nodiscard]] QString cliCommand();
 
-// macOS: the command that links the CLI into /usr/local/bin ("" elsewhere and for dev builds).
+// macOS: the command that links the CLI into /usr/local/bin ("" elsewhere and for dev builds);
+// the bundle path is shell-quoted.
 [[nodiscard]] QString cliSymlinkCommand();
+
+// Review L-18 (plan/features/0025): `text` as one POSIX shell word: in single quotes, each `'`
+// written as `'\''`. Nothing inside single quotes is special (", $, `, \, spaces).
+[[nodiscard]] QString shellQuote(const QString& text);
 
 // The CLI is on PATH (deb: /usr/bin, msi: the installer's PATH entry).
 [[nodiscard]] bool cliOnPath();

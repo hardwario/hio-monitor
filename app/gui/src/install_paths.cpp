@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QLatin1Char>
 #include <QString>
 #include <QStringLiteral>
 #include <QUrl>
@@ -72,6 +73,12 @@ QString devLicenceFile(const QString& fileName) {
 
 } // namespace
 
+QString shellQuote(const QString& text) {
+    QString quoted = text;
+    quoted.replace(QLatin1Char('\''), QStringLiteral("'\\''"));
+    return QLatin1Char('\'') + quoted + QLatin1Char('\'');
+}
+
 QUrl licenceFile(const QString& fileName) {
     QString path = QDir(installedLicensesDir()).absoluteFilePath(fileName);
 #ifdef HWIO_GUI_DEV_SOURCE_DIR
@@ -93,8 +100,8 @@ QString cliCommand() {
     }
     if (kind == QStringLiteral("appimage")) {
         const QString appImage = qEnvironmentVariable("APPIMAGE");
-        return QStringLiteral("\"%1\" hwio")
-            .arg(appImage.isEmpty() ? QStringLiteral("<AppImage>") : appImage);
+        return shellQuote(appImage.isEmpty() ? QStringLiteral("<AppImage>") : appImage) +
+               QStringLiteral(" hwio");
     }
     if (kind == QStringLiteral("macos-bundle") || kind == QStringLiteral("msi")) {
         return QDir::toNativeSeparators(bin.absoluteFilePath(exe(QStringLiteral("hwio"))));
@@ -112,7 +119,7 @@ QString cliSymlinkCommand() {
     if (packageKind() != QStringLiteral("macos-bundle")) {
         return {};
     }
-    return QStringLiteral("sudo ln -s '%1' /usr/local/bin/hwio").arg(cliCommand());
+    return QStringLiteral("sudo ln -s %1 /usr/local/bin/hwio").arg(shellQuote(cliCommand()));
 }
 
 bool cliOnPath() {

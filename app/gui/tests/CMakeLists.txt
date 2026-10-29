@@ -64,6 +64,7 @@ add_executable(hwio_gui_tests
     viewmodels/find_filter_engine_test.cpp
     viewmodels/flash_view_model_test.cpp
     viewmodels/gui_test_support.h
+    viewmodels/install_paths_test.cpp
     viewmodels/main.cpp
     viewmodels/page_registry_test.cpp
     viewmodels/probe_picker_test.cpp

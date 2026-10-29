@@ -53,10 +53,11 @@ std::optional<ReleaseInfo> toRelease(const QJsonObject& entry, bool includePrere
     if (prerelease && !includePrerelease) {
         return std::nullopt;
     }
-    QUrl htmlUrl(entry.value(QStringLiteral("html_url")).toString());
-    if (!htmlUrl.isValid() || htmlUrl.scheme() != QStringLiteral("https")) {
-        htmlUrl = QUrl(QString::fromLatin1(releasesPageUrl) + QStringLiteral("/tag/") + tag);
-    }
+    // Review L-4 (plan/features/0025): the page opened by [Download] is always built from the
+    // validated tag; the feed's html_url is ignored (a tampered feed cannot point elsewhere).
+    // setPath() percent-encodes anything that is not a path character.
+    QUrl htmlUrl(QString::fromLatin1(releasesPageUrl));
+    htmlUrl.setPath(htmlUrl.path() + QStringLiteral("/tag/") + tag);
     QDateTime publishedAt =
         QDateTime::fromString(entry.value(QStringLiteral("published_at")).toString(), Qt::ISODate);
     if (publishedAt.isValid()) {
