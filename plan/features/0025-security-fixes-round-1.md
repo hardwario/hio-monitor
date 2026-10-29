@@ -180,7 +180,7 @@ why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 1 auth f
 - [x] F. M-3 udev + diag text; M-6 RTT cap; M-8 MCP auth.
 - [x] G. M-5 hardening flags + `binary_hardening_check`; L-5 release.yml.
 - [x] H. L-4, L-17, L-18.
-- [ ] I. `update_translations` + Czech entries; verification below.
+- [x] I. `update_translations` + Czech entries; verification below.
 
 ## Tests and verification
 
