@@ -1,4 +1,4 @@
-// End-to-end tests of the M1 commands (plan/features/0002, phase F5): the real `hio` executable
+// End-to-end tests of the M1 commands (plan/features/0002, phase F5): the real `hwio` executable
 // with the test-only fake J-Link library (tests/fake_jlink) and JSON scenarios.
 
 #include "cli_process.h"
@@ -28,8 +28,8 @@
 
 namespace {
 
-using hio::cli::test::CliProcess;
-using hio::cli::test::RunResult;
+using hwio::cli::test::CliProcess;
+using hwio::cli::test::RunResult;
 
 constexpr const char* twoProbes = R"({
   "probes": [
@@ -92,20 +92,20 @@ protected:
 
     [[nodiscard]] QProcessEnvironment fakeEnvironment() const {
         QProcessEnvironment env = environment();
-        env.insert(QStringLiteral("HIO_FAKE_JLINK_SCENARIO"),
+        env.insert(QStringLiteral("HWIO_FAKE_JLINK_SCENARIO"),
                    home() + QStringLiteral("/scenario.json"));
-        env.insert(QStringLiteral("HIO_JLINK_LIBRARY"), QStringLiteral(HIO_FAKE_JLINK_LIBRARY));
+        env.insert(QStringLiteral("HWIO_JLINK_LIBRARY"), QStringLiteral(HWIO_FAKE_JLINK_LIBRARY));
         return env;
     }
 
-    [[nodiscard]] RunResult hio(const QStringList& args, const QByteArray& input = {}) const {
+    [[nodiscard]] RunResult hwio(const QStringList& args, const QByteArray& input = {}) const {
         return run(args, fakeEnvironment(), input);
     }
 };
 
 TEST_F(FakeJLinkCli, JLinkListJson) {
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
+        hwio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
     ASSERT_TRUE(result.normalExit);
     EXPECT_EQ(result.exitCode, 0) << result.err;
     const auto all = envelopes(result.out);
@@ -123,7 +123,7 @@ TEST_F(FakeJLinkCli, JLinkListJson) {
     // `list` never opens a probe: unknown firmware is null (decided 2026-10-09).
     EXPECT_TRUE(first.value(QStringLiteral("firmware")).isNull());
 
-    const RunResult human = hio({QStringLiteral("jlink"), QStringLiteral("list")});
+    const RunResult human = hwio({QStringLiteral("jlink"), QStringLiteral("list")});
     EXPECT_NE(human.out.find("801000001      Test Probe    usb         \u2014         \u2014"),
               std::string::npos)
         << human.out;
@@ -134,7 +134,7 @@ TEST_F(FakeJLinkCli, JLinkListShowsNetworkProbes) {
     useScenario(R"({"probes": [{"serialNumber": 70, "product": "Test Probe IP",
                                 "connection": "ip"}, {"serialNumber": 71}]})");
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
+        hwio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
     EXPECT_EQ(result.exitCode, 0);
     const QJsonArray probes =
         data(envelopes(result.out).at(0)).value(QStringLiteral("probes")).toArray();
@@ -148,21 +148,21 @@ TEST_F(FakeJLinkCli, JLinkListShowsNetworkProbes) {
 TEST_F(FakeJLinkCli, JLinkListWithoutProbesIsEmpty) {
     useScenario(R"({"probes": []})");
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
+        hwio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
     EXPECT_EQ(result.exitCode, 0);
     const auto all = envelopes(result.out);
     ASSERT_EQ(all.size(), 1U);
     EXPECT_TRUE(data(all[0]).value(QStringLiteral("probes")).toArray().isEmpty());
 
-    const RunResult human = hio({QStringLiteral("jlink"), QStringLiteral("list")});
+    const RunResult human = hwio({QStringLiteral("jlink"), QStringLiteral("list")});
     EXPECT_EQ(human.exitCode, 0);
     EXPECT_NE(human.out.find("No J-Link probe found."), std::string::npos) << human.out;
 }
 
 TEST_F(FakeJLinkCli, JLinkInfo) {
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("info"),
-             QStringLiteral("-n"), QStringLiteral("801000002")});
+        hwio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("info"),
+              QStringLiteral("-n"), QStringLiteral("801000002")});
     EXPECT_EQ(result.exitCode, 0) << result.err;
     const QJsonObject info = data(envelopes(result.out).at(0));
     EXPECT_EQ(info.value(QStringLiteral("serialNumber")).toInteger(), 801000002);
@@ -174,13 +174,13 @@ TEST_F(FakeJLinkCli, UpdateFirmwareNeedsConfirmationWhenNotInteractive) {
     useScenario(R"({"probes": [{"serialNumber": 7,
         "firmware": "J-Link V11 compiled Sep 21 2023 10:38:43",
         "libraryFirmware": "J-Link V11 compiled Oct  1 2024 09:00:00"}]})");
-    const RunResult refused = hio({QStringLiteral("jlink"), QStringLiteral("update-firmware")});
+    const RunResult refused = hwio({QStringLiteral("jlink"), QStringLiteral("update-firmware")});
     EXPECT_EQ(refused.exitCode, 2);
     EXPECT_NE(refused.err.find("This operation needs confirmation."), std::string::npos)
         << refused.err;
 
-    const RunResult updated = hio({QStringLiteral("--json"), QStringLiteral("jlink"),
-                                   QStringLiteral("update-firmware"), QStringLiteral("--yes")});
+    const RunResult updated = hwio({QStringLiteral("--json"), QStringLiteral("jlink"),
+                                    QStringLiteral("update-firmware"), QStringLiteral("--yes")});
     EXPECT_EQ(updated.exitCode, 0) << updated.err;
     const QJsonObject result = data(envelopes(updated.out).at(0));
     EXPECT_EQ(result.value(QStringLiteral("before")).toString(), QStringLiteral("outdated"));
@@ -189,9 +189,9 @@ TEST_F(FakeJLinkCli, UpdateFirmwareNeedsConfirmationWhenNotInteractive) {
 
 TEST_F(FakeJLinkCli, CommandVersionJson) {
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("command"), QStringLiteral("version"), QStringLiteral("--console-file"),
-             QString()});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("command"), QStringLiteral("version"),
+              QStringLiteral("--console-file"), QString()});
     ASSERT_TRUE(result.normalExit);
     EXPECT_EQ(result.exitCode, 0) << result.err;
     const auto all = envelopes(result.out);
@@ -207,8 +207,8 @@ TEST_F(FakeJLinkCli, CommandVersionJson) {
 
 TEST_F(FakeJLinkCli, CommandHumanOutputAndSerialOnStderr) {
     const RunResult result =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
-             QStringLiteral("status"), QStringLiteral("--timeout"), QStringLiteral("0.5")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
+              QStringLiteral("status"), QStringLiteral("--timeout"), QStringLiteral("0.5")});
     EXPECT_EQ(result.exitCode, 0) << result.err;
     EXPECT_EQ(result.out, "line 1\nline 2\n");
     EXPECT_NE(result.err.find("Using J-Link 801000001"), std::string::npos) << result.err;
@@ -216,8 +216,8 @@ TEST_F(FakeJLinkCli, CommandHumanOutputAndSerialOnStderr) {
 
 // Plan 0021 phase 2: `app info` through a silent ShellQuery (`info show` on the Zephyr shell).
 TEST_F(FakeJLinkCli, AppInfoJsonAndHuman) {
-    const RunResult json = hio({QStringLiteral("--json"), QStringLiteral("chester"),
-                                QStringLiteral("app"), QStringLiteral("info")});
+    const RunResult json = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                 QStringLiteral("app"), QStringLiteral("info")});
     ASSERT_TRUE(json.normalExit);
     EXPECT_EQ(json.exitCode, 0) << json.err;
     const auto all = envelopes(json.out);
@@ -230,15 +230,15 @@ TEST_F(FakeJLinkCli, AppInfoJsonAndHuman) {
         << json.out;
 
     const RunResult human =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("info")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("info")});
     EXPECT_EQ(human.exitCode, 0) << human.err;
     EXPECT_NE(human.out.find("fw-version: v4.0.1\n"), std::string::npos) << human.out;
 }
 
 TEST_F(FakeJLinkCli, AppInfoWithoutAnAnswerIsATimeout) {
     useScenario(R"({"probes": [{"serialNumber": 801000001, "rtt": {"responses": {}}}]})");
-    const RunResult result = hio({QStringLiteral("--json"), QStringLiteral("chester"),
-                                  QStringLiteral("app"), QStringLiteral("info")});
+    const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                   QStringLiteral("app"), QStringLiteral("info")});
     ASSERT_TRUE(result.normalExit);
     EXPECT_NE(result.exitCode, 0);
     EXPECT_EQ(errorCode(result), QStringLiteral("timeout")) << result.out;
@@ -246,9 +246,9 @@ TEST_F(FakeJLinkCli, AppInfoWithoutAnAnswerIsATimeout) {
 
 TEST_F(FakeJLinkCli, ConsoleJsonWithPipedStdin) {
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("console"), QStringLiteral("--console-file"), QString()},
-            "version\n");
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("console"), QStringLiteral("--console-file"), QString()},
+             "version\n");
     ASSERT_TRUE(result.normalExit);
     EXPECT_EQ(result.exitCode, 0) << result.err;
     const auto all = envelopes(result.out);
@@ -285,8 +285,8 @@ TEST_F(FakeJLinkCli, ConsoleJsonWithPipedStdin) {
 
 TEST_F(FakeJLinkCli, MissingLibraryIsDependencyError) {
     const RunResult result =
-        hio({QStringLiteral("--jlink-library"), QStringLiteral("/nonexistent/libjlinkarm.so"),
-             QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
+        hwio({QStringLiteral("--jlink-library"), QStringLiteral("/nonexistent/libjlinkarm.so"),
+              QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
     EXPECT_EQ(result.exitCode, 4);
     EXPECT_EQ(errorCode(result), QStringLiteral("dependency.jlink_not_found"));
 }
@@ -294,13 +294,13 @@ TEST_F(FakeJLinkCli, MissingLibraryIsDependencyError) {
 TEST_F(FakeJLinkCli, MissingProbeIsProbeError) {
     useScenario(R"({"probes": []})");
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("command"), QStringLiteral("version")});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("command"), QStringLiteral("version")});
     EXPECT_EQ(result.exitCode, 5);
     EXPECT_EQ(errorCode(result), QStringLiteral("probe.not_found"));
     const RunResult bySerial =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("-n"),
-             QStringLiteral("123"), QStringLiteral("command"), QStringLiteral("version")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("-n"),
+              QStringLiteral("123"), QStringLiteral("command"), QStringLiteral("version")});
     EXPECT_EQ(bySerial.exitCode, 5);
     EXPECT_NE(bySerial.err.find("No J-Link probe with serial number 123 found."), std::string::npos)
         << bySerial.err;
@@ -311,8 +311,8 @@ TEST_F(FakeJLinkCli, MissingProbeIsProbeError) {
 TEST_F(FakeJLinkCli, NoPowerIsTargetError) {
     useScenario(R"({"probes": [{"serialNumber": 1, "vtref": [[0, 150]]}]})");
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("console"), QStringLiteral("--console-file"), QString()});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("console"), QStringLiteral("--console-file"), QString()});
     EXPECT_EQ(result.exitCode, 6);
     EXPECT_EQ(errorCode(result), QStringLiteral("target.no_power"));
     // Exactly one terminal "stopped" event, then the error envelope (review R28).
@@ -328,8 +328,8 @@ TEST_F(FakeJLinkCli, NoPowerIsTargetError) {
 TEST_F(FakeJLinkCli, InvalidSpeedIsUsageError) {
     for (const QString& speed : {QStringLiteral("1"), QStringLiteral("fast")}) {
         const RunResult result =
-            hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
-                 QStringLiteral("--jlink-speed"), speed, QStringLiteral("version")});
+            hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
+                  QStringLiteral("--jlink-speed"), speed, QStringLiteral("version")});
         EXPECT_EQ(result.exitCode, 2) << speed.toStdString();
     }
 }
@@ -339,23 +339,23 @@ TEST_F(FakeJLinkCli, SlowSpeedIsWarnedBeforeConnecting) {
     const std::string warning = "Warning: At this J-Link speed the console may not be found "
                                 "within 60 s. Use auto or 1000 kHz or more.";
     const RunResult slow =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
-             QStringLiteral("--jlink-speed"), QStringLiteral("100"), QStringLiteral("version"),
-             QStringLiteral("--timeout"), QStringLiteral("0.5")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
+              QStringLiteral("--jlink-speed"), QStringLiteral("100"), QStringLiteral("version"),
+              QStringLiteral("--timeout"), QStringLiteral("0.5")});
     EXPECT_EQ(slow.exitCode, 0) << slow.err;
     EXPECT_NE(slow.err.find(warning), std::string::npos) << slow.err;
     EXPECT_LT(slow.err.find(warning), slow.err.find("Using J-Link")) << slow.err;
     const RunResult fast =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
-             QStringLiteral("--jlink-speed"), QStringLiteral("125"), QStringLiteral("version"),
-             QStringLiteral("--timeout"), QStringLiteral("0.5")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
+              QStringLiteral("--jlink-speed"), QStringLiteral("125"), QStringLiteral("version"),
+              QStringLiteral("--timeout"), QStringLiteral("0.5")});
     EXPECT_EQ(fast.exitCode, 0) << fast.err;
     EXPECT_EQ(fast.err.find("Warning:"), std::string::npos) << fast.err;
     // --json: stdout stays the single result envelope, stderr stays free of the human text.
     const RunResult json =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("command"), QStringLiteral("--jlink-speed"), QStringLiteral("100"),
-             QStringLiteral("version"), QStringLiteral("--timeout"), QStringLiteral("0.5")});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("command"), QStringLiteral("--jlink-speed"), QStringLiteral("100"),
+              QStringLiteral("version"), QStringLiteral("--timeout"), QStringLiteral("0.5")});
     EXPECT_EQ(json.exitCode, 0) << json.err;
     EXPECT_EQ(envelopes(json.out).size(), 1U) << json.out;
     EXPECT_EQ(json.err.find(warning), std::string::npos) << json.err;
@@ -370,9 +370,9 @@ TEST_F(FakeJLinkCli, CommandTimeoutCountsFromTheWrite) {
         "acceptWritesAfterMs": 1500,
         "responses": {"version": "Firmware version: v3.1.0\n"}}}]})");
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("command"), QStringLiteral("version"), QStringLiteral("--timeout"),
-             QStringLiteral("1"), QStringLiteral("--console-file"), QString()});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("command"), QStringLiteral("version"), QStringLiteral("--timeout"),
+              QStringLiteral("1"), QStringLiteral("--console-file"), QString()});
     EXPECT_EQ(result.exitCode, 0) << result.err;
     const auto all = envelopes(result.out);
     ASSERT_FALSE(all.empty()) << result.out;
@@ -389,7 +389,7 @@ TEST_F(FakeJLinkCli, CommandLinesWrittenAfter1500MsEachSucceed) {
     useScenario(R"({"probes": [{"serialNumber": 9, "rtt": {
         "acceptEachWriteAfterMs": 1500,
         "responses": {"version": "Firmware version: v3.1.0\n"}}}]})");
-    const RunResult result = hio(
+    const RunResult result = hwio(
         {QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
          QStringLiteral("command"), QStringLiteral("version\nversion"), QStringLiteral("--timeout"),
          QStringLiteral("1"), QStringLiteral("--console-file"), QString()});
@@ -413,10 +413,10 @@ TEST_F(FakeJLinkCli, CommandWith300LinesSucceeds) {
         commandLines.append(QStringLiteral("version"));
     }
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("command"), commandLines.join(QLatin1Char('\n')),
-             QStringLiteral("--timeout"), QStringLiteral("0.5"), QStringLiteral("--console-file"),
-             QString()});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("command"), commandLines.join(QLatin1Char('\n')),
+              QStringLiteral("--timeout"), QStringLiteral("0.5"), QStringLiteral("--console-file"),
+              QString()});
     EXPECT_EQ(result.exitCode, 0) << result.out << result.err;
     const auto all = envelopes(result.out);
     ASSERT_EQ(all.size(), 1U) << result.out;
@@ -452,7 +452,7 @@ TEST_F(FakeJLinkCli, CommandOutputIsTruncatedAfter10000Lines) {
                            QStringLiteral("--console-file"), QString()};
 
     const auto started = std::chrono::steady_clock::now();
-    const RunResult json = hio(QStringList{QStringLiteral("--json")} + args);
+    const RunResult json = hwio(QStringList{QStringLiteral("--json")} + args);
     EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::seconds(25));
     EXPECT_EQ(json.exitCode, 0) << json.err;
     const auto all = envelopes(json.out);
@@ -465,7 +465,7 @@ TEST_F(FakeJLinkCli, CommandOutputIsTruncatedAfter10000Lines) {
     EXPECT_EQ(output.at(output.size() - 1).toString(),
               QStringLiteral("line %1").arg(output.size() - 1));
 
-    const RunResult human = hio(args);
+    const RunResult human = hwio(args);
     EXPECT_EQ(human.exitCode, 0) << human.err;
     EXPECT_NE(human.err.find("Output truncated after 10000 lines"), std::string::npos) << human.err;
     EXPECT_EQ(std::count(human.out.begin(), human.out.end(), '\n'), 10000);
@@ -476,9 +476,9 @@ TEST_F(FakeJLinkCli, CommandThatCannotBeWrittenFails) {
     useScenario(R"({"probes": [{"serialNumber": 8, "rtt": {
         "down": [{"name": "Terminal", "size": 0}]}}]})");
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("command"), QStringLiteral("version"), QStringLiteral("--console-file"),
-             QString()});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("command"), QStringLiteral("version"),
+              QStringLiteral("--console-file"), QString()});
     EXPECT_EQ(result.exitCode, 6) << result.out; // target category (ADR-0024)
     EXPECT_EQ(errorCode(result), QStringLiteral("target.rtt_buffer_not_found"));
 }
@@ -500,24 +500,24 @@ TEST_F(FakeJLinkCli, ConsoleLingerCollectsLateOutput) {
         });
     };
     const RunResult quick =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("console"), QStringLiteral("--linger"), QStringLiteral("0"),
-             QStringLiteral("--console-file"), QString()},
-            "status\n");
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("console"), QStringLiteral("--linger"), QStringLiteral("0"),
+              QStringLiteral("--console-file"), QString()},
+             "status\n");
     EXPECT_EQ(quick.exitCode, 0) << quick.err;
     EXPECT_TRUE(hasEcho(quick.out)) << quick.out;
     EXPECT_FALSE(hasLateLine(quick.out)) << quick.out;
     const RunResult lingering =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("console"), QStringLiteral("--linger"), QStringLiteral("4"),
-             QStringLiteral("--console-file"), QString()},
-            "status\n");
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("console"), QStringLiteral("--linger"), QStringLiteral("4"),
+              QStringLiteral("--console-file"), QString()},
+             "status\n");
     EXPECT_EQ(lingering.exitCode, 0) << lingering.err;
     EXPECT_TRUE(hasEcho(lingering.out)) << lingering.out;
     EXPECT_TRUE(hasLateLine(lingering.out)) << lingering.out;
     const RunResult invalid =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("console"),
-             QStringLiteral("--linger"), QStringLiteral("61")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("console"),
+              QStringLiteral("--linger"), QStringLiteral("61")});
     EXPECT_EQ(invalid.exitCode, 2);
 }
 
@@ -525,7 +525,7 @@ TEST_F(FakeJLinkCli, ConsoleLingerCollectsLateOutput) {
 // console; it reports Disconnected and connects once the target is powered.
 TEST_F(FakeJLinkCli, ConsoleWithAutoReconnectStaysOpenWithoutPower) {
     useScenario(R"({"probes": [{"serialNumber": 7, "vtref": [[0, 150], [1500, 3300]]}]})");
-    const RunResult result = hio(
+    const RunResult result = hwio(
         {QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
          QStringLiteral("console"), QStringLiteral("--auto-reconnect"), QStringLiteral("--linger"),
          QStringLiteral("6"), QStringLiteral("--console-file"), QString()});
@@ -542,12 +542,12 @@ TEST_F(FakeJLinkCli, ConsoleWithAutoReconnectStaysOpenWithoutPower) {
 }
 
 #ifndef _WIN32
-// Starts `hio ... console` with an open stdin; returns when it reports "connected".
+// Starts `hwio ... console` with an open stdin; returns when it reports "connected".
 class RunningConsole {
 public:
     RunningConsole(const QProcessEnvironment& env, const QStringList& args) {
         m_process.setProcessEnvironment(env);
-        m_process.start(QStringLiteral(HIO_CLI_EXECUTABLE), args);
+        m_process.start(QStringLiteral(HWIO_CLI_EXECUTABLE), args);
     }
     RunningConsole(const RunningConsole&) = delete;
     RunningConsole& operator=(const RunningConsole&) = delete;
@@ -594,7 +594,7 @@ TEST_F(FakeJLinkCli, CtrlCEndsTheConsoleWith130) {
                                                QStringLiteral("--console-file"), QString()});
     ASSERT_TRUE(console.waitFor("-- connected --")) << console.err().toStdString();
     ASSERT_EQ(::kill(static_cast<int>(console.process().processId()), SIGINT), 0);
-    ASSERT_TRUE(console.process().waitForFinished(10000)) << "hio did not stop after Ctrl+C";
+    ASSERT_TRUE(console.process().waitForFinished(10000)) << "hwio did not stop after Ctrl+C";
     EXPECT_EQ(console.process().exitStatus(), QProcess::NormalExit);
     EXPECT_EQ(console.process().exitCode(), 130);
 }
@@ -607,26 +607,26 @@ TEST_F(FakeJLinkCli, SecondConsoleOnTheSameProbeIsRefused) {
     ASSERT_TRUE(first.waitFor("-- connected --")) << first.err().toStdString();
 
     const RunResult second =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("console"), QStringLiteral("-n"), QStringLiteral("801000001")});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("console"), QStringLiteral("-n"), QStringLiteral("801000001")});
     EXPECT_EQ(second.exitCode, 5);
     EXPECT_EQ(errorCode(second), QStringLiteral("probe.in_use_by_other_process"));
 
     // `jlink list` names the owner; without -n a console takes the next free probe.
     const RunResult list =
-        hio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
+        hwio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
     EXPECT_EQ(list.exitCode, 0);
     const QJsonArray probes =
         data(envelopes(list.out).at(0)).value(QStringLiteral("probes")).toArray();
     ASSERT_EQ(probes.size(), 2);
     const QJsonObject owner = probes.at(0).toObject().value(QStringLiteral("inUseBy")).toObject();
-    EXPECT_EQ(owner.value(QStringLiteral("app")).toString(), QStringLiteral("hio"));
+    EXPECT_EQ(owner.value(QStringLiteral("app")).toString(), QStringLiteral("hwio"));
     EXPECT_EQ(owner.value(QStringLiteral("pid")).toInteger(), first.process().processId());
     EXPECT_TRUE(probes.at(1).toObject().value(QStringLiteral("inUseBy")).isNull());
 
     const RunResult other =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
-             QStringLiteral("version"), QStringLiteral("--timeout"), QStringLiteral("0.2")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("command"),
+              QStringLiteral("version"), QStringLiteral("--timeout"), QStringLiteral("0.2")});
     EXPECT_EQ(other.exitCode, 0) << other.err;
     EXPECT_NE(other.err.find("Using J-Link 801000002"), std::string::npos) << other.err;
 }
@@ -650,11 +650,11 @@ TEST_F(FakeJLinkCli, ConsoleJsonEndsWhenTheReaderCloses) {
     const QString consoleFile = home() + QStringLiteral("/console.log");
     QProcess shell;
     shell.setProcessEnvironment(fakeEnvironment());
-    // stdin stays open (the console would run forever); the exit status is hio's.
+    // stdin stays open (the console would run forever); the exit status is hwio's.
     shell.start(QStringLiteral("bash"),
                 {QStringLiteral("-c"),
                  QStringLiteral(R"("$0" "$@" | head -n 1; exit "${PIPESTATUS[0]}")"),
-                 QStringLiteral(HIO_CLI_EXECUTABLE), QStringLiteral("--json"),
+                 QStringLiteral(HWIO_CLI_EXECUTABLE), QStringLiteral("--json"),
                  QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("console"),
                  QStringLiteral("--console-file"), consoleFile});
     ASSERT_TRUE(shell.waitForStarted(10000));
@@ -665,7 +665,7 @@ TEST_F(FakeJLinkCli, ConsoleJsonEndsWhenTheReaderCloses) {
         shell.kill();
         shell.waitForFinished(5000);
     }
-    ASSERT_TRUE(finished) << "hio did not stop after its reader closed";
+    ASSERT_TRUE(finished) << "hwio did not stop after its reader closed";
     EXPECT_EQ(shell.exitStatus(), QProcess::NormalExit);
     EXPECT_EQ(shell.exitCode(), 130) << shell.readAllStandardError().toStdString();
     EXPECT_LT(elapsed, std::chrono::seconds(20));
@@ -698,7 +698,7 @@ TEST_F(FakeJLinkCli, ConsoleReportsTheClosedOutputWithItsOwnMessage) {
     shell.start(QStringLiteral("bash"),
                 {QStringLiteral("-c"),
                  QStringLiteral(R"("$0" "$@" | head -n 1 >/dev/null; exit "${PIPESTATUS[0]}")"),
-                 QStringLiteral(HIO_CLI_EXECUTABLE), QStringLiteral("chester"),
+                 QStringLiteral(HWIO_CLI_EXECUTABLE), QStringLiteral("chester"),
                  QStringLiteral("app"), QStringLiteral("console"), QStringLiteral("--console-file"),
                  QString()});
     ASSERT_TRUE(shell.waitForStarted(10000));
@@ -707,7 +707,7 @@ TEST_F(FakeJLinkCli, ConsoleReportsTheClosedOutputWithItsOwnMessage) {
         shell.kill();
         shell.waitForFinished(5000);
     }
-    ASSERT_TRUE(finished) << "hio did not stop after its reader closed";
+    ASSERT_TRUE(finished) << "hwio did not stop after its reader closed";
     const std::string err = shell.readAllStandardError().toStdString();
     EXPECT_EQ(shell.exitCode(), 130) << err;
     EXPECT_NE(err.find("Error: The output was closed."), std::string::npos) << err;
@@ -725,7 +725,7 @@ TEST_F(FakeJLinkCli, CtrlCWhileConnectingEmitsOneStoppedEvent) {
                                                QStringLiteral("--console-file"), QString()});
     ASSERT_TRUE(console.waitForOut("\"connecting\"")) << console.out().toStdString();
     ASSERT_EQ(::kill(static_cast<int>(console.process().processId()), SIGINT), 0);
-    ASSERT_TRUE(console.process().waitForFinished(10000)) << "hio did not stop after Ctrl+C";
+    ASSERT_TRUE(console.process().waitForFinished(10000)) << "hwio did not stop after Ctrl+C";
     EXPECT_EQ(console.process().exitStatus(), QProcess::NormalExit);
     EXPECT_EQ(console.process().exitCode(), 130);
     console.out() += console.process().readAllStandardOutput();

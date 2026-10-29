@@ -1,9 +1,9 @@
-#include "hio/core/settings.h"
+#include "hwio/core/settings.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
 #include "settings_internal.h"
 
 #include <QCoreApplication>
@@ -25,7 +25,7 @@
 #include <string_view>
 #include <utility>
 
-namespace hio {
+namespace hwio {
 
 namespace {
 
@@ -298,4 +298,4 @@ QVariant Settings::fromPath(const std::filesystem::path& path) {
     return QString::fromStdU16String(path.u16string());
 }
 
-} // namespace hio
+} // namespace hwio

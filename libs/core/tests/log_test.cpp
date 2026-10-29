@@ -1,5 +1,5 @@
-#include "hio/core/error.h"
-#include "hio/core/log.h"
+#include "hwio/core/error.h"
+#include "hwio/core/log.h"
 
 #include <QLoggingCategory>
 #include <QString>
@@ -28,9 +28,9 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::log::AppKind;
-using hio::log::Level;
-using hio::log::Logging;
+using hwio::log::AppKind;
+using hwio::log::Level;
+using hwio::log::Logging;
 
 fs::path tempPath(const QTemporaryDir& dir) { return {dir.path().toStdU16String()}; }
 
@@ -74,8 +74,8 @@ TEST(Logging, WritesFormattedLinesToFile) {
     EXPECT_TRUE(
         std::regex_match(file.filename().string(), std::regex(R"(^cli-\d{8}-\d{6}-\d+\.log$)")))
         << file;
-    qCDebug(hio::log::lcCore) << "debug line";
-    qCWarning(hio::log::lcCore) << "warning line";
+    qCDebug(hwio::log::lcCore) << "debug line";
+    qCWarning(hwio::log::lcCore) << "warning line";
     logging.reset();
 
     const std::string content = readFile(file);
@@ -84,9 +84,9 @@ TEST(Logging, WritesFormattedLinesToFile) {
     for (const std::string& line : lines(content)) {
         EXPECT_TRUE(std::regex_match(line, linePattern)) << line;
     }
-    EXPECT_NE(content.find("[dbg] hio.core"), std::string::npos);
+    EXPECT_NE(content.find("[dbg] hwio.core"), std::string::npos);
     EXPECT_NE(content.find("debug line"), std::string::npos);
-    EXPECT_NE(content.find("[wrn] hio.core"), std::string::npos);
+    EXPECT_NE(content.find("[wrn] hwio.core"), std::string::npos);
 }
 
 TEST(Logging, GuiFilePrefix) {
@@ -102,7 +102,7 @@ TEST(Logging, SecondInstanceIsRejected) {
     ASSERT_TRUE(first);
     const auto second = Logging::init(AppKind::Cli, {.logDir = tempPath(dir)});
     ASSERT_FALSE(second.has_value());
-    EXPECT_EQ(second.error().code, hio::ErrorCode::InternalUnexpected);
+    EXPECT_EQ(second.error().code, hwio::ErrorCode::InternalUnexpected);
 }
 
 TEST(Logging, StderrThreshold) {
@@ -110,8 +110,8 @@ TEST(Logging, StderrThreshold) {
     auto logging = initOrFail(AppKind::Cli, tempPath(dir), Level::Warning);
     ASSERT_TRUE(logging);
     ::testing::internal::CaptureStderr();
-    qCInfo(hio::log::lcCore) << "quiet info";
-    qCWarning(hio::log::lcCore) << "loud warning";
+    qCInfo(hwio::log::lcCore) << "quiet info";
+    qCWarning(hwio::log::lcCore) << "loud warning";
     const std::string captured = ::testing::internal::GetCapturedStderr();
     EXPECT_EQ(captured.find("quiet info"), std::string::npos);
     EXPECT_NE(captured.find("loud warning"), std::string::npos);
@@ -124,7 +124,7 @@ TEST(Logging, TruncatesLongMessages) {
     ASSERT_TRUE(logging);
     const fs::path file = logging->currentFile();
     // Multi-byte characters around the cut point must not be split.
-    qCInfo(hio::log::lcCore).noquote() << QString(qsizetype{100} * 1024, QChar(0x017E)); // 'ž'
+    qCInfo(hwio::log::lcCore).noquote() << QString(qsizetype{100} * 1024, QChar(0x017E)); // 'ž'
     logging.reset();
 
     const std::vector<std::string> all = lines(readFile(file));
@@ -132,7 +132,7 @@ TEST(Logging, TruncatesLongMessages) {
     const std::string& last = all.back();
     EXPECT_TRUE(last.ends_with(" [truncated]"));
     const std::size_t messageStart = last.find(") ") + 2;
-    EXPECT_LE(last.size() - messageStart, hio::log::maxMessageBytes);
+    EXPECT_LE(last.size() - messageStart, hwio::log::maxMessageBytes);
     const std::string message = last.substr(messageStart, last.size() - messageStart - 12);
     EXPECT_EQ(message.size() % 2, 0U); // whole 2-byte sequences only
 }
@@ -144,15 +144,15 @@ TEST(Logging, RotatesAtFileSizeLimit) {
     const fs::path first = logging->currentFile();
     const QString chunk(qsizetype{60} * 1024, QLatin1Char('x'));
     for (int i = 0; i < 200; ++i) { // ~12 MiB
-        qCInfo(hio::log::lcCore).noquote() << chunk;
+        qCInfo(hwio::log::lcCore).noquote() << chunk;
     }
     const fs::path current = logging->currentFile();
     logging.reset();
 
     EXPECT_NE(first, current);
     EXPECT_TRUE(current.filename().string().ends_with(".part2.log")) << current;
-    EXPECT_LE(fs::file_size(first), hio::log::maxFileBytes);
-    EXPECT_GT(fs::file_size(first), hio::log::maxFileBytes - (std::uintmax_t{100} * 1024));
+    EXPECT_LE(fs::file_size(first), hwio::log::maxFileBytes);
+    EXPECT_GT(fs::file_size(first), hwio::log::maxFileBytes - (std::uintmax_t{100} * 1024));
     EXPECT_GT(fs::file_size(current), 0U);
 }
 
@@ -184,7 +184,7 @@ TEST(Logging, PrunesToMaxFileCount) {
     ASSERT_TRUE(logging);
 
     const std::vector<fs::path> files = ownLogFiles(root);
-    EXPECT_EQ(files.size(), hio::log::cliRetention.maxFiles);
+    EXPECT_EQ(files.size(), hwio::log::cliRetention.maxFiles);
     EXPECT_TRUE(fs::exists(logging->currentFile()));
     EXPECT_TRUE(fs::exists(root / "notes.txt"));
     // The oldest ones (lowest index) were removed, the newest kept.
@@ -208,7 +208,7 @@ TEST(Logging, PrunesToMaxTotalSize) {
     for (const fs::path& file : ownLogFiles(root)) {
         total += fs::file_size(file);
     }
-    EXPECT_LE(total, hio::log::cliRetention.maxTotalBytes);
+    EXPECT_LE(total, hwio::log::cliRetention.maxTotalBytes);
     EXPECT_EQ(ownLogFiles(root).size(), 3U); // current + the 2 newest (40 MiB of 50 MiB)
     EXPECT_FALSE(fs::exists(root / "cli-20200101-000000-2.log"));
     EXPECT_TRUE(fs::exists(root / "cli-20200101-000000-3.log"));
@@ -275,7 +275,7 @@ TEST(Logging, NonAsciiLogDirectory) {
     ASSERT_TRUE(logging);
     const fs::path file = logging->currentFile();
     ASSERT_FALSE(file.empty());
-    qCInfo(hio::log::lcCore) << "hello";
+    qCInfo(hwio::log::lcCore) << "hello";
     logging.reset();
     EXPECT_NE(readFile(file).find("hello"), std::string::npos);
 }
@@ -295,7 +295,7 @@ TEST(Logging, UnwritableDirectoryFallsBackToStderr) {
     ASSERT_TRUE(logging.has_value());
     EXPECT_TRUE((*logging)->currentFile().empty());
     EXPECT_NE(captured.find("Logging to stderr only"), std::string::npos) << captured;
-    qCInfo(hio::log::lcCore) << "still works";
+    qCInfo(hwio::log::lcCore) << "still works";
 }
 
 TEST(Logging, ConcurrentWritersProduceWholeLines) {
@@ -311,7 +311,7 @@ TEST(Logging, ConcurrentWritersProduceWholeLines) {
         for (int t = 0; t < threads; ++t) {
             writers.emplace_back([t] {
                 for (int i = 0; i < perThread; ++i) {
-                    qCInfo(hio::log::lcCore).noquote()
+                    qCInfo(hwio::log::lcCore).noquote()
                         << QStringLiteral("writer %1 message %2").arg(t).arg(i);
                 }
             });
@@ -320,7 +320,7 @@ TEST(Logging, ConcurrentWritersProduceWholeLines) {
     logging.reset();
 
     int count = 0;
-    const std::regex pattern(R"(^.* \[inf\] hio\.core \(0x[0-9a-f]+\) writer \d+ message \d+$)");
+    const std::regex pattern(R"(^.* \[inf\] hwio\.core \(0x[0-9a-f]+\) writer \d+ message \d+$)");
     for (const std::string& line : lines(readFile(file))) {
         if (line.find("writer ") != std::string::npos) {
             EXPECT_TRUE(std::regex_match(line, pattern)) << line;

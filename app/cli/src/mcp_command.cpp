@@ -4,23 +4,23 @@
 #include "cli_app.h"
 #include "cli_device_provider.h"
 #include "flag_consent_broker.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
-#include "hio/mcp/activity.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/http_server.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/server.h"
-#include "hio/mcp/stdio_transport.h"
-#include "hio/mcp/token.h"
-#include "hio/mcp/tools/register_tools.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
+#include "hwio/mcp/activity.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/http_server.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/server.h"
+#include "hwio/mcp/stdio_transport.h"
+#include "hwio/mcp/token.h"
+#include "hwio/mcp/tools/register_tools.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "jlink_commands.h"
 #include "operation_runner.h"
 #include "stdin_line_source.h"
@@ -61,7 +61,7 @@
 #include <io.h>
 #endif
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -71,21 +71,21 @@ using namespace std::chrono_literals;
 // How long the shutdown waits for cancelled tool calls to answer before the sessions are closed.
 constexpr auto drainTimeout = 5s;
 
-const char* const tokenVariable = "HIO_MCP_TOKEN";
+const char* const tokenVariable = "HWIO_MCP_TOKEN";
 
 // ADR-0106: the client snippets, also shown by the GUI (plan 0014).
 const char* const helpFooter =
     "Client configuration examples (ADR-0106):\n"
     "  Claude Code, stdio:\n"
-    "    claude mcp add --transport stdio hio -- hio mcp --allow flash\n"
-    "  Claude Code, HTTP (start `hio mcp --http` first):\n"
-    "    claude mcp add --transport http hio http://127.0.0.1:47800/mcp --header "
+    "    claude mcp add --transport stdio hwio -- hwio mcp --allow flash\n"
+    "  Claude Code, HTTP (start `hwio mcp --http` first):\n"
+    "    claude mcp add --transport http hwio http://127.0.0.1:47800/mcp --header "
     "\"Authorization: Bearer <token>\"\n"
     "  Claude Code .mcp.json (the token stays in the environment):\n"
-    "    {\"mcpServers\":{\"hio\":{\"type\":\"http\",\"url\":\"http://127.0.0.1:47800/mcp\","
-    "\"headers\":{\"Authorization\":\"Bearer ${HIO_MCP_TOKEN}\"}}}}\n"
+    "    {\"mcpServers\":{\"hwio\":{\"type\":\"http\",\"url\":\"http://127.0.0.1:47800/mcp\","
+    "\"headers\":{\"Authorization\":\"Bearer ${HWIO_MCP_TOKEN}\"}}}}\n"
     "  Claude Desktop:\n"
-    "    {\"mcpServers\":{\"hio\":{\"command\":\"<path>/hio\",\"args\":[\"mcp\"]}}}\n"
+    "    {\"mcpServers\":{\"hwio\":{\"command\":\"<path>/hwio\",\"args\":[\"mcp\"]}}}\n"
     "\n"
     "stdio: the server ends when stdin is closed (end of input); tool calls still running then\n"
     "are cancelled (a running flash is stopped). If writing to stdout fails, the server stops\n"
@@ -142,12 +142,12 @@ struct Token {
     fs::path file;
 };
 
-// HIO_MCP_TOKEN > --token-file > a token for this run (plan 0013 "CLI").
+// HWIO_MCP_TOKEN > --token-file > a token for this run (plan 0013 "CLI").
 Result<Token> resolveToken(const McpOptions& options) {
     const QString environment = qEnvironmentVariable(tokenVariable);
     if (!environment.isEmpty()) {
         std::string value = toStdString(environment);
-        if (!hio::mcp::TokenStore::isValidToken(value)) {
+        if (!hwio::mcp::TokenStore::isValidToken(value)) {
             return std::unexpected(usage(std::format("{} must hold a token of 43 base64url "
                                                      "characters (A-Z, a-z, 0-9, - and _).",
                                                      tokenVariable)));
@@ -155,29 +155,29 @@ Result<Token> resolveToken(const McpOptions& options) {
         return Token{.value = std::move(value), .source = TokenSource::Environment, .file = {}};
     }
     if (options.tokenFileGiven) {
-        const hio::mcp::TokenStore store(toPath(options.tokenFile));
+        const hwio::mcp::TokenStore store(toPath(options.tokenFile));
         auto value = store.loadOrCreate();
         if (!value) {
             return std::unexpected(std::move(value).error());
         }
         return Token{.value = std::move(*value), .source = TokenSource::File, .file = store.path()};
     }
-    return Token{.value = hio::mcp::TokenStore::generateToken(),
+    return Token{.value = hwio::mcp::TokenStore::generateToken(),
                  .source = TokenSource::Generated,
                  .file = {}};
 }
 
-std::string allowedText(hio::mcp::ConsentCategories allowed) {
+std::string allowedText(hwio::mcp::ConsentCategories allowed) {
     std::string text;
-    for (const std::string_view id : hio::mcp::consentCategoryIds(allowed)) {
+    for (const std::string_view id : hwio::mcp::consentCategoryIds(allowed)) {
         text += text.empty() ? std::string(id) : ", " + std::string(id);
     }
     return text.empty() ? std::string("none") : text;
 }
 
-// The stderr text of `hio mcp --http` (plan 0013 "User experience"). The full token is printed
+// The stderr text of `hwio mcp --http` (plan 0013 "User experience"). The full token is printed
 // only when it was generated for this run; a token from the environment or a file is not repeated.
-void printHttpBanner(std::uint16_t port, const Token& token, hio::mcp::ConsentCategories allowed) {
+void printHttpBanner(std::uint16_t port, const Token& token, hwio::mcp::ConsentCategories allowed) {
     std::string text = std::format("MCP server listening on http://127.0.0.1:{}/mcp\n", port);
     switch (token.source) {
     case TokenSource::Generated:
@@ -198,7 +198,7 @@ void printHttpBanner(std::uint16_t port, const Token& token, hio::mcp::ConsentCa
 
 enum class Ending : std::uint8_t { None, InputClosed, OutputFailed, Stopped };
 
-// The stdin queue budget in bytes (ADR-0163); a warning goes to stderr and the hio.mcp log.
+// The stdin queue budget in bytes (ADR-0163); a warning goes to stderr and the hwio.mcp log.
 std::size_t stdioBufferBytes() {
     auto settings = Settings::openDefault();
     if (!settings) {
@@ -215,7 +215,7 @@ std::size_t stdioBufferBytes() {
 
 // The checked options of one run (everything that can fail before serving).
 struct Prepared {
-    hio::mcp::ConsentCategories allowed;
+    hwio::mcp::ConsentCategories allowed;
     CliProviderOptions provider;
     std::optional<Token> token; // --http only
 };
@@ -268,7 +268,7 @@ Result<CommandResult> runMcp(const Context& context, const GlobalOptions& global
         return std::unexpected(std::move(prepared).error());
     }
     const std::optional<Token>& token = prepared->token;
-    const hio::mcp::ConsentCategories allowed = prepared->allowed;
+    const hwio::mcp::ConsentCategories allowed = prepared->allowed;
 
     // Owner-thread objects; destroyed in reverse order (the tools context outlives the server,
     // the provider outlives both).
@@ -283,21 +283,21 @@ Result<CommandResult> runMcp(const Context& context, const GlobalOptions& global
                                  .transferTimeout = std::chrono::seconds(60),
                                  .maxBodyBytes = 32ULL * 1024 * 1024},
         &cache);
-    hio::mcp::tools::ToolsContext tools(provider, &catalog);
-    hio::mcp::Registry registry;
-    if (const Status registered = hio::mcp::tools::registerTools(registry, tools); !registered) {
+    hwio::mcp::tools::ToolsContext tools(provider, &catalog);
+    hwio::mcp::Registry registry;
+    if (const Status registered = hwio::mcp::tools::registerTools(registry, tools); !registered) {
         return std::unexpected(registered.error());
     }
-    hio::mcp::McpServer server(std::move(registry), consent, activity, hio::mcp::ServerOptions{});
+    hwio::mcp::McpServer server(std::move(registry), consent, activity, hwio::mcp::ServerOptions{});
     tools.attachServer(server);
     // ADR-0162: the probe enumeration runs on the server's offloader (the provider outlives the
     // server; its QPointer turns null when the offloader is destroyed).
     provider.setOffloader(&server.offloader());
 
-    std::unique_ptr<hio::mcp::HttpServer> http;
+    std::unique_ptr<hwio::mcp::HttpServer> http;
     if (token) { // --http
-        http = std::make_unique<hio::mcp::HttpServer>(
-            server, hio::mcp::HttpServerOptions{.port = options.port, .token = token->value});
+        http = std::make_unique<hwio::mcp::HttpServer>(
+            server, hwio::mcp::HttpServerOptions{.port = options.port, .token = token->value});
         if (const Status listening = http->listen(); !listening) {
             return std::unexpected(listening.error());
         }
@@ -307,7 +307,7 @@ Result<CommandResult> runMcp(const Context& context, const GlobalOptions& global
     // stdio: stdout carries only the transport's JSON-RPC lines (nothing else writes to it).
     QFile out;
     std::unique_ptr<StdinLineSource> input;
-    std::unique_ptr<hio::mcp::StdioTransport> stdio;
+    std::unique_ptr<hwio::mcp::StdioTransport> stdio;
     if (!options.http) {
 #ifdef _WIN32
         _setmode(_fileno(stdout), _O_BINARY); // "\n", not "\r\n"
@@ -315,11 +315,11 @@ Result<CommandResult> runMcp(const Context& context, const GlobalOptions& global
         if (!out.open(stdout, QIODevice::WriteOnly, QFileDevice::DontCloseHandle)) {
             return std::unexpected(makeError(ErrorCode::IoWriteFailed, "stdout"));
         }
-        const hio::mcp::Limits& limits = server.limits();
+        const hwio::mcp::Limits& limits = server.limits();
         // ADR-0163: a line may be up to 4 MiB; the budget (>= 4 MiB) always admits one.
         input = std::make_unique<StdinLineSource>(limits.maxStdioLineBytes, limits.stdinQueueLines,
                                                   stdioBufferBytes());
-        stdio = std::make_unique<hio::mcp::StdioTransport>(server, *input, out);
+        stdio = std::make_unique<hwio::mcp::StdioTransport>(server, *input, out);
     }
     // One probe enumeration at start (ADR-0162), so list_devices has a list without refresh=true;
     // list_devices calls that arrive while it runs wait for it (review V1, firstScanPending).
@@ -363,7 +363,7 @@ Result<CommandResult> runMcp(const Context& context, const GlobalOptions& global
         }
         ending = why;
         qCInfo(log::lcMcp) << "MCP server stopping, reason" << static_cast<int>(why);
-        QObject::connect(&server, &hio::mcp::McpServer::callsDrained, &anchor, finish,
+        QObject::connect(&server, &hwio::mcp::McpServer::callsDrained, &anchor, finish,
                          Qt::QueuedConnection);
         QObject::connect(&drainTimer, &QTimer::timeout, &anchor, finish);
         drainTimer.start();
@@ -371,10 +371,10 @@ Result<CommandResult> runMcp(const Context& context, const GlobalOptions& global
     };
     if (stdio) {
         QObject::connect(
-            stdio.get(), &hio::mcp::StdioTransport::inputClosed, &anchor,
+            stdio.get(), &hwio::mcp::StdioTransport::inputClosed, &anchor,
             [&beginShutdown] { beginShutdown(Ending::InputClosed); }, Qt::QueuedConnection);
         QObject::connect(
-            stdio.get(), &hio::mcp::StdioTransport::outputFailed, &anchor,
+            stdio.get(), &hwio::mcp::StdioTransport::outputFailed, &anchor,
             [&beginShutdown] { beginShutdown(Ending::OutputFailed); }, Qt::QueuedConnection);
         stdio->start();
     }
@@ -427,7 +427,7 @@ StdioBufferSetting stdioBufferSetting(const Settings* settings) {
     return result;
 }
 
-void LogActivitySink::record(hio::mcp::ActivityEntry entry) {
+void LogActivitySink::record(hwio::mcp::ActivityEntry entry) {
     qCInfo(log::lcMcp).noquote() << "MCP call" << toQString(entry.tool) << "client"
                                  << toQString(entry.client) << "device"
                                  << (entry.deviceId.empty() ? QStringLiteral("-")
@@ -455,7 +455,7 @@ void registerMcpCommand(CLI::App& app, CommandSlot& slot, const GlobalOptions& g
     CLI::Option* tokenFile =
         mcp->add_option("--token-file", options->tokenFile,
                         "HTTP bearer token file (--http): read the token, or create the file with "
-                        "a new one; $HIO_MCP_TOKEN wins. Default: a token for this run only")
+                        "a new one; $HWIO_MCP_TOKEN wins. Default: a token for this run only")
             ->option_text("PATH");
     mcp->add_option("--allow", options->allow,
                     "Destructive tools to allow: comma-separated flash, erase, memory-write, uicr "
@@ -482,4 +482,4 @@ void registerMcpCommand(CLI::App& app, CommandSlot& slot, const GlobalOptions& g
     });
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

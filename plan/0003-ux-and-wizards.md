@@ -39,7 +39,7 @@ machines (ADR-0067). The macOS Bluetooth permission step and the BLE pairing wiz
 | First-run setup | first start, or J-Link missing at start (ADR-0071) | detect J-Link Software (and optional nRF Util, needed only for modem firmware) → guide download/install → Linux udev rule (ADR-0072) → test probe → optional Bluetooth step: adapter, macOS permission (M5, ADR-0088) |
 | Connect device | "Connect" or connection error | choose device (CHESTER) → illustrated cabling (J-Link only; Bluetooth is chosen in the Choose-device picker, ADR-0081, and helped by the BLE pairing wizard) ("connect the J-Link flat cable to connector …", "power the device") → live checks (probe found? target voltage? MCU detected?) → done |
 | Flash firmware | Flash page "Guide me", FlashFirmware errors (ADR-0074) | device and probe → kind → cable + live check → file / catalog ID (no catalog browsing, open question 15) → confirm → progress → offer to open console |
-| Troubleshooting | from an `hio::Error` with `wizardId` | targeted checks per error (USB cable, flat cable, power, other app holding the probe, outdated J-Link firmware) |
+| Troubleshooting | from an `hwio::Error` with `wizardId` | targeted checks per error (USB cable, flat cable, power, other app holding the probe, outdated J-Link firmware) |
 | BLE pairing (M5, ADR-0084) | every `ble.*` error naming BlePairing; Help menu | Bluetooth checks (adapter, permission) → device (BLE list) → pair (OS-specific; [Pair] on Linux/Windows; passkey hint 123456 / PIB) → test (connected, NUS, encrypted, shell answers) → done |
 
 Illustrations and photos are stored under `app/gui/assets/` via **Git LFS**. They contain no embedded
@@ -49,6 +49,6 @@ text (text goes into translatable captions), so they work in every language.
 
 - Inline error panel in the affected page (not only a short toast).
 - Toasts only for transient success/info.
-- "Create diagnostic report" (Help menu, `hio diag report`; ADR-0075) saves a zip with a summary (app version,
-  OS, Qt, J-Link / nRF Util versions, probes, `hio doctor` results), the recent app logs and the settings file,
+- "Create diagnostic report" (Help menu, `hwio diag report`; ADR-0075) saves a zip with a summary (app version,
+  OS, Qt, J-Link / nRF Util versions, probes, `hwio doctor` results), the recent app logs and the settings file,
   with the home folder, user and host names redacted — for support tickets. Nothing is sent automatically.

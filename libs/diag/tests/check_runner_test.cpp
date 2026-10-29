@@ -1,7 +1,7 @@
 // CheckRunner (plan/features/0007, A1): order, dependencies, timeout, stop token, callback.
 
-#include "hio/core/error.h"
-#include "hio/diag/check.h"
+#include "hwio/core/error.h"
+#include "hwio/diag/check.h"
 
 #include <gtest/gtest.h>
 
@@ -15,11 +15,11 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::diag::Check;
-using hio::diag::CheckResult;
-using hio::diag::CheckRunner;
-using hio::diag::CheckStatus;
+using hwio::ErrorCode;
+using hwio::diag::Check;
+using hwio::diag::CheckResult;
+using hwio::diag::CheckRunner;
+using hwio::diag::CheckStatus;
 using namespace std::chrono_literals;
 
 Check makeCheck(std::string id, CheckStatus status, std::vector<std::string> dependsOn = {}) {
@@ -30,9 +30,9 @@ Check makeCheck(std::string id, CheckStatus status, std::vector<std::string> dep
                 .run = {}};
     check.run = [status, check](const std::stop_token&) {
         if (status == CheckStatus::Ok) {
-            return hio::diag::okResult(check, "fine");
+            return hwio::diag::okResult(check, "fine");
         }
-        return hio::diag::problemResult(check, status, hio::makeError(ErrorCode::IoReadFailed));
+        return hwio::diag::problemResult(check, status, hwio::makeError(ErrorCode::IoReadFailed));
     };
     return check;
 }
@@ -42,7 +42,7 @@ TEST(CheckRunner, RunsInOrderAndReportsRunningFirst) {
                              makeCheck("c", CheckStatus::Failed)};
     std::vector<std::string> events;
     const auto results = CheckRunner::run(checks, {}, [&](const CheckResult& result) {
-        events.push_back(result.id + ":" + std::string(hio::diag::checkStatusId(result.status)));
+        events.push_back(result.id + ":" + std::string(hwio::diag::checkStatusId(result.status)));
     });
     ASSERT_EQ(results.size(), 3U);
     EXPECT_EQ(results[0].status, CheckStatus::Ok);
@@ -77,7 +77,7 @@ TEST(CheckRunner, TimeoutStopsTheCheckAndWarns) {
         std::condition_variable_any wake;
         std::unique_lock lock(mutex);
         wake.wait_for(lock, stop, 10s, [] { return false; });
-        return hio::diag::okResult(slow, "late");
+        return hwio::diag::okResult(slow, "late");
     };
     const auto started = std::chrono::steady_clock::now();
     const auto results =
@@ -86,8 +86,8 @@ TEST(CheckRunner, TimeoutStopsTheCheckAndWarns) {
     ASSERT_EQ(results.size(), 2U);
     EXPECT_EQ(results[0].status, CheckStatus::Warning);
     ASSERT_TRUE(results[0].error.has_value());
-    EXPECT_EQ(results[0].error.value_or(hio::Error{}).code, ErrorCode::DiagCheckTimeout);
-    EXPECT_NE(results[0].error.value_or(hio::Error{}).message.find("Slow"), std::string::npos);
+    EXPECT_EQ(results[0].error.value_or(hwio::Error{}).code, ErrorCode::DiagCheckTimeout);
+    EXPECT_NE(results[0].error.value_or(hwio::Error{}).message.find("Slow"), std::string::npos);
     EXPECT_EQ(results[1].status, CheckStatus::Ok);
 }
 
@@ -97,7 +97,7 @@ TEST(CheckRunner, StopRequestSkipsTheRest) {
         .id = "first", .titleSourceText = "First", .timeout = 1000ms, .dependsOn = {}, .run = {}};
     first.run = [first, &stop](const std::stop_token&) {
         stop.request_stop();
-        return hio::diag::okResult(first, "done");
+        return hwio::diag::okResult(first, "done");
     };
     const auto results = CheckRunner::run(std::vector{first, makeCheck("second", CheckStatus::Ok)},
                                           stop.get_token());
@@ -127,7 +127,7 @@ TEST(CheckRunner, FormatsAlignedLines) {
          .title = "Longer title",
          .result = "y",
          .error = {}}};
-    EXPECT_EQ(hio::diag::formatCheckLines(results), "✓ Short         x\n✗ Longer title  y\n");
+    EXPECT_EQ(hwio::diag::formatCheckLines(results), "✓ Short         x\n✗ Longer title  y\n");
 }
 
 } // namespace

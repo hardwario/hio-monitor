@@ -1,6 +1,6 @@
-#include "hio/core/bounded_queue.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 
 #include <gtest/gtest.h>
 
@@ -14,9 +14,9 @@
 #include <vector>
 
 namespace {
-using hio::BoundedQueue;
-using hio::ErrorCode;
-using hio::OverflowPolicy;
+using hwio::BoundedQueue;
+using hwio::ErrorCode;
+using hwio::OverflowPolicy;
 
 TEST(BoundedQueue, FifoOrder) {
     BoundedQueue<int> queue(4, OverflowPolicy::Reject);
@@ -34,7 +34,7 @@ TEST(BoundedQueue, RejectWhenFull) {
     BoundedQueue<int> queue(2, OverflowPolicy::Reject);
     ASSERT_TRUE(queue.push(1));
     ASSERT_TRUE(queue.push(2));
-    const hio::Status status = queue.push(3);
+    const hwio::Status status = queue.push(3);
     ASSERT_FALSE(status.has_value());
     EXPECT_EQ(status.error().code, ErrorCode::InternalQueueFull);
     EXPECT_EQ(queue.size(), 2U);
@@ -94,7 +94,7 @@ TEST(BoundedQueue, BlockedPushIsCancelledByStopToken) {
     BoundedQueue<int> queue(1, OverflowPolicy::Block);
     ASSERT_TRUE(queue.push(1));
     std::stop_source stop;
-    hio::Status result;
+    hwio::Status result;
     std::jthread producer([&] { result = queue.push(2, stop.get_token()); });
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     stop.request_stop();
@@ -109,7 +109,7 @@ TEST(BoundedQueue, CloseWakesBlockedPushAndPop) {
     ASSERT_TRUE(full.push(1));
     BoundedQueue<int> empty(1, OverflowPolicy::Block);
 
-    hio::Status pushResult;
+    hwio::Status pushResult;
     std::optional<int> popResult = 42;
     std::jthread producer([&] { pushResult = full.push(2); });
     std::jthread consumer([&] { popResult = empty.pop({}, std::chrono::hours(1)); });

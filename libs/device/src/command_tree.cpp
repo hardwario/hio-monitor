@@ -1,9 +1,9 @@
-#include "hio/device/command_tree.h"
+#include "hwio/device/command_tree.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/line_assembler.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/line_assembler.h"
 
 #include <QJsonArray>
 #include <QJsonObject>
@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -266,4 +266,4 @@ bool helpSupportsDashH(std::span<const std::string> lines) {
     });
 }
 
-} // namespace hio::device
+} // namespace hwio::device

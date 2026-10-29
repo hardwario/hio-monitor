@@ -1,7 +1,7 @@
-#include "hio/mcp/offload.h"
+#include "hwio/mcp/offload.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 
 #include <QMetaObject>
 #include <QObject>
@@ -16,14 +16,14 @@
 #include <thread>
 #include <utility>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 Offloader::Offloader(std::size_t maxRunning, std::size_t maxQueued, QObject* parent)
     : QObject(parent), m_maxRunning(maxRunning == 0 ? 1 : maxRunning), m_maxQueued(maxQueued) {}
 
 Offloader::~Offloader() { stopAll(); }
 
-hio::Result<std::uint64_t> Offloader::enqueue(QObject& receiver, Work work) {
+hwio::Result<std::uint64_t> Offloader::enqueue(QObject& receiver, Work work) {
     if (m_running.size() >= m_maxRunning && m_queue.size() >= m_maxQueued) {
         return std::unexpected(makeError(ErrorCode::McpTooManyRequests));
     }
@@ -103,4 +103,4 @@ void Offloader::stopAll() {
     }
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

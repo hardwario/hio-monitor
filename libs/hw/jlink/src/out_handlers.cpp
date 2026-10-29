@@ -1,8 +1,8 @@
 #include "out_handlers.h"
 
-#include "hio/core/bounded_queue.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 #include "jlink_abi.h"
 
 #include <array>
@@ -18,7 +18,7 @@
 #include <thread>
 #include <utility>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 namespace {
 
@@ -166,4 +166,4 @@ abi::LogHandler OutHandlerSlot::warningHandler() const noexcept {
 
 abi::LogHandler OutHandlerSlot::errorHandler() const noexcept { return errorHandlers.at(m_index); }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

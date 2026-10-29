@@ -4,22 +4,22 @@
 #include "cli_log.h"
 #include "confirm.h"
 #include "diag_commands.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/pib.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_registry.h"
-#include "hio/firmware/designated_firmware.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/intel_hex.h"
-#include "hio/firmware/lte_input.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/pib.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/firmware/designated_firmware.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/intel_hex.h"
+#include "hwio/firmware/lte_input.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "operation_runner.h"
 #include "output.h"
 #include "probe_options.h"
@@ -58,7 +58,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -414,7 +414,7 @@ Result<CommandResult> uicrRead(const Context& context, const GlobalOptions& glob
 
 // ---- lte flash -------------------------------------------------------------------------------
 
-// The nRF Util of --nrfutil / HIO_NRFUTIL / the setting / discovery, checked before the device is
+// The nRF Util of --nrfutil / HWIO_NRFUTIL / the setting / discovery, checked before the device is
 // touched (ADR-0042). Errors: dependency.*.
 Result<fs::path> checkNrfUtil(const GlobalOptions& globals, ProgressUi& ui) {
     std::optional<fs::path> option;
@@ -819,4 +819,4 @@ void registerLteCommands(CLI::App& chesterCommand, CommandSlot& slot,
     registerTargetCommands(*lte, group, slot, globals, "lte");
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

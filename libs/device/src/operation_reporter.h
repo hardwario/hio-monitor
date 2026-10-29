@@ -7,9 +7,9 @@
 //
 // Thread safety: none (the session worker).
 
-#include "hio/device/operation.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/clock.h"
+#include "hwio/device/operation.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/clock.h"
 
 #include <chrono>
 #include <cstddef>
@@ -17,7 +17,7 @@
 #include <optional>
 #include <span>
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 class OperationReporter {
 public:
@@ -53,4 +53,4 @@ private:
     OperationProgress m_current;
 };
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

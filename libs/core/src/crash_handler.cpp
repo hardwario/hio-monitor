@@ -1,7 +1,7 @@
 // Crash files: pruning, listing and the marker (ADR-0123, plan/features/0015 B1). The handlers
 // themselves are in crash_handler_posix.cpp / crash_handler_win.cpp.
 
-#include "hio/core/crash_handler.h"
+#include "hwio/core/crash_handler.h"
 
 #include <QStandardPaths>
 #include <QString>
@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::crash {
+namespace hwio::crash {
 
 namespace {
 
@@ -105,4 +105,4 @@ void acknowledge(const fs::path& directory) {
     fs::remove(directory / markerFileName, error);
 }
 
-} // namespace hio::crash
+} // namespace hwio::crash

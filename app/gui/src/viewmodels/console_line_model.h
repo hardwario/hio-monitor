@@ -31,9 +31,9 @@
 // newLinesWhileNotFollowing saturates at INT_MAX.
 // Ownership: Qt parent = ConsoleViewModel; shares the tab's log. GUI thread only.
 
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
 #include "viewmodels/find_filter_engine.h"
 
 #include <QAbstractListModel>
@@ -56,7 +56,7 @@
 
 class QIODevice;
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class ConsoleLineModel : public QAbstractListModel {
     Q_OBJECT
@@ -262,4 +262,4 @@ private:
     mutable std::optional<device::ConsoleLine> m_cached;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

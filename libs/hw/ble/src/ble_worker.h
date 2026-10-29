@@ -3,13 +3,13 @@
 // BleWorker - the BLE thread's side of BleHost (ADR-0080, ADR-0129). Lives on the BLE thread only:
 // created there (with the IBleApi), drained there, destroyed there.
 
-#include "hio/core/bounded_queue.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/nus_link.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/nus_link.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QEventLoop>
 #include <QObject>
@@ -28,7 +28,7 @@
 #include <span>
 #include <vector>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 class BleWorker;
 
@@ -105,12 +105,12 @@ public:
 
     // IBleListener
     void onAdvertisement(const Advertisement& advertisement) override;
-    void onScanFinished(std::optional<hio::Error> error) override;
+    void onScanFinished(std::optional<hwio::Error> error) override;
     void onLinkConnecting(LinkId link, bool waitingForPairing) override;
     void onLinkReady(LinkId link, LinkReady ready) override;
     void onLinkData(LinkId link, std::span<const std::byte> data) override;
-    void onWriteDone(LinkId link, std::uint64_t token, std::optional<hio::Error> error) override;
-    void onLinkLost(LinkId link, hio::Error error) override;
+    void onWriteDone(LinkId link, std::uint64_t token, std::optional<hwio::Error> error) override;
+    void onLinkLost(LinkId link, hwio::Error error) override;
     void onPairingFinished(BleDeviceId device, Status status) override;
 
 private:
@@ -157,4 +157,4 @@ private:
     bool m_shutDown = false;
 };
 
-} // namespace hio::ble
+} // namespace hwio::ble

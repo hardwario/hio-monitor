@@ -21,7 +21,7 @@
 //
 // Ownership: child of its DeviceTabViewModel (Qt parent). GUI thread only.
 
-#include "hio/device/session_events.h"
+#include "hwio/device/session_events.h"
 #include "viewmodels/error_info.h"
 
 #include <QObject>
@@ -34,11 +34,11 @@
 #include <cstdint>
 #include <optional>
 
-namespace hio::device {
+namespace hwio::device {
 struct TargetProfile;
-} // namespace hio::device
+} // namespace hwio::device
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DeviceTabViewModel;
 class SettingsStore;
@@ -87,9 +87,9 @@ class ConnectionViewModel : public QObject {
     // "connect", "cancel", "disconnect" (the device bar's primary button)
     Q_PROPERTY(QString action READ action NOTIFY stateChanged)
     Q_PROPERTY(bool actionEnabled READ actionEnabled NOTIFY stateChanged)
-    Q_PROPERTY(double targetVolts READ targetVolts NOTIFY stateChanged)  // NaN = unknown
-    Q_PROPERTY(hio::gui::ErrorInfo error READ error NOTIFY errorChanged) // invalid when none
-    Q_PROPERTY(hio::gui::ErrorInfo warning READ warning NOTIFY warningChanged)
+    Q_PROPERTY(double targetVolts READ targetVolts NOTIFY stateChanged)   // NaN = unknown
+    Q_PROPERTY(hwio::gui::ErrorInfo error READ error NOTIFY errorChanged) // invalid when none
+    Q_PROPERTY(hwio::gui::ErrorInfo warning READ warning NOTIFY warningChanged)
     Q_PROPERTY(bool canChooseAnotherProbe READ canChooseAnotherProbe NOTIFY errorChanged)
 
     Q_PROPERTY(bool autoSpeed READ autoSpeed WRITE setAutoSpeed NOTIFY optionsChanged)
@@ -198,4 +198,4 @@ private:
     ErrorInfo m_warning;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

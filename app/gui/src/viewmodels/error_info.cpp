@@ -1,14 +1,14 @@
 #include "viewmodels/error_info.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
 
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
 #include <QStringLiteral>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace error_action {
 
@@ -61,4 +61,4 @@ QString ErrorInfo::detailsText() const {
     return m_code + QLatin1Char('\n') + m_detail;
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -1,8 +1,8 @@
 # CPack DEB configuration of hardwario-monitor (plan/features/0015 C2, ADR-0121, ADR-0122).
-# Included by cmake/HioPackaging.cmake when HIO_PACKAGE_KIND=deb.
+# Included by cmake/HWioPackaging.cmake when HWIO_PACKAGE_KIND=deb.
 #
 # Files: /opt/hardwario-monitor/{bin,lib,plugins,qml,translations,licenses} (private Qt), the links
-# /usr/bin/hio-monitor and /usr/bin/hio, desktop file, AppStream metainfo and hicolor icons under
+# /usr/bin/hwio-monitor and /usr/bin/hwio, desktop file, AppStream metainfo and hicolor icons under
 # /usr/share, the J-Link udev rule under /usr/lib/udev/rules.d. postinst/postrm reload udev.
 # Requires Ubuntu 24.04+ / Debian 13+ (ADR-0118).
 
@@ -10,12 +10,12 @@ set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGING_INSTALL_PREFIX "/")
 set(CPACK_DEBIAN_PACKAGE_NAME "hardwario-monitor")
 # Debian version: the first '-' (pre-release) becomes '~' so that 2.0.0~rc.1 < 2.0.0.
-string(REGEX REPLACE "^([0-9]+\\.[0-9]+\\.[0-9]+)-" "\\1~" _hio_deb_version "${HIO_VERSION}")
-set(CPACK_DEBIAN_PACKAGE_VERSION "${_hio_deb_version}")
+string(REGEX REPLACE "^([0-9]+\\.[0-9]+\\.[0-9]+)-" "\\1~" _hwio_deb_version "${HWIO_VERSION}")
+set(CPACK_DEBIAN_PACKAGE_VERSION "${_hwio_deb_version}")
 set(CPACK_DEBIAN_PACKAGE_RELEASE "")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
 # ADR-0125 artifact name: hardwario-monitor_<version>_amd64.deb (<version> as the tag, without "v").
-set(CPACK_DEBIAN_FILE_NAME "hardwario-monitor_${HIO_VERSION_FILE_NAME}_amd64.deb")
+set(CPACK_DEBIAN_FILE_NAME "hardwario-monitor_${HWIO_VERSION_FILE_NAME}_amd64.deb")
 # PLACEHOLDER (packaging/RELEASE.md release gate): HARDWARIO supplies the support e-mail address.
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "HARDWARIO a.s. <support-email-pending@hardwario.invalid>")
 set(CPACK_DEBIAN_PACKAGE_SECTION "electronics")
@@ -26,7 +26,7 @@ set(CPACK_DEBIAN_PACKAGE_DESCRIPTION
 "HARDWARIO Monitor connects to HARDWARIO devices such as CHESTER through a
 SEGGER J-Link probe or Bluetooth: device console and logs, application and
 modem firmware flashing, connection diagnostics. Includes the command-line
-tool hio. SEGGER J-Link Software 8.00 or newer must be installed separately.")
+tool hwio. SEGGER J-Link Software 8.00 or newer must be installed separately.")
 # dpkg-shlibdeps computes the system libraries of the binaries, the Qt plugins and QML modules;
 # the private Qt in /opt/hardwario-monitor/lib is resolved there and not turned into dependencies.
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
@@ -44,41 +44,41 @@ set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
 set(CPACK_DEBIAN_COMPRESSION_TYPE "xz")
 
 # Debian policy files: copyright, a changelog and the lintian overrides.
-set(_hio_deb_doc "${PROJECT_BINARY_DIR}/packaging/deb")
-file(MAKE_DIRECTORY "${_hio_deb_doc}")
+set(_hwio_deb_doc "${PROJECT_BINARY_DIR}/packaging/deb")
+file(MAKE_DIRECTORY "${_hwio_deb_doc}")
 set(QT_VERSION "${Qt6_VERSION}")
 configure_file("${PROJECT_SOURCE_DIR}/packaging/linux/deb/copyright.in"
-    "${_hio_deb_doc}/copyright" @ONLY)
-string(TIMESTAMP _hio_deb_date "%a, %d %b %Y %H:%M:%S +0000" UTC)
-file(WRITE "${_hio_deb_doc}/changelog"
-"hardwario-monitor (${_hio_deb_version}) unstable; urgency=medium
+    "${_hwio_deb_doc}/copyright" @ONLY)
+string(TIMESTAMP _hwio_deb_date "%a, %d %b %Y %H:%M:%S +0000" UTC)
+file(WRITE "${_hwio_deb_doc}/changelog"
+"hardwario-monitor (${_hwio_deb_version}) unstable; urgency=medium
 
-  * HARDWARIO Monitor ${HIO_VERSION}, see
+  * HARDWARIO Monitor ${HWIO_VERSION}, see
     https://github.com/hardwario/hio-monitor/releases
 
- -- ${CPACK_DEBIAN_PACKAGE_MAINTAINER}  ${_hio_deb_date}
+ -- ${CPACK_DEBIAN_PACKAGE_MAINTAINER}  ${_hwio_deb_date}
 ")
 add_custom_command(
-    OUTPUT "${_hio_deb_doc}/changelog.gz"
-    COMMAND gzip -9nkf "${_hio_deb_doc}/changelog"
-    DEPENDS "${_hio_deb_doc}/changelog"
+    OUTPUT "${_hwio_deb_doc}/changelog.gz"
+    COMMAND gzip -9nkf "${_hwio_deb_doc}/changelog"
+    DEPENDS "${_hwio_deb_doc}/changelog"
     VERBATIM)
-add_custom_target(hio_deb_changelog ALL DEPENDS "${_hio_deb_doc}/changelog.gz")
-install(FILES "${_hio_deb_doc}/copyright" "${_hio_deb_doc}/changelog.gz"
+add_custom_target(hwio_deb_changelog ALL DEPENDS "${_hwio_deb_doc}/changelog.gz")
+install(FILES "${_hwio_deb_doc}/copyright" "${_hwio_deb_doc}/changelog.gz"
     DESTINATION "usr/share/doc/hardwario-monitor")
 # Manual pages of the two commands on PATH.
-foreach(_hio_page IN ITEMS hio hio-monitor)
-    configure_file("${PROJECT_SOURCE_DIR}/packaging/linux/deb/${_hio_page}.1.in"
-        "${_hio_deb_doc}/${_hio_page}.1" @ONLY)
+foreach(_hwio_page IN ITEMS hwio hwio-monitor)
+    configure_file("${PROJECT_SOURCE_DIR}/packaging/linux/deb/${_hwio_page}.1.in"
+        "${_hwio_deb_doc}/${_hwio_page}.1" @ONLY)
     add_custom_command(
-        OUTPUT "${_hio_deb_doc}/${_hio_page}.1.gz"
-        COMMAND gzip -9nkf "${_hio_deb_doc}/${_hio_page}.1"
-        DEPENDS "${_hio_deb_doc}/${_hio_page}.1"
+        OUTPUT "${_hwio_deb_doc}/${_hwio_page}.1.gz"
+        COMMAND gzip -9nkf "${_hwio_deb_doc}/${_hwio_page}.1"
+        DEPENDS "${_hwio_deb_doc}/${_hwio_page}.1"
         VERBATIM)
-    list(APPEND _hio_deb_pages "${_hio_deb_doc}/${_hio_page}.1.gz")
+    list(APPEND _hwio_deb_pages "${_hwio_deb_doc}/${_hwio_page}.1.gz")
 endforeach()
-add_custom_target(hio_deb_man_pages ALL DEPENDS ${_hio_deb_pages})
-install(FILES ${_hio_deb_pages} DESTINATION "usr/share/man/man1")
+add_custom_target(hwio_deb_man_pages ALL DEPENDS ${_hwio_deb_pages})
+install(FILES ${_hwio_deb_pages} DESTINATION "usr/share/man/man1")
 # Debian policy: binaries and libraries are stripped (the release workflow keeps the symbols of
 # the build tree, ADR-0123). Also the ICU libraries that come with Qt.
 set(CPACK_STRIP_FILES ON)

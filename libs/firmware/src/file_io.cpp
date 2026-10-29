@@ -1,8 +1,8 @@
 #include "file_io.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::firmware::detail {
+namespace hwio::firmware::detail {
 
 Result<std::vector<std::byte>> readFileBounded(const std::filesystem::path& path,
                                                std::uint64_t maxBytes) {
@@ -48,4 +48,4 @@ Result<std::vector<std::byte>> readFileBounded(const std::filesystem::path& path
     return std::vector<std::byte>(bytes.begin(), bytes.end());
 }
 
-} // namespace hio::firmware::detail
+} // namespace hwio::firmware::detail

@@ -8,9 +8,9 @@
 #include <exception>
 #include <string_view>
 
-namespace hio::cli {
+namespace hwio::cli {
 
-Q_LOGGING_CATEGORY(lcCli, "hio.cli")
+Q_LOGGING_CATEGORY(lcCli, "hwio.cli")
 
 void logThreadException(std::string_view thread) noexcept {
     try {
@@ -29,4 +29,4 @@ void logThreadException(std::string_view thread) noexcept {
     }
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

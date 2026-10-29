@@ -1,8 +1,8 @@
 // SettingsStore: key table, validation, valueChanged, sync, read-only mode (plan 0004, A5).
 
 #include "gui_test_support.h"
-#include "hio/core/error.h"
-#include "hio/core/settings.h"
+#include "hwio/core/error.h"
+#include "hwio/core/settings.h"
 #include "settings_store.h"
 
 #include <QMetaType>
@@ -18,12 +18,12 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::gui::SettingKey;
-using hio::gui::SettingsStore;
-namespace validators = hio::gui::validators;
+using hwio::ErrorCode;
+using hwio::gui::SettingKey;
+using hwio::gui::SettingsStore;
+namespace validators = hwio::gui::validators;
 
-class SettingsStoreTest : public hio::gui::test::GuiTest {
+class SettingsStoreTest : public hwio::gui::test::GuiTest {
 protected:
     static void registerTestKeys(SettingsStore& store) {
         const std::array keys{
@@ -112,7 +112,7 @@ TEST_F(SettingsStoreTest, PatternKeys) {
 TEST_F(SettingsStoreTest, StoredValuesAreReadBackAndInvalidOnesIgnored) {
     {
         QSettings raw(QString::fromStdU16String(settingsFile().u16string()), QSettings::IniFormat);
-        raw.setValue(QStringLiteral("meta/schemaVersion"), hio::currentSettingsSchema);
+        raw.setValue(QStringLiteral("meta/schemaVersion"), hwio::currentSettingsSchema);
         raw.setValue(QStringLiteral("ui/theme"), QStringLiteral("purple"));
         raw.setValue(QStringLiteral("jlink/speedKhz"), QStringLiteral("12000"));
         raw.setValue(QStringLiteral("ui/restoreTabs"), QStringLiteral("false"));
@@ -127,7 +127,7 @@ TEST_F(SettingsStoreTest, StoredValuesAreReadBackAndInvalidOnesIgnored) {
 TEST_F(SettingsStoreTest, NewerSchemaIsReadOnly) {
     {
         QSettings raw(QString::fromStdU16String(settingsFile().u16string()), QSettings::IniFormat);
-        raw.setValue(QStringLiteral("meta/schemaVersion"), hio::currentSettingsSchema + 1);
+        raw.setValue(QStringLiteral("meta/schemaVersion"), hwio::currentSettingsSchema + 1);
         raw.setValue(QStringLiteral("ui/theme"), QStringLiteral("light"));
     }
     SettingsStore store(openSettings());

@@ -1,4 +1,4 @@
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 #include "output.h"
 
 #include <QJsonObject>
@@ -14,16 +14,16 @@
 
 namespace {
 
-using hio::cli::Output;
-using hio::cli::OutputMode;
+using hwio::cli::Output;
+using hwio::cli::OutputMode;
 
-hio::Error sampleError(std::string detail) {
-    return hio::Error{.code = hio::ErrorCode::IoFileNotFound,
-                      .message = "The file was not found.",
-                      .cause = "The path is wrong.",
-                      .suggestion = "Check the file path.",
-                      .detail = std::move(detail),
-                      .wizard = std::nullopt};
+hwio::Error sampleError(std::string detail) {
+    return hwio::Error{.code = hwio::ErrorCode::IoFileNotFound,
+                       .message = "The file was not found.",
+                       .cause = "The path is wrong.",
+                       .suggestion = "Check the file path.",
+                       .detail = std::move(detail),
+                       .wizard = std::nullopt};
 }
 
 TEST(Output, HumanErrorBlock) {
@@ -42,7 +42,7 @@ TEST(Output, HumanErrorOmitsEmptyLines) {
     std::ostringstream out;
     std::ostringstream err;
     Output output(OutputMode::Human, out, err, false);
-    hio::Error error = sampleError("");
+    hwio::Error error = sampleError("");
     error.cause.clear();
     output.printError(error);
     EXPECT_EQ(err.str(), "Error: The file was not found.\n"
@@ -75,8 +75,8 @@ TEST(Output, HumanResult) {
     std::ostringstream out;
     std::ostringstream err;
     Output output(OutputMode::Human, out, err, false);
-    output.printResult(QJsonValue(1), "hio 2.0.0");
-    EXPECT_EQ(out.str(), "hio 2.0.0\n");
+    output.printResult(QJsonValue(1), "hwio 2.0.0");
+    EXPECT_EQ(out.str(), "hwio 2.0.0\n");
     EXPECT_EQ(err.str(), "");
 }
 

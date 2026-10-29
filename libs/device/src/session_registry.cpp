@@ -1,20 +1,20 @@
-#include "hio/device/session_registry.h"
+#include "hwio/device/session_registry.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/ble_lock.h"
-#include "hio/device/console_file_sink.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_session.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_key.h"
-#include "hio/hw/ble/types.h"
-#include "hio/hw/jlink/jlink_library.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/probe_enumerator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/ble_lock.h"
+#include "hwio/device/console_file_sink.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_key.h"
+#include "hwio/hw/ble/types.h"
+#include "hwio/hw/jlink/jlink_library.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/probe_enumerator.h"
+#include "hwio/hw/jlink/types.h"
 #include "session_internal.h"
 
 #include <QCoreApplication>
@@ -29,7 +29,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 RegistryOptions RegistryOptions::defaults() {
     return RegistryOptions{.instanceRoot = jlink::JLinkLibrary::defaultInstanceRoot(),
@@ -121,7 +121,7 @@ Status SessionRegistry::checkAvailable(const std::optional<SessionKey>& key) con
         Error error = makeError(ErrorCode::BleInUseByOtherProcess,
                                 "the device is used by another session of this process");
         error.message = QCoreApplication::translate(
-                            "hio::device", "The device %1 is already used by this application.")
+                            "hwio::device", "The device %1 is already used by this application.")
                             .arg(toQString(id))
                             .toStdString();
         return std::unexpected(std::move(error));
@@ -135,7 +135,7 @@ Status SessionRegistry::checkAvailable(const std::optional<SessionKey>& key) con
             ErrorCode::ProbeOpenFailed,
             std::format("J-Link {} is used by another session of this process", *serialNumber));
         error.message = QCoreApplication::translate(
-                            "hio::device", "The J-Link %1 is already used by this application.")
+                            "hwio::device", "The J-Link %1 is already used by this application.")
                             .arg(*serialNumber)
                             .toStdString();
         return std::unexpected(std::move(error));
@@ -147,4 +147,4 @@ void SessionRegistry::add(ConsoleSession* session) { m_sessions.push_back(sessio
 
 void SessionRegistry::remove(ConsoleSession* session) noexcept { std::erase(m_sessions, session); }
 
-} // namespace hio::device
+} // namespace hwio::device

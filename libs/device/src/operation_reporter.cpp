@@ -1,15 +1,15 @@
 #include "operation_reporter.h"
 
-#include "hio/device/operation.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/clock.h"
+#include "hwio/device/operation.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/clock.h"
 
 #include <chrono>
 #include <cstddef>
 #include <span>
 #include <utility>
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 OperationReporter::OperationReporter(OperationKind kind, std::span<const ProgramPhase> planned,
                                      jlink::Clock& clock, std::chrono::milliseconds interval,
@@ -86,4 +86,4 @@ void OperationReporter::emitNow() {
     }
 }
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

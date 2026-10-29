@@ -5,10 +5,10 @@
 // (ConsoleSection.qml), the page shortcuts (scope "console", ADR-0051) and the ConsoleSettings
 // instance (a child of AppViewModel). Called from registerBuiltInPages().
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class AppViewModel;
 
 void registerConsolePage(AppViewModel& app);
 
-} // namespace hio::gui
+} // namespace hwio::gui

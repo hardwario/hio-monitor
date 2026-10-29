@@ -1,5 +1,5 @@
-#include "hio/core/error.h"
-#include "hio/device/probe_lock.h"
+#include "hwio/core/error.h"
+#include "hwio/device/probe_lock.h"
 #include "lock_holder.h"
 
 #include <QByteArray>
@@ -45,8 +45,8 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::device::ProbeLock;
+using hwio::ErrorCode;
+using hwio::device::ProbeLock;
 
 class Lock : public ::testing::Test {
 protected:
@@ -128,7 +128,7 @@ TEST_F(Lock, AcquireAndRelease) {
         EXPECT_TRUE(QFile::exists(lockFile(42)));
         const auto owner = ProbeLock::owner(42, dir());
         ASSERT_TRUE(owner.has_value());
-        EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).pid,
+        EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).pid,
                   QCoreApplication::applicationPid());
     }
     EXPECT_FALSE(QFile::exists(lockFile(42)));
@@ -169,8 +169,8 @@ TEST_F(Lock, HeldByAnotherProcessNamesTheOwner) {
                                         std::to_string(other.processId()) + ").");
     const auto owner = ProbeLock::owner(46, dir());
     ASSERT_TRUE(owner.has_value());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).app, app.toStdString());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).pid, other.processId());
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).app, app.toStdString());
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).pid, other.processId());
 
     other.kill();
     ASSERT_TRUE(other.waitForFinished(5000));
@@ -233,20 +233,20 @@ TEST_F(Lock, LiveProcessWithAnotherAppNameIsNoOwner) {
 // Review R37: a lock file with our own PID for a probe this process does not hold is no owner
 // (the R15 rule of acquire()); once this process holds the probe, it is the owner.
 TEST_F(Lock, OwnPidNotHeldIsNoOwner) {
-    writeLock(52, contentFor(52, QCoreApplication::applicationPid(), "hio_device_tests"));
+    writeLock(52, contentFor(52, QCoreApplication::applicationPid(), "hwio_device_tests"));
     EXPECT_FALSE(ProbeLock::owner(52, dir()).has_value());
     auto lock = ProbeLock::acquire(52, dir());
     ASSERT_TRUE(lock) << lock.error().message;
     const auto owner = ProbeLock::owner(52, dir());
     ASSERT_TRUE(owner.has_value());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).pid,
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).pid,
               QCoreApplication::applicationPid());
 }
 
 // Review R15: a lock file naming our own PID for a probe this process does not hold is a stale
 // lock of a dead process whose PID we reused: it is taken over. A probe we hold stays refused.
 TEST_F(Lock, OwnPidLockNotHeldInProcessIsTakenOver) {
-    writeLock(49, contentFor(49, QCoreApplication::applicationPid(), "hio_device_tests"));
+    writeLock(49, contentFor(49, QCoreApplication::applicationPid(), "hwio_device_tests"));
     auto lock = ProbeLock::acquire(49, dir());
     ASSERT_TRUE(lock) << lock.error().message;
     const auto again = ProbeLock::acquire(49, dir());
@@ -316,19 +316,19 @@ QString recordedAppName() {
 
 // Review R41: a lock that QLockFile took in another process (with the application and host
 // names Qt records on this OS) has an owner, and acquire() refuses it; once released, neither.
-// On Windows the old code compared "hio_device_tests.exe" and QSysInfo::machineHostName() with
-// Qt's "hio_device_tests" and COMPUTERNAME, and never found an owner.
+// On Windows the old code compared "hwio_device_tests.exe" and QSysInfo::machineHostName() with
+// Qt's "hwio_device_tests" and COMPUTERNAME, and never found an owner.
 TEST_F(Lock, LockOfAnotherProcessThroughQLockFileHasAnOwner) {
     fs::create_directories(dir());
-    hio::device::test::LockHolder holder(lockFile(60));
+    hwio::device::test::LockHolder holder(lockFile(60));
     ASSERT_TRUE(holder.waitUntilLocked());
     const auto owner = ProbeLock::owner(60, dir());
     ASSERT_TRUE(owner.has_value());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).pid, holder.pid());
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).pid, holder.pid());
 #ifndef __APPLE__ // macOS records proc_name(), which may be shortened
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).app, recordedAppName().toStdString());
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).app, recordedAppName().toStdString());
 #endif
-    EXPECT_TRUE(owner.value_or(hio::device::ProbeLockOwner{}).lockedAt.has_value());
+    EXPECT_TRUE(owner.value_or(hwio::device::ProbeLockOwner{}).lockedAt.has_value());
     const auto lock = ProbeLock::acquire(60, dir());
     ASSERT_FALSE(lock);
     EXPECT_EQ(lock.error().code, ErrorCode::ProbeInUseByOtherProcess);
@@ -344,8 +344,8 @@ TEST_F(Lock, UnreadableLockFileIsAnUnknownOwner) {
     writeLock(64, QByteArray());
     const auto owner = ProbeLock::owner(64, dir());
     ASSERT_TRUE(owner.has_value());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).app, "?");
-    hio::device::ProbeLockOwner none;
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).app, "?");
+    hwio::device::ProbeLockOwner none;
     none.pid = 1;
     EXPECT_EQ(owner.value_or(none).pid, 0);
     const auto lock = ProbeLock::acquire(64, dir());
@@ -424,7 +424,7 @@ TEST_F(Lock, MachineIdDecidesTheHost) {
 // rewritten after it locked) therefore stays the owner, as acquire() sees it.
 TEST_F(Lock, ApparentlyStaleLockStillHeldByItsOwnerHasAnOwner) {
     fs::create_directories(dir());
-    hio::device::test::LockHolder holder(lockFile(63));
+    hwio::device::test::LockHolder holder(lockFile(63));
     ASSERT_TRUE(holder.waitUntilLocked());
     QFile file(lockFile(63));
     ASSERT_TRUE(file.open(QIODevice::ReadOnly));
@@ -434,7 +434,7 @@ TEST_F(Lock, ApparentlyStaleLockStillHeldByItsOwnerHasAnOwner) {
     writeLock(63, lines.join('\n')); // same file (inode), the holder keeps its flock
     const auto owner = ProbeLock::owner(63, dir());
     ASSERT_TRUE(owner.has_value());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).pid, holder.pid());
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).pid, holder.pid());
     const auto lock = ProbeLock::acquire(63, dir());
     ASSERT_FALSE(lock);
     EXPECT_EQ(lock.error().code, ErrorCode::ProbeInUseByOtherProcess);
@@ -446,7 +446,7 @@ TEST_F(Lock, ApparentlyStaleLockStillHeldByItsOwnerHasAnOwner) {
 // directory and extension and %COMPUTERNAME% as the host name.
 TEST_F(Lock, WindowsRecordsTheAppNameWithoutExtensionAndTheComputerName) {
     fs::create_directories(dir());
-    hio::device::test::LockHolder holder(lockFile(61));
+    hwio::device::test::LockHolder holder(lockFile(61));
     ASSERT_TRUE(holder.waitUntilLocked());
     QFile file(lockFile(61));
     ASSERT_TRUE(file.open(QIODevice::ReadOnly));
@@ -458,15 +458,15 @@ TEST_F(Lock, WindowsRecordsTheAppNameWithoutExtensionAndTheComputerName) {
     EXPECT_EQ(QString::fromUtf8(lines[2]), qEnvironmentVariable("COMPUTERNAME"));
     const auto owner = ProbeLock::owner(61, dir());
     ASSERT_TRUE(owner.has_value());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).app, recordedAppName().toStdString());
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).app, recordedAppName().toStdString());
 }
 
 // Review R41 (Windows CI): Qt compares the running process's name without extension with the
 // recorded one, as it is: a lock file (not held open) naming the live helper's PID is an owner
-// with "hio_device_tests" and stale with "hio_device_tests.exe" (a reused PID for Qt).
+// with "hwio_device_tests" and stale with "hwio_device_tests.exe" (a reused PID for Qt).
 TEST_F(Lock, WindowsComparesTheAppNameWithoutExtension) {
     fs::create_directories(dir());
-    hio::device::test::LockHolder holder(lockFile(62));
+    hwio::device::test::LockHolder holder(lockFile(62));
     ASSERT_TRUE(holder.waitUntilLocked());
     writeLock(68, contentFor(68, holder.pid(), recordedAppName().toUtf8()));
     EXPECT_TRUE(ProbeLock::owner(68, dir()).has_value());

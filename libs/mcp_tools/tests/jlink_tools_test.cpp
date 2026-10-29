@@ -1,20 +1,20 @@
 // The device tools on real sessions (plan/features/0013 "Tests: Tools"): DeviceSessions on the
-// fake J-Link library and BleSessions on the fake BLE backend (HIO_TEST_OVERRIDES builds).
+// fake J-Link library and BleSessions on the fake BLE backend (HWIO_TEST_OVERRIDES builds).
 // connect / disconnect, send_command by prompt / silence / timeout with the fake's responses and
 // echo, the session control tools, every target tool, flash (path, catalog id, both, UICR with
 // and without allow_uicr, cancel, stall), erase, recover, internal.busy with the kind, the device
 // closed mid-call, a BLE session (mcp.capability_missing), a missing optional J-Link export.
 
 #include "hex_builder.h"
-#include "hio/device/console_line.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/tools/device_provider.h"
-#include "hio/mcp/tools/tools_context.h"
 #include "http_fixture.h"
+#include "hwio/device/console_line.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/tools/device_provider.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "session_provider.h"
 #include "tools_test_support.h"
 
@@ -40,7 +40,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp::tools::test {
+namespace hwio::mcp::tools::test {
 namespace {
 
 using namespace std::chrono_literals;
@@ -92,9 +92,9 @@ QJsonObject scenario(const QJsonObject& rttExtra = {}, const QJsonObject& chipEx
                                 {QStringLiteral("chip"), chip}}}}};
 }
 
-std::string hexFile(const fs::path& path, std::vector<hio::firmware::Segment> segments) {
-    auto image = hio::firmware::FirmwareImage::fromSegments(std::move(segments));
-    const std::string text = hio::firmware::test::toHex(*image);
+std::string hexFile(const fs::path& path, std::vector<hwio::firmware::Segment> segments) {
+    auto image = hwio::firmware::FirmwareImage::fromSegments(std::move(segments));
+    const std::string text = hwio::firmware::test::toHex(*image);
     QFile file(QString::fromStdString(path.string()));
     if (file.open(QIODevice::WriteOnly)) {
         file.write(text.data(), static_cast<qint64>(text.size()));
@@ -106,8 +106,8 @@ class JLinkTools : public ::testing::Test {
 protected:
     void SetUp() override { provider().scenario(QJsonDocument(scenario()).toJson()); }
 
-    static hio::mcp::Limits limits() {
-        hio::mcp::Limits shrunk;
+    static hwio::mcp::Limits limits() {
+        hwio::mcp::Limits shrunk;
         shrunk.tools.sendCommandSilence = 150ms;
         return shrunk;
     }
@@ -125,8 +125,8 @@ protected:
     [[nodiscard]] std::string imagePath(std::uint32_t address, std::size_t size,
                                         const char* name = "app.hex") {
         return hexFile(provider().root() / name,
-                       {hio::firmware::Segment{.address = address,
-                                               .data = hio::firmware::test::filled(size, 0x5A)}});
+                       {hwio::firmware::Segment{.address = address,
+                                                .data = hwio::firmware::test::filled(size, 0x5A)}});
     }
 
     [[nodiscard]] SessionProvider& provider() { return m_provider; }
@@ -293,7 +293,7 @@ TEST_F(JLinkTools, WriteAndReadMemory) {
               QStringLiteral("0x20000010"));
     ASSERT_EQ(harness.consent.requests.size(), 1U);
     EXPECT_EQ(harness.consent.requests[0].categories,
-              hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::MemoryWrite));
+              hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::MemoryWrite));
     EXPECT_EQ(harness.consent.requests[0].details.value(QStringLiteral("range")).toString(),
               QStringLiteral("0x20000010-0x20000013"));
 
@@ -333,7 +333,7 @@ TEST_F(JLinkTools, WriteAndReadMemory) {
         harness.call(QStringLiteral("read_memory"), args({{"address", "0x0"}, {"length", 65537}}));
     EXPECT_EQ(tooLong.rpcError(), -32602);
 
-    harness.consent.mode = hio::mcp::test::FakeConsentBroker::Mode::Deny;
+    harness.consent.mode = hwio::mcp::test::FakeConsentBroker::Mode::Deny;
     auto denied = harness.call(QStringLiteral("write_memory"),
                                args({{"address", "0x20000000"}, {"data_hex", "00"}}));
     EXPECT_EQ(denied.errorCode(), "mcp.tool_not_allowed");
@@ -464,7 +464,7 @@ TEST_F(JLinkTools, FlashParseAndLteClassificationAreOffloaded) {
 // ADR-0162: a full offloader (running and queued) answers mcp.too_many_requests; a cancelled
 // call drops its job.
 TEST_F(JLinkTools, OffloaderFullIsTooManyRequests) {
-    hio::mcp::Limits shrunk = limits();
+    hwio::mcp::Limits shrunk = limits();
     shrunk.maxOffloadRunning = 1;
     shrunk.maxOffloadQueued = 0;
     Harness harness(provider(), shrunk);
@@ -552,13 +552,13 @@ TEST_F(JLinkTools, FlashFromAPath) {
     EXPECT_GT(flash.progressCount(), 0U);
     ASSERT_EQ(harness.consent.requests.size(), 1U);
     EXPECT_EQ(harness.consent.requests[0].categories,
-              hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::Flash));
+              hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::Flash));
     EXPECT_EQ(harness.consent.requests[0].details.value(QStringLiteral("size")).toInteger(), 8192);
     ASSERT_EQ(provider().record().markers.size(), 2U);
     EXPECT_TRUE(provider().record().markers[0].second.contains(QStringLiteral("flash app.hex")));
     EXPECT_EQ(provider().record().busy.at(0).second, QStringLiteral("AI: Flashing…"));
     // The ConsoleLog is not cleared (ADR-0099 note): the boot line is still there.
-    EXPECT_GT(provider().logOf(device)->size(hio::device::Channel::Shell), 0U);
+    EXPECT_GT(provider().logOf(device)->size(hwio::device::Channel::Shell), 0U);
     EXPECT_TRUE(harness.call(QStringLiteral("wait_for_connection"), args({{"timeout", 10}}))
                     .structured()
                     .value(QStringLiteral("connected"))
@@ -613,15 +613,15 @@ TEST_F(JLinkTools, FlashUicrImageNeedsAllowUicr) {
     connectDevice(harness);
     const std::string path = hexFile(
         provider().root() / "uicr.hex",
-        {hio::firmware::Segment{.address = 0x0, .data = hio::firmware::test::filled(4096, 0x11)},
-         hio::firmware::Segment{.address = 0x10001000,
-                                .data = hio::firmware::test::filled(4, 0x22)}});
+        {hwio::firmware::Segment{.address = 0x0, .data = hwio::firmware::test::filled(4096, 0x11)},
+         hwio::firmware::Segment{.address = 0x10001000,
+                                 .data = hwio::firmware::test::filled(4, 0x22)}});
     auto refused =
         harness.call(QStringLiteral("flash"), args({{"path", QString::fromStdString(path)}}));
     EXPECT_EQ(refused.errorCode(), "firmware.uicr_in_image");
     ASSERT_EQ(harness.consent.requests.size(), 1U);
     EXPECT_EQ(harness.consent.requests[0].categories,
-              hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::Flash));
+              hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::Flash));
 
     auto allowed =
         harness.call(QStringLiteral("flash"),
@@ -629,21 +629,21 @@ TEST_F(JLinkTools, FlashUicrImageNeedsAllowUicr) {
     EXPECT_FALSE(allowed.isError()) << allowed.errorCode() << " " << allowed.errorDetail();
     ASSERT_EQ(harness.consent.requests.size(), 2U);
     EXPECT_EQ(harness.consent.requests[1].categories,
-              hio::mcp::ConsentCategory::Flash | hio::mcp::ConsentCategory::Uicr);
+              hwio::mcp::ConsentCategory::Flash | hwio::mcp::ConsentCategory::Uicr);
 }
 
 TEST_F(JLinkTools, FlashFromTheCatalog) {
-    hio::firmware::test::HttpFixture http;
+    hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
     const std::string id = "0123456789abcdef0123456789abcdef";
-    auto image = hio::firmware::FirmwareImage::fromSegments(
-        {hio::firmware::Segment{.address = 0, .data = hio::firmware::test::filled(4096, 0x33)}});
+    auto image = hwio::firmware::FirmwareImage::fromSegments(
+        {hwio::firmware::Segment{.address = 0, .data = hwio::firmware::test::filled(4096, 0x33)}});
     http.set(QStringLiteral("/chester/%1/hex").arg(QString::fromStdString(id)),
-             hio::firmware::test::HttpFixture::Response::ok(
-                 QByteArray::fromStdString(hio::firmware::test::toHex(*image))));
-    hio::firmware::FirmwareCache cache(provider().root() / "cache");
-    hio::firmware::FirmwareCatalog catalog(
-        hio::firmware::CatalogOptions{
+             hwio::firmware::test::HttpFixture::Response::ok(
+                 QByteArray::fromStdString(hwio::firmware::test::toHex(*image))));
+    hwio::firmware::FirmwareCache cache(provider().root() / "cache");
+    hwio::firmware::FirmwareCatalog catalog(
+        hwio::firmware::CatalogOptions{
             .baseUrl = QUrl(http.baseUrl()), .transferTimeout = 5s, .maxBodyBytes = 1024ULL * 1024},
         &cache);
     Harness harness(provider(), limits(), &catalog);
@@ -728,7 +728,7 @@ TEST_F(JLinkTools, StalledOperationIsCancelledWithTimeout) {
     provider().scenario(
         QJsonDocument(scenario({}, QJsonObject{{QStringLiteral("downloadDelayMs"), 2000}}))
             .toJson());
-    hio::mcp::Limits shrunk = limits();
+    hwio::mcp::Limits shrunk = limits();
     shrunk.tools.operationStall = 300ms;
     Harness harness(provider(), shrunk);
     connectDevice(harness);
@@ -747,7 +747,7 @@ TEST_F(JLinkTools, WriteFlashEraseRecover) {
     ASSERT_FALSE(write.isError()) << write.errorCode() << " " << write.errorDetail();
     EXPECT_EQ(write.structured().value(QStringLiteral("bytes")).toInteger(), 8);
     EXPECT_EQ(harness.consent.requests.back().categories,
-              hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::Flash));
+              hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::Flash));
     auto read = harness.call(QStringLiteral("read_memory"),
                              args({{"address", "0x00010000"}, {"length", 8}}));
     EXPECT_EQ(read.structured().value(QStringLiteral("hex")).toString(),
@@ -773,7 +773,7 @@ TEST_F(JLinkTools, WriteFlashEraseRecover) {
         args({{"address", "0x10001200"}, {"data_hex", "00"}, {"allow_uicr", true}}), 30s);
     ASSERT_FALSE(allowed.isError()) << allowed.errorCode() << " " << allowed.errorDetail();
     EXPECT_EQ(harness.consent.requests.back().categories,
-              hio::mcp::ConsentCategory::Flash | hio::mcp::ConsentCategory::Uicr);
+              hwio::mcp::ConsentCategory::Flash | hwio::mcp::ConsentCategory::Uicr);
     EXPECT_TRUE(harness.consent.requests.back().details.value(QStringLiteral("uicr")).toBool());
     // allow_uicr with bytes outside the UICR: flash only.
     auto plain = harness.call(
@@ -781,40 +781,40 @@ TEST_F(JLinkTools, WriteFlashEraseRecover) {
         args({{"address", "0x00010010"}, {"data_hex", "01"}, {"allow_uicr", true}}), 30s);
     ASSERT_FALSE(plain.isError()) << plain.errorCode() << " " << plain.errorDetail();
     EXPECT_EQ(harness.consent.requests.back().categories,
-              hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::Flash));
+              hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::Flash));
 
     // ADR-0161: erase scope=code needs erase; scope=all and recover need erase + uicr.
     auto erase = harness.call(QStringLiteral("erase"), {}, 30s);
     ASSERT_FALSE(erase.isError()) << erase.errorCode() << " " << erase.errorDetail();
     EXPECT_EQ(erase.structured().value(QStringLiteral("scope")).toString(), QStringLiteral("code"));
     EXPECT_EQ(harness.consent.requests.back().categories,
-              hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::Erase));
+              hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::Erase));
     auto eraseAll = harness.call(QStringLiteral("erase"), args({{"scope", "all"}}), 30s);
     ASSERT_FALSE(eraseAll.isError()) << eraseAll.errorCode() << " " << eraseAll.errorDetail();
     EXPECT_EQ(harness.consent.requests.back().categories,
-              hio::mcp::ConsentCategory::Erase | hio::mcp::ConsentCategory::Uicr);
+              hwio::mcp::ConsentCategory::Erase | hwio::mcp::ConsentCategory::Uicr);
     auto recover = harness.call(QStringLiteral("recover"), {}, 60s);
     ASSERT_FALSE(recover.isError()) << recover.errorCode() << " " << recover.errorDetail();
     EXPECT_TRUE(recover.structured().contains(QStringLiteral("duration")));
     EXPECT_EQ(harness.consent.requests.back().categories,
-              hio::mcp::ConsentCategory::Erase | hio::mcp::ConsentCategory::Uicr);
+              hwio::mcp::ConsentCategory::Erase | hwio::mcp::ConsentCategory::Uicr);
 }
 
 // ADR-0161 with the CLI broker rule: a server allowed to erase only cannot erase everything.
 TEST_F(JLinkTools, EraseAllNeedsUicrConsent) {
     Harness harness(provider(), limits());
     connectDevice(harness);
-    harness.consent.mode = hio::mcp::test::FakeConsentBroker::Mode::Deny;
+    harness.consent.mode = hwio::mcp::test::FakeConsentBroker::Mode::Deny;
     auto eraseAll = harness.call(QStringLiteral("erase"), args({{"scope", "all"}}), 30s);
     EXPECT_EQ(eraseAll.errorCode(), "mcp.tool_not_allowed");
     EXPECT_EQ(harness.consent.requests.back().categories,
-              hio::mcp::ConsentCategory::Erase | hio::mcp::ConsentCategory::Uicr);
+              hwio::mcp::ConsentCategory::Erase | hwio::mcp::ConsentCategory::Uicr);
     EXPECT_EQ(harness.consent.requests.back().details.value(QStringLiteral("scope")).toString(),
               QStringLiteral("all"));
 }
 
 TEST_F(JLinkTools, MissingOptionalExport) {
-    provider().settings().library = HIO_FAKE_JLINK_BASIC_LIBRARY;
+    provider().settings().library = HWIO_FAKE_JLINK_BASIC_LIBRARY;
     Harness harness(provider(), limits());
     connectDevice(harness);
     auto status = harness.call(QStringLiteral("target_status"));
@@ -842,4 +842,4 @@ TEST_F(JLinkTools, BleSession) {
 }
 
 } // namespace
-} // namespace hio::mcp::tools::test
+} // namespace hwio::mcp::tools::test

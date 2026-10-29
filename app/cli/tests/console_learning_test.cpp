@@ -4,13 +4,13 @@
 // `help` shows the CONFIG_SHELL_HELP marker.
 
 #include "console_learning.h"
-#include "hio/core/result.h"
-#include "hio/device/command_tree.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_tree.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -37,21 +37,21 @@
 
 namespace {
 
-using hio::device::Channel;
-using hio::device::ConnectionState;
-using hio::device::ConsoleLine;
-using hio::device::Direction;
+using hwio::device::Channel;
+using hwio::device::ConnectionState;
+using hwio::device::ConsoleLine;
+using hwio::device::Direction;
 
 // CHESTER with an RTT prompt on the app target (the prompt rule ends the queries at once).
-const hio::device::DeviceProfile& promptProfile() {
-    static const std::array<hio::device::TargetProfile, 2> targets = [] {
-        const auto* chester = hio::device::ProfileRegistry::find("chester");
-        std::array<hio::device::TargetProfile, 2> copy{chester->targets[0], chester->targets[1]};
+const hwio::device::DeviceProfile& promptProfile() {
+    static const std::array<hwio::device::TargetProfile, 2> targets = [] {
+        const auto* chester = hwio::device::ProfileRegistry::find("chester");
+        std::array<hwio::device::TargetProfile, 2> copy{chester->targets[0], chester->targets[1]};
         copy[0].shellPrompt = "uart:~$ ";
         return copy;
     }();
-    static const hio::device::DeviceProfile profile = [] {
-        hio::device::DeviceProfile copy = *hio::device::ProfileRegistry::find("chester");
+    static const hwio::device::DeviceProfile profile = [] {
+        hwio::device::DeviceProfile copy = *hwio::device::ProfileRegistry::find("chester");
         copy.targets = targets;
         return copy;
     }();
@@ -59,12 +59,12 @@ const hio::device::DeviceProfile& promptProfile() {
 }
 
 // Echoes every written line (with its origin) and answers the known commands, then the prompt.
-class FakeSession final : public hio::device::ConsoleSession {
+class FakeSession final : public hwio::device::ConsoleSession {
 public:
     FakeSession() { m_connection.state = ConnectionState::Disconnected; }
 
-    hio::Status sendLine(std::string line) override {
-        if (hio::Status held; holdLine(line, held)) {
+    hwio::Status sendLine(std::string line) override {
+        if (hwio::Status held; holdLine(line, held)) {
             return held;
         }
         m_written.push_back(line);
@@ -80,14 +80,14 @@ public:
         }
         return {};
     }
-    hio::Status reconnect() override { return {}; }
-    [[nodiscard]] const hio::device::ConsoleLog& log() const override { return m_log; }
-    [[nodiscard]] const hio::device::ConnectionEvent& connection() const override {
+    hwio::Status reconnect() override { return {}; }
+    [[nodiscard]] const hwio::device::ConsoleLog& log() const override { return m_log; }
+    [[nodiscard]] const hwio::device::ConnectionEvent& connection() const override {
         return m_connection;
     }
-    [[nodiscard]] hio::device::SessionIdentity identity() const override { return {}; }
-    [[nodiscard]] hio::device::Capabilities capabilities() const override { return {}; }
-    [[nodiscard]] const hio::device::DeviceProfile& profile() const override {
+    [[nodiscard]] hwio::device::SessionIdentity identity() const override { return {}; }
+    [[nodiscard]] hwio::device::Capabilities capabilities() const override { return {}; }
+    [[nodiscard]] const hwio::device::DeviceProfile& profile() const override {
         return promptProfile();
     }
     [[nodiscard]] std::string_view consoleTargetId() const override { return "app"; }
@@ -123,8 +123,8 @@ private:
         emit linesReceived(QList<ConsoleLine>{line});
     }
 
-    hio::device::ConsoleLog m_log{1000};
-    hio::device::ConnectionEvent m_connection;
+    hwio::device::ConsoleLog m_log{1000};
+    hwio::device::ConnectionEvent m_connection;
     std::vector<std::string> m_written;
     std::map<std::string, std::vector<std::string>> m_answers;
 };
@@ -143,8 +143,8 @@ TEST(ConsoleLearningTest, ARefusedQueryIsAskedAgainAfterAReconnect) {
     const QTemporaryDir dir;
     FakeSession session;
     session.answer("info show", {"fw-name: hio-chester-push-fm", "fw-version: v4.0.1"});
-    hio::cli::ConsoleLearning learning(session, "chester", "app", true,
-                                       std::filesystem::path(dir.path().toStdU16String()));
+    hwio::cli::ConsoleLearning learning(session, "chester", "app", true,
+                                        std::filesystem::path(dir.path().toStdU16String()));
     auto& learner = learning.learner();
     EXPECT_EQ(session.sent("info show"), 0U); // not connected yet
 
@@ -181,8 +181,8 @@ TEST(ConsoleLearningTest, NoInfoAnswerStartsNothing) {
     FakeSession session;
     session.setState(ConnectionState::Connected);
     session.answer("help", {"Available commands:", "  info  :Info commands"});
-    hio::cli::ConsoleLearning learning(session, "chester", "app", true,
-                                       std::filesystem::path(dir.path().toStdU16String()));
+    hwio::cli::ConsoleLearning learning(session, "chester", "app", true,
+                                        std::filesystem::path(dir.path().toStdU16String()));
     ASSERT_TRUE(runUntil([&] { return session.sent("info show") == 1; }));
     session.setState(ConnectionState::Disconnected); // the query ends without a result
     EXPECT_EQ(session.sent("help"), 0U);
@@ -206,8 +206,8 @@ TEST(ConsoleLearningTest, SubcommandsQueriedOnlyWithTheShellHelpMarker) {
         }
         session.answer("help", help);
         session.answer("lte -h", {"Subcommands:", "  state  :Get LTE state"});
-        hio::cli::ConsoleLearning learning(session, "chester", "app", true,
-                                           std::filesystem::path(dir.path().toStdU16String()));
+        hwio::cli::ConsoleLearning learning(session, "chester", "app", true,
+                                            std::filesystem::path(dir.path().toStdU16String()));
         auto& learner = learning.learner();
         session.setState(ConnectionState::Connected);
         ASSERT_TRUE(runUntil([&] { return learner.tree() != nullptr && !learner.reading(); }));
@@ -215,7 +215,8 @@ TEST(ConsoleLearningTest, SubcommandsQueriedOnlyWithTheShellHelpMarker) {
         learner.requestChildren({"lte"});
         ASSERT_TRUE(runUntil([&] { return !learner.reading(); }));
         EXPECT_EQ(session.sent("lte -h"), marker ? 1U : 0U);
-        const hio::device::CommandNode* lte = learner.tree()->find(std::vector<std::string>{"lte"});
+        const hwio::device::CommandNode* lte =
+            learner.tree()->find(std::vector<std::string>{"lte"});
         ASSERT_NE(lte, nullptr);
         EXPECT_EQ(lte->children.size(), marker ? 1U : 0U);
     }

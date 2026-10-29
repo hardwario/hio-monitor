@@ -2,9 +2,9 @@
 // (plan/features/0002, phase B2).
 
 #include "fake_clock.h"
-#include "hio/core/error.h"
-#include "hio/hw/jlink/rtt_channel.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/hw/jlink/rtt_channel.h"
+#include "hwio/hw/jlink/types.h"
 #include "mock_jlink_api.h"
 
 #include <gmock/gmock.h>
@@ -24,13 +24,13 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::jlink::RttBufferInfo;
-using hio::jlink::RttChannel;
-using hio::jlink::RttDirection;
-using hio::jlink::RttNames;
-using hio::jlink::test::FakeClock;
-using hio::jlink::test::MockJLinkApi;
+using hwio::ErrorCode;
+using hwio::jlink::RttBufferInfo;
+using hwio::jlink::RttChannel;
+using hwio::jlink::RttDirection;
+using hwio::jlink::RttNames;
+using hwio::jlink::test::FakeClock;
+using hwio::jlink::test::MockJLinkApi;
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -88,7 +88,7 @@ TEST_F(Rtt, AttachResolvesBuffersByName) {
     EXPECT_EQ(layout->terminalUp.size, 1024U);
     const auto logger = layout->loggerUp;
     ASSERT_TRUE(logger.has_value());
-    EXPECT_EQ(logger.value_or(hio::jlink::RttBuffer{}).index, 1);
+    EXPECT_EQ(logger.value_or(hwio::jlink::RttBuffer{}).index, 1);
     EXPECT_EQ(layout->terminalDown.index, 0);
     EXPECT_EQ(layout->terminalDown.size, 16U);
     EXPECT_TRUE(rtt().isAttached());
@@ -101,7 +101,7 @@ TEST_F(Rtt, BuffersMovedByAReflashAreFoundByName) {
     ASSERT_TRUE(layout);
     EXPECT_EQ(layout->terminalUp.index, 1);
     EXPECT_EQ(layout->terminalUp.size, 256U);
-    EXPECT_EQ(layout->loggerUp.value_or(hio::jlink::RttBuffer{}).index, 0);
+    EXPECT_EQ(layout->loggerUp.value_or(hwio::jlink::RttBuffer{}).index, 0);
     EXPECT_EQ(layout->terminalDown.index, 1);
     EXPECT_EQ(layout->terminalDown.size, 32U);
 }
@@ -210,7 +210,7 @@ TEST_F(Rtt, NoControlBlockWithin15sIsRttNotFound) {
 
 // ADR-0110: the attach deadline scales with a fixed speed below 1000 kHz, capped at 60 s.
 TEST(RttAttachDeadline, ScalesWithAFixedLowSpeed) {
-    using hio::jlink::rttAttachDeadline;
+    using hwio::jlink::rttAttachDeadline;
     using std::chrono::milliseconds;
     EXPECT_EQ(rttAttachDeadline(std::nullopt), milliseconds(15000)); // auto
     EXPECT_EQ(rttAttachDeadline(4000), milliseconds(15000));
@@ -227,7 +227,7 @@ TEST(RttAttachDeadline, ScalesWithAFixedLowSpeed) {
 }
 
 TEST(RttAttachDeadline, SlowSpeedIsAFixedSpeedBelow125kHz) {
-    using hio::jlink::isSlowRttSpeed;
+    using hwio::jlink::isSlowRttSpeed;
     EXPECT_FALSE(isSlowRttSpeed(std::nullopt));
     EXPECT_FALSE(isSlowRttSpeed(1000));
     EXPECT_FALSE(isSlowRttSpeed(125));
@@ -242,8 +242,8 @@ TEST_F(Rtt, RttNotFoundDetailNamesTheSpeed) {
     ASSERT_FALSE(autoSpeed);
     EXPECT_EQ(autoSpeed.error().detail, "no RTT control block found within 15000 ms at auto speed");
 
-    hio::jlink::RttTiming timing;
-    timing.attachDeadline = hio::jlink::rttAttachDeadline(100);
+    hwio::jlink::RttTiming timing;
+    timing.attachDeadline = hwio::jlink::rttAttachDeadline(100);
     RttChannel slow(api(), clock(), timing, 100);
     const auto before = clock().slept();
     const auto layout = slow.attach(chesterNames, {});

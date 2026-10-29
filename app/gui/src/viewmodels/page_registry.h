@@ -21,7 +21,7 @@
 
 class QObject;
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DeviceTabViewModel;
 
@@ -66,4 +66,4 @@ private:
     std::vector<SettingsSectionDescriptor> m_sections;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

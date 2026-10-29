@@ -8,24 +8,24 @@
         <StandardDirectory Id="DesktopFolder" />
 
         <!-- Start-menu shortcut (part of the main feature, see WIX.template.in). -->
-        <Component Id="HioStartMenuShortcut" Directory="ProgramMenuFolder"
+        <Component Id="HWioStartMenuShortcut" Directory="ProgramMenuFolder"
                    Guid="894CE1BC-9D24-4A63-A56D-B67385BC176C">
-            <Shortcut Id="HioStartMenuShortcut" Name="HARDWARIO Monitor"
+            <Shortcut Id="HWioStartMenuShortcut" Name="HARDWARIO Monitor"
                       Description="Console, log and flashing tool for HARDWARIO devices"
-                      Target="[INSTALL_ROOT]hio-monitor.exe" WorkingDirectory="INSTALL_ROOT">
+                      Target="[INSTALL_ROOT]hwio-monitor.exe" WorkingDirectory="INSTALL_ROOT">
                 <ShortcutProperty Key="System.AppUserModel.ID" Value="com.hardwario.monitor" />
             </Shortcut>
             <RegistryValue Root="HKLM" Key="Software\HARDWARIO\Monitor" Name="StartMenuShortcut"
                            Type="integer" Value="1" KeyPath="yes" />
         </Component>
 
-        <!-- "Add hio to PATH" (on by default). -->
-        <Feature Id="AddToPath" Title="Add hio to PATH"
-                 Description="Adds the installation folder to the system PATH, so that the hio command works in new terminals."
+        <!-- "Add hwio to PATH" (on by default). -->
+        <Feature Id="AddToPath" Title="Add hwio to PATH"
+                 Description="Adds the installation folder to the system PATH, so that the hwio command works in new terminals."
                  Level="1" AllowAbsent="yes">
-            <Component Id="HioSystemPath" Directory="INSTALL_ROOT"
+            <Component Id="HWioSystemPath" Directory="INSTALL_ROOT"
                        Guid="728A1B59-7700-4DD2-AD1B-FCF2797C3591">
-                <Environment Id="HioSystemPath" Name="PATH" Value="[INSTALL_ROOT]" Part="last"
+                <Environment Id="HWioSystemPath" Name="PATH" Value="[INSTALL_ROOT]" Part="last"
                              Action="set" System="yes" Permanent="no" />
                 <RegistryValue Root="HKLM" Key="Software\HARDWARIO\Monitor" Name="AddToPath"
                                Type="integer" Value="1" KeyPath="yes" />
@@ -38,10 +38,10 @@
                  Description="A HARDWARIO Monitor shortcut on the desktop." Level="1000"
                  AllowAbsent="yes">
             <Level Value="1" Condition="ADDDESKTOPSHORTCUT = 1" />
-            <Component Id="HioDesktopShortcut" Directory="DesktopFolder"
+            <Component Id="HWioDesktopShortcut" Directory="DesktopFolder"
                        Guid="33FBE6B8-183C-415A-9041-CF44D188B161">
-                <Shortcut Id="HioDesktopShortcut" Name="HARDWARIO Monitor"
-                          Target="[INSTALL_ROOT]hio-monitor.exe" WorkingDirectory="INSTALL_ROOT">
+                <Shortcut Id="HWioDesktopShortcut" Name="HARDWARIO Monitor"
+                          Target="[INSTALL_ROOT]hwio-monitor.exe" WorkingDirectory="INSTALL_ROOT">
                     <ShortcutProperty Key="System.AppUserModel.ID" Value="com.hardwario.monitor" />
                 </Shortcut>
                 <RegistryValue Root="HKLM" Key="Software\HARDWARIO\Monitor" Name="DesktopShortcut"

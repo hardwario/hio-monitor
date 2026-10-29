@@ -3,11 +3,11 @@
 // Helpers for DeviceSession tests: an event recorder and a wait loop that runs the Qt event loop
 // (the facade delivers its signals through queued calls).
 
-#include "hio/core/error.h"
-#include "hio/device/console_line.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/session_events.h"
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device::test {
+namespace hwio::device::test {
 
 // Runs the event loop until `done` returns true or `timeout` passes.
 inline bool waitFor(const std::function<bool()>& done,
@@ -128,4 +128,4 @@ public:
     QObject context; // disconnects the lambdas when the recorder goes away
 };
 
-} // namespace hio::device::test
+} // namespace hwio::device::test

@@ -11,7 +11,7 @@
 #include <QString>
 #include <QtQmlIntegration>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class PlaceholderViewModel : public QObject {
     Q_OBJECT
@@ -29,4 +29,4 @@ private:
     QString m_pageId;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

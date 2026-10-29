@@ -25,7 +25,7 @@
 // Ownership: child of its DeviceTabViewModel (Qt parent, created by the page registry). GUI thread
 // only.
 
-#include "hio/device/operation.h"
+#include "hwio/device/operation.h"
 #include "viewmodels/error_info.h"
 #include "viewmodels/firmware_source_view_model.h"
 
@@ -46,13 +46,13 @@
 #include <span>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 class DeviceSession;
 struct DeviceProfile;
 struct TargetProfile;
-} // namespace hio::device
+} // namespace hwio::device
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DeviceTabViewModel;
 class FirmwareServices;
@@ -62,7 +62,7 @@ class FlashViewModel : public QObject {
     QML_ELEMENT
     QML_UNCREATABLE("Created by the page registry")
 
-    Q_PROPERTY(hio::gui::FirmwareSourceViewModel* source READ source CONSTANT)
+    Q_PROPERTY(hwio::gui::FirmwareSourceViewModel* source READ source CONSTANT)
     Q_PROPERTY(int kind READ kind WRITE setKind NOTIFY kindChanged)
     Q_PROPERTY(QString targetId READ targetId NOTIFY kindChanged)
     // [{kind, title, mcu, accepts}] for the kind cards.
@@ -97,7 +97,7 @@ class FlashViewModel : public QObject {
     // `info show` answered within 10 s.
     Q_PROPERTY(QString deviceFirmwareText READ deviceFirmwareText NOTIFY deviceInfoChanged)
     Q_PROPERTY(QString resultDeviceText READ resultDeviceText NOTIFY stateChanged)
-    Q_PROPERTY(hio::gui::ErrorInfo error READ error NOTIFY stateChanged)
+    Q_PROPERTY(hwio::gui::ErrorInfo error READ error NOTIFY stateChanged)
     // The result ErrorPanel's primary action: Firmware errors keep "Choose another file"; other
     // errors of a flash retry it (Retry), of a maintenance action go back to the form (Dismiss).
     Q_PROPERTY(int errorAction READ errorAction NOTIFY stateChanged)
@@ -296,4 +296,4 @@ private:
     bool m_awaitingAttach = false; // the 10 s window starts when the console re-attaches (P9)
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

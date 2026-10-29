@@ -10,7 +10,7 @@
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "$env{QT_ROOT_DIR}",
         "CPM_SOURCE_CACHE": "${sourceDir}/.cpm-cache",
-        "HIO_BUILD_TESTS": "ON"
+        "HWIO_BUILD_TESTS": "ON"
       }
     },
     {
@@ -27,7 +27,7 @@
       "name": "linux-debug",
       "displayName": "Linux Debug",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HWIO_TEST_OVERRIDES": "ON" }
     },
     {
       "name": "linux-release",
@@ -40,8 +40,8 @@
       "displayName": "Linux package: .deb, then AppImage (plan 0015)",
       "inherits": "linux-release",
       "cacheVariables": {
-        "HIO_BUILD_TESTS": "OFF",
-        "HIO_PACKAGE_KIND": "deb",
+        "HWIO_BUILD_TESTS": "OFF",
+        "HWIO_PACKAGE_KIND": "deb",
         "CMAKE_CXX_FLAGS": "-g"
       }
     },
@@ -49,25 +49,25 @@
       "name": "linux-asan",
       "displayName": "Linux Debug + ASan/UBSan",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "HIO_SANITIZERS": "address;undefined" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HWIO_TEST_OVERRIDES": "ON", "HWIO_SANITIZERS": "address;undefined" }
     },
     {
       "name": "linux-tsan",
       "displayName": "Linux Debug + TSan",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "HIO_SANITIZERS": "thread" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HWIO_TEST_OVERRIDES": "ON", "HWIO_SANITIZERS": "thread" }
     },
     {
       "name": "linux-coverage",
       "displayName": "Linux Debug + source-based coverage",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "HIO_COVERAGE": "ON" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HWIO_TEST_OVERRIDES": "ON", "HWIO_COVERAGE": "ON" }
     },
     {
       "name": "linux-tidy",
       "displayName": "Linux Debug + clang-tidy",
       "inherits": "linux-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "CMAKE_CXX_CLANG_TIDY": "clang-tidy-21" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HWIO_TEST_OVERRIDES": "ON", "CMAKE_CXX_CLANG_TIDY": "clang-tidy-21" }
     },
     {
       "name": "linux-fuzz",
@@ -75,9 +75,9 @@
       "inherits": "linux-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "HIO_BUILD_TESTS": "OFF",
-        "HIO_BUILD_FUZZERS": "ON",
-        "HIO_SANITIZERS": "fuzzer;address;undefined"
+        "HWIO_BUILD_TESTS": "OFF",
+        "HWIO_BUILD_FUZZERS": "ON",
+        "HWIO_SANITIZERS": "fuzzer;address;undefined"
       }
     },
     {
@@ -95,13 +95,13 @@
       "name": "macos-debug",
       "displayName": "macOS Debug",
       "inherits": "macos-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HWIO_TEST_OVERRIDES": "ON" }
     },
     {
       "name": "macos-asan",
       "displayName": "macOS Debug + ASan/UBSan",
       "inherits": "macos-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON", "HIO_SANITIZERS": "address;undefined" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HWIO_TEST_OVERRIDES": "ON", "HWIO_SANITIZERS": "address;undefined" }
     },
     {
       "name": "macos-release",
@@ -117,8 +117,8 @@
       "displayName": "macOS package: universal bundle + DMG (plan 0015)",
       "inherits": "macos-release",
       "cacheVariables": {
-        "HIO_BUILD_TESTS": "OFF",
-        "HIO_PACKAGE_KIND": "macos-bundle",
+        "HWIO_BUILD_TESTS": "OFF",
+        "HWIO_PACKAGE_KIND": "macos-bundle",
         "CMAKE_CXX_FLAGS": "-g"
       }
     },
@@ -136,7 +136,7 @@
       "name": "windows-debug",
       "displayName": "Windows Debug (clang-cl)",
       "inherits": "windows-base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HIO_TEST_OVERRIDES": "ON" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "HWIO_TEST_OVERRIDES": "ON" }
     },
     {
       "name": "windows-release",
@@ -149,8 +149,8 @@
       "displayName": "Windows package: MSI, needs CMake >= 3.30 (plan 0015)",
       "inherits": "windows-release",
       "cacheVariables": {
-        "HIO_BUILD_TESTS": "OFF",
-        "HIO_PACKAGE_KIND": "msi",
+        "HWIO_BUILD_TESTS": "OFF",
+        "HWIO_PACKAGE_KIND": "msi",
         "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "ProgramDatabase",
         "CMAKE_EXE_LINKER_FLAGS": "/DEBUG /OPT:REF /OPT:ICF"
       }

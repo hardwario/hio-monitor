@@ -1,17 +1,17 @@
-// Unit tests of the `hio mcp` parts (plan/features/0013 C6): --allow parsing, FlagConsentBroker,
+// Unit tests of the `hwio mcp` parts (plan/features/0013 C6): --allow parsing, FlagConsentBroker,
 // the StdinLineSource adapter (run under TSan too) and CliDeviceProvider's id rules.
 
 #include "cli_device_provider.h"
 #include "flag_consent_broker.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/offload.h"
-#include "hio/mcp/stdio_transport.h"
-#include "hio/mcp/tools/device_provider.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/offload.h"
+#include "hwio/mcp/stdio_transport.h"
+#include "hwio/mcp/tools/device_provider.h"
 #include "mcp_command.h"
 #include "stdin_line_source.h"
 #include "terminal.h"
@@ -43,13 +43,13 @@
 
 namespace {
 
-using hio::cli::CliDeviceProvider;
-using hio::cli::FlagConsentBroker;
-using hio::cli::parseAllowList;
-using hio::cli::StdinLineReader;
-using hio::cli::StdinLineSource;
-using hio::mcp::ConsentCategories;
-using hio::mcp::ConsentCategory;
+using hwio::cli::CliDeviceProvider;
+using hwio::cli::FlagConsentBroker;
+using hwio::cli::parseAllowList;
+using hwio::cli::StdinLineReader;
+using hwio::cli::StdinLineSource;
+using hwio::mcp::ConsentCategories;
+using hwio::mcp::ConsentCategory;
 using ReadStatus = StdinLineReader::ReadStatus;
 
 TEST(McpAllowList, ParsesItemsAndAll) {
@@ -57,7 +57,7 @@ TEST(McpAllowList, ParsesItemsAndAll) {
     EXPECT_EQ(parseAllowList("flash").value(), ConsentCategories(ConsentCategory::Flash));
     EXPECT_EQ(parseAllowList(" flash , memory-write,,").value(),
               ConsentCategories(ConsentCategory::Flash) | ConsentCategory::MemoryWrite);
-    EXPECT_EQ(parseAllowList("all").value(), hio::cli::allDestructiveCategories());
+    EXPECT_EQ(parseAllowList("all").value(), hwio::cli::allDestructiveCategories());
     EXPECT_FALSE(parseAllowList("all").value().testFlag(ConsentCategory::Connect));
 }
 
@@ -65,20 +65,20 @@ TEST(McpAllowList, UnknownItemIsAUsageError) {
     for (const char* list : {"flash,format", "connect", "FLASH", "memory_write"}) {
         const auto parsed = parseAllowList(list);
         ASSERT_FALSE(parsed) << list;
-        EXPECT_EQ(parsed.error().code, hio::ErrorCode::UsageInvalidArgument);
+        EXPECT_EQ(parsed.error().code, hwio::ErrorCode::UsageInvalidArgument);
     }
 }
 
-hio::mcp::ConsentDecision decide(FlagConsentBroker& broker, ConsentCategories categories,
-                                 const char* tool = "flash") {
-    std::optional<hio::mcp::ConsentDecision> decision;
-    hio::mcp::ConsentRequest request;
+hwio::mcp::ConsentDecision decide(FlagConsentBroker& broker, ConsentCategories categories,
+                                  const char* tool = "flash") {
+    std::optional<hwio::mcp::ConsentDecision> decision;
+    hwio::mcp::ConsentRequest request;
     request.tool = tool;
     request.categories = categories;
     const auto cancel = broker.request(std::move(request),
                                        [&decision](auto answer) { decision = std::move(answer); });
     EXPECT_FALSE(cancel);
-    return decision.value_or(hio::mcp::ConsentDecision{});
+    return decision.value_or(hwio::mcp::ConsentDecision{});
 }
 
 TEST(FlagConsentBroker, DecidesFromTheFlags) {
@@ -87,7 +87,7 @@ TEST(FlagConsentBroker, DecidesFromTheFlags) {
     EXPECT_TRUE(decide(broker, ConsentCategory::Connect)); // always allowed in the CLI
     const auto erase = decide(broker, ConsentCategory::Erase, "erase");
     ASSERT_FALSE(erase);
-    EXPECT_EQ(erase.error().code, hio::ErrorCode::McpToolNotAllowed);
+    EXPECT_EQ(erase.error().code, hwio::ErrorCode::McpToolNotAllowed);
     EXPECT_EQ(erase.error().message, "The tool erase is not allowed by this server.");
     EXPECT_EQ(erase.error().suggestion, "Start the server with --allow erase (or --allow all).");
     EXPECT_EQ(erase.error().cause, "Destructive tools must be allowed when the server starts.");
@@ -117,7 +117,7 @@ TEST(FlagConsentBroker, DecidesFromTheFlags) {
     ASSERT_FALSE(odd);
     EXPECT_EQ(odd.error().message, "The tool x%1y is not allowed by this server.");
 
-    FlagConsentBroker all(hio::cli::allDestructiveCategories());
+    FlagConsentBroker all(hwio::cli::allDestructiveCategories());
     EXPECT_TRUE(decide(all, ConsentCategories(ConsentCategory::Flash) | ConsentCategory::Erase |
                                 ConsentCategory::MemoryWrite | ConsentCategory::Uicr));
 }
@@ -141,7 +141,7 @@ TEST(StdinLineSource, DeliversLinesOverlongMarkersAndTheEnd) {
     std::atomic<int> wakeups{0};
     StdinLineSource source(8, 4, 0, chunks({"one\n", "much too long line\n", "two\r\n"}));
     source.setWakeup([&wakeups] { ++wakeups; });
-    std::vector<hio::mcp::ILineSource::Line> lines;
+    std::vector<hwio::mcp::ILineSource::Line> lines;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     while (!source.atEnd() && std::chrono::steady_clock::now() < deadline) {
         if (auto line = source.takeLine()) {
@@ -192,18 +192,18 @@ TEST(StdinLineSource, ReplacedWakeupIsNeverCalledAgain) {
 // ADR-0163: mcp/stdioBufferMiB, default 16, allowed 4-256, invalid -> default, out of range ->
 // clamped, both with a warning.
 TEST(McpStdioBuffer, SettingIsReadAndClamped) {
-    EXPECT_EQ(hio::cli::stdioBufferSetting(nullptr).mebibytes, 16);
-    EXPECT_FALSE(hio::cli::stdioBufferSetting(nullptr).warning);
+    EXPECT_EQ(hwio::cli::stdioBufferSetting(nullptr).mebibytes, 16);
+    EXPECT_FALSE(hwio::cli::stdioBufferSetting(nullptr).warning);
 
     const QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
     const std::filesystem::path file =
         std::filesystem::path(dir.path().toStdU16String()) / "Monitor.ini";
-    auto settings = hio::Settings::openFile(file);
+    auto settings = hwio::Settings::openFile(file);
     ASSERT_TRUE(settings);
-    const hio::SettingKey<std::string> key{.path = hio::cli::stdioBufferKey, .defaultValue = {}};
-    EXPECT_EQ(hio::cli::stdioBufferSetting(&*settings).mebibytes, 16); // not set
-    EXPECT_FALSE(hio::cli::stdioBufferSetting(&*settings).warning);
+    const hwio::SettingKey<std::string> key{.path = hwio::cli::stdioBufferKey, .defaultValue = {}};
+    EXPECT_EQ(hwio::cli::stdioBufferSetting(&*settings).mebibytes, 16); // not set
+    EXPECT_FALSE(hwio::cli::stdioBufferSetting(&*settings).warning);
 
     struct Case {
         const char* stored;
@@ -223,12 +223,12 @@ TEST(McpStdioBuffer, SettingIsReadAndClamped) {
                            Case{.stored = "99999999999", .expected = 256, .warning = true}};
     for (const auto& item : cases) {
         ASSERT_TRUE(settings->set(key, std::string(item.stored)));
-        const hio::cli::StdioBufferSetting setting = hio::cli::stdioBufferSetting(&*settings);
+        const hwio::cli::StdioBufferSetting setting = hwio::cli::stdioBufferSetting(&*settings);
         EXPECT_EQ(setting.mebibytes, item.expected) << item.stored;
         EXPECT_EQ(setting.warning.has_value(), item.warning) << item.stored;
     }
     ASSERT_TRUE(settings->set(key, std::string("1000")));
-    EXPECT_EQ(hio::cli::stdioBufferSetting(&*settings).warning.value_or(std::string()),
+    EXPECT_EQ(hwio::cli::stdioBufferSetting(&*settings).warning.value_or(std::string()),
               "The setting mcp/stdioBufferMiB = 1000 is outside 4-256; using 256 MiB.");
 }
 
@@ -239,24 +239,24 @@ TEST(CliDeviceProvider, RefreshNeedsAnOffloader) {
     const std::filesystem::path root(dir.path().toStdU16String());
     int located = 0;
     CliDeviceProvider provider(
-        [&located]() -> hio::Result<hio::jlink::LibraryLocation> {
+        [&located]() -> hwio::Result<hwio::jlink::LibraryLocation> {
             ++located;
-            return hio::jlink::LibraryLocation{.path = HIO_FAKE_JLINK_LIBRARY,
-                                               .versionFromName = 0,
-                                               .source = hio::jlink::LibrarySource::Option};
+            return hwio::jlink::LibraryLocation{.path = HWIO_FAKE_JLINK_LIBRARY,
+                                                .versionFromName = 0,
+                                                .source = hwio::jlink::LibrarySource::Option};
         },
-        hio::cli::CliProviderOptions{},
-        hio::device::RegistryOptions{.instanceRoot = root / "instances",
-                                     .lockDirectory = root / "locks",
-                                     .consoleDirectory = root / "console"});
+        hwio::cli::CliProviderOptions{},
+        hwio::device::RegistryOptions{.instanceRoot = root / "instances",
+                                      .lockDirectory = root / "locks",
+                                      .consoleDirectory = root / "console"});
     EXPECT_TRUE(provider.list().empty());
     EXPECT_EQ(located, 0); // list() does not even locate the library
-    std::optional<hio::Status> outcome;
-    provider.refresh([&outcome](hio::Status status) { outcome = std::move(status); });
+    std::optional<hwio::Status> outcome;
+    provider.refresh([&outcome](hwio::Status status) { outcome = std::move(status); });
     ASSERT_TRUE(outcome.has_value());
-    const hio::Status refreshed = outcome.value_or(hio::Status{});
+    const hwio::Status refreshed = outcome.value_or(hwio::Status{});
     ASSERT_FALSE(refreshed);
-    EXPECT_EQ(refreshed.error().code, hio::ErrorCode::InternalUnexpected);
+    EXPECT_EQ(refreshed.error().code, hwio::ErrorCode::InternalUnexpected);
 }
 
 // ADR-0162 (TSan): the enumeration runs on the offloader; concurrent refreshes join the running
@@ -270,26 +270,27 @@ TEST(CliDeviceProvider, RefreshIsOffloaded) {
         ASSERT_TRUE(scenario.open(QIODevice::WriteOnly));
         scenario.write(R"({"probes": [{"serialNumber": 801000001, "product": "Test Probe"}]})");
     }
-    qputenv("HIO_FAKE_JLINK_SCENARIO", dir.filePath(QStringLiteral("scenario.json")).toUtf8());
+    qputenv("HWIO_FAKE_JLINK_SCENARIO", dir.filePath(QStringLiteral("scenario.json")).toUtf8());
     CliDeviceProvider provider(
-        []() -> hio::Result<hio::jlink::LibraryLocation> {
-            return hio::jlink::LibraryLocation{.path = HIO_FAKE_JLINK_LIBRARY,
-                                               .versionFromName = 0,
-                                               .source = hio::jlink::LibrarySource::Option};
+        []() -> hwio::Result<hwio::jlink::LibraryLocation> {
+            return hwio::jlink::LibraryLocation{.path = HWIO_FAKE_JLINK_LIBRARY,
+                                                .versionFromName = 0,
+                                                .source = hwio::jlink::LibrarySource::Option};
         },
-        hio::cli::CliProviderOptions{},
-        hio::device::RegistryOptions{.instanceRoot = root / "instances",
-                                     .lockDirectory = root / "locks",
-                                     .consoleDirectory = root / "console"});
-    hio::mcp::Offloader offloader(4, 16);
+        hwio::cli::CliProviderOptions{},
+        hwio::device::RegistryOptions{.instanceRoot = root / "instances",
+                                      .lockDirectory = root / "locks",
+                                      .consoleDirectory = root / "console"});
+    hwio::mcp::Offloader offloader(4, 16);
     provider.setOffloader(&offloader);
     int changed = 0;
-    QObject::connect(&provider.notifier(), &hio::mcp::tools::DeviceProviderNotifier::devicesChanged,
+    QObject::connect(&provider.notifier(),
+                     &hwio::mcp::tools::DeviceProviderNotifier::devicesChanged,
                      [&changed] { ++changed; });
-    std::vector<hio::Status> outcomes;
+    std::vector<hwio::Status> outcomes;
     std::vector<std::size_t> sizes;
     for (int i = 0; i < 2; ++i) {
-        provider.refresh([&](hio::Status status) {
+        provider.refresh([&](hwio::Status status) {
             outcomes.push_back(std::move(status));
             sizes.push_back(provider.list().size());
         });
@@ -300,7 +301,7 @@ TEST(CliDeviceProvider, RefreshIsOffloaded) {
     while (outcomes.size() < 2 && std::chrono::steady_clock::now() < deadline) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
     }
-    qunsetenv("HIO_FAKE_JLINK_SCENARIO");
+    qunsetenv("HWIO_FAKE_JLINK_SCENARIO");
     ASSERT_EQ(outcomes.size(), 2U);
     EXPECT_TRUE(outcomes[0]) << outcomes[0].error().detail;
     EXPECT_TRUE(outcomes[1]);
@@ -309,7 +310,7 @@ TEST(CliDeviceProvider, RefreshIsOffloaded) {
     const auto entries = provider.list();
     ASSERT_EQ(entries.size(), 1U);
     EXPECT_EQ(entries[0].id, "jlink:801000001");
-    EXPECT_EQ(entries[0].state, hio::mcp::tools::DeviceEntry::State::Available);
+    EXPECT_EQ(entries[0].state, hwio::mcp::tools::DeviceEntry::State::Available);
 }
 
 // A provider over the fake J-Link library with one probe (801000001) in `dir`.
@@ -318,22 +319,22 @@ public:
     explicit FakeProbeProvider(const QTemporaryDir& dir)
         : m_root(dir.path().toStdU16String()),
           m_provider(
-              []() -> hio::Result<hio::jlink::LibraryLocation> {
-                  return hio::jlink::LibraryLocation{.path = HIO_FAKE_JLINK_LIBRARY,
-                                                     .versionFromName = 0,
-                                                     .source = hio::jlink::LibrarySource::Option};
+              []() -> hwio::Result<hwio::jlink::LibraryLocation> {
+                  return hwio::jlink::LibraryLocation{.path = HWIO_FAKE_JLINK_LIBRARY,
+                                                      .versionFromName = 0,
+                                                      .source = hwio::jlink::LibrarySource::Option};
               },
-              hio::cli::CliProviderOptions{},
-              hio::device::RegistryOptions{.instanceRoot = m_root / "instances",
-                                           .lockDirectory = m_root / "locks",
-                                           .consoleDirectory = m_root / "console"}) {
+              hwio::cli::CliProviderOptions{},
+              hwio::device::RegistryOptions{.instanceRoot = m_root / "instances",
+                                            .lockDirectory = m_root / "locks",
+                                            .consoleDirectory = m_root / "console"}) {
         QFile scenario(dir.filePath(QStringLiteral("scenario.json")));
         if (scenario.open(QIODevice::WriteOnly)) {
             scenario.write(R"({"probes": [{"serialNumber": 801000001, "product": "Test Probe"}]})");
         }
-        qputenv("HIO_FAKE_JLINK_SCENARIO", dir.filePath(QStringLiteral("scenario.json")).toUtf8());
+        qputenv("HWIO_FAKE_JLINK_SCENARIO", dir.filePath(QStringLiteral("scenario.json")).toUtf8());
     }
-    ~FakeProbeProvider() { qunsetenv("HIO_FAKE_JLINK_SCENARIO"); }
+    ~FakeProbeProvider() { qunsetenv("HWIO_FAKE_JLINK_SCENARIO"); }
     FakeProbeProvider(const FakeProbeProvider&) = delete;
     FakeProbeProvider& operator=(const FakeProbeProvider&) = delete;
     FakeProbeProvider(FakeProbeProvider&&) = delete;
@@ -362,19 +363,19 @@ TEST(CliDeviceProvider, FirstScanIsPendingUntilItHasFinished) {
     ASSERT_TRUE(dir.isValid());
     FakeProbeProvider fake(dir);
     CliDeviceProvider& provider = fake.get();
-    hio::mcp::Offloader offloader(4, 16);
+    hwio::mcp::Offloader offloader(4, 16);
     provider.setOffloader(&offloader);
     EXPECT_FALSE(provider.firstScanPending());
-    std::vector<hio::Status> outcomes;
-    provider.refresh([&](hio::Status status) { outcomes.push_back(std::move(status)); });
+    std::vector<hwio::Status> outcomes;
+    provider.refresh([&](hwio::Status status) { outcomes.push_back(std::move(status)); });
     EXPECT_TRUE(provider.firstScanPending());
-    provider.refresh([&](hio::Status status) { outcomes.push_back(std::move(status)); });
+    provider.refresh([&](hwio::Status status) { outcomes.push_back(std::move(status)); });
     EXPECT_EQ(offloader.running(), 1U); // joined: no second enumeration
     ASSERT_TRUE(processUntil([&] { return outcomes.size() == 2; }));
     EXPECT_TRUE(outcomes[0]);
     EXPECT_FALSE(provider.firstScanPending());
     EXPECT_EQ(provider.list().size(), 1U);
-    provider.refresh([&](hio::Status status) { outcomes.push_back(std::move(status)); });
+    provider.refresh([&](hwio::Status status) { outcomes.push_back(std::move(status)); });
     EXPECT_FALSE(provider.firstScanPending()); // a later refresh is not the first scan
     ASSERT_TRUE(processUntil([&] { return outcomes.size() == 3; }));
 }
@@ -387,11 +388,11 @@ TEST(CliDeviceProvider, DroppedRefreshFailsTheWaitersWithCancelled) {
     FakeProbeProvider fake(dir);
     CliDeviceProvider& provider = fake.get();
     for (const bool destroy : {false, true}) {
-        auto offloader = std::make_unique<hio::mcp::Offloader>(4, 16);
+        auto offloader = std::make_unique<hwio::mcp::Offloader>(4, 16);
         provider.setOffloader(offloader.get());
-        std::vector<hio::Status> outcomes;
+        std::vector<hwio::Status> outcomes;
         for (int i = 0; i < 2; ++i) {
-            provider.refresh([&](hio::Status status) { outcomes.push_back(std::move(status)); });
+            provider.refresh([&](hwio::Status status) { outcomes.push_back(std::move(status)); });
         }
         if (destroy) {
             offloader.reset();
@@ -400,21 +401,21 @@ TEST(CliDeviceProvider, DroppedRefreshFailsTheWaitersWithCancelled) {
         }
         EXPECT_TRUE(outcomes.empty()) << destroy; // never inside the Offloader's loops
         ASSERT_TRUE(processUntil([&] { return outcomes.size() == 2; })) << destroy;
-        for (const hio::Status& outcome : outcomes) {
+        for (const hwio::Status& outcome : outcomes) {
             ASSERT_FALSE(outcome) << destroy;
-            EXPECT_EQ(outcome.error().code, hio::ErrorCode::Cancelled) << destroy;
+            EXPECT_EQ(outcome.error().code, hwio::ErrorCode::Cancelled) << destroy;
         }
         EXPECT_FALSE(provider.firstScanPending()) << destroy;
         QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
         EXPECT_EQ(outcomes.size(), 2U) << destroy; // exactly once
     }
     // The provider still works afterwards.
-    hio::mcp::Offloader offloader(4, 16);
+    hwio::mcp::Offloader offloader(4, 16);
     provider.setOffloader(&offloader);
-    std::optional<hio::Status> outcome;
-    provider.refresh([&](hio::Status status) { outcome = std::move(status); });
+    std::optional<hwio::Status> outcome;
+    provider.refresh([&](hwio::Status status) { outcome = std::move(status); });
     ASSERT_TRUE(processUntil([&] { return outcome.has_value(); }));
-    EXPECT_TRUE(outcome.value_or(hio::Status{}));
+    EXPECT_TRUE(outcome.value_or(hwio::Status{}));
 }
 
 TEST(CliDeviceProvider, ProbeIds) {

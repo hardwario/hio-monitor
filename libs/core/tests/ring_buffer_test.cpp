@@ -1,4 +1,4 @@
-#include "hio/core/ring_buffer.h"
+#include "hwio/core/ring_buffer.h"
 
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@
 namespace {
 
 TEST(RingBuffer, StartsEmpty) {
-    const hio::RingBuffer<int> buffer(3);
+    const hwio::RingBuffer<int> buffer(3);
     EXPECT_EQ(buffer.size(), 0U);
     EXPECT_EQ(buffer.capacity(), 3U);
     EXPECT_TRUE(buffer.empty());
@@ -17,7 +17,7 @@ TEST(RingBuffer, StartsEmpty) {
 }
 
 TEST(RingBuffer, KeepsOrderUntilFull) {
-    hio::RingBuffer<int> buffer(3);
+    hwio::RingBuffer<int> buffer(3);
     EXPECT_FALSE(buffer.push(1));
     EXPECT_FALSE(buffer.push(2));
     EXPECT_FALSE(buffer.push(3));
@@ -28,7 +28,7 @@ TEST(RingBuffer, KeepsOrderUntilFull) {
 }
 
 TEST(RingBuffer, OverwritesOldestWhenFull) {
-    hio::RingBuffer<int> buffer(3);
+    hwio::RingBuffer<int> buffer(3);
     for (int i = 1; i <= 7; ++i) {
         const bool overwrote = buffer.push(i);
         EXPECT_EQ(overwrote, i > 3);
@@ -41,7 +41,7 @@ TEST(RingBuffer, OverwritesOldestWhenFull) {
 }
 
 TEST(RingBuffer, CapacityOne) {
-    hio::RingBuffer<std::string> buffer(1);
+    hwio::RingBuffer<std::string> buffer(1);
     EXPECT_FALSE(buffer.push("a"));
     EXPECT_TRUE(buffer.push("b"));
     ASSERT_EQ(buffer.size(), 1U);
@@ -49,7 +49,7 @@ TEST(RingBuffer, CapacityOne) {
 }
 
 TEST(RingBuffer, ClearKeepsCapacityAndDropCount) {
-    hio::RingBuffer<int> buffer(2);
+    hwio::RingBuffer<int> buffer(2);
     (void)buffer.push(1);
     (void)buffer.push(2);
     (void)buffer.push(3);
@@ -64,14 +64,14 @@ TEST(RingBuffer, ClearKeepsCapacityAndDropCount) {
 // The storage grows with the elements (M1 review, 2026-10-09): a huge capacity costs nothing up
 // front (allocating 10^9 strings would fail), and order and overwriting stay correct across growth.
 TEST(RingBuffer, StorageGrowsLazily) {
-    hio::RingBuffer<std::string> huge(1'000'000'000);
+    hwio::RingBuffer<std::string> huge(1'000'000'000);
     EXPECT_EQ(huge.capacity(), 1'000'000'000U);
     (void)huge.push("a");
     (void)huge.push("b");
     EXPECT_EQ(huge.size(), 2U);
     EXPECT_EQ(huge[1], "b");
 
-    hio::RingBuffer<int> buffer(37);
+    hwio::RingBuffer<int> buffer(37);
     for (int i = 0; i < 100; ++i) {
         EXPECT_EQ(buffer.push(i), i >= 37);
     }
@@ -88,7 +88,7 @@ TEST(RingBuffer, StorageGrowsLazily) {
 }
 
 TEST(RingBuffer, MoveOnlyElements) {
-    hio::RingBuffer<std::unique_ptr<int>> buffer(2);
+    hwio::RingBuffer<std::unique_ptr<int>> buffer(2);
     (void)buffer.push(std::make_unique<int>(1));
     (void)buffer.push(std::make_unique<int>(2));
     (void)buffer.push(std::make_unique<int>(3));
@@ -97,7 +97,7 @@ TEST(RingBuffer, MoveOnlyElements) {
 }
 
 TEST(RingBuffer, MutableAccess) {
-    hio::RingBuffer<int> buffer(2);
+    hwio::RingBuffer<int> buffer(2);
     (void)buffer.push(1);
     buffer[0] = 42;
     EXPECT_EQ(buffer[0], 42);
@@ -106,13 +106,13 @@ TEST(RingBuffer, MutableAccess) {
 using RingBufferDeathTest = ::testing::Test;
 
 TEST_F(RingBufferDeathTest, ZeroCapacityAborts) {
-    EXPECT_DEATH({ const hio::RingBuffer<int> buffer(0); }, "");
+    EXPECT_DEATH({ const hwio::RingBuffer<int> buffer(0); }, "");
 }
 
 TEST_F(RingBufferDeathTest, OutOfRangeIndexAborts) {
     EXPECT_DEATH(
         {
-            hio::RingBuffer<int> buffer(4);
+            hwio::RingBuffer<int> buffer(4);
             (void)buffer.push(1);
             (void)buffer[1];
         },

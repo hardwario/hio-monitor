@@ -1,7 +1,7 @@
 #include "http_fetch.h"
 
-#include "hio/core/error.h"
-#include "hio/core/log.h"
+#include "hwio/core/error.h"
+#include "hwio/core/log.h"
 
 #include <QByteArray>
 #include <QLoggingCategory>
@@ -27,7 +27,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::firmware::detail {
+namespace hwio::firmware::detail {
 
 namespace {
 
@@ -177,4 +177,4 @@ std::optional<Error> fetchError(const FetchOutcome& outcome, std::uint64_t maxBy
     return std::nullopt;
 }
 
-} // namespace hio::firmware::detail
+} // namespace hwio::firmware::detail

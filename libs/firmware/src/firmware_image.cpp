@@ -1,7 +1,7 @@
-#include "hio/firmware/firmware_image.h"
+#include "hwio/firmware/firmware_image.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 namespace {
 
@@ -140,4 +140,4 @@ Result<FirmwareImage> FirmwareImage::splitOut(const AddressRange& range) {
     return result;
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

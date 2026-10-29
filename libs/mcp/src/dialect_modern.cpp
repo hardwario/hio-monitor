@@ -1,9 +1,9 @@
 #include "dialect_modern.h"
 
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/protocol.h"
-#include "hio/mcp/reply_channel.h"
-#include "hio/mcp/request_context.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/protocol.h"
+#include "hwio/mcp/reply_channel.h"
+#include "hwio/mcp/request_context.h"
 
 #include <QByteArray>
 #include <QJsonArray>
@@ -18,7 +18,7 @@
 #include <optional>
 #include <string_view>
 
-namespace hio::mcp::detail {
+namespace hwio::mcp::detail {
 
 namespace {
 
@@ -179,4 +179,4 @@ std::optional<QString> decodeHeaderValue(std::string_view raw) {
     return latin1(raw);
 }
 
-} // namespace hio::mcp::detail
+} // namespace hwio::mcp::detail

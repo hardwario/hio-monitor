@@ -1,4 +1,4 @@
-#include "hio/hw/jlink/types.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <algorithm>
 #include <array>
@@ -10,7 +10,7 @@
 #include <string_view>
 #include <tuple>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 namespace {
 
@@ -125,4 +125,4 @@ std::string firmwareId(std::string_view firmware) {
     return std::string(firmware.substr(0, firmware.find(compiledMarker)));
 }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

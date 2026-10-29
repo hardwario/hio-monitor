@@ -1,6 +1,6 @@
-// End-to-end tests of the M4 diagnostics commands (plan/features/0007, B3; ADR-0070): `hio doctor`,
-// `hio diag report` and `hio chester app|lte check` with the fake J-Link library and the fake
-// nRF Util. All serial numbers are fake.
+// End-to-end tests of the M4 diagnostics commands (plan/features/0007, B3; ADR-0070): `hwio
+// doctor`, `hwio diag report` and `hwio chester app|lte check` with the fake J-Link library and the
+// fake nRF Util. All serial numbers are fake.
 
 #include "cli_process.h"
 
@@ -32,8 +32,8 @@
 
 namespace {
 
-using hio::cli::test::CliProcess;
-using hio::cli::test::RunResult;
+using hwio::cli::test::CliProcess;
+using hwio::cli::test::RunResult;
 
 constexpr const char* oneProbe = R"({"probes": [
     {"serialNumber": 801000001, "product": "Test Probe",
@@ -80,21 +80,21 @@ protected:
 
     [[nodiscard]] QProcessEnvironment fakeEnvironment() const {
         QProcessEnvironment env = environment();
-        env.insert(QStringLiteral("HIO_FAKE_JLINK_SCENARIO"),
+        env.insert(QStringLiteral("HWIO_FAKE_JLINK_SCENARIO"),
                    home() + QStringLiteral("/scenario.json"));
-        env.insert(QStringLiteral("HIO_JLINK_LIBRARY"), QStringLiteral(HIO_FAKE_JLINK_LIBRARY));
-        env.insert(QStringLiteral("HIO_NRFUTIL"), QStringLiteral(HIO_FAKE_NRFUTIL));
-        // M5: the `bluetooth` check on the fake BLE backend (HIO_TEST_OVERRIDES builds; others
+        env.insert(QStringLiteral("HWIO_JLINK_LIBRARY"), QStringLiteral(HWIO_FAKE_JLINK_LIBRARY));
+        env.insert(QStringLiteral("HWIO_NRFUTIL"), QStringLiteral(HWIO_FAKE_NRFUTIL));
+        // M5: the `bluetooth` check on the fake BLE backend (HWIO_TEST_OVERRIDES builds; others
         // read the real adapter, the check is a warning at worst).
-        env.insert(QStringLiteral("HIO_FAKE_BLE_SCENARIO"),
-                   QStringLiteral(HIO_BLE_SCENARIOS_DIR) + QStringLiteral("/") + m_bleScenario);
+        env.insert(QStringLiteral("HWIO_FAKE_BLE_SCENARIO"),
+                   QStringLiteral(HWIO_BLE_SCENARIOS_DIR) + QStringLiteral("/") + m_bleScenario);
         return env;
     }
 
     // tests/ble_scenarios/<name> for the `bluetooth` check.
     void useBleScenario(QString name) { m_bleScenario = std::move(name); }
 
-    [[nodiscard]] RunResult hio(const QStringList& args) const {
+    [[nodiscard]] RunResult hwio(const QStringList& args) const {
         return run(args, fakeEnvironment());
     }
 
@@ -103,7 +103,7 @@ private:
 };
 
 TEST_F(DiagCli, DoctorJson) {
-    const RunResult result = hio({QStringLiteral("--json"), QStringLiteral("doctor")});
+    const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("doctor")});
     ASSERT_TRUE(result.normalExit);
     EXPECT_EQ(result.exitCode, 0) << result.out << result.err;
     const auto all = envelopes(result.out);
@@ -124,41 +124,41 @@ TEST_F(DiagCli, DoctorJson) {
 
 // M5 (ADR-0088): the bluetooth check; a Bluetooth problem is a warning and keeps exit 0.
 TEST_F(DiagCli, DoctorBluetooth) {
-#ifndef HIO_TEST_OVERRIDES
-    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_FAKE_BLE_SCENARIO)";
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_FAKE_BLE_SCENARIO)";
 #endif
-    const RunResult ready = hio({QStringLiteral("--json"), QStringLiteral("doctor")});
+    const RunResult ready = hwio({QStringLiteral("--json"), QStringLiteral("doctor")});
     EXPECT_EQ(statusOf(checks(envelopes(ready.out).at(0)), QStringLiteral("bluetooth")),
               QStringLiteral("ok"));
     EXPECT_NE(ready.out.find("Adapter ready (fake0, 00:11:22:33:44:55)"), std::string::npos)
         << ready.out;
     useBleScenario(QStringLiteral("adapter_off.json"));
-    const RunResult off = hio({QStringLiteral("--json"), QStringLiteral("doctor")});
+    const RunResult off = hwio({QStringLiteral("--json"), QStringLiteral("doctor")});
     EXPECT_EQ(off.exitCode, 0) << off.out;
     EXPECT_EQ(statusOf(checks(envelopes(off.out).at(0)), QStringLiteral("bluetooth")),
               QStringLiteral("warning"));
     EXPECT_NE(off.out.find("ble.adapter_off"), std::string::npos) << off.out;
     useBleScenario(QStringLiteral("permission_undetermined.json"));
-    const RunResult undecided = hio({QStringLiteral("doctor")});
+    const RunResult undecided = hwio({QStringLiteral("doctor")});
     EXPECT_NE(undecided.out.find("Permission will be asked on first use"), std::string::npos)
         << undecided.out;
 }
 
 TEST_F(DiagCli, DoctorHuman) {
-    const RunResult result = hio({QStringLiteral("doctor")});
+    const RunResult result = hwio({QStringLiteral("doctor")});
     EXPECT_EQ(result.exitCode, 0) << result.err;
     EXPECT_NE(result.out.find("✓ J-Link Software"), std::string::npos) << result.out;
     EXPECT_NE(result.out.find("✓ J-Link probes"), std::string::npos) << result.out;
     EXPECT_NE(result.out.find("1 found: 801000001"), std::string::npos) << result.out;
-    EXPECT_NE(result.out.find("Run `hio diag report` to create a report for HARDWARIO support."),
+    EXPECT_NE(result.out.find("Run `hwio diag report` to create a report for HARDWARIO support."),
               std::string::npos)
         << result.out;
 }
 
 TEST_F(DiagCli, DoctorWithoutJLinkExitsWithTheDependencyCode) {
     const RunResult result =
-        hio({QStringLiteral("--jlink-library"), QStringLiteral("/nonexistent/libjlinkarm.so"),
-             QStringLiteral("--json"), QStringLiteral("doctor")});
+        hwio({QStringLiteral("--jlink-library"), QStringLiteral("/nonexistent/libjlinkarm.so"),
+              QStringLiteral("--json"), QStringLiteral("doctor")});
     EXPECT_EQ(result.exitCode, 4) << result.out;
     const auto all = envelopes(result.out);
     ASSERT_EQ(all.size(), 1U);
@@ -170,8 +170,8 @@ TEST_F(DiagCli, DoctorWithoutJLinkExitsWithTheDependencyCode) {
     EXPECT_EQ(statusOf(list, QStringLiteral("probes")), QStringLiteral("skipped"));
 
     const RunResult human =
-        hio({QStringLiteral("--jlink-library"), QStringLiteral("/nonexistent/libjlinkarm.so"),
-             QStringLiteral("doctor")});
+        hwio({QStringLiteral("--jlink-library"), QStringLiteral("/nonexistent/libjlinkarm.so"),
+              QStringLiteral("doctor")});
     EXPECT_EQ(human.exitCode, 4);
     EXPECT_NE(human.out.find("✗ J-Link Software"), std::string::npos) << human.out;
     EXPECT_NE(human.out.find("What to do:"), std::string::npos) << human.out;
@@ -180,8 +180,8 @@ TEST_F(DiagCli, DoctorWithoutJLinkExitsWithTheDependencyCode) {
 
 TEST_F(DiagCli, DoctorWithoutNrfUtilOnlyWarns) {
     const RunResult result =
-        hio({QStringLiteral("--nrfutil"), QStringLiteral("/nonexistent/nrfutil"),
-             QStringLiteral("--json"), QStringLiteral("doctor")});
+        hwio({QStringLiteral("--nrfutil"), QStringLiteral("/nonexistent/nrfutil"),
+              QStringLiteral("--json"), QStringLiteral("doctor")});
     EXPECT_EQ(result.exitCode, 0) << result.out;
     const auto all = envelopes(result.out);
     ASSERT_EQ(all.size(), 1U);
@@ -189,8 +189,8 @@ TEST_F(DiagCli, DoctorWithoutNrfUtilOnlyWarns) {
 }
 
 TEST_F(DiagCli, AppCheckStreamsEveryStep) {
-    const RunResult result = hio({QStringLiteral("--json"), QStringLiteral("chester"),
-                                  QStringLiteral("app"), QStringLiteral("check")});
+    const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                   QStringLiteral("app"), QStringLiteral("check")});
     EXPECT_EQ(result.exitCode, 0) << result.out << result.err;
     const auto all = envelopes(result.out);
     ASSERT_EQ(all.size(), 7U) << result.out;
@@ -209,7 +209,7 @@ TEST_F(DiagCli, AppCheckStreamsEveryStep) {
     EXPECT_EQ(checks(all.back()).size(), 6);
 
     const RunResult human =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("check")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("check")});
     EXPECT_EQ(human.exitCode, 0);
     EXPECT_NE(human.out.find("✓ Connection to the application MCU"), std::string::npos)
         << human.out;
@@ -218,8 +218,8 @@ TEST_F(DiagCli, AppCheckStreamsEveryStep) {
 
 TEST_F(DiagCli, AppCheckWithoutPowerExitsWithTheTargetCode) {
     useScenario(R"({"probes": [{"serialNumber": 801000001, "vtref": [[0, 150]]}]})");
-    const RunResult result = hio({QStringLiteral("--json"), QStringLiteral("chester"),
-                                  QStringLiteral("app"), QStringLiteral("check")});
+    const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                   QStringLiteral("app"), QStringLiteral("check")});
     EXPECT_EQ(result.exitCode, 6) << result.out;
     const auto all = envelopes(result.out);
     ASSERT_FALSE(all.empty());
@@ -229,8 +229,8 @@ TEST_F(DiagCli, AppCheckWithoutPowerExitsWithTheTargetCode) {
 }
 
 TEST_F(DiagCli, LteCheckOnTheAppConnectorIsWrongFamily) {
-    const RunResult result = hio({QStringLiteral("--json"), QStringLiteral("chester"),
-                                  QStringLiteral("lte"), QStringLiteral("check")});
+    const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                   QStringLiteral("lte"), QStringLiteral("check")});
     EXPECT_EQ(result.exitCode, 6) << result.out;
     const auto all = envelopes(result.out);
     ASSERT_FALSE(all.empty());
@@ -240,8 +240,8 @@ TEST_F(DiagCli, LteCheckOnTheAppConnectorIsWrongFamily) {
 
 TEST_F(DiagCli, CheckWithoutProbeExitsWithTheProbeCode) {
     useScenario(R"({"probes": []})");
-    const RunResult result = hio({QStringLiteral("--json"), QStringLiteral("chester"),
-                                  QStringLiteral("app"), QStringLiteral("check")});
+    const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                   QStringLiteral("app"), QStringLiteral("check")});
     EXPECT_EQ(result.exitCode, 5) << result.out;
     const auto all = envelopes(result.out);
     ASSERT_FALSE(all.empty());
@@ -251,8 +251,8 @@ TEST_F(DiagCli, CheckWithoutProbeExitsWithTheProbeCode) {
 
 TEST_F(DiagCli, ReportIsWritten) {
     const QString target = home() + QStringLiteral("/report.zip");
-    const RunResult result = hio({QStringLiteral("--json"), QStringLiteral("diag"),
-                                  QStringLiteral("report"), QStringLiteral("-o"), target});
+    const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("diag"),
+                                   QStringLiteral("report"), QStringLiteral("-o"), target});
     EXPECT_EQ(result.exitCode, 0) << result.out << result.err;
     const auto all = envelopes(result.out);
     ASSERT_EQ(all.size(), 1U);
@@ -264,8 +264,8 @@ TEST_F(DiagCli, ReportIsWritten) {
     ASSERT_TRUE(zip.open(QIODevice::ReadOnly));
     EXPECT_TRUE(zip.read(2) == QByteArray("PK"));
 
-    const RunResult human = hio({QStringLiteral("diag"), QStringLiteral("report"),
-                                 QStringLiteral("-o"), home() + QStringLiteral("/r2.zip")});
+    const RunResult human = hwio({QStringLiteral("diag"), QStringLiteral("report"),
+                                  QStringLiteral("-o"), home() + QStringLiteral("/r2.zip")});
     EXPECT_EQ(human.exitCode, 0);
     EXPECT_NE(human.out.find("HARDWARIO Monitor diagnostic report"), std::string::npos)
         << human.out;
@@ -281,24 +281,24 @@ TEST_F(DiagCli, ReportIncludesCrashFiles) {
     const QString data = home() + QStringLiteral("/data/HARDWARIO/Monitor");
 #endif
     ASSERT_TRUE(QDir().mkpath(data + QStringLiteral("/crashes")));
-    QFile crash(data + QStringLiteral("/crashes/crash-hio-monitor-20261016-100000.txt"));
+    QFile crash(data + QStringLiteral("/crashes/crash-hwio-monitor-20261016-100000.txt"));
     ASSERT_TRUE(crash.open(QIODevice::WriteOnly));
     crash.write("HARDWARIO Monitor crash report\nsignal: 11 (SIGSEGV)\n");
     crash.close();
     const QString target = home() + QStringLiteral("/report.zip");
     const RunResult result =
-        hio({QStringLiteral("diag"), QStringLiteral("report"), QStringLiteral("-o"), target});
+        hwio({QStringLiteral("diag"), QStringLiteral("report"), QStringLiteral("-o"), target});
     ASSERT_EQ(result.exitCode, 0) << result.out << result.err;
     QFile zip(target);
     ASSERT_TRUE(zip.open(QIODevice::ReadOnly));
     // The zip's directory holds the entry names as plain text.
-    EXPECT_TRUE(zip.readAll().contains("crashes/crash-hio-monitor-20261016-100000.txt"));
+    EXPECT_TRUE(zip.readAll().contains("crashes/crash-hwio-monitor-20261016-100000.txt"));
 }
 
 TEST_F(DiagCli, ReportToTheTerminalIsRefused) {
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("diag"), QStringLiteral("report"),
-             QStringLiteral("-o"), QStringLiteral("-")});
+        hwio({QStringLiteral("--json"), QStringLiteral("diag"), QStringLiteral("report"),
+              QStringLiteral("-o"), QStringLiteral("-")});
     EXPECT_EQ(result.exitCode, 2);
     const auto all = envelopes(result.out);
     ASSERT_EQ(all.size(), 1U);
@@ -308,8 +308,8 @@ TEST_F(DiagCli, ReportToTheTerminalIsRefused) {
 
 TEST_F(DiagCli, ReportIntoAMissingFolderFails) {
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("diag"), QStringLiteral("report"),
-             QStringLiteral("-o"), home() + QStringLiteral("/missing/report.zip")});
+        hwio({QStringLiteral("--json"), QStringLiteral("diag"), QStringLiteral("report"),
+              QStringLiteral("-o"), home() + QStringLiteral("/missing/report.zip")});
     EXPECT_EQ(result.exitCode, 3);
     const auto all = envelopes(result.out);
     ASSERT_EQ(all.size(), 1U);
@@ -322,7 +322,7 @@ TEST_F(DiagCli, CtrlCEndsTheCheckWith130) {
     useScenario(R"({"probes": [{"serialNumber": 801000001, "connectDelayMs": 4000}]})");
     QProcess process;
     process.setProcessEnvironment(fakeEnvironment());
-    process.start(QStringLiteral(HIO_CLI_EXECUTABLE),
+    process.start(QStringLiteral(HWIO_CLI_EXECUTABLE),
                   {QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("check")});
     ASSERT_TRUE(process.waitForStarted(10000));
     QByteArray out;

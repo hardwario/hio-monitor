@@ -1,10 +1,10 @@
 #include "console_learning.h"
 
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_info.h"
-#include "hio/device/session_events.h"
-#include "hio/device/shell_query.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_info.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/shell_query.h"
 
 #include <QObject>
 
@@ -14,7 +14,7 @@
 #include <string_view>
 #include <utility>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 ConsoleLearning::ConsoleLearning(device::ConsoleSession& session, std::string_view profile,
                                  std::string_view target, bool readOnConnect,
@@ -64,4 +64,4 @@ void ConsoleLearning::queryInfo() {
                   });
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

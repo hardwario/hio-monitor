@@ -3,16 +3,16 @@
 // How console session events are shown (plan/features/0002-m1-jlink-rtt.md, ADR-0026):
 // NDJSON event objects for --json and human text lines.
 
-#include "hio/core/error.h"
-#include "hio/device/console_line.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/session_events.h"
 
 #include <QJsonObject>
 
 #include <cstdint>
 #include <string>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 // {"type":"line","seq","time","channel","dir","level","text"}; time = ISO 8601 UTC with ms.
 [[nodiscard]] QJsonObject lineEventJson(const device::ConsoleLine& line);
@@ -32,4 +32,4 @@ namespace hio::cli {
 // "Warning: <message> <suggestion>"
 [[nodiscard]] std::string humanWarning(const Error& error);
 
-} // namespace hio::cli
+} // namespace hwio::cli

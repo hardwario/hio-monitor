@@ -1,5 +1,5 @@
 // Console performance (plan 0005, Tests and verification): the fake J-Link library streams
-// 5 000 lines/s into the shell and 5 000 lines/s into the log for HIO_CONSOLE_PERF_SECONDS
+// 5 000 lines/s into the shell and 5 000 lines/s into the log for HWIO_CONSOLE_PERF_SECONDS
 // (skipped when unset; the plan's run is 600 s). Measured: GUI-thread stalls (a 16 ms timer's
 // lateness), frames per second, peak RSS (< 400 MB), lines received; then the GUI thread is blocked
 // for 3 s so that the session's event queue overflows and the dropped-lines banner must appear.
@@ -53,7 +53,7 @@ TestCase {
 
     function initTestCase() {
         if (testSupport.perfSeconds <= 0)
-            skip("HIO_CONSOLE_PERF_SECONDS is not set");
+            skip("HWIO_CONSOLE_PERF_SECONDS is not set");
         window = Qt.createComponent("HardwarioMonitor", "Main").createObject(testCase);
         verify(window !== null);
     }
@@ -68,7 +68,7 @@ TestCase {
 
     function test_highLineRate() {
         if (testSupport.perfSeconds <= 0)
-            skip("HIO_CONSOLE_PERF_SECONDS is not set");
+            skip("HWIO_CONSOLE_PERF_SECONDS is not set");
         verify(testSupport.useScenario(JSON.stringify({
             libraryVersion: 81000,
             probes: [{ serialNumber: 801000001, product: "Test Probe",

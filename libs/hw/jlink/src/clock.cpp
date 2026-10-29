@@ -1,11 +1,11 @@
-#include "hio/hw/jlink/clock.h"
+#include "hwio/hw/jlink/clock.h"
 
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <stop_token>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 SystemClock& SystemClock::instance() {
     static SystemClock clock;
@@ -26,4 +26,4 @@ bool SystemClock::sleepFor(std::chrono::milliseconds duration, const std::stop_t
     return !stop.stop_requested();
 }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

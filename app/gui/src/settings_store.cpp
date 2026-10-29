@@ -1,10 +1,10 @@
 #include "settings_store.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
 
 #include <QAnyStringView>
 #include <QLoggingCategory>
@@ -27,7 +27,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace validators {
 
@@ -166,14 +166,14 @@ QVariant SettingsStore::value(QAnyStringView key) const {
     switch (spec->type) {
     case QMetaType::Bool:
         stored = m_settings->get(
-            hio::SettingKey<bool>{.path = stdPath, .defaultValue = spec->defaultValue.toBool()});
+            hwio::SettingKey<bool>{.path = stdPath, .defaultValue = spec->defaultValue.toBool()});
         break;
     case QMetaType::Int:
         stored = m_settings->get(
-            hio::SettingKey<int>{.path = stdPath, .defaultValue = spec->defaultValue.toInt()});
+            hwio::SettingKey<int>{.path = stdPath, .defaultValue = spec->defaultValue.toInt()});
         break;
     default:
-        stored = toQString(m_settings->get(hio::SettingKey<std::string>{
+        stored = toQString(m_settings->get(hwio::SettingKey<std::string>{
             .path = stdPath, .defaultValue = toStdString(spec->defaultValue.toString())}));
         break;
     }
@@ -225,15 +225,15 @@ Status SettingsStore::setValue(QAnyStringView key, const QVariant& newValue) {
     Status status;
     switch (spec->type) {
     case QMetaType::Bool:
-        status = m_settings->set(hio::SettingKey<bool>{.path = stdPath, .defaultValue = false},
+        status = m_settings->set(hwio::SettingKey<bool>{.path = stdPath, .defaultValue = false},
                                  converted->toBool());
         break;
     case QMetaType::Int:
-        status = m_settings->set(hio::SettingKey<int>{.path = stdPath, .defaultValue = 0},
+        status = m_settings->set(hwio::SettingKey<int>{.path = stdPath, .defaultValue = 0},
                                  converted->toInt());
         break;
     default:
-        status = m_settings->set(hio::SettingKey<std::string>{.path = stdPath, .defaultValue = {}},
+        status = m_settings->set(hwio::SettingKey<std::string>{.path = stdPath, .defaultValue = {}},
                                  toStdString(converted->toString()));
         break;
     }
@@ -247,4 +247,4 @@ Status SettingsStore::setValue(QAnyStringView key, const QVariant& newValue) {
     return {};
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

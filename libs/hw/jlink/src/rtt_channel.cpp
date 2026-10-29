@@ -1,12 +1,12 @@
-#include "hio/hw/jlink/rtt_channel.h"
+#include "hwio/hw/jlink/rtt_channel.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/jlink/clock.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/jlink/clock.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <QChar>
 #include <QCoreApplication>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 namespace {
 
@@ -64,7 +64,7 @@ void logBuffers(const std::vector<RttBufferInfo>& buffers, const char* direction
 
 Error bufferNotFound(const std::string& name, std::string detail) {
     Error error = makeError(ErrorCode::TargetRttBufferNotFound, std::move(detail));
-    error.message = QCoreApplication::translate("hio::jlink", "RTT buffer \"%1\" not found.")
+    error.message = QCoreApplication::translate("hwio::jlink", "RTT buffer \"%1\" not found.")
                         .arg(toQString(name))
                         .toStdString();
     return error;
@@ -303,4 +303,4 @@ void RttChannel::stop() {
     m_attached = false;
 }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

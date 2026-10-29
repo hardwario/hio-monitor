@@ -1,4 +1,4 @@
-#include "hio/firmware/designated_firmware.h"
+#include "hwio/firmware/designated_firmware.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -13,7 +13,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 namespace {
 
@@ -69,4 +69,4 @@ Sha256 sha256Of(std::span<const std::byte> bytes) {
     return digest;
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

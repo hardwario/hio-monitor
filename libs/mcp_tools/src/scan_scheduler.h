@@ -16,7 +16,7 @@
 #include <cstddef>
 #include <deque>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 class LineScanner {
 public:
@@ -56,4 +56,4 @@ private:
     bool m_scheduled = false;
 };
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

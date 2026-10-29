@@ -4,7 +4,7 @@
 //   Windows: segv (a real access violation), illegal, div0 (raised SEH exceptions)
 // Exit code 2 = bad arguments, 3 = install failed, 4 = did not crash.
 
-#include "hio/core/crash_handler.h"
+#include "hwio/core/crash_handler.h"
 
 #include <QtSystemDetection>
 
@@ -31,7 +31,7 @@ namespace {
 int main(int argc, char** argv) {
     const std::span<char*> args(argv, static_cast<std::size_t>(argc));
     if (args.size() != 3) {
-        std::cerr << "usage: hio_crash_child <directory> <kind>\n";
+        std::cerr << "usage: hwio_crash_child <directory> <kind>\n";
         return 2;
     }
 #ifdef Q_OS_WIN
@@ -42,10 +42,10 @@ int main(int argc, char** argv) {
     const rlimit noCore{.rlim_cur = 0, .rlim_max = 0};
     setrlimit(RLIMIT_CORE, &noCore);
 #endif
-    const auto installed = hio::crash::install({.directory = std::filesystem::path(args[1]),
-                                                .appName = "crashtest",
-                                                .version = "1.2.3+test"});
-    if (!installed || !hio::crash::isInstalled()) {
+    const auto installed = hwio::crash::install({.directory = std::filesystem::path(args[1]),
+                                                 .appName = "crashtest",
+                                                 .version = "1.2.3+test"});
+    if (!installed || !hwio::crash::isInstalled()) {
         std::cerr << "install failed\n";
         return 3;
     }

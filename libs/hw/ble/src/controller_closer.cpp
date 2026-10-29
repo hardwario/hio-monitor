@@ -1,8 +1,8 @@
 #include "controller_closer.h"
 
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QEventLoop>
 #include <QLoggingCategory>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 ControllerCloser::ControllerCloser(std::chrono::milliseconds bound)
     : m_bound(bound), m_context(std::make_unique<QObject>()) {}
@@ -117,4 +117,4 @@ void ControllerCloser::waitAll() {
     loop.exec();
 }
 
-} // namespace hio::ble
+} // namespace hwio::ble

@@ -13,7 +13,7 @@
 #
 # The image is built by CI (ci.yml package-linux, release.yml) and cached; it is never published.
 # Local use (packaging/README.md):
-#   docker build -t hio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
+#   docker build -t hwio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
 FROM ubuntu:22.04@sha256:0a9887931b0e38af2e3487ed39e29436b0535c4f3f52e57745baaf79d1898956
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -87,7 +87,7 @@ RUN set -eu; mkdir -p /opt/appimage && cd /opt/appimage \
     && rm linuxdeploy.AppImage appimagetool.AppImage \
     && ln -s /opt/appimage/linuxdeploy/AppRun /usr/local/bin/linuxdeploy \
     && ln -s /opt/appimage/appimagetool/AppRun /usr/local/bin/appimagetool
-ENV HIO_APPIMAGE_RUNTIME=/opt/appimage/runtime-x86_64
+ENV HWIO_APPIMAGE_RUNTIME=/opt/appimage/runtime-x86_64
 
 # Locales for the tests: C.UTF-8 is the default; cs_CZ.UTF-8 checks that the CLI stays English
 # (app/cli/tests/e2e_test.cpp) and that the GUI's Czech texts load.

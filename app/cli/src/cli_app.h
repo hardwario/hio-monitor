@@ -1,13 +1,13 @@
 #pragma once
 
-// The `hio` command tree (ADR-0017, plan/0006-cli.md). Commands return data or an error and never
+// The `hwio` command tree (ADR-0017, plan/0006-cli.md). Commands return data or an error and never
 // print themselves (except streaming commands, through Context::output).
 //
 // Command groups live in separate files: selftest.cpp, jlink_commands.cpp (M1),
 // chester_commands.cpp (M1), flash_commands.cpp (M2).
 
-#include "hio/core/log.h"
-#include "hio/core/result.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
 #include "output.h"
 
 #include <QJsonValue>
@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 struct Context {
     OutputMode mode = OutputMode::Human;
@@ -92,4 +92,4 @@ private:
 // "--json" anywhere before a "--" separator (used before parsing succeeds, e.g. for parse errors).
 [[nodiscard]] bool jsonRequested(const std::vector<std::string>& args);
 
-} // namespace hio::cli
+} // namespace hwio::cli

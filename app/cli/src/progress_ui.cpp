@@ -1,10 +1,10 @@
 #include "progress_ui.h"
 
 #include "cli_app.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/device/operation.h"
-#include "hio/firmware/program_progress.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/device/operation.h"
+#include "hwio/firmware/program_progress.h"
 #include "output.h"
 
 #include <QJsonObject>
@@ -18,7 +18,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -162,4 +162,4 @@ void ProgressUi::finish() {
     }
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

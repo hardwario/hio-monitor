@@ -1,6 +1,6 @@
 #pragma once
 
-// ErrorInfo - hio::Error as a QML value type (plan/features/0004-m3-gui-shell.md, A4).
+// ErrorInfo - hwio::Error as a QML value type (plan/features/0004-m3-gui-shell.md, A4).
 //
 // Every backend error is shown inline in an ErrorPanel (UX 0003): message, "Probably:" cause,
 // "What to do:" suggestion, a primary action, the "Help me fix this" button when the error has a
@@ -11,7 +11,7 @@
 // Texts are already translated by the backend when the error was created (ADR-0027); an error on
 // screen keeps its language after a live language switch.
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 
 #include <QMetaType>
 #include <QObject>
@@ -21,7 +21,7 @@
 
 #include <cstdint>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 // The primary action of an ErrorPanel (QML: ErrorAction.Reconnect, ...).
 namespace error_action {
@@ -91,6 +91,6 @@ private:
     int m_primaryAction = error_action::Dismiss;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui
 
-Q_DECLARE_METATYPE(hio::gui::ErrorInfo)
+Q_DECLARE_METATYPE(hwio::gui::ErrorInfo)

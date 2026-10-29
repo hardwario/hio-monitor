@@ -1,8 +1,8 @@
 #include "dialect_legacy.h"
 
 #include "dialect_modern.h"
-#include "hio/mcp/protocol.h"
-#include "hio/mcp/request_context.h"
+#include "hwio/mcp/protocol.h"
+#include "hwio/mcp/request_context.h"
 
 #include <QJsonObject>
 #include <QString>
@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::mcp::detail {
+namespace hwio::mcp::detail {
 
 std::string negotiateLegacyVersion(const QString& requested) {
     std::string text = requested.toStdString();
@@ -43,4 +43,4 @@ ClientInfo legacyClientInfo(const QJsonObject& params) {
                       .version = info.value(QStringLiteral("version")).toString().toStdString()};
 }
 
-} // namespace hio::mcp::detail
+} // namespace hwio::mcp::detail

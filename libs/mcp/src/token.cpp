@@ -1,9 +1,9 @@
-#include "hio/mcp/token.h"
+#include "hwio/mcp/token.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -35,7 +35,7 @@
 #include <unistd.h>
 #endif
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 namespace fs = std::filesystem;
 
@@ -107,7 +107,7 @@ bool checkPosixMode(const fs::path& path, fs::perms wanted, bool directory) {
     }
     const fs::perms current = status.permissions() & fs::perms::mask;
     if (current != wanted) {
-        qCWarning(hio::log::lcMcp).noquote()
+        qCWarning(hwio::log::lcMcp).noquote()
             << "MCP token: fixed the permissions of" << QString::fromStdString(toUtf8(path));
         fs::permissions(path, wanted, fs::perm_options::replace, error);
         if (error) {
@@ -127,7 +127,7 @@ bool checkUserDirectory(const fs::path& dir) {
     }
     if ((status.permissions() & (fs::perms::group_write | fs::perms::others_write)) !=
         fs::perms::none) {
-        qCWarning(hio::log::lcMcp).noquote()
+        qCWarning(hwio::log::lcMcp).noquote()
             << "MCP token: the directory" << QString::fromStdString(toUtf8(dir))
             << "is writable by other users; refused";
         return false;
@@ -297,4 +297,4 @@ bool constantTimeEquals(std::string_view a, std::string_view b) noexcept {
     return difference == 0;
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

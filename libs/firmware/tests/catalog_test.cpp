@@ -2,10 +2,10 @@
 // (plan/features/0003, phase A4).
 
 #include "hex_builder.h"
-#include "hio/core/error.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
 #include "http_fixture.h"
+#include "hwio/core/error.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
 
 #include <QByteArray>
 #include <QString>
@@ -26,18 +26,18 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::firmware::CacheLimits;
-using hio::firmware::CatalogOptions;
-using hio::firmware::DownloadOptions;
-using hio::firmware::FirmwareCache;
-using hio::firmware::FirmwareCatalog;
-using hio::firmware::FirmwareId;
-using hio::firmware::waitForDownload;
-using hio::firmware::test::bytesOf;
-using hio::firmware::test::eofRecord;
-using hio::firmware::test::hexRecord;
-using hio::firmware::test::HttpFixture;
+using hwio::ErrorCode;
+using hwio::firmware::CacheLimits;
+using hwio::firmware::CatalogOptions;
+using hwio::firmware::DownloadOptions;
+using hwio::firmware::FirmwareCache;
+using hwio::firmware::FirmwareCatalog;
+using hwio::firmware::FirmwareId;
+using hwio::firmware::waitForDownload;
+using hwio::firmware::test::bytesOf;
+using hwio::firmware::test::eofRecord;
+using hwio::firmware::test::hexRecord;
+using hwio::firmware::test::HttpFixture;
 
 constexpr const char* idText = "0123456789ABCDEF0123456789abcdef";
 

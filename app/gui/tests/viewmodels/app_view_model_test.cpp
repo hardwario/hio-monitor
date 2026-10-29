@@ -29,12 +29,12 @@
 
 namespace {
 
-using hio::gui::AppViewModel;
-using hio::gui::DeviceTabViewModel;
-using hio::gui::test::spin;
-using hio::gui::test::waitFor;
+using hwio::gui::AppViewModel;
+using hwio::gui::DeviceTabViewModel;
+using hwio::gui::test::spin;
+using hwio::gui::test::waitFor;
 
-class AppViewModelTest : public hio::gui::test::GuiTest {
+class AppViewModelTest : public hwio::gui::test::GuiTest {
 protected:
     void writeRaw(const QString& key, const QVariant& value) const {
         QSettings raw(QString::fromStdU16String(settingsFile().u16string()), QSettings::IniFormat);
@@ -189,16 +189,16 @@ TEST_F(AppViewModelTest, Theme) {
 
 TEST_F(AppViewModelTest, PagesAndGlobalPages) {
     const auto app = makeApp();
-    const hio::gui::PageListModel& pages = *app->pages();
+    const hwio::gui::PageListModel& pages = *app->pages();
     ASSERT_EQ(pages.rowCount(), 4);
     const auto id = [&pages](int row) {
-        return pages.data(pages.index(row), hio::gui::PageListModel::PageIdRole).toString();
+        return pages.data(pages.index(row), hwio::gui::PageListModel::PageIdRole).toString();
     };
     EXPECT_EQ(id(0), QStringLiteral("console"));
     EXPECT_EQ(id(1), QStringLiteral("flash"));
     EXPECT_EQ(id(2), QStringLiteral("test"));
     EXPECT_EQ(id(3), QStringLiteral("settings"));
-    EXPECT_TRUE(pages.data(pages.index(3), hio::gui::PageListModel::GlobalRole).toBool());
+    EXPECT_TRUE(pages.data(pages.index(3), hwio::gui::PageListModel::GlobalRole).toBool());
 
     ASSERT_NE(app->globalPageViewModel(QStringLiteral("settings")), nullptr);
     EXPECT_EQ(app->globalPageViewModel(QStringLiteral("settings"))->parent(), app.get());
@@ -216,7 +216,7 @@ TEST_F(AppViewModelTest, PagesAndGlobalPages) {
 TEST_F(AppViewModelTest, SettingsTab) {
     {
         const auto app = makeApp();
-        hio::gui::DeviceTabListModel& tabs = *app->tabs();
+        hwio::gui::DeviceTabListModel& tabs = *app->tabs();
         ASSERT_TRUE(app->currentTabViewModel()->configure(QStringLiteral("chester"),
                                                           QStringLiteral("app"), 801000001));
         app->newTab();
@@ -237,11 +237,11 @@ TEST_F(AppViewModelTest, SettingsTab) {
         ASSERT_EQ(section.count(), 1);
         EXPECT_EQ(section.at(0).at(0).toString(), QStringLiteral("nrfutil"));
         const QModelIndex row = tabs.index(2);
-        EXPECT_EQ(tabs.data(row, hio::gui::DeviceTabListModel::KindRole).toString(),
+        EXPECT_EQ(tabs.data(row, hwio::gui::DeviceTabListModel::KindRole).toString(),
                   QStringLiteral("settings"));
-        EXPECT_EQ(tabs.data(row, hio::gui::DeviceTabListModel::TitleRole).toString(),
+        EXPECT_EQ(tabs.data(row, hwio::gui::DeviceTabListModel::TitleRole).toString(),
                   QStringLiteral("Settings"));
-        EXPECT_EQ(tabs.data(tabs.index(0), hio::gui::DeviceTabListModel::KindRole).toString(),
+        EXPECT_EQ(tabs.data(tabs.index(0), hwio::gui::DeviceTabListModel::KindRole).toString(),
                   QStringLiteral("device"));
 
         // At most one: opening again switches to it.
@@ -323,7 +323,7 @@ TEST_F(AppViewModelTest, SettingsTab) {
 TEST_F(AppViewModelTest, PageModelUpdatesTitlesOnly) {
     // Review S9: a language switch changes the titles (dataChanged), not the rows.
     const auto app = makeApp();
-    hio::gui::PageListModel& pages = *app->pages();
+    hwio::gui::PageListModel& pages = *app->pages();
     ASSERT_EQ(pages.rowCount(), 4);
     QSignalSpy reset(&pages, &QAbstractItemModel::modelReset);
     QSignalSpy changed(&pages, &QAbstractItemModel::dataChanged);
@@ -334,7 +334,7 @@ TEST_F(AppViewModelTest, PageModelUpdatesTitlesOnly) {
     EXPECT_EQ(pages.title(QStringLiteral("flash")), QStringLiteral("Flash"));
     EXPECT_EQ(pages.qml(QStringLiteral("test")), QUrl(QStringLiteral("qrc:/TestPage.qml")));
     EXPECT_TRUE(pages.title(QStringLiteral("nope")).isEmpty());
-    EXPECT_EQ(pages.data(pages.index(0), hio::gui::PageListModel::PageIdRole).toString(),
+    EXPECT_EQ(pages.data(pages.index(0), hwio::gui::PageListModel::PageIdRole).toString(),
               QStringLiteral("console"));
 }
 

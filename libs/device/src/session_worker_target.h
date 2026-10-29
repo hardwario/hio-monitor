@@ -11,16 +11,16 @@
 // WorkflowContext::cpuHalted: whether RTT stays attached is decided by the worker (ADR-0157).
 
 #include "flash_workflows.h"
-#include "hio/core/result.h"
-#include "hio/device/operation.h"
-#include "hio/firmware/firmware_image.h"
+#include "hwio/core/result.h"
+#include "hwio/device/operation.h"
+#include "hwio/firmware/firmware_image.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 // Halt / go: the result's `halted` is true / false; deviceName is the connected J-Link device.
 [[nodiscard]] Result<TargetStatus> runHalt(WorkflowContext& context);
@@ -42,4 +42,4 @@ namespace hio::device::detail {
 [[nodiscard]] Result<jlink::ChipInfo>
 runWriteFlash(WorkflowContext& context, const firmware::FirmwareImage& image, bool allowUicr);
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

@@ -1,10 +1,10 @@
-#include "hio/firmware/intel_hex.h"
+#include "hwio/firmware/intel_hex.h"
 
 #include "file_io.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/firmware/firmware_image.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/firmware_image.h"
 
 #include <QCoreApplication>
 #include <QString>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 namespace {
 
@@ -41,7 +41,7 @@ Error parseError(std::uint64_t line, std::string_view sourceName, std::string_vi
     Error error = makeError(ErrorCode::FirmwareHexParseError,
                             std::format("{}: line {}: {}", sourceName, line, reason));
     error.message = QCoreApplication::translate(
-                        "hio::firmware", "The firmware file is not a valid HEX file (line %1).")
+                        "hwio::firmware", "The firmware file is not a valid HEX file (line %1).")
                         .arg(line)
                         .toStdString();
     return error;
@@ -289,4 +289,4 @@ Result<FirmwareImage> readIntelHexFile(const std::filesystem::path& path,
     return parseIntelHex(*bytes, toUtf8(path.filename()), stop);
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

@@ -1,5 +1,6 @@
-// End-to-end tests of `hio update check` (plan/features/0016 B1): the real `hio` executable against
-// the local HTTP fixture through the test-only HIO_UPDATE_URL override (HIO_TEST_OVERRIDES builds).
+// End-to-end tests of `hwio update check` (plan/features/0016 B1): the real `hwio` executable
+// against the local HTTP fixture through the test-only HWIO_UPDATE_URL override
+// (HWIO_TEST_OVERRIDES builds).
 
 #include "cli_process.h"
 #include "http_fixture.h"
@@ -24,9 +25,9 @@
 
 namespace {
 
-using hio::cli::test::CliProcess;
-using hio::cli::test::RunResult;
-using hio::firmware::test::HttpFixture;
+using hwio::cli::test::CliProcess;
+using hwio::cli::test::RunResult;
+using hwio::firmware::test::HttpFixture;
 
 const QString releasesPath = QStringLiteral("/repos/hardwario/hio-monitor/releases");
 
@@ -56,15 +57,15 @@ QJsonObject lastEnvelope(const std::string& out) {
 class UpdateCli : public CliProcess {
 protected:
     void SetUp() override {
-#ifndef HIO_TEST_OVERRIDES
-        GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_UPDATE_URL)";
+#ifndef HWIO_TEST_OVERRIDES
+        GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_UPDATE_URL)";
 #endif
         ASSERT_TRUE(m_http.listening());
     }
 
     [[nodiscard]] QProcessEnvironment updateEnvironment() const {
         QProcessEnvironment env = environment();
-        env.insert(QStringLiteral("HIO_UPDATE_URL"), m_http.origin() + releasesPath);
+        env.insert(QStringLiteral("HWIO_UPDATE_URL"), m_http.origin() + releasesPath);
         return env;
     }
 
@@ -72,7 +73,7 @@ protected:
     [[nodiscard]] RunResult runWithEvents(const QStringList& args) const {
         QProcess process;
         process.setProcessEnvironment(updateEnvironment());
-        process.start(QStringLiteral(HIO_CLI_EXECUTABLE), args);
+        process.start(QStringLiteral(HWIO_CLI_EXECUTABLE), args);
         RunResult result;
         if (!process.waitForStarted(10000)) {
             return result;
@@ -168,7 +169,7 @@ TEST_F(UpdateCli, RateLimitIsANetworkError) {
 
 TEST_F(UpdateCli, ServerDown) {
     QProcessEnvironment env = environment();
-    env.insert(QStringLiteral("HIO_UPDATE_URL"), QStringLiteral("http://127.0.0.1:1/releases"));
+    env.insert(QStringLiteral("HWIO_UPDATE_URL"), QStringLiteral("http://127.0.0.1:1/releases"));
     const RunResult json =
         run({QStringLiteral("--json"), QStringLiteral("update"), QStringLiteral("check")}, env);
     EXPECT_EQ(json.exitCode, 8) << json.out;

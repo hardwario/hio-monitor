@@ -1,23 +1,23 @@
-#include "hio/mcp/server.h"
+#include "hwio/mcp/server.h"
 
 #include "dialect_legacy.h"
 #include "dialect_modern.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/version.h"
-#include "hio/mcp/activity.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/offload.h"
-#include "hio/mcp/protocol.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/reply_channel.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/version.h"
+#include "hwio/mcp/activity.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/offload.h"
+#include "hwio/mcp/protocol.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/reply_channel.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
 
 #include <QByteArray>
 #include <QDateTime>
@@ -54,7 +54,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 namespace {
 
@@ -117,7 +117,7 @@ QJsonValue shortenStrings(const QJsonValue& value) {
     return value;
 }
 
-std::string resultCode(const hio::Result<ToolResult>& result) {
+std::string resultCode(const hwio::Result<ToolResult>& result) {
     if (!result) {
         return std::string(idOf(result.error().code));
     }
@@ -215,7 +215,7 @@ struct McpServer::Impl {
         : q(server), registry(std::move(reg)), consent(broker), activity(sink),
           limits(options.limits),
           identity{.name = options.name.isEmpty() ? latin1(protocol::serverName) : options.name,
-                   .version = options.version.isEmpty() ? latin1(hio::buildInfo().version)
+                   .version = options.version.isEmpty() ? latin1(hwio::buildInfo().version)
                                                         : options.version,
                    .instructions = options.instructions},
           offloader(limits.maxOffloadRunning, limits.maxOffloadQueued),
@@ -364,7 +364,7 @@ struct McpServer::Impl {
             }
         }
         if (sessions.size() >= limits.maxLegacySessions) {
-            qCWarning(hio::log::lcMcp) << "MCP: legacy session limit reached; initialize refused";
+            qCWarning(hwio::log::lcMcp) << "MCP: legacy session limit reached; initialize refused";
             replyError(
                 in,
                 rpcError(
@@ -387,7 +387,7 @@ struct McpServer::Impl {
         }
         const std::string id = session.id;
         const QJsonObject result = detail::initializeResult(session.protocolVersion, identity);
-        qCInfo(hio::log::lcMcp).noquote()
+        qCInfo(hwio::log::lcMcp).noquote()
             << "MCP: legacy session started for" << QString::fromStdString(session.client.name)
             << "protocol" << QString::fromStdString(session.protocolVersion);
         sessions.emplace(id, std::move(session));
@@ -816,7 +816,7 @@ struct McpServer::Impl {
         case ResourceReadResult::Status::Failed: {
             QJsonObject data;
             const Error error = read.error.value_or(makeError(ErrorCode::InternalUnexpected));
-            data.insert(QStringLiteral("error"), hio::toJson(error));
+            data.insert(QStringLiteral("error"), hwio::toJson(error));
             replyError(in, rpcError(protocol::errc::internalError, toQString(error.message), data),
                        ReplyStatus::Ok);
             return;
@@ -913,7 +913,7 @@ struct McpServer::Impl {
         const auto prompt = spec->get(context, arguments);
         if (!prompt) {
             QJsonObject data;
-            data.insert(QStringLiteral("error"), hio::toJson(prompt.error()));
+            data.insert(QStringLiteral("error"), hwio::toJson(prompt.error()));
             replyError(
                 in,
                 rpcError(protocol::errc::internalError, toQString(prompt.error().message), data),
@@ -1063,7 +1063,7 @@ struct McpServer::Impl {
             return;
         }
         QObject::connect(raw, &ToolCall::finished, &q,
-                         [this, key](const hio::Result<ToolResult>&) { onCallFinished(key); });
+                         [this, key](const hwio::Result<ToolResult>&) { onCallFinished(key); });
         if (progressEnabled) {
             QObject::connect(
                 raw, &ToolCall::progress, &q,
@@ -1086,14 +1086,14 @@ struct McpServer::Impl {
         if (entry.progressTimer) {
             entry.progressTimer->stop();
         }
-        hio::Result<ToolResult> result = entry.call->result().value_or(
+        hwio::Result<ToolResult> result = entry.call->result().value_or(
             std::unexpected(makeError(ErrorCode::InternalUnexpected)));
 
         // Safety net (consent.h): a successful call must have been granted its static categories.
         const ConsentCategories required =
             entry.spec->consent & ~ConsentCategories(ConsentCategory::Connect);
         if (result && !result->isError && (required & ~entry.call->grantedConsent()) != 0) {
-            qCCritical(hio::log::lcMcp).noquote()
+            qCCritical(hwio::log::lcMcp).noquote()
                 << "MCP: tool" << latin1(entry.spec->name)
                 << "succeeded without the consent its spec requires; result withheld";
             result = std::unexpected(
@@ -1385,7 +1385,7 @@ struct McpServer::Impl {
         }
         dropUnusedUpdates();
         consent.clientGone(id);
-        qCInfo(hio::log::lcMcp).noquote()
+        qCInfo(hwio::log::lcMcp).noquote()
             << "MCP: legacy session ended for" << QString::fromStdString(session.client.name);
         if (notify) {
             emit q.clientsChanged();
@@ -1406,7 +1406,7 @@ struct McpServer::Impl {
             }
         }
         for (const std::string& id : expired) {
-            qCInfo(hio::log::lcMcp) << "MCP: legacy session expired after the idle timeout";
+            qCInfo(hwio::log::lcMcp) << "MCP: legacy session expired after the idle timeout";
             endSessionById(id, true);
         }
         std::vector<std::string> idle;
@@ -1630,4 +1630,4 @@ const Limits& McpServer::limits() const noexcept { return m_impl->limits; }
 
 Offloader& McpServer::offloader() noexcept { return m_impl->offloader; }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

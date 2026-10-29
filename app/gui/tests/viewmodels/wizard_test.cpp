@@ -3,10 +3,10 @@
 // CheckListModel, illustration slots, DiagWorker and ReportViewModel (collect → save → copy).
 
 #include "gui_test_support.h"
-#include "hio/core/error.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/diag/check.h"
+#include "hwio/core/error.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/diag/check.h"
 #include "pages/builtin_pages.h"
 #include "support/test_wizard.h"
 #include "viewmodels/app_view_model.h"
@@ -43,28 +43,28 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::gui::AppViewModel;
-using hio::gui::CheckListModel;
-using hio::gui::DeviceTabViewModel;
-using hio::gui::ErrorInfo;
-using hio::gui::StepKind;
-using hio::gui::WizardViewModel;
-using hio::gui::test::TestWizard;
-using hio::gui::test::waitFor;
+using hwio::ErrorCode;
+using hwio::gui::AppViewModel;
+using hwio::gui::CheckListModel;
+using hwio::gui::DeviceTabViewModel;
+using hwio::gui::ErrorInfo;
+using hwio::gui::StepKind;
+using hwio::gui::WizardViewModel;
+using hwio::gui::test::TestWizard;
+using hwio::gui::test::waitFor;
 
-class WizardTest : public hio::gui::test::GuiTest {
+class WizardTest : public hwio::gui::test::GuiTest {
 protected:
     [[nodiscard]] std::unique_ptr<AppViewModel> makeWizardApp(bool withWizard = true) const {
-        return std::make_unique<AppViewModel>(hio::gui::AppOptions{
+        return std::make_unique<AppViewModel>(hwio::gui::AppOptions{
             .settings = openSettings(),
             .registry = registryOptions(),
             .scanInterval = std::chrono::milliseconds(200),
             .registerExtensions =
                 [withWizard](AppViewModel& app) {
-                    hio::gui::registerBuiltInPages(app);
+                    hwio::gui::registerBuiltInPages(app);
                     if (withWizard) {
-                        hio::gui::test::registerTestWizard(
+                        hwio::gui::test::registerTestWizard(
                             app, QUrl(QStringLiteral("qrc:/TestEmbedded.qml")));
                     }
                 },
@@ -156,7 +156,7 @@ TEST_F(WizardTest, NavigationThroughEveryStepKind) {
 
 TEST_F(WizardTest, ErrorContextStartsAtTheExplainingStep) {
     const auto app = makeWizardApp();
-    const ErrorInfo error(hio::makeError(ErrorCode::ProbeNotFound));
+    const ErrorInfo error(hwio::makeError(ErrorCode::ProbeNotFound));
     ASSERT_EQ(error.wizard(), QStringLiteral("connect-device"));
     ASSERT_TRUE(app->launcher()->open(error.wizard(), error, 0));
     EXPECT_EQ(stepKind(*app->wizard()), StepKind::Checks);
@@ -265,17 +265,17 @@ TEST(CheckListModelTest, RowsAndStatuses) {
     EXPECT_EQ(model.rowCount(), 2);
     EXPECT_EQ(model.data(model.index(0), CheckListModel::StatusRole), QStringLiteral("pending"));
     QSignalSpy announced(&model, &CheckListModel::resultAnnounced);
-    model.update(hio::diag::CheckResult{.id = "a",
-                                        .status = hio::diag::CheckStatus::Running,
-                                        .title = {},
-                                        .result = {},
-                                        .error = std::nullopt});
+    model.update(hwio::diag::CheckResult{.id = "a",
+                                         .status = hwio::diag::CheckStatus::Running,
+                                         .title = {},
+                                         .result = {},
+                                         .error = std::nullopt});
     EXPECT_TRUE(model.running());
     EXPECT_EQ(announced.count(), 0);
-    model.update(hio::device::DiagnoseStep{.id = "a",
-                                           .status = hio::diag::CheckStatus::Failed,
-                                           .result = "no power",
-                                           .error = hio::makeError(ErrorCode::TargetNoPower)});
+    model.update(hwio::device::DiagnoseStep{.id = "a",
+                                            .status = hwio::diag::CheckStatus::Failed,
+                                            .result = "no power",
+                                            .error = hwio::makeError(ErrorCode::TargetNoPower)});
     EXPECT_FALSE(model.running());
     EXPECT_TRUE(model.anyFailed());
     EXPECT_EQ(model.data(model.index(0), CheckListModel::TitleRole), QStringLiteral("A"));
@@ -284,25 +284,25 @@ TEST(CheckListModelTest, RowsAndStatuses) {
     EXPECT_EQ(error.code(), QStringLiteral("target.no_power"));
     ASSERT_EQ(announced.count(), 1);
     EXPECT_EQ(announced.at(0).at(0).toString(), QStringLiteral("A: no power"));
-    model.update(hio::diag::CheckResult{.id = "unknown",
-                                        .status = hio::diag::CheckStatus::Ok,
-                                        .title = {},
-                                        .result = {},
-                                        .error = std::nullopt});
+    model.update(hwio::diag::CheckResult{.id = "unknown",
+                                         .status = hwio::diag::CheckStatus::Ok,
+                                         .title = {},
+                                         .result = {},
+                                         .error = std::nullopt});
     EXPECT_EQ(model.rowCount(), 2);
     model.setAllPending();
     EXPECT_FALSE(model.anyFailed());
     // Bounded: at most diag::maxChecks rows.
     std::vector<QString> many(20, QStringLiteral("x"));
     model.reset(many, {});
-    EXPECT_EQ(model.rowCount(), static_cast<int>(hio::diag::maxChecks));
+    EXPECT_EQ(model.rowCount(), static_cast<int>(hwio::diag::maxChecks));
 }
 
 TEST(WizardIllustrations, EverySlotAndEveryGuideStepResolvesToAFile) {
     for (const QString& slot : WizardViewModel::illustrationSlots()) {
         EXPECT_TRUE(WizardViewModel::hasIllustration(slot)) << slot.toStdString();
     }
-    for (const auto* profile : hio::device::ProfileRegistry::all()) {
+    for (const auto* profile : hwio::device::ProfileRegistry::all()) {
         for (const auto& target : profile->targets) {
             for (const auto& step : target.connectionGuide) {
                 const QString slot =
@@ -324,21 +324,21 @@ TEST(WizardIllustrations, EverySlotAndEveryGuideStepResolvesToAFile) {
 }
 
 TEST_F(WizardTest, DiagWorkerRunsChecksWithGenerations) {
-    hio::gui::DiagWorker worker;
-    hio::gui::DiagWorker::ChecksRequest request;
-    request.context.jlink.option = std::filesystem::path(HIO_FAKE_JLINK_LIBRARY);
+    hwio::gui::DiagWorker worker;
+    hwio::gui::DiagWorker::ChecksRequest request;
+    request.context.jlink.option = std::filesystem::path(HWIO_FAKE_JLINK_LIBRARY);
     request.context.instanceRoot = root() / "instances";
     request.context.lockDirectory = root() / "locks";
     request.context.settingsDir = root() / "settings";
     request.context.logDir = root() / "logs";
     request.ids = {"jlink-software", "probes"};
-    std::vector<hio::diag::CheckResult> finished;
+    std::vector<hwio::diag::CheckResult> finished;
     std::uint64_t finishedGeneration = 0;
     int progress = 0;
-    QObject::connect(&worker, &hio::gui::DiagWorker::checkProgress,
-                     [&progress](quint64, const hio::diag::CheckResult&) { ++progress; });
-    QObject::connect(&worker, &hio::gui::DiagWorker::checksFinished,
-                     [&](quint64 generation, const std::vector<hio::diag::CheckResult>& results) {
+    QObject::connect(&worker, &hwio::gui::DiagWorker::checkProgress,
+                     [&progress](quint64, const hwio::diag::CheckResult&) { ++progress; });
+    QObject::connect(&worker, &hwio::gui::DiagWorker::checksFinished,
+                     [&](quint64 generation, const std::vector<hwio::diag::CheckResult>& results) {
                          finishedGeneration = generation;
                          finished = results;
                      });
@@ -347,7 +347,7 @@ TEST_F(WizardTest, DiagWorkerRunsChecksWithGenerations) {
     ASSERT_TRUE(waitFor([&] { return finishedGeneration == generation; }));
     ASSERT_EQ(finished.size(), 2U);
     EXPECT_EQ(finished[0].id, "jlink-software");
-    EXPECT_EQ(finished[0].status, hio::diag::CheckStatus::Ok);
+    EXPECT_EQ(finished[0].status, hwio::diag::CheckStatus::Ok);
     EXPECT_EQ(finished[1].result, "2 found: 801000001, 801000002");
     EXPECT_EQ(progress, 4); // Running + result per check
     // A cancelled pending request never finishes.
@@ -359,18 +359,18 @@ TEST_F(WizardTest, DiagWorkerRunsChecksWithGenerations) {
 
 // Review V3: a subset of the checks runs with the checks it depends on (transitively), in order.
 TEST_F(WizardTest, DiagWorkerAddsTheDependenciesOfRequestedChecks) {
-    hio::gui::DiagWorker worker;
-    hio::gui::DiagWorker::ChecksRequest request;
-    request.context.jlink.option = std::filesystem::path(HIO_FAKE_JLINK_LIBRARY);
+    hwio::gui::DiagWorker worker;
+    hwio::gui::DiagWorker::ChecksRequest request;
+    request.context.jlink.option = std::filesystem::path(HWIO_FAKE_JLINK_LIBRARY);
     request.context.instanceRoot = root() / "instances";
     request.context.lockDirectory = root() / "locks";
     request.context.settingsDir = root() / "settings";
     request.context.logDir = root() / "logs";
     request.ids = {"probe-firmware"};
-    std::vector<hio::diag::CheckResult> finished;
+    std::vector<hwio::diag::CheckResult> finished;
     std::uint64_t finishedGeneration = 0;
-    QObject::connect(&worker, &hio::gui::DiagWorker::checksFinished,
-                     [&](quint64 generation, const std::vector<hio::diag::CheckResult>& results) {
+    QObject::connect(&worker, &hwio::gui::DiagWorker::checksFinished,
+                     [&](quint64 generation, const std::vector<hwio::diag::CheckResult>& results) {
                          finishedGeneration = generation;
                          finished = results;
                      });
@@ -380,16 +380,16 @@ TEST_F(WizardTest, DiagWorkerAddsTheDependenciesOfRequestedChecks) {
     EXPECT_EQ(finished[0].id, "jlink-software");
     EXPECT_EQ(finished[1].id, "probes");
     EXPECT_EQ(finished[2].id, "probe-firmware");
-    EXPECT_EQ(finished[2].status, hio::diag::CheckStatus::Ok);
+    EXPECT_EQ(finished[2].status, hwio::diag::CheckStatus::Ok);
 }
 
 TEST_F(WizardTest, ReportCollectSaveAndCopy) {
     const auto app = makeWizardApp();
-    hio::gui::ReportViewModel& report = *app->report();
+    hwio::gui::ReportViewModel& report = *app->report();
     report.show();
     EXPECT_TRUE(report.isOpen());
     EXPECT_EQ(report.state(), QStringLiteral("collecting"));
-    EXPECT_TRUE(report.defaultFileName().startsWith(QStringLiteral("hio-diagnostics-")));
+    EXPECT_TRUE(report.defaultFileName().startsWith(QStringLiteral("hwio-diagnostics-")));
     ASSERT_TRUE(waitFor([&] { return report.state() == QStringLiteral("ready"); },
                         std::chrono::seconds(30)));
     EXPECT_TRUE(report.summary().contains(QStringLiteral("HARDWARIO Monitor diagnostic report")));
@@ -416,11 +416,11 @@ TEST_F(WizardTest, ReportCollectSaveAndCopy) {
 
 TEST_F(WizardTest, ReportCancelWhileCollecting) {
     const auto app = makeWizardApp();
-    hio::gui::ReportViewModel& report = *app->report();
+    hwio::gui::ReportViewModel& report = *app->report();
     report.show();
     report.close();
     EXPECT_FALSE(report.isOpen());
-    hio::gui::test::spin(std::chrono::milliseconds(300));
+    hwio::gui::test::spin(std::chrono::milliseconds(300));
     EXPECT_FALSE(report.isOpen());
     // It can be opened again.
     report.show();

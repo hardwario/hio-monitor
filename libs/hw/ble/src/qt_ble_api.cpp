@@ -1,11 +1,11 @@
 #include "qt_ble_api.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QBluetoothAddress>
 #include <QBluetoothDeviceDiscoveryAgent>
@@ -51,7 +51,7 @@
 #include <system_error>
 #include <utility>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 namespace {
 
@@ -109,12 +109,12 @@ Error mapLinkError(const QtLinkError& error) {
         // HIL H2: a rejected CCCD write is not a weak signal; the device refused the console
         // (still connected from an earlier link or another computer, or the pairing failed).
         failed.cause = QCoreApplication::translate(
-                           "hio::ble", "The device refused to start the console: it may still "
-                                       "be connected (to this or another computer) or the "
-                                       "pairing was not completed.")
+                           "hwio::ble", "The device refused to start the console: it may still "
+                                        "be connected (to this or another computer) or the "
+                                        "pairing was not completed.")
                            .toStdString();
         failed.suggestion =
-            QCoreApplication::translate("hio::ble",
+            QCoreApplication::translate("hwio::ble",
                                         "Wait a few seconds and try again. If it repeats, "
                                         "disconnect the device in the system Bluetooth settings "
                                         "or restart it.")
@@ -129,12 +129,12 @@ Error pairingFailed(std::string detail) {
     // HIL H1 rework: with the host's bond removed and no agent, BlueZ connects first and fails
     // after ~24 s, so only the instant failure is known to be "no agent".
     error.cause = QCoreApplication::translate(
-                      "hio::ble", "No passkey dialog appeared (no pairing agent is running), or "
-                                  "the passkey was wrong, or one side still has an old bond.")
+                      "hwio::ble", "No passkey dialog appeared (no pairing agent is running), or "
+                                   "the passkey was wrong, or one side still has an old bond.")
                       .toStdString();
     error.suggestion =
         QCoreApplication::translate(
-            "hio::ble",
+            "hwio::ble",
             "Pair from the system Bluetooth settings, or with bluetoothctl (scan le, pair <id>). "
             "If a dialog appeared, check the passkey, remove the device in the system Bluetooth "
             "settings and pair again.")
@@ -713,4 +713,4 @@ bool QtBleApi::isPaired(const BleDeviceId& device) {
 #endif
 }
 
-} // namespace hio::ble
+} // namespace hwio::ble

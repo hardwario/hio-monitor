@@ -1,5 +1,5 @@
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <gtest/gtest.h>
 
@@ -7,20 +7,20 @@
 
 namespace {
 
-using hio::jlink::FirmwareStatus;
+using hwio::jlink::FirmwareStatus;
 
 TEST(LibraryVersion, Format) {
-    EXPECT_EQ(hio::jlink::formatLibraryVersion(81000), "8.10");
-    EXPECT_EQ(hio::jlink::formatLibraryVersion(81001), "8.10a");
-    EXPECT_EQ(hio::jlink::formatLibraryVersion(79411), "7.94k");
-    EXPECT_EQ(hio::jlink::formatLibraryVersion(80000), "8.00");
-    EXPECT_EQ(hio::jlink::formatLibraryVersion(80299), "8.02.99");
+    EXPECT_EQ(hwio::jlink::formatLibraryVersion(81000), "8.10");
+    EXPECT_EQ(hwio::jlink::formatLibraryVersion(81001), "8.10a");
+    EXPECT_EQ(hwio::jlink::formatLibraryVersion(79411), "7.94k");
+    EXPECT_EQ(hwio::jlink::formatLibraryVersion(80000), "8.00");
+    EXPECT_EQ(hwio::jlink::formatLibraryVersion(80299), "8.02.99");
 }
 
-TEST(LibraryVersion, MinimumIs800) { EXPECT_EQ(hio::jlink::minimumLibraryVersion, 80000U); }
+TEST(LibraryVersion, MinimumIs800) { EXPECT_EQ(hwio::jlink::minimumLibraryVersion, 80000U); }
 
 TEST(LibraryVersion, FromPath) {
-    using hio::jlink::versionFromPath;
+    using hwio::jlink::versionFromPath;
     EXPECT_EQ(versionFromPath("/opt/SEGGER/JLink/libjlinkarm.so.8.10.1"), 81001U);
     EXPECT_EQ(versionFromPath("/opt/SEGGER/JLink_V794k/libjlinkarm.so"), 79411U);
     EXPECT_EQ(versionFromPath("/opt/SEGGER/JLink_V810/libjlinkarm.so.8"), 81000U);
@@ -31,13 +31,13 @@ TEST(LibraryVersion, FromPath) {
 }
 
 TEST(Firmware, IdIsThePartBeforeCompiled) {
-    EXPECT_EQ(hio::jlink::firmwareId("J-Link V11 compiled Sep 21 2023 10:38:43"), "J-Link V11 ");
-    EXPECT_EQ(hio::jlink::firmwareId("no marker"), "no marker");
+    EXPECT_EQ(hwio::jlink::firmwareId("J-Link V11 compiled Sep 21 2023 10:38:43"), "J-Link V11 ");
+    EXPECT_EQ(hwio::jlink::firmwareId("no marker"), "no marker");
 }
 
 TEST(Firmware, CompareLikePylink) {
     const auto status = [](const char* probe, const char* library) {
-        return hio::jlink::compareFirmware(probe, library);
+        return hwio::jlink::compareFirmware(probe, library);
     };
     EXPECT_EQ(status("J-Link V11 compiled Sep 21 2023 10:38:43",
                      "J-Link V11 compiled Sep 21 2023 10:38:43"),
@@ -59,11 +59,11 @@ TEST(Firmware, CompareLikePylink) {
 }
 
 TEST(Ids, StableJsonIds) {
-    EXPECT_EQ(hio::jlink::connectionId(hio::jlink::Connection::Usb), "usb");
-    EXPECT_EQ(hio::jlink::connectionId(hio::jlink::Connection::Ip), "ip");
-    EXPECT_EQ(hio::jlink::firmwareStatusId(FirmwareStatus::Current), "current");
-    EXPECT_EQ(hio::jlink::firmwareStatusId(FirmwareStatus::Outdated), "outdated");
-    EXPECT_EQ(hio::jlink::firmwareStatusId(FirmwareStatus::Newer), "newer");
+    EXPECT_EQ(hwio::jlink::connectionId(hwio::jlink::Connection::Usb), "usb");
+    EXPECT_EQ(hwio::jlink::connectionId(hwio::jlink::Connection::Ip), "ip");
+    EXPECT_EQ(hwio::jlink::firmwareStatusId(FirmwareStatus::Current), "current");
+    EXPECT_EQ(hwio::jlink::firmwareStatusId(FirmwareStatus::Outdated), "outdated");
+    EXPECT_EQ(hwio::jlink::firmwareStatusId(FirmwareStatus::Newer), "newer");
 }
 
 } // namespace

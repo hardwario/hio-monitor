@@ -1,10 +1,10 @@
 // JLinkProbe on a GMock of IJLinkApi and simulated time (plan/features/0002, phase B1).
 
 #include "fake_clock.h"
-#include "hio/core/error.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/jlink_probe.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/jlink_probe.h"
+#include "hwio/hw/jlink/types.h"
 #include "mock_jlink_api.h"
 
 #include <gmock/gmock.h>
@@ -20,13 +20,13 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::jlink::FirmwareStatus;
-using hio::jlink::HardwareStatus;
-using hio::jlink::JLinkProbe;
-using hio::jlink::ProbeInfo;
-using hio::jlink::test::FakeClock;
-using hio::jlink::test::MockJLinkApi;
+using hwio::ErrorCode;
+using hwio::jlink::FirmwareStatus;
+using hwio::jlink::HardwareStatus;
+using hwio::jlink::JLinkProbe;
+using hwio::jlink::ProbeInfo;
+using hwio::jlink::test::FakeClock;
+using hwio::jlink::test::MockJLinkApi;
 using ::testing::_;
 using ::testing::InSequence;
 using ::testing::NiceMock;
@@ -35,11 +35,11 @@ using ::testing::Return;
 std::vector<ProbeInfo> twoProbes() {
     return {ProbeInfo{.serialNumber = 111,
                       .product = "Test Probe",
-                      .connection = hio::jlink::Connection::Usb,
+                      .connection = hwio::jlink::Connection::Usb,
                       .firmware = {}},
             ProbeInfo{.serialNumber = 222,
                       .product = "Test Probe 2",
-                      .connection = hio::jlink::Connection::Usb,
+                      .connection = hwio::jlink::Connection::Usb,
                       .firmware = {}}};
 }
 
@@ -114,7 +114,7 @@ TEST_F(Probe, UnknownSerialNumberIsNotFound) {
     ASSERT_FALSE(info);
     EXPECT_EQ(info.error().code, ErrorCode::ProbeNotFound);
     EXPECT_EQ(info.error().message, "No J-Link probe with serial number 333 found.");
-    EXPECT_EQ(info.error().wizard, hio::WizardId::ConnectDevice);
+    EXPECT_EQ(info.error().wizard, hwio::WizardId::ConnectDevice);
 }
 
 TEST_F(Probe, NoProbeIsNotFound) {
@@ -220,10 +220,10 @@ TEST_F(Probe, ConnectSetsTheAutomaticSpeedAfterTheDeviceAsPylink) {
     {
         InSequence order;
         EXPECT_CALL(api(), execCommand(StrEq("Device = NRF52840_xxAA")));
-        EXPECT_CALL(api(), setSpeed(hio::jlink::autoSpeed));
+        EXPECT_CALL(api(), setSpeed(hwio::jlink::autoSpeed));
         EXPECT_CALL(api(), connect()).WillOnce(Return(0));
     }
-    EXPECT_EQ(hio::jlink::autoSpeed, 0U);
+    EXPECT_EQ(hwio::jlink::autoSpeed, 0U);
     const auto status = probe().connect("NRF52840_xxAA", 1000, false, {});
     ASSERT_TRUE(status) << status.error().detail;
 }
@@ -310,7 +310,7 @@ TEST_F(FirmwareUpdate, StillOutdatedAfterTheUpdateFails) {
     const auto before = probe().updateFirmware();
     ASSERT_FALSE(before);
     EXPECT_EQ(before.error().code, ErrorCode::ProbeFirmwareUpdateFailed);
-    EXPECT_EQ(before.error().wizard, hio::WizardId::Troubleshooting);
+    EXPECT_EQ(before.error().wizard, hwio::WizardId::Troubleshooting);
 }
 
 TEST_F(FirmwareUpdate, UnknownIsUpdatedAndVerified) {
@@ -385,7 +385,7 @@ TEST_F(FirmwareUpdate, StatusBeforeIsReadAfterANormalOpen) {
 
 // Review R12: sessions use USB probes only; a network J-Link's serial number is not supported.
 TEST_F(Probe, ProbesAreListedFromUsbOnly) {
-    EXPECT_CALL(api(), listProbes(hio::jlink::ProbeHosts::Usb)).WillOnce(Return(twoProbes()));
+    EXPECT_CALL(api(), listProbes(hwio::jlink::ProbeHosts::Usb)).WillOnce(Return(twoProbes()));
     EXPECT_CALL(api(), selectBySerialNumber(111U)).WillOnce(Return(0));
     ASSERT_TRUE(probe().open(std::nullopt));
 }
@@ -394,10 +394,10 @@ TEST_F(Probe, NetworkProbeSerialNumberIsNotSupported) {
     std::vector<ProbeInfo> all = twoProbes();
     all.insert(all.begin(), ProbeInfo{.serialNumber = 333,
                                       .product = "Test Probe IP",
-                                      .connection = hio::jlink::Connection::Ip,
+                                      .connection = hwio::jlink::Connection::Ip,
                                       .firmware = {}});
-    ON_CALL(api(), listProbes(hio::jlink::ProbeHosts::Usb)).WillByDefault(Return(twoProbes()));
-    ON_CALL(api(), listProbes(hio::jlink::ProbeHosts::UsbAndIp)).WillByDefault(Return(all));
+    ON_CALL(api(), listProbes(hwio::jlink::ProbeHosts::Usb)).WillByDefault(Return(twoProbes()));
+    ON_CALL(api(), listProbes(hwio::jlink::ProbeHosts::UsbAndIp)).WillByDefault(Return(all));
     EXPECT_CALL(api(), open()).Times(0);
     const auto info = probe().open(333U);
     ASSERT_FALSE(info);
@@ -408,9 +408,9 @@ TEST_F(Probe, NetworkProbeSerialNumberIsNotSupported) {
 
 // Review R22: the network scan runs on the first failed open of a serial number only.
 TEST_F(Probe, NetworkProbeCheckRunsOnlyOnTheFirstFailedOpen) {
-    ON_CALL(api(), listProbes(hio::jlink::ProbeHosts::Usb)).WillByDefault(Return(twoProbes()));
-    EXPECT_CALL(api(), listProbes(hio::jlink::ProbeHosts::Usb)).Times(3);
-    EXPECT_CALL(api(), listProbes(hio::jlink::ProbeHosts::UsbAndIp)).WillOnce(Return(twoProbes()));
+    ON_CALL(api(), listProbes(hwio::jlink::ProbeHosts::Usb)).WillByDefault(Return(twoProbes()));
+    EXPECT_CALL(api(), listProbes(hwio::jlink::ProbeHosts::Usb)).Times(3);
+    EXPECT_CALL(api(), listProbes(hwio::jlink::ProbeHosts::UsbAndIp)).WillOnce(Return(twoProbes()));
     for (int attempt = 0; attempt < 3; ++attempt) {
         const auto info = probe().open(444U);
         ASSERT_FALSE(info);
@@ -440,7 +440,7 @@ TEST_F(Probe, ResetFailure) {
 }
 
 TEST_F(Probe, SwdSelection) {
-    EXPECT_CALL(api(), selectInterface(hio::jlink::TargetInterface::Swd))
+    EXPECT_CALL(api(), selectInterface(hwio::jlink::TargetInterface::Swd))
         .WillOnce(Return(0))
         .WillOnce(Return(1));
     EXPECT_TRUE(probe().selectSwd());
@@ -467,10 +467,10 @@ TEST_F(Probe, InstallsTheUnsecureDialogHookAfterOpen) {
         EXPECT_CALL(api(), open()).WillOnce(Return(std::nullopt));
         EXPECT_CALL(api(), installUnsecureDialogHook()).WillOnce(Return(0));
     }
-    ASSERT_TRUE(probe().open(111U, hio::jlink::OpenMode::Normal));
+    ASSERT_TRUE(probe().open(111U, hwio::jlink::OpenMode::Normal));
     EXPECT_CALL(api(), open()).WillOnce(Return(std::nullopt));
     EXPECT_CALL(api(), installUnsecureDialogHook()).WillOnce(Return(0));
-    ASSERT_TRUE(probe().open(111U, hio::jlink::OpenMode::FirmwareUpdate));
+    ASSERT_TRUE(probe().open(111U, hwio::jlink::OpenMode::FirmwareUpdate));
 }
 
 TEST_F(Probe, OpenFailsWithoutTheUnsecureDialogHook) {

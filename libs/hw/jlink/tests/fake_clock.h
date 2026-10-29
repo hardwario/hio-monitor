@@ -3,14 +3,14 @@
 // Simulated time for unit tests: sleepFor() advances now() instantly, so 15 s RTT deadlines or
 // 500 ms connect retries run in microseconds. Thread-safe (atomic), shared with libs/device tests.
 
-#include "hio/hw/jlink/clock.h"
+#include "hwio/hw/jlink/clock.h"
 
 #include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <stop_token>
 
-namespace hio::jlink::test {
+namespace hwio::jlink::test {
 
 class FakeClock final : public Clock {
 public:
@@ -40,4 +40,4 @@ private:
     std::atomic<std::int64_t> m_slept{0};
 };
 
-} // namespace hio::jlink::test
+} // namespace hwio::jlink::test

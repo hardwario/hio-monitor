@@ -1,9 +1,9 @@
 // Redaction and the diagnostic report (plan/features/0007, A5; ADR-0075). All names are fake.
 
-#include "hio/core/crash_handler.h"
-#include "hio/core/error.h"
-#include "hio/diag/check.h"
-#include "hio/diag/report.h"
+#include "hwio/core/crash_handler.h"
+#include "hwio/core/error.h"
+#include "hwio/diag/check.h"
+#include "hwio/diag/report.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -31,11 +31,11 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::diag::CheckResult;
-using hio::diag::CheckStatus;
-using hio::diag::redact;
-using hio::diag::RedactionContext;
+using hwio::ErrorCode;
+using hwio::diag::CheckResult;
+using hwio::diag::CheckStatus;
+using hwio::diag::redact;
+using hwio::diag::RedactionContext;
 
 const RedactionContext posix{
     .home = "/home/jdoe", .user = "jdoe", .host = "jdoe-box", .caseInsensitive = false};
@@ -102,14 +102,14 @@ TEST(Redact, ShortNamesAreNotReplaced) {
 }
 
 TEST(Report, TailStartsAtALine) {
-    EXPECT_EQ(hio::diag::tailAtLineStart("abc", 10), "abc");
-    EXPECT_EQ(hio::diag::tailAtLineStart("line1\nline2\nline3\n", 9), "line3\n");
-    EXPECT_EQ(hio::diag::tailAtLineStart("line1\nline2\nline3\n", 12), "line2\nline3\n");
-    EXPECT_EQ(hio::diag::tailAtLineStart("xxxxxxxxxx", 4), "xxxx");
+    EXPECT_EQ(hwio::diag::tailAtLineStart("abc", 10), "abc");
+    EXPECT_EQ(hwio::diag::tailAtLineStart("line1\nline2\nline3\n", 9), "line3\n");
+    EXPECT_EQ(hwio::diag::tailAtLineStart("line1\nline2\nline3\n", 12), "line2\nline3\n");
+    EXPECT_EQ(hwio::diag::tailAtLineStart("xxxxxxxxxx", 4), "xxxx");
 }
 
-hio::diag::ReportInput sampleInput(const fs::path& dir) {
-    hio::diag::ReportInput input;
+hwio::diag::ReportInput sampleInput(const fs::path& dir) {
+    hwio::diag::ReportInput input;
     input.redaction = posix;
     input.createdUtc = "2026-10-16T10:00:00Z";
     input.app = QJsonObject{{"version", "2.0.0"},     {"gitHash", "abc1234"}, {"qt", "6.8.3"},
@@ -132,19 +132,19 @@ hio::diag::ReportInput sampleInput(const fs::path& dir) {
                     .status = CheckStatus::Failed,
                     .title = "Settings and log folders",
                     .result = "not writable",
-                    .error = hio::makeError(ErrorCode::IoWriteFailed, "/home/jdoe/.config")}};
+                    .error = hwio::makeError(ErrorCode::IoWriteFailed, "/home/jdoe/.config")}};
     const fs::path logs = dir / "logs";
     fs::create_directories(logs);
     {
         std::ofstream big(logs / "gui-20261016-090000-1.log", std::ios::binary);
-        const std::string line = "2026 [inf] hio.core user jdoe opened /home/jdoe/file\n";
-        for (std::size_t written = 0; written < hio::diag::maxLogBytes + 4096;
+        const std::string line = "2026 [inf] hwio.core user jdoe opened /home/jdoe/file\n";
+        for (std::size_t written = 0; written < hwio::diag::maxLogBytes + 4096;
              written += line.size()) {
             big << line;
         }
     }
     std::ofstream(logs / "cli-20261016-090100-2.log") << "cli on jdoe-box\n";
-    input.logFiles = hio::diag::recentLogFiles(logs);
+    input.logFiles = hwio::diag::recentLogFiles(logs);
     std::ofstream(dir / "Monitor.ini") << "[jlink]\nlibraryPath=/home/jdoe/x.so\n";
     input.settingsFile = dir / "Monitor.ini";
     return input;
@@ -176,7 +176,7 @@ std::map<std::string, std::string> unzip(const fs::path& file) {
 TEST(Report, SummaryIsRedacted) {
     const QTemporaryDir dir;
     const auto input = sampleInput(fs::path(dir.path().toStdString()));
-    const std::string summary = hio::diag::ReportBuilder::summaryText(input);
+    const std::string summary = hwio::diag::ReportBuilder::summaryText(input);
     EXPECT_NE(summary.find("HARDWARIO Monitor diagnostic report"), std::string::npos);
     EXPECT_NE(summary.find("J-Link Software: 8.10 \u00B7 ~/SEGGER/libjlinkarm.so"),
               std::string::npos);
@@ -184,7 +184,7 @@ TEST(Report, SummaryIsRedacted) {
     EXPECT_NE(summary.find("\u2717 Settings and log folders"), std::string::npos);
     EXPECT_NE(summary.find("io.write_failed"), std::string::npos);
     EXPECT_EQ(summary.find("jdoe"), std::string::npos) << summary;
-    const QJsonObject json = hio::diag::ReportBuilder::summaryJson(input);
+    const QJsonObject json = hwio::diag::ReportBuilder::summaryJson(input);
     EXPECT_EQ(json.value("checks").toArray().size(), 2);
     EXPECT_EQ(json.value("checks").toArray().at(1).toObject().value("status").toString(), "failed");
     EXPECT_EQ(QString::fromUtf8(QJsonDocument(json).toJson()).indexOf("jdoe"), -1);
@@ -196,10 +196,10 @@ TEST(Report, ZipHasTheEntriesWithinBounds) {
     const auto input = sampleInput(root);
     ASSERT_EQ(input.logFiles.size(), 2U);
     const fs::path target = root / "report.zip";
-    const auto bytes = hio::diag::ReportBuilder::writeZip(input, target, {});
+    const auto bytes = hwio::diag::ReportBuilder::writeZip(input, target, {});
     ASSERT_TRUE(bytes.has_value()) << bytes.error().detail;
     EXPECT_EQ(*bytes, fs::file_size(target));
-    EXPECT_LE(*bytes, hio::diag::maxReportBytes);
+    EXPECT_LE(*bytes, hwio::diag::maxReportBytes);
     const auto entries = unzip(target);
     ASSERT_TRUE(entries.contains("summary.txt"));
     ASSERT_TRUE(entries.contains("summary.json"));
@@ -207,7 +207,7 @@ TEST(Report, ZipHasTheEntriesWithinBounds) {
     ASSERT_TRUE(entries.contains("logs/gui-20261016-090000-1.log"));
     ASSERT_TRUE(entries.contains("logs/cli-20261016-090100-2.log"));
     const std::string& log = entries.at("logs/gui-20261016-090000-1.log");
-    EXPECT_LE(log.size(), hio::diag::maxLogBytes);
+    EXPECT_LE(log.size(), hwio::diag::maxLogBytes);
     EXPECT_TRUE(log.starts_with("2026 [inf]")) << log.substr(0, 40);
     for (const auto& [name, data] : entries) {
         EXPECT_EQ(data.find("jdoe"), std::string::npos) << name;
@@ -220,7 +220,7 @@ TEST(Report, FailedWriteLeavesNoFile) {
     const fs::path root(dir.path().toStdString());
     const auto input = sampleInput(root);
     const fs::path target = root / "missing-folder" / "report.zip";
-    const auto bytes = hio::diag::ReportBuilder::writeZip(input, target, {});
+    const auto bytes = hwio::diag::ReportBuilder::writeZip(input, target, {});
     ASSERT_FALSE(bytes.has_value());
     EXPECT_EQ(bytes.error().code, ErrorCode::DiagReportWriteFailed);
     EXPECT_FALSE(fs::exists(target));
@@ -233,7 +233,7 @@ TEST(Report, CancelledWriteLeavesNoFile) {
     const auto input = sampleInput(root);
     std::stop_source stop;
     stop.request_stop();
-    const auto bytes = hio::diag::ReportBuilder::writeZip(input, root / "r.zip", stop.get_token());
+    const auto bytes = hwio::diag::ReportBuilder::writeZip(input, root / "r.zip", stop.get_token());
     ASSERT_FALSE(bytes.has_value());
     EXPECT_EQ(bytes.error().code, ErrorCode::Cancelled);
     EXPECT_FALSE(fs::exists(root / "r.zip"));
@@ -250,39 +250,39 @@ TEST(Report, CrashFilesAreIncludedWithinTheBound) {
     auto input = sampleInput(root);
     const fs::path crashes = root / "crashes";
     fs::create_directories(crashes);
-    std::ofstream(crashes / "crash-hio-monitor-20261016-100000.txt")
-        << "HARDWARIO Monitor crash report\n/home/jdoe/build/hio-monitor(+0x10)\n";
+    std::ofstream(crashes / "crash-hwio-monitor-20261016-100000.txt")
+        << "HARDWARIO Monitor crash report\n/home/jdoe/build/hwio-monitor(+0x10)\n";
     {
-        std::ofstream dump(crashes / "crash-hio-20261016-090000.dmp", std::ios::binary);
+        std::ofstream dump(crashes / "crash-hwio-20261016-090000.dmp", std::ios::binary);
         dump << std::string(1024, '\x01');
     }
     // Two dumps of the maximum size: the second does not fit into what is left (skipped).
-    for (const char* name : {"crash-hio-20261015-090000.dmp", "crash-hio-20261014-090000.dmp"}) {
+    for (const char* name : {"crash-hwio-20261015-090000.dmp", "crash-hwio-20261014-090000.dmp"}) {
         std::ofstream dump(crashes / name, std::ios::binary);
-        dump << std::string(hio::crash::maxDumpBytes, '\x02');
+        dump << std::string(hwio::crash::maxDumpBytes, '\x02');
     }
-    input.crashFiles = {crashes / "crash-hio-monitor-20261016-100000.txt",
-                        crashes / "crash-hio-20261016-090000.dmp",
-                        crashes / "crash-hio-20261015-090000.dmp",
-                        crashes / "crash-hio-20261014-090000.dmp"};
+    input.crashFiles = {crashes / "crash-hwio-monitor-20261016-100000.txt",
+                        crashes / "crash-hwio-20261016-090000.dmp",
+                        crashes / "crash-hwio-20261015-090000.dmp",
+                        crashes / "crash-hwio-20261014-090000.dmp"};
     const fs::path target = root / "report.zip";
-    const auto bytes = hio::diag::ReportBuilder::writeZip(input, target, {});
+    const auto bytes = hwio::diag::ReportBuilder::writeZip(input, target, {});
     ASSERT_TRUE(bytes.has_value()) << bytes.error().detail;
-    EXPECT_LE(*bytes, hio::diag::maxReportBytes);
+    EXPECT_LE(*bytes, hwio::diag::maxReportBytes);
     const auto entries = unzip(target);
-    ASSERT_TRUE(entries.contains("crashes/crash-hio-monitor-20261016-100000.txt"));
-    EXPECT_EQ(entries.at("crashes/crash-hio-monitor-20261016-100000.txt"),
-              "HARDWARIO Monitor crash report\n~/build/hio-monitor(+0x10)\n");
-    ASSERT_TRUE(entries.contains("crashes/crash-hio-20261016-090000.dmp"));
-    EXPECT_EQ(entries.at("crashes/crash-hio-20261016-090000.dmp"), std::string(1024, '\x01'));
-    EXPECT_TRUE(entries.contains("crashes/crash-hio-20261015-090000.dmp"));
-    EXPECT_FALSE(entries.contains("crashes/crash-hio-20261014-090000.dmp"));
+    ASSERT_TRUE(entries.contains("crashes/crash-hwio-monitor-20261016-100000.txt"));
+    EXPECT_EQ(entries.at("crashes/crash-hwio-monitor-20261016-100000.txt"),
+              "HARDWARIO Monitor crash report\n~/build/hwio-monitor(+0x10)\n");
+    ASSERT_TRUE(entries.contains("crashes/crash-hwio-20261016-090000.dmp"));
+    EXPECT_EQ(entries.at("crashes/crash-hwio-20261016-090000.dmp"), std::string(1024, '\x01'));
+    EXPECT_TRUE(entries.contains("crashes/crash-hwio-20261015-090000.dmp"));
+    EXPECT_FALSE(entries.contains("crashes/crash-hwio-20261014-090000.dmp"));
     const std::string& summary = entries.at("summary.txt");
     EXPECT_NE(summary.find("Crash files: 4"), std::string::npos) << summary;
-    EXPECT_NE(summary.find("crash-hio-20261014-090000.dmp (skipped: the report size limit)"),
+    EXPECT_NE(summary.find("crash-hwio-20261014-090000.dmp (skipped: the report size limit)"),
               std::string::npos)
         << summary;
-    EXPECT_NE(summary.find("  crash-hio-20261016-090000.dmp\n"), std::string::npos) << summary;
+    EXPECT_NE(summary.find("  crash-hwio-20261016-090000.dmp\n"), std::string::npos) << summary;
 }
 
 TEST(Report, RecentCrashFilesAreTheNewestThree) {
@@ -290,25 +290,25 @@ TEST(Report, RecentCrashFilesAreTheNewestThree) {
     const fs::path crashes(dir.path().toStdString());
     const auto now = fs::file_time_type::clock::now();
     for (int i = 0; i < 5; ++i) {
-        const fs::path file = crashes / ("crash-hio-2026101" + std::to_string(i) + "-000000.txt");
+        const fs::path file = crashes / ("crash-hwio-2026101" + std::to_string(i) + "-000000.txt");
         std::ofstream(file) << i << '\n';
         fs::last_write_time(file, now - std::chrono::hours(10 - i));
     }
     std::ofstream(crashes / "last-crash") << "x\n";
-    const auto files = hio::diag::recentCrashFiles(crashes);
+    const auto files = hwio::diag::recentCrashFiles(crashes);
 #ifdef Q_OS_MACOS
-    ASSERT_GE(files.size(), 3U); // plus the user's own DiagnosticReports/hio* files, if any
+    ASSERT_GE(files.size(), 3U); // plus the user's own DiagnosticReports/hwio* files, if any
 #else
     ASSERT_EQ(files.size(), 3U);
 #endif
-    EXPECT_EQ(files.at(0).filename(), "crash-hio-20261014-000000.txt");
-    EXPECT_EQ(files.at(2).filename(), "crash-hio-20261012-000000.txt");
+    EXPECT_EQ(files.at(0).filename(), "crash-hwio-20261014-000000.txt");
+    EXPECT_EQ(files.at(2).filename(), "crash-hwio-20261012-000000.txt");
 }
 
 TEST(Report, SummaryWithoutCrashFiles) {
     const QTemporaryDir dir;
     const auto input = sampleInput(fs::path(dir.path().toStdString()));
-    EXPECT_NE(hio::diag::ReportBuilder::summaryText(input).find("Crash files: none"),
+    EXPECT_NE(hwio::diag::ReportBuilder::summaryText(input).find("Crash files: none"),
               std::string::npos);
 }
 
@@ -321,7 +321,7 @@ TEST(Report, RecentLogsAreTheTwoNewestRunsPerKind) {
           "cli-20261016-100000-4.txt"}) {
         std::ofstream(logs / name) << "x\n";
     }
-    const auto files = hio::diag::recentLogFiles(logs);
+    const auto files = hwio::diag::recentLogFiles(logs);
     std::vector<std::string> names;
     names.reserve(files.size());
     for (const auto& file : files) {
@@ -334,10 +334,10 @@ TEST(Report, RecentLogsAreTheTwoNewestRunsPerKind) {
 }
 
 TEST(Report, DefaultFileName) {
-    const std::string name = hio::diag::defaultReportFileName();
-    EXPECT_TRUE(name.starts_with("hio-diagnostics-"));
+    const std::string name = hwio::diag::defaultReportFileName();
+    EXPECT_TRUE(name.starts_with("hwio-diagnostics-"));
     EXPECT_TRUE(name.ends_with(".zip"));
-    EXPECT_EQ(name.size(), std::string("hio-diagnostics-20261016-101010.zip").size());
+    EXPECT_EQ(name.size(), std::string("hwio-diagnostics-20261016-101010.zip").size());
 }
 
 } // namespace

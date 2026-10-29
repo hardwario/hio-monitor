@@ -1,25 +1,25 @@
 #include "tool_support.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
-#include "hio/mcp/tools/device_provider.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
+#include "hwio/mcp/tools/device_provider.h"
+#include "hwio/mcp/tools/tools_context.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -56,7 +56,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 namespace fs = std::filesystem;
 
@@ -74,7 +74,7 @@ QString tooLarge(const QString& path, std::uint64_t maxBytes) {
 
 // ---- text and JSON ------------------------------------------------------------------------------
 
-QString qs(std::string_view utf8Text) { return hio::toQString(utf8Text); }
+QString qs(std::string_view utf8Text) { return hwio::toQString(utf8Text); }
 
 QString isoTime(std::chrono::system_clock::time_point time) {
     const auto ms =
@@ -88,11 +88,11 @@ double seconds(std::chrono::milliseconds duration) {
 
 QJsonValue seqJson(std::uint64_t seq) { return {static_cast<qint64>(seq)}; }
 
-QJsonObject connectionJson(const hio::device::ConnectionEvent& event) {
+QJsonObject connectionJson(const hwio::device::ConnectionEvent& event) {
     QJsonObject json;
-    json.insert(QStringLiteral("state"), qs(hio::device::connectionStateId(event.state)));
-    json.insert(QStringLiteral("error"),
-                event.error ? QJsonValue(hio::toJson(*event.error)) : QJsonValue(QJsonValue::Null));
+    json.insert(QStringLiteral("state"), qs(hwio::device::connectionStateId(event.state)));
+    json.insert(QStringLiteral("error"), event.error ? QJsonValue(hwio::toJson(*event.error))
+                                                     : QJsonValue(QJsonValue::Null));
     json.insert(QStringLiteral("target_mv"), event.targetMillivolts
                                                  ? QJsonValue(*event.targetMillivolts)
                                                  : QJsonValue(QJsonValue::Null));
@@ -140,22 +140,22 @@ QJsonObject deviceStatusJson(const std::string& id, const DeviceRef& ref) {
     if (!ref.alive()) {
         return json;
     }
-    const hio::device::ConsoleSession& session = *ref.console;
-    const hio::device::ConsoleLog& log = session.log();
+    const hwio::device::ConsoleSession& session = *ref.console;
+    const hwio::device::ConsoleLog& log = session.log();
     json.insert(QStringLiteral("connection"), connectionJson(session.connection()));
-    json.insert(QStringLiteral("terminal_total"), seqJson(log.total(hio::device::Channel::Shell)));
+    json.insert(QStringLiteral("terminal_total"), seqJson(log.total(hwio::device::Channel::Shell)));
     json.insert(QStringLiteral("terminal_buffered"),
-                static_cast<qint64>(log.size(hio::device::Channel::Shell)));
-    json.insert(QStringLiteral("log_total"), seqJson(log.total(hio::device::Channel::Log)));
+                static_cast<qint64>(log.size(hwio::device::Channel::Shell)));
+    json.insert(QStringLiteral("log_total"), seqJson(log.total(hwio::device::Channel::Log)));
     json.insert(QStringLiteral("log_buffered"),
-                static_cast<qint64>(log.size(hio::device::Channel::Log)));
+                static_cast<qint64>(log.size(hwio::device::Channel::Log)));
     json.insert(QStringLiteral("buffer_size"), static_cast<qint64>(log.capacityPerChannel()));
-    std::optional<hio::device::OperationKind> kind;
+    std::optional<hwio::device::OperationKind> kind;
     if (!ref.jlink.isNull()) {
         kind = ref.jlink->runningOperationKind();
     }
     json.insert(QStringLiteral("busy_operation"),
-                kind ? QJsonValue(qs(hio::device::operationKindId(*kind)))
+                kind ? QJsonValue(qs(hwio::device::operationKindId(*kind)))
                      : QJsonValue(QJsonValue::Null));
     json.insert(QStringLiteral("paused_by_operation"), pausedByOperation(ref));
     return json;
@@ -196,19 +196,19 @@ QJsonObject deviceEntrySchema() {
                     {QStringLiteral("id"), QStringLiteral("state")});
 }
 
-QJsonObject terminalLineJson(const hio::device::ConsoleLine& line) {
+QJsonObject terminalLineJson(const hwio::device::ConsoleLine& line) {
     QJsonObject json;
     json.insert(QStringLiteral("seq"), seqJson(line.seq));
-    json.insert(QStringLiteral("dir"), qs(hio::device::directionId(line.dir)));
+    json.insert(QStringLiteral("dir"), qs(hwio::device::directionId(line.dir)));
     json.insert(QStringLiteral("text"), qs(line.text));
     json.insert(QStringLiteral("time"), isoTime(line.time));
     return json;
 }
 
-QJsonObject logLineJson(const hio::device::ConsoleLine& line) {
+QJsonObject logLineJson(const hwio::device::ConsoleLine& line) {
     QJsonObject json;
     json.insert(QStringLiteral("seq"), seqJson(line.seq));
-    const auto level = hio::device::levelId(line.level);
+    const auto level = hwio::device::levelId(line.level);
     json.insert(QStringLiteral("level"),
                 level ? QJsonValue(qs(*level)) : QJsonValue(QJsonValue::Null));
     json.insert(QStringLiteral("text"), qs(line.text));
@@ -339,43 +339,43 @@ QJsonObject withNumberEnum(QJsonObject schema, const QString& name, const QJsonA
 
 // ---- argument helpers ---------------------------------------------------------------------------
 
-hio::mcp::Schema deviceArgument() {
-    return hio::mcp::Schema::string(
+hwio::mcp::Schema deviceArgument() {
+    return hwio::mcp::Schema::string(
                QStringLiteral("Device id from list_devices (\"jlink:<serial>\" or \"ble:<id>\"). "
                               "May be left out when exactly one device is connected."))
         .minLength(1)
         .maxLength(160);
 }
 
-hio::mcp::Schema targetArgument() {
-    return hio::mcp::Schema::string(
+hwio::mcp::Schema targetArgument() {
+    return hwio::mcp::Schema::string(
                QStringLiteral("MCU of the device (CHESTER: \"app\" or \"lte\"). Default: the "
                               "target the console is connected to."))
         .minLength(1)
         .maxLength(32);
 }
 
-std::optional<hio::mcp::ValidationError> invalid(const QString& name, const QString& message) {
-    return hio::mcp::ValidationError{.pointer = QStringLiteral("/arguments/") + name,
-                                     .message = message};
+std::optional<hwio::mcp::ValidationError> invalid(const QString& name, const QString& message) {
+    return hwio::mcp::ValidationError{.pointer = QStringLiteral("/arguments/") + name,
+                                      .message = message};
 }
 
-hio::Error deviceNotOpen(const std::string& id) {
+hwio::Error deviceNotOpen(const std::string& id) {
     return makeError(ErrorCode::McpDeviceNotOpen, id);
 }
 
-hio::Error capabilityMissing(const std::string& id) {
+hwio::Error capabilityMissing(const std::string& id) {
     return makeError(ErrorCode::McpCapabilityMissing, id);
 }
 
-hio::Error invalidArgument(const QString& message, std::string detail) {
-    hio::Error error = makeError(ErrorCode::UsageInvalidArgument, std::move(detail));
+hwio::Error invalidArgument(const QString& message, std::string detail) {
+    hwio::Error error = makeError(ErrorCode::UsageInvalidArgument, std::move(detail));
     error.message = utf8(message);
     return error;
 }
 
-hio::Error busyError(hio::device::OperationKind kind) {
-    return makeError(ErrorCode::InternalBusy, std::string(hio::device::operationKindId(kind)));
+hwio::Error busyError(hwio::device::OperationKind kind) {
+    return makeError(ErrorCode::InternalBusy, std::string(hwio::device::operationKindId(kind)));
 }
 
 bool pausedByOperation(const DeviceRef& ref) {
@@ -383,10 +383,11 @@ bool pausedByOperation(const DeviceRef& ref) {
         return false;
     }
     const auto kind = ref.jlink->runningOperationKind();
-    return kind.has_value() && !hio::device::isLightOperation(*kind);
+    return kind.has_value() && !hwio::device::isLightOperation(*kind);
 }
 
-hio::Result<ResolvedDevice> resolveDevice(IDeviceProvider& provider, const QJsonObject& arguments) {
+hwio::Result<ResolvedDevice> resolveDevice(IDeviceProvider& provider,
+                                           const QJsonObject& arguments) {
     std::string id = arguments.value(QStringLiteral("device")).toString().toStdString();
     if (id.empty()) {
         std::vector<std::string> open;
@@ -414,8 +415,8 @@ hio::Result<ResolvedDevice> resolveDevice(IDeviceProvider& provider, const QJson
     return ResolvedDevice{.id = std::move(id), .ref = *ref};
 }
 
-hio::Result<ResolvedDevice> resolveJLinkDevice(IDeviceProvider& provider,
-                                               const QJsonObject& arguments) {
+hwio::Result<ResolvedDevice> resolveJLinkDevice(IDeviceProvider& provider,
+                                                const QJsonObject& arguments) {
     auto device = resolveDevice(provider, arguments);
     if (!device) {
         return device;
@@ -426,12 +427,12 @@ hio::Result<ResolvedDevice> resolveJLinkDevice(IDeviceProvider& provider,
     return device;
 }
 
-hio::Result<const hio::device::TargetProfile*>
-resolveTarget(const hio::device::ConsoleSession& session, const QJsonObject& arguments) {
+hwio::Result<const hwio::device::TargetProfile*>
+resolveTarget(const hwio::device::ConsoleSession& session, const QJsonObject& arguments) {
     const QString requested = arguments.value(QStringLiteral("target")).toString();
     const std::string id =
         requested.isEmpty() ? std::string(session.consoleTargetId()) : requested.toStdString();
-    const auto* target = hio::device::findTarget(session.profile(), id);
+    const auto* target = hwio::device::findTarget(session.profile(), id);
     if (target == nullptr) {
         QStringList known;
         for (const auto& item : session.profile().targets) {
@@ -444,7 +445,7 @@ resolveTarget(const hio::device::ConsoleSession& session, const QJsonObject& arg
     return target;
 }
 
-hio::Result<fs::path> inputFile(const QString& path, std::uint64_t maxBytes) {
+hwio::Result<fs::path> inputFile(const QString& path, std::uint64_t maxBytes) {
     fs::path file(path.toStdU16String());
     if (!file.is_absolute()) {
         return std::unexpected(invalidArgument(
@@ -465,16 +466,16 @@ hio::Result<fs::path> inputFile(const QString& path, std::uint64_t maxBytes) {
     return file;
 }
 
-hio::Result<std::vector<std::byte>> readInputFile(const fs::path& path, std::uint64_t maxBytes) {
+hwio::Result<std::vector<std::byte>> readInputFile(const fs::path& path, std::uint64_t maxBytes) {
     QFile file(QString::fromStdU16String(path.u16string()));
     if (!file.open(QIODevice::ReadOnly)) {
         return std::unexpected(makeError(ErrorCode::IoReadFailed,
-                                         hio::toUtf8(path) + ": " + utf8(file.errorString())));
+                                         hwio::toUtf8(path) + ": " + utf8(file.errorString())));
     }
     const QByteArray data = file.read(static_cast<qint64>(maxBytes) + 1);
     if (std::cmp_greater(data.size(), maxBytes)) {
         return std::unexpected(invalidArgument(
-            tooLarge(QString::fromStdU16String(path.u16string()), maxBytes), hio::toUtf8(path)));
+            tooLarge(QString::fromStdU16String(path.u16string()), maxBytes), hwio::toUtf8(path)));
     }
     const auto view =
         std::as_bytes(std::span(data.constData(), static_cast<std::size_t>(data.size())));
@@ -485,69 +486,69 @@ hio::Result<std::vector<std::byte>> readInputFile(const fs::path& path, std::uin
 
 // Markers and busy texts are shown in the GUI console (plan 0014) and stay translatable (ADR-0103,
 // review R12). QCoreApplication::translate() is called with literal arguments at every site so
-// that lupdate extracts them with the context "hio::mcp" (a tr() wrapper would be extracted with
+// that lupdate extracts them with the context "hwio::mcp" (a tr() wrapper would be extracted with
 // the enclosing namespace as context and never found at run time).
 
-QString markerStart(const hio::mcp::RequestContext& context, const QString& action) {
+QString markerStart(const hwio::mcp::RequestContext& context, const QString& action) {
     const QString client =
         context.client.name.empty() ? QStringLiteral("?") : qs(context.client.name);
-    return QCoreApplication::translate("hio::mcp", "— AI (%1): %2 —").arg(client, action);
+    return QCoreApplication::translate("hwio::mcp", "— AI (%1): %2 —").arg(client, action);
 }
 
 QString markerDone(std::string_view tool, std::chrono::milliseconds duration) {
-    return QCoreApplication::translate("hio::mcp", "— AI: %1 done in %2 s —")
+    return QCoreApplication::translate("hwio::mcp", "— AI: %1 done in %2 s —")
         .arg(qs(tool), QString::number(seconds(duration), 'f', 1));
 }
 
-QString markerFailed(std::string_view tool, const hio::Error& error) {
-    return QCoreApplication::translate("hio::mcp", "— AI: %1 failed: %2 —")
+QString markerFailed(std::string_view tool, const hwio::Error& error) {
+    return QCoreApplication::translate("hwio::mcp", "— AI: %1 failed: %2 —")
         .arg(qs(tool), qs(error.message));
 }
 
 QString markerCancelled(std::string_view tool) {
-    return QCoreApplication::translate("hio::mcp", "— AI: %1 cancelled —").arg(qs(tool));
+    return QCoreApplication::translate("hwio::mcp", "— AI: %1 cancelled —").arg(qs(tool));
 }
 
 QString busyText(std::string_view tool) {
     if (tool == "flash" || tool == "flash_lte" || tool == "write_flash") {
-        return QCoreApplication::translate("hio::mcp", "AI: Flashing…");
+        return QCoreApplication::translate("hwio::mcp", "AI: Flashing…");
     }
     if (tool == "erase") {
-        return QCoreApplication::translate("hio::mcp", "AI: Erasing…");
+        return QCoreApplication::translate("hwio::mcp", "AI: Erasing…");
     }
     if (tool == "recover") {
-        return QCoreApplication::translate("hio::mcp", "AI: Recovering…");
+        return QCoreApplication::translate("hwio::mcp", "AI: Recovering…");
     }
     if (tool == "write_memory") {
-        return QCoreApplication::translate("hio::mcp", "AI: Writing memory…");
+        return QCoreApplication::translate("hwio::mcp", "AI: Writing memory…");
     }
     if (tool == "reset") {
-        return QCoreApplication::translate("hio::mcp", "AI: Resetting…");
+        return QCoreApplication::translate("hwio::mcp", "AI: Resetting…");
     }
-    return QCoreApplication::translate("hio::mcp", "AI: %1…").arg(qs(tool));
+    return QCoreApplication::translate("hwio::mcp", "AI: %1…").arg(qs(tool));
 }
 
 // ---- registration -------------------------------------------------------------------------------
 
-hio::Status addTool(hio::mcp::Registry& registry, hio::mcp::ToolSpec spec) {
+hwio::Status addTool(hwio::mcp::Registry& registry, hwio::mcp::ToolSpec spec) {
     return registry.addTool(std::move(spec));
 }
 
-std::unique_ptr<hio::mcp::ToolCall> done(hio::Result<QJsonObject> result) {
+std::unique_ptr<hwio::mcp::ToolCall> done(hwio::Result<QJsonObject> result) {
     if (!result) {
-        return hio::mcp::ToolCall::completed(std::unexpected(std::move(result).error()));
+        return hwio::mcp::ToolCall::completed(std::unexpected(std::move(result).error()));
     }
-    return hio::mcp::ToolCall::completed(hio::mcp::toolResult(*result));
+    return hwio::mcp::ToolCall::completed(hwio::mcp::toolResult(*result));
 }
 
-std::unique_ptr<hio::mcp::ToolCall> failed(hio::Error error) {
-    return hio::mcp::ToolCall::completed(std::unexpected(std::move(error)));
+std::unique_ptr<hwio::mcp::ToolCall> failed(hwio::Error error) {
+    return hwio::mcp::ToolCall::completed(std::unexpected(std::move(error)));
 }
 
 // ---- DeviceCall ---------------------------------------------------------------------------------
 
-DeviceCall::DeviceCall(ToolsContext& tools, hio::mcp::RequestContext context,
-                       const hio::mcp::ToolEnv& env, ResolvedDevice device)
+DeviceCall::DeviceCall(ToolsContext& tools, hwio::mcp::RequestContext context,
+                       const hwio::mcp::ToolEnv& env, ResolvedDevice device)
     : m_tools(&tools), m_consent(&env.consentBroker()), m_context(std::move(context)),
       m_limits(env.limits().tools), m_id(std::move(device.id)), m_ref(std::move(device.ref)) {
     setDeviceId(m_id);
@@ -562,7 +563,7 @@ DeviceCall::DeviceCall(ToolsContext& tools, hio::mcp::RequestContext context,
     }
 }
 
-void DeviceCall::complete(hio::Result<QJsonObject> result) {
+void DeviceCall::complete(hwio::Result<QJsonObject> result) {
     if (isFinished()) {
         return;
     }
@@ -570,27 +571,27 @@ void DeviceCall::complete(hio::Result<QJsonObject> result) {
         finish(std::unexpected(std::move(result).error()));
         return;
     }
-    finish(hio::mcp::toolResult(*result));
+    finish(hwio::mcp::toolResult(*result));
 }
 
-void DeviceCall::completeError(hio::Error error) { complete(std::unexpected(std::move(error))); }
+void DeviceCall::completeError(hwio::Error error) { complete(std::unexpected(std::move(error))); }
 
 // ---- OperationCall ------------------------------------------------------------------------------
 
-OperationCall::OperationCall(ToolsContext& tools, const hio::mcp::RequestContext& context,
-                             const hio::mcp::ToolEnv& env, ResolvedDevice device,
+OperationCall::OperationCall(ToolsContext& tools, const hwio::mcp::RequestContext& context,
+                             const hwio::mcp::ToolEnv& env, ResolvedDevice device,
                              OperationSettings settings)
     : DeviceCall(tools, context, env, std::move(device)), m_settings(settings) {
     m_stall.setSingleShot(true);
     m_stall.setInterval(this->limits().operationStall);
     connect(&m_stall, &QTimer::timeout, this, [this] { stalled(); });
     if (auto* jlink = session(); jlink != nullptr) {
-        connect(jlink, &hio::device::DeviceSession::operationProgress, this,
-                [this](hio::device::OperationId id, const hio::device::OperationProgress& p) {
+        connect(jlink, &hwio::device::DeviceSession::operationProgress, this,
+                [this](hwio::device::OperationId id, const hwio::device::OperationProgress& p) {
                     onProgress(id, p);
                 });
-        connect(jlink, &hio::device::DeviceSession::operationFinished, this,
-                [this](hio::device::OperationId id, const hio::device::OperationResult& r) {
+        connect(jlink, &hwio::device::DeviceSession::operationFinished, this,
+                [this](hwio::device::OperationId id, const hwio::device::OperationResult& r) {
                     onFinished(id, r);
                 });
     }
@@ -598,15 +599,15 @@ OperationCall::OperationCall(ToolsContext& tools, const hio::mcp::RequestContext
 
 OperationCall::~OperationCall() { endBusy(); }
 
-void OperationCall::withConsent(hio::mcp::ConsentCategories categories, QJsonObject details,
+void OperationCall::withConsent(hwio::mcp::ConsentCategories categories, QJsonObject details,
                                 std::function<void()> next) {
-    if (categories == hio::mcp::ConsentCategories()) {
+    if (categories == hwio::mcp::ConsentCategories()) {
         next();
         return;
     }
     requestConsent(consentBroker(),
-                   hio::mcp::makeConsentRequest(context(), categories, id(), std::move(details)),
-                   [this, next = std::move(next)](const hio::mcp::ConsentDecision& decision) {
+                   hwio::mcp::makeConsentRequest(context(), categories, id(), std::move(details)),
+                   [this, next = std::move(next)](const hwio::mcp::ConsentDecision& decision) {
                        if (!decision) {
                            completeError(decision.error());
                            return;
@@ -645,7 +646,7 @@ bool OperationCall::begin(const QString& action) {
 }
 
 void OperationCall::run(const OperationStart& start,
-                        std::function<void(const hio::device::OperationResult&)> then) {
+                        std::function<void(const hwio::device::OperationResult&)> then) {
     if (isFinished()) {
         return;
     }
@@ -673,8 +674,8 @@ void OperationCall::run(const OperationStart& start,
     m_stall.start();
 }
 
-void OperationCall::onProgress(hio::device::OperationId id,
-                               const hio::device::OperationProgress& progress) {
+void OperationCall::onProgress(hwio::device::OperationId id,
+                               const hwio::device::OperationProgress& progress) {
     if (!m_operation || *m_operation != id || isFinished()) {
         return;
     }
@@ -688,11 +689,11 @@ void OperationCall::onProgress(hio::device::OperationId id,
                                       static_cast<double>(progress.total)
                                 : 0.0;
     reportProgress((static_cast<double>(std::max(1, progress.step)) - 1.0) + fraction, steps,
-                   qs(hio::firmware::phaseId(progress.phase)));
+                   qs(hwio::firmware::phaseId(progress.phase)));
 }
 
-void OperationCall::onFinished(hio::device::OperationId id,
-                               const hio::device::OperationResult& result) {
+void OperationCall::onFinished(hwio::device::OperationId id,
+                               const hwio::device::OperationResult& result) {
     if (!m_operation || *m_operation != id || isFinished()) {
         return;
     }
@@ -717,14 +718,14 @@ void OperationCall::stalled() {
     }
     if (m_operation && session() != nullptr) {
         if (const Status cancelled = session()->cancel(*m_operation); !cancelled) {
-            qCWarning(hio::log::lcMcp).noquote()
+            qCWarning(hwio::log::lcMcp).noquote()
                 << "MCP: cancelling a stalled operation failed:" << qs(cancelled.error().message);
         }
     }
     m_operation.reset();
-    qCWarning(hio::log::lcMcp).noquote()
+    qCWarning(hwio::log::lcMcp).noquote()
         << "MCP:" << qs(m_settings.tool) << "on" << qs(id()) << "stalled; operation cancelled";
-    hio::Error error = makeError(
+    hwio::Error error = makeError(
         ErrorCode::Timeout,
         std::format(
             "no operation progress for {} s",
@@ -748,7 +749,7 @@ void OperationCall::succeed(QJsonObject structured, std::chrono::milliseconds du
     complete(std::move(structured));
 }
 
-void OperationCall::failWith(hio::Error error) {
+void OperationCall::failWith(hwio::Error error) {
     if (isFinished()) {
         return;
     }
@@ -794,15 +795,15 @@ void OperationCall::endBusy() {
 // ---- SimpleOperationCall ------------------------------------------------------------------------
 
 SimpleOperationCall::SimpleOperationCall(ToolsContext& tools,
-                                         const hio::mcp::RequestContext& context,
-                                         const hio::mcp::ToolEnv& env, ResolvedDevice device,
+                                         const hwio::mcp::RequestContext& context,
+                                         const hwio::mcp::ToolEnv& env, ResolvedDevice device,
                                          SimpleOperation op)
     : OperationCall(tools, context, env, std::move(device), op.settings), m_op(std::move(op)) {
     withConsent(m_op.consent, m_op.details, [this] {
         if (!begin(m_op.action)) {
             return;
         }
-        run(m_op.start, [this](const hio::device::OperationResult& result) {
+        run(m_op.start, [this](const hwio::device::OperationResult& result) {
             auto json = m_op.result(result);
             if (!json) {
                 failWith(std::move(json).error());
@@ -813,11 +814,11 @@ SimpleOperationCall::SimpleOperationCall(ToolsContext& tools,
     });
 }
 
-hio::mcp::ToolStart operationStart(ToolsContext& context, OperationBuilder builder,
-                                   std::string_view fixedTarget) {
+hwio::mcp::ToolStart operationStart(ToolsContext& context, OperationBuilder builder,
+                                    std::string_view fixedTarget) {
     return [&context, builder = std::move(builder),
-            fixedTarget](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                         hio::mcp::ToolEnv& env) -> std::unique_ptr<hio::mcp::ToolCall> {
+            fixedTarget](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                         hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
         auto device = resolveJLinkDevice(context.provider(), args);
         if (!device) {
             return failed(std::move(device).error());
@@ -839,4 +840,4 @@ hio::mcp::ToolStart operationStart(ToolsContext& context, OperationBuilder build
     };
 }
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

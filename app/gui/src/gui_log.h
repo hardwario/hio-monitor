@@ -4,8 +4,8 @@
 
 #include <QLoggingCategory>
 
-namespace hio::gui {
+namespace hwio::gui {
 
-Q_DECLARE_LOGGING_CATEGORY(lcGui) // "hio.gui"
+Q_DECLARE_LOGGING_CATEGORY(lcGui) // "hwio.gui"
 
-} // namespace hio::gui
+} // namespace hwio::gui

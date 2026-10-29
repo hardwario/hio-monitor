@@ -12,8 +12,8 @@
 //
 // Ownership: AppViewModel (Qt parent); the service and the settings store outlive it. GUI thread.
 
-#include "hio/core/result.h"
-#include "hio/update/releases.h"
+#include "hwio/core/result.h"
+#include "hwio/update/releases.h"
 #include "settings_store.h"
 #include "update_service.h"
 
@@ -25,7 +25,7 @@
 
 #include <functional>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class UpdateViewModel : public QObject {
     Q_OBJECT
@@ -100,4 +100,4 @@ private:
     bool m_bannerVisible = false;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

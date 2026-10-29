@@ -1,6 +1,6 @@
 #pragma once
 
-// M6 low-level target commands of `hio chester app` and `hio chester lte` (plan/features/0013 B4,
+// M6 low-level target commands of `hwio chester app` and `hwio chester lte` (plan/features/0013 B4,
 // ADR-0099, ADR-0153):
 //   status | halt | go | regs | zones
 //   mem read ADDR [-l LEN=64] [-w 8|16|32] [-o FILE]
@@ -12,8 +12,8 @@
 // The CLI is English only (ADR-0027).
 
 #include "cli_app.h"
-#include "hio/core/result.h"
-#include "hio/device/operation.h"
+#include "hwio/core/result.h"
+#include "hwio/device/operation.h"
 #include "probe_options.h"
 
 #include <QJsonObject>
@@ -28,7 +28,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 // `mem read` bounds: at most 16 MiB in total, read in operations of maxReadMemoryBytes (64 KiB).
 inline constexpr std::size_t maxMemReadBytes = 16ULL * 1024 * 1024;
@@ -60,4 +60,4 @@ void registerTargetCommands(CLI::App& targetGroup, const std::shared_ptr<ProbeOp
 [[nodiscard]] std::string zonesText(std::span<const device::MemoryZone> zones);
 [[nodiscard]] QJsonObject zonesJson(std::span<const device::MemoryZone> zones);
 
-} // namespace hio::cli
+} // namespace hwio::cli

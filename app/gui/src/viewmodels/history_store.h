@@ -13,7 +13,7 @@
 // Ownership: owned by AppViewModel (std::unique_ptr); a SharedHistory lives as long as the store
 // or a console view model holds it (std::shared_ptr). GUI thread only.
 
-#include "hio/device/command_history.h"
+#include "hwio/device/command_history.h"
 
 #include <QString>
 #include <QStringList>
@@ -28,7 +28,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class SharedHistory {
 public:
@@ -75,4 +75,4 @@ private:
     std::map<std::pair<QString, QString>, std::shared_ptr<SharedHistory>> m_histories;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -3,8 +3,8 @@
 // The tests that talk to the local HTTP fixture are left out under TSan (CMakeLists.txt).
 
 #include "gui_test_support.h"
-#include "hio/update/semver.h"
 #include "http_fixture.h"
+#include "hwio/update/semver.h"
 #include "settings_store.h"
 #include "update_service.h"
 #include "viewmodels/update_view_model.h"
@@ -30,11 +30,11 @@
 
 namespace {
 
-using hio::firmware::test::HttpFixture;
-using hio::gui::SettingsStore;
-using hio::gui::UpdateService;
-using hio::gui::UpdateViewModel;
-using hio::gui::test::waitFor;
+using hwio::firmware::test::HttpFixture;
+using hwio::gui::SettingsStore;
+using hwio::gui::UpdateService;
+using hwio::gui::UpdateViewModel;
+using hwio::gui::test::waitFor;
 
 const QString releasesPath = QStringLiteral("/repos/hardwario/hio-monitor/releases");
 
@@ -45,8 +45,8 @@ const QByteArray releases = R"([
   {"tag_name":"v2.0.3","draft":false,"prerelease":false}
 ])";
 
-hio::update::SemVer v(const char* text) {
-    return hio::update::SemVer::parse(text).value_or(hio::update::SemVer{});
+hwio::update::SemVer v(const char* text) {
+    return hwio::update::SemVer::parse(text).value_or(hwio::update::SemVer{});
 }
 
 class UpdateTest : public ::testing::Test {
@@ -138,7 +138,7 @@ TEST_F(UpdateTest, NoAutomaticCheckBeforeTheIntervalOrInDevelopmentBuilds) {
     service->start();
     auto dev = makeService("2.0.3", "dev");
     dev->start();
-    hio::gui::test::spin(std::chrono::milliseconds(200));
+    hwio::gui::test::spin(std::chrono::milliseconds(200));
     EXPECT_EQ(requests(), 0);
     // The manual check works in both.
     dev->checkNow();

@@ -1,7 +1,7 @@
-#include "hio/device/pib.h"
+#include "hwio/device/pib.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 
 #include <QCoreApplication>
 #include <QJsonObject>
@@ -17,7 +17,7 @@
 #include <string_view>
 #include <utility>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -67,7 +67,7 @@ std::string ascii(std::span<const std::byte> bytes, const Field& field) {
 Error invalid(std::string_view check, std::string detail) {
     Error error = makeError(ErrorCode::PibInvalid, std::move(detail));
     error.message = QCoreApplication::translate(
-                        "hio::device", "The Product Information Block is missing or damaged (%1).")
+                        "hwio::device", "The Product Information Block is missing or damaged (%1).")
                         .arg(QString::fromUtf8(check.data(), static_cast<qsizetype>(check.size())))
                         .toStdString();
     return error;
@@ -142,4 +142,4 @@ QJsonObject pibToJson(const Pib& pib) {
     return data;
 }
 
-} // namespace hio::device
+} // namespace hwio::device

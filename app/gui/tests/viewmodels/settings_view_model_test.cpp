@@ -4,7 +4,7 @@
 // dependency detection results and the read-only mode (settings.newer_schema).
 
 #include "gui_test_support.h"
-#include "hio/core/settings.h"
+#include "hwio/core/settings.h"
 #include "pages/firmware_services.h"
 #include "settings_store.h"
 #include "viewmodels/app_view_model.h"
@@ -33,22 +33,22 @@
 
 namespace {
 
-using hio::gui::AppViewModel;
-using hio::gui::DependencyStatus;
-using hio::gui::FirmwareServices;
-using hio::gui::SettingsViewModel;
-using hio::gui::test::waitFor;
+using hwio::gui::AppViewModel;
+using hwio::gui::DependencyStatus;
+using hwio::gui::FirmwareServices;
+using hwio::gui::SettingsViewModel;
+using hwio::gui::test::waitFor;
 
-class SettingsTest : public hio::gui::test::GuiTest {
+class SettingsTest : public hwio::gui::test::GuiTest {
 protected:
     void SetUp() override {
         GuiTest::SetUp();
-        qputenv("HIO_NRFUTIL", (root() / "no-nrfutil" / "nrfutil").string().c_str());
+        qputenv("HWIO_NRFUTIL", (root() / "no-nrfutil" / "nrfutil").string().c_str());
         m_app = makeApp();
     }
     void TearDown() override {
         m_app.reset();
-        qunsetenv("HIO_NRFUTIL");
+        qunsetenv("HWIO_NRFUTIL");
         GuiTest::TearDown();
     }
 
@@ -98,7 +98,7 @@ TEST_F(SettingsTest, GeneralItemsApplyImmediately) {
 
 TEST_F(SettingsTest, DefaultSpeedIsAutomaticAndKeepsTheFixedValue) {
     EXPECT_TRUE(settings().autoSpeed());
-    EXPECT_EQ(settings().defaultSpeedKhz(), hio::gui::ConnectionOptions::defaultFixedSpeedKhz);
+    EXPECT_EQ(settings().defaultSpeedKhz(), hwio::gui::ConnectionOptions::defaultFixedSpeedKhz);
     settings().setAutoSpeed(false);
     EXPECT_EQ(app().settingsStore()->value(QStringLiteral("jlink/speedKhz")).toInt(), 4000);
     settings().setDefaultSpeedKhz(100);
@@ -145,7 +145,7 @@ TEST_F(SettingsTest, DependencyDetection) {
     EXPECT_EQ(status->jlinkVersion(), QStringLiteral("8.10"));
     EXPECT_TRUE(status->jlinkPath().contains(QStringLiteral("fake_jlink")));
     EXPECT_EQ(status->jlinkSourceText(),
-              QStringLiteral("Set by the environment variable HIO_JLINK_LIBRARY"));
+              QStringLiteral("Set by the environment variable HWIO_JLINK_LIBRARY"));
     EXPECT_EQ(status->nrfUtilState(), DependencyStatus::Problem);
     EXPECT_EQ(status->nrfUtilError().code(), QStringLiteral("dependency.nrfutil_not_found"));
     EXPECT_EQ(settings().nrfUtilStatusText(),
@@ -153,7 +153,7 @@ TEST_F(SettingsTest, DependencyDetection) {
     EXPECT_TRUE(settings().aboutText().contains(QStringLiteral("J-Link Software: 8.10")));
 
     // With nRF Util (the fake).
-    qputenv("HIO_NRFUTIL", QByteArray(HIO_FAKE_NRFUTIL));
+    qputenv("HWIO_NRFUTIL", QByteArray(HWIO_FAKE_NRFUTIL));
     status->refresh();
     ASSERT_TRUE(waitFor([&] { return status->nrfUtilState() == DependencyStatus::Found; }));
     EXPECT_TRUE(status->nrfUtilVersion().startsWith(QStringLiteral("7.13.0")));
@@ -170,11 +170,11 @@ TEST_F(SettingsTest, CustomPathsAreCheckedBeforeTheyAreSaved) {
     EXPECT_TRUE(app().settingsStore()->value(FirmwareServices::jlinkPathKey).toString().isEmpty());
 
     // A loadable library is saved.
-    settings().setJlinkLibraryPath(QUrl::fromLocalFile(QStringLiteral(HIO_FAKE_JLINK_LIBRARY)));
+    settings().setJlinkLibraryPath(QUrl::fromLocalFile(QStringLiteral(HWIO_FAKE_JLINK_LIBRARY)));
     ASSERT_TRUE(waitFor([&] { return !settings().jlinkPathChecking(); }));
     EXPECT_TRUE(settings().jlinkPathError().isEmpty()) << settings().jlinkPathError().toStdString();
     EXPECT_EQ(app().settingsStore()->value(FirmwareServices::jlinkPathKey).toString(),
-              QStringLiteral(HIO_FAKE_JLINK_LIBRARY));
+              QStringLiteral(HWIO_FAKE_JLINK_LIBRARY));
     settings().setJlinkLibraryMode(QStringLiteral("auto"));
     EXPECT_TRUE(app().settingsStore()->value(FirmwareServices::jlinkPathKey).toString().isEmpty());
     EXPECT_EQ(settings().jlinkLibraryMode(), QStringLiteral("auto"));
@@ -186,10 +186,10 @@ TEST_F(SettingsTest, CustomPathsAreCheckedBeforeTheyAreSaved) {
     EXPECT_FALSE(settings().nrfUtilPathError().isEmpty());
     EXPECT_TRUE(
         app().settingsStore()->value(FirmwareServices::nrfUtilPathKey).toString().isEmpty());
-    settings().setNrfUtilPath(QUrl::fromLocalFile(QStringLiteral(HIO_FAKE_NRFUTIL)));
+    settings().setNrfUtilPath(QUrl::fromLocalFile(QStringLiteral(HWIO_FAKE_NRFUTIL)));
     ASSERT_TRUE(waitFor([&] { return !settings().nrfUtilPathChecking(); }));
     EXPECT_EQ(app().settingsStore()->value(FirmwareServices::nrfUtilPathKey).toString(),
-              QStringLiteral(HIO_FAKE_NRFUTIL));
+              QStringLiteral(HWIO_FAKE_NRFUTIL));
     EXPECT_EQ(settings().nrfUtilMode(), QStringLiteral("custom"));
 }
 
@@ -197,7 +197,7 @@ TEST_F(SettingsTest, ReadOnlySettingsFile) {
     // A file of a newer schema is opened read-only.
     restartWith([this] {
         QSettings raw(QString::fromStdU16String(settingsFile().u16string()), QSettings::IniFormat);
-        raw.setValue(QStringLiteral("meta/schemaVersion"), hio::currentSettingsSchema + 1);
+        raw.setValue(QStringLiteral("meta/schemaVersion"), hwio::currentSettingsSchema + 1);
         raw.sync();
     });
     EXPECT_TRUE(settings().readOnly());

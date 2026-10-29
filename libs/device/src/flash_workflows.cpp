@@ -1,14 +1,14 @@
 #include "flash_workflows.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/intel_hex.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/programmer.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/intel_hex.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/programmer.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -29,7 +29,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 namespace {
 
@@ -43,7 +43,7 @@ QString partName(const DeviceProfile& profile, std::uint32_t part) {
             return toQString(known->displayName);
         }
     }
-    return QCoreApplication::translate("hio::device", "an unknown MCU (part %1)")
+    return QCoreApplication::translate("hwio::device", "an unknown MCU (part %1)")
         .arg(QStringLiteral("0x%1").arg(part, 0, 16));
 }
 
@@ -114,29 +114,30 @@ Error forTarget(Error error, const DeviceProfile& profile, const TargetProfile& 
     const QString name = targetDisplayName(target); // user-visible (H4)
     switch (error.code) {
     case ErrorCode::TargetProgramFailed:
-        error.message = QCoreApplication::translate("hio::device", "Programming the %1 MCU failed.")
-                            .arg(name)
-                            .toStdString();
+        error.message =
+            QCoreApplication::translate("hwio::device", "Programming the %1 MCU failed.")
+                .arg(name)
+                .toStdString();
         break;
     case ErrorCode::TargetEraseFailed:
-        error.message = QCoreApplication::translate("hio::device", "Erasing the %1 MCU failed.")
+        error.message = QCoreApplication::translate("hwio::device", "Erasing the %1 MCU failed.")
                             .arg(name)
                             .toStdString();
         break;
     case ErrorCode::TargetRecoverFailed:
-        error.message = QCoreApplication::translate("hio::device", "Recovering the %1 MCU failed.")
+        error.message = QCoreApplication::translate("hwio::device", "Recovering the %1 MCU failed.")
                             .arg(name)
                             .toStdString();
         break;
     case ErrorCode::TargetProtected:
         error.message =
-            QCoreApplication::translate("hio::device", "The %1 MCU is read-back protected.")
+            QCoreApplication::translate("hwio::device", "The %1 MCU is read-back protected.")
                 .arg(name)
                 .toStdString();
-        error.suggestion =
-            QCoreApplication::translate("hio::device", "Run `hio %1 %2 recover` (erases the MCU).")
-                .arg(toQString(profile.id), toQString(target.id))
-                .toStdString();
+        error.suggestion = QCoreApplication::translate("hwio::device",
+                                                       "Run `hwio %1 %2 recover` (erases the MCU).")
+                               .arg(toQString(profile.id), toQString(target.id))
+                               .toStdString();
         break;
     default:
         break;
@@ -149,7 +150,7 @@ Result<ImagePlan> planImage(const DeviceProfile& profile, const TargetProfile& t
     (void)profile;
     if (image.empty()) {
         Error error = makeError(ErrorCode::UsageInvalidArgument, "the image has no data");
-        error.message = QCoreApplication::translate("hio::device", "The firmware image is empty.")
+        error.message = QCoreApplication::translate("hwio::device", "The firmware image is empty.")
                             .toStdString();
         return std::unexpected(std::move(error));
     }
@@ -191,11 +192,11 @@ Error wrongFamily(const TargetProfile& target, const QString& found, std::string
         toQString(target.parts.empty() ? std::string_view() : target.parts.front().displayName);
     Error error = makeError(ErrorCode::TargetWrongFamily, std::move(detail));
     error.message =
-        QCoreApplication::translate("hio::device", "Expected the %1 MCU (%2) but found %3.")
+        QCoreApplication::translate("hwio::device", "Expected the %1 MCU (%2) but found %3.")
             .arg(targetDisplayName(target), expected, found)
             .toStdString();
     error.suggestion =
-        QCoreApplication::translate("hio::device", "Connect the J-Link to the %1 connector.")
+        QCoreApplication::translate("hwio::device", "Connect the J-Link to the %1 connector.")
             .arg(targetDisplayName(target))
             .toStdString();
     return error;
@@ -209,7 +210,7 @@ Result<jlink::ChipInfo> unreadableChip(WorkflowContext& context, jlink::ChipInfo
     if (chip.family != target.chipFamily.name) {
         return std::unexpected(wrongFamily(
             target,
-            QCoreApplication::translate("hio::device", "an %1 MCU").arg(toQString(chip.family)),
+            QCoreApplication::translate("hwio::device", "an %1 MCU").arg(toQString(chip.family)),
             std::format("Nordic CTRL-AP at the {} AP index", chip.family)));
     }
     if (chip.protectedChip) {
@@ -226,7 +227,7 @@ Result<jlink::ChipInfo> unreadableChip(WorkflowContext& context, jlink::ChipInfo
     Error error =
         makeError(ErrorCode::TargetConnectFailed, "FICR unreadable, APPROTECT not enabled");
     error.message =
-        QCoreApplication::translate("hio::device", "The type of the %1 MCU could not be read.")
+        QCoreApplication::translate("hwio::device", "The type of the %1 MCU could not be read.")
             .arg(targetDisplayName(target))
             .toStdString();
     return std::unexpected(std::move(error));
@@ -352,7 +353,7 @@ Result<jlink::ChipInfo> runErase(WorkflowContext& context, EraseScope scope) {
                                           "{}; before: {}",
                                           pib.start, after.error().detail, hexBytes(*before)));
                 error.message =
-                    QCoreApplication::translate("hio::device",
+                    QCoreApplication::translate("hwio::device",
                                                 "The Product Information Block of the %1 MCU could "
                                                 "not be checked after the erase.")
                         .arg(targetDisplayName(target))
@@ -360,8 +361,8 @@ Result<jlink::ChipInfo> runErase(WorkflowContext& context, EraseScope scope) {
                 // Review R19: a second erase would read the possibly wiped PIB as "before".
                 error.suggestion =
                     QCoreApplication::translate(
-                        "hio::device",
-                        "Do not erase again. Run `hio %1 %2 pib read` and compare it with the "
+                        "hwio::device",
+                        "Do not erase again. Run `hwio %1 %2 pib read` and compare it with the "
                         "bytes "
                         "in the log (see Details); if they differ, contact HARDWARIO support.")
                         .arg(toQString(profile.id), toQString(target.id))
@@ -375,13 +376,13 @@ Result<jlink::ChipInfo> runErase(WorkflowContext& context, EraseScope scope) {
                                                     "erase",
                                                     pib.start));
                 error.message = QCoreApplication::translate(
-                                    "hio::device", "Erasing the code flash of the %1 MCU also "
-                                                   "changed its Product Information Block.")
+                                    "hwio::device", "Erasing the code flash of the %1 MCU also "
+                                                    "changed its Product Information Block.")
                                     .arg(targetDisplayName(target))
                                     .toStdString();
                 error.suggestion =
                     QCoreApplication::translate(
-                        "hio::device",
+                        "hwio::device",
                         "Do not erase again; report this with the log file to HARDWARIO support.")
                         .toStdString();
                 return std::unexpected(std::move(error));
@@ -482,7 +483,7 @@ Result<FirmwareImage> recoverImage(RecoverImage image) {
     if (image != RecoverImage::Nrf91DisableApProtect) {
         return std::unexpected(makeError(ErrorCode::InternalUnexpected, "no recover image"));
     }
-    QFile file(QStringLiteral(":/hio/device/nrf91_disable_ap_protect.hex"));
+    QFile file(QStringLiteral(":/hwio/device/nrf91_disable_ap_protect.hex"));
     if (!file.open(QIODevice::ReadOnly)) {
         return std::unexpected(makeError(ErrorCode::InternalUnexpected,
                                          "embedded nrf91_disable_ap_protect.hex missing"));
@@ -493,4 +494,4 @@ Result<FirmwareImage> recoverImage(RecoverImage image) {
         "nrf91_disable_ap_protect.hex");
 }
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

@@ -1,12 +1,12 @@
-#include "hio/device/command_tree_learner.h"
+#include "hwio/device/command_tree_learner.h"
 
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/command_capture.h"
-#include "hio/device/command_tree.h"
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/shell_query.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_capture.h"
+#include "hwio/device/command_tree.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/shell_query.h"
 
 #include <QLoggingCategory>
 #include <QObject>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 CommandTreeLearner::CommandTreeLearner(ShellQueryQueue& queue, CommandTreeCache* cache,
                                        QObject* parent)
@@ -180,4 +180,4 @@ void CommandTreeLearner::queryEnded() {
     }
 }
 
-} // namespace hio::device
+} // namespace hwio::device

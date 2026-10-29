@@ -1,7 +1,7 @@
-#include "hio/diag/process_scan.h"
+#include "hwio/diag/process_scan.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 #include "platform/process_source.h"
 
 #include <QCoreApplication>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::diag {
+namespace hwio::diag {
 
 namespace {
 
@@ -61,7 +61,7 @@ constexpr std::array knownHolders{
 };
 
 // Our own executables use probe locks (ADR-0058) and are reported through `inUseBy`.
-constexpr std::array ownExecutables{std::string_view("hio"), std::string_view("hio-monitor")};
+constexpr std::array ownExecutables{std::string_view("hwio"), std::string_view("hwio-monitor")};
 
 std::string normalized(std::string_view name) {
     std::string lower(name);
@@ -132,9 +132,9 @@ Result<std::vector<ProcessMatch>> findProbeHolders(IProcessSource& source,
     return matches;
 }
 
-} // namespace hio::diag
+} // namespace hwio::diag
 
-namespace hio::diag {
+namespace hwio::diag {
 
 namespace {
 
@@ -157,4 +157,4 @@ std::shared_ptr<IProcessSource> platformProcessSource() {
     return std::make_shared<NoProcessSource>();
 }
 
-} // namespace hio::diag
+} // namespace hwio::diag

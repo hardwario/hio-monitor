@@ -1,6 +1,6 @@
-#include "hio/device/device_info.h"
+#include "hwio/device/device_info.h"
 
-#include "hio/device/line_assembler.h"
+#include "hwio/device/line_assembler.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -88,4 +88,4 @@ DeviceInfo parseInfoShow(std::span<const std::string> lines) {
     return info;
 }
 
-} // namespace hio::device
+} // namespace hwio::device

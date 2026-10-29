@@ -7,11 +7,11 @@
 // (Context::stop) cancels the running operation (exit 130). Owner thread only.
 
 #include "cli_app.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_registry.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_registry.h"
 #include "probe_options.h"
 #include "progress_ui.h"
 
@@ -23,7 +23,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 // The CHESTER profile and one of its targets ("app", "lte"); the target must exist.
 [[nodiscard]] const device::DeviceProfile& chesterProfile();
@@ -93,4 +93,4 @@ runOperation(const Context& context, const GlobalOptions& globals, const ProbeOp
              const ProbeOptions& own, std::string_view targetId, ProgressUi& ui,
              const StartFn& start, std::optional<std::filesystem::path> nrfUtil = std::nullopt);
 
-} // namespace hio::cli
+} // namespace hwio::cli

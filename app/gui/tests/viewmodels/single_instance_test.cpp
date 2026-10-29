@@ -18,10 +18,10 @@
 
 namespace {
 
-using hio::gui::SingleInstance;
-using hio::gui::test::waitFor;
+using hwio::gui::SingleInstance;
+using hwio::gui::test::waitFor;
 
-class SingleInstanceTest : public hio::gui::test::GuiTest {
+class SingleInstanceTest : public hwio::gui::test::GuiTest {
 protected:
     [[nodiscard]] QString lockFile() const {
         return QString::fromStdU16String((root() / "gui.lock").u16string());
@@ -31,10 +31,10 @@ protected:
     // Starts the helper and waits until it is the primary instance.
     bool startHelper(QProcess& process, bool hung) const {
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-        env.insert(QStringLiteral("HIO_TEST_SINGLE_INSTANCE"),
+        env.insert(QStringLiteral("HWIO_TEST_SINGLE_INSTANCE"),
                    lockFile() + QLatin1Char('|') + m_serverName);
         if (hung) {
-            env.insert(QStringLiteral("HIO_TEST_SINGLE_INSTANCE_HUNG"), QStringLiteral("1"));
+            env.insert(QStringLiteral("HWIO_TEST_SINGLE_INSTANCE_HUNG"), QStringLiteral("1"));
         }
         process.setProcessEnvironment(env);
         process.start(QCoreApplication::applicationFilePath(), {});
@@ -131,7 +131,7 @@ TEST_F(SingleInstanceTest, ActivationThroughASocketBesideTheLock) {
 TEST(SingleInstanceNames, DefaultServerNameIsPrivate) {
     const QString name = SingleInstance::defaultServerName();
 #ifdef Q_OS_WIN
-    EXPECT_TRUE(name.startsWith(QStringLiteral("hio-monitor-")));
+    EXPECT_TRUE(name.startsWith(QStringLiteral("hwio-monitor-")));
 #else
     // A full path next to the lock file (review S11, S21), never a name in /tmp.
     EXPECT_TRUE(QFileInfo(name).isAbsolute()) << name.toStdString();
@@ -141,7 +141,7 @@ TEST(SingleInstanceNames, DefaultServerNameIsPrivate) {
                   QFileInfo(SingleInstance::defaultLockFile()).absolutePath());
         EXPECT_TRUE(name.endsWith(QStringLiteral("/gui.sock")));
     }
-    EXPECT_FALSE(name.startsWith(QStringLiteral("/tmp/hio-monitor")));
+    EXPECT_FALSE(name.startsWith(QStringLiteral("/tmp/hwio-monitor")));
 #endif
 }
 

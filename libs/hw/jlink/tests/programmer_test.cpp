@@ -1,13 +1,13 @@
 // JLinkProgrammer on a GMock of IJLinkApi and simulated time (plan/features/0003, phase B2).
 
 #include "fake_clock.h"
-#include "hio/core/error.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/jlink_probe.h"
-#include "hio/hw/jlink/programmer.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/jlink_probe.h"
+#include "hwio/hw/jlink/programmer.h"
+#include "hwio/hw/jlink/types.h"
 #include "mock_jlink_api.h"
 
 #include <gmock/gmock.h>
@@ -30,20 +30,20 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::firmware::FirmwareImage;
-using hio::firmware::ProgramPhase;
-using hio::firmware::ProgramProgress;
-using hio::firmware::Segment;
-using hio::jlink::AccessWidth;
-using hio::jlink::ChipFamily;
-using hio::jlink::FlashProgressFn;
-using hio::jlink::JLinkProbe;
-using hio::jlink::JLinkProgrammer;
-using hio::jlink::ProgrammerConfig;
-using hio::jlink::ResetMode;
-using hio::jlink::test::FakeClock;
-using hio::jlink::test::MockJLinkApi;
+using hwio::ErrorCode;
+using hwio::firmware::FirmwareImage;
+using hwio::firmware::ProgramPhase;
+using hwio::firmware::ProgramProgress;
+using hwio::firmware::Segment;
+using hwio::jlink::AccessWidth;
+using hwio::jlink::ChipFamily;
+using hwio::jlink::FlashProgressFn;
+using hwio::jlink::JLinkProbe;
+using hwio::jlink::JLinkProgrammer;
+using hwio::jlink::ProgrammerConfig;
+using hwio::jlink::ResetMode;
+using hwio::jlink::test::FakeClock;
+using hwio::jlink::test::MockJLinkApi;
 using ::testing::_;
 using ::testing::InSequence;
 using ::testing::NiceMock;
@@ -117,11 +117,11 @@ protected:
     [[nodiscard]] const std::vector<std::uint32_t>& apWrites() const { return m_writes; }
     void openProbe() {
         ON_CALL(m_api, listProbes(_))
-            .WillByDefault(Return(std::vector<hio::jlink::ProbeInfo>{
-                hio::jlink::ProbeInfo{.serialNumber = 1,
-                                      .product = {},
-                                      .connection = hio::jlink::Connection::Usb,
-                                      .firmware = {}}}));
+            .WillByDefault(Return(std::vector<hwio::jlink::ProbeInfo>{
+                hwio::jlink::ProbeInfo{.serialNumber = 1,
+                                       .product = {},
+                                       .connection = hwio::jlink::Connection::Usb,
+                                       .firmware = {}}}));
         ON_CALL(m_api, open()).WillByDefault(Return(std::nullopt));
         ASSERT_TRUE(m_probe.open(1U));
     }
@@ -131,14 +131,14 @@ protected:
     JLinkProgrammer& programmer() { return m_programmer; }
 
     [[nodiscard]] const std::vector<ProgramProgress>& progress() const { return m_progress; }
-    [[nodiscard]] const hio::firmware::ProgressFn& recorder() const { return m_recorder; }
+    [[nodiscard]] const hwio::firmware::ProgressFn& recorder() const { return m_recorder; }
 
 private:
     std::uint32_t m_select = 0;
     std::map<std::uint32_t, std::uint32_t> m_apRegisters;
     std::vector<std::uint32_t> m_writes;
     std::vector<ProgramProgress> m_progress;
-    hio::firmware::ProgressFn m_recorder = [this](const ProgramProgress& p) {
+    hwio::firmware::ProgressFn m_recorder = [this](const ProgramProgress& p) {
         m_progress.push_back(p);
     };
     NiceMock<MockJLinkApi> m_api;
@@ -427,7 +427,7 @@ TEST_F(Programmer, LoaderActionsMapToPhases) {
 // Review R3, ADR-0109: a download that cannot finish is abandoned by closing the probe
 // (EndDownload is never called). Phase 0 showed that the close still programs the buffered data, so
 // it is reported as an interrupted flash.
-void expectInterruptedFlash(const hio::Error& error, std::string_view detail) {
+void expectInterruptedFlash(const hwio::Error& error, std::string_view detail) {
     EXPECT_EQ(error.code, ErrorCode::TargetProgramFailed);
     EXPECT_EQ(error.message, "Programming the MCU failed.");
     EXPECT_EQ(error.cause, "Programming was interrupted; the firmware may be partly written.");
@@ -502,8 +502,8 @@ TEST_F(Programmer, ResetGoAndHalt) {
 
 namespace {
 
-using hio::jlink::MemoryZone;
-using hio::jlink::OptionalFunction;
+using hwio::jlink::MemoryZone;
+using hwio::jlink::OptionalFunction;
 
 // ---- M6 target operations (plan/features/0013, ADR-0158) ----------------------------------------
 
@@ -673,7 +673,7 @@ TEST_F(TargetOps, RegistersAreCappedAt128) {
             return 0;
         });
     EXPECT_EQ(
-        programmer().readRegisters().value_or(std::vector<hio::jlink::RegisterValue>{}).size(),
+        programmer().readRegisters().value_or(std::vector<hwio::jlink::RegisterValue>{}).size(),
         128U);
 }
 

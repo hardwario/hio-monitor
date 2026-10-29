@@ -11,7 +11,7 @@
 // Thread safety: the BLE thread only. The objects are Qt children of their owner (QtBleApi);
 // the closer only schedules their deleteLater().
 
-#include "hio/hw/ble/types.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QMetaObject>
 #include <QObject>
@@ -24,7 +24,7 @@
 #include <memory>
 #include <vector>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 class ControllerCloser {
 public:
@@ -75,4 +75,4 @@ private:
     std::uint64_t m_nextSerial = 1;
 };
 
-} // namespace hio::ble
+} // namespace hwio::ble

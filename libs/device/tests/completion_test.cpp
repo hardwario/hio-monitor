@@ -2,11 +2,11 @@
 // LRU, two-process lock) and Completer. Plan 0022 (ADR-0178): helpSupportsDashH, the dashH flag
 // (schema 2) and bare command names.
 
-#include "hio/core/error.h"
-#include "hio/device/command_tree.h"
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/completer.h"
-#include "hio/device/device_info.h"
+#include "hwio/core/error.h"
+#include "hwio/device/command_tree.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/completer.h"
+#include "hwio/device/device_info.h"
 #include "lock_holder.h"
 
 #include <QJsonArray>
@@ -31,15 +31,15 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::device::CommandEntry;
-using hio::device::CommandTree;
-using hio::device::CommandTreeCache;
-using hio::device::Completer;
-using hio::device::FirmwareKey;
-using hio::device::helpSupportsDashH;
-using hio::device::parseHelp;
-using hio::device::parseInfoShow;
-using hio::device::Suggestion;
+using hwio::device::CommandEntry;
+using hwio::device::CommandTree;
+using hwio::device::CommandTreeCache;
+using hwio::device::Completer;
+using hwio::device::FirmwareKey;
+using hwio::device::helpSupportsDashH;
+using hwio::device::parseHelp;
+using hwio::device::parseInfoShow;
+using hwio::device::Suggestion;
 
 // ---- info show -----------------------------------------------------------------------------
 
@@ -78,10 +78,10 @@ TEST(InfoShow, Bounded) {
     // A multi-byte character across the cut is not split.
     lines.insert(lines.begin(), "utf: " + std::string(255, 'a') + "\xc3\xa9");
     const auto info = parseInfoShow(lines);
-    ASSERT_EQ(info.fields.size(), hio::device::DeviceInfo::maxFields);
+    ASSERT_EQ(info.fields.size(), hwio::device::DeviceInfo::maxFields);
     EXPECT_EQ(info.fields.front().value.size(), 255U);
     for (const auto& field : info.fields) {
-        EXPECT_LE(field.value.size(), hio::device::DeviceInfo::maxFieldBytes);
+        EXPECT_LE(field.value.size(), hwio::device::DeviceInfo::maxFieldBytes);
     }
 }
 
@@ -270,7 +270,7 @@ TEST(CommandTreeTest, DashHFlagAndOldSchema) {
     old.remove(QStringLiteral("dashH"));
     const auto rejected = CommandTree::fromJson(old);
     ASSERT_FALSE(rejected);
-    EXPECT_EQ(rejected.error().code, hio::ErrorCode::UsageInvalidArgument);
+    EXPECT_EQ(rejected.error().code, hwio::ErrorCode::UsageInvalidArgument);
     QJsonObject noFlag = json;
     noFlag.remove(QStringLiteral("dashH"));
     EXPECT_FALSE(CommandTree::fromJson(noFlag));
@@ -371,7 +371,7 @@ TEST_F(TreeCache, TooLargeIsRefused) {
     ASSERT_TRUE(big.setChildren({}, many));
     const auto stored = cache.store(key("v1"), big);
     ASSERT_FALSE(stored);
-    EXPECT_EQ(stored.error().code, hio::ErrorCode::UsageInvalidArgument);
+    EXPECT_EQ(stored.error().code, hwio::ErrorCode::UsageInvalidArgument);
     EXPECT_FALSE(fs::exists(cache.fileFor(key("v1"))));
 }
 
@@ -401,7 +401,7 @@ TEST_F(TreeCache, LockHeldByAnotherProcessSkipsTheStore) {
     CommandTreeCache cache(dir());
     cache.setLockTimeout(std::chrono::milliseconds(100));
     fs::create_directories(dir());
-    hio::device::test::LockHolder holder(QString::fromStdU16String((dir() / ".lock").u16string()));
+    hwio::device::test::LockHolder holder(QString::fromStdU16String((dir() / ".lock").u16string()));
     ASSERT_TRUE(holder.waitUntilLocked());
     const auto start = std::chrono::steady_clock::now();
     EXPECT_TRUE(cache.store(key("v1"), sampleTree())); // skipped, not an error

@@ -4,8 +4,8 @@
 
 #ifdef Q_OS_MACOS
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 #include "platform/process_source.h"
 
 #include <QtTypes>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::diag::platform {
+namespace hwio::diag::platform {
 
 namespace {
 
@@ -75,6 +75,6 @@ public:
 
 std::shared_ptr<IProcessSource> makeProcessSource() { return std::make_shared<MacProcessSource>(); }
 
-} // namespace hio::diag::platform
+} // namespace hwio::diag::platform
 
 #endif

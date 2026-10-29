@@ -1,8 +1,8 @@
 #include "confirm.h"
 
 #include "cli_app.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 #include "output.h"
 #include "terminal.h"
 
@@ -13,7 +13,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 Status confirmDestructive(const Context& context, bool yes, const std::string& question,
                           const std::function<bool(const std::string&)>& ask,
@@ -36,4 +36,4 @@ Status confirmDestructive(const Context& context, bool yes, const std::string& q
     return {};
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

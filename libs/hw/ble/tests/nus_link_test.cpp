@@ -1,10 +1,10 @@
 // NusLink on a GMock IBleApi (plan/features/0011 Tests: chunking, write modes, timeouts, pairing
 // wait; ADR-0082, ADR-0084).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/nus_link.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/nus_link.h"
+#include "hwio/hw/ble/types.h"
 #include "mock_ble_api.h"
 
 #include <gmock/gmock.h>
@@ -22,17 +22,17 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::ble::LinkId;
-using hio::ble::LinkReady;
-using hio::ble::LinkTiming;
-using hio::ble::NusLink;
-using hio::ble::WriteMode;
-using hio::ble::test::HandlerLog;
-using hio::ble::test::MockBleApi;
-using hio::ble::test::RecordingHandler;
-using hio::ble::test::runFor;
-using hio::ble::test::runUntil;
+using hwio::ErrorCode;
+using hwio::ble::LinkId;
+using hwio::ble::LinkReady;
+using hwio::ble::LinkTiming;
+using hwio::ble::NusLink;
+using hwio::ble::WriteMode;
+using hwio::ble::test::HandlerLog;
+using hwio::ble::test::MockBleApi;
+using hwio::ble::test::RecordingHandler;
+using hwio::ble::test::runFor;
+using hwio::ble::test::runUntil;
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -47,7 +47,7 @@ struct Write {
 class NusLinkTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        ON_CALL(m_api, connect(_, _)).WillByDefault(Return(hio::Result<LinkId>(7)));
+        ON_CALL(m_api, connect(_, _)).WillByDefault(Return(hwio::Result<LinkId>(7)));
         ON_CALL(m_api, write(_, _, _, _))
             .WillByDefault([this](LinkId, std::span<const std::byte> chunk, WriteMode mode,
                                   std::uint64_t token) {
@@ -56,14 +56,14 @@ protected:
                     bytes.push_back(static_cast<char>(b));
                 }
                 m_writes.push_back(Write{.bytes = std::move(bytes), .mode = mode, .token = token});
-                return hio::Status{};
+                return hwio::Status{};
             });
     }
 
     std::unique_ptr<NusLink> makeLink(LinkTiming timing = {}) {
-        return std::make_unique<NusLink>(m_api, "F1:22:33:44:55:66",
-                                         hio::ble::NusUuids{.service = "s", .rx = "rx", .tx = "tx"},
-                                         std::make_unique<RecordingHandler>(m_log), timing);
+        return std::make_unique<NusLink>(
+            m_api, "F1:22:33:44:55:66", hwio::ble::NusUuids{.service = "s", .rx = "rx", .tx = "tx"},
+            std::make_unique<RecordingHandler>(m_log), timing);
     }
 
     std::unique_ptr<NusLink> readyLink(std::uint16_t mtu, WriteMode mode = WriteMode::WithResponse,
@@ -217,7 +217,7 @@ TEST_F(NusLinkTest, WriteTimeoutEndsTheLink) {
 TEST_F(NusLinkTest, FailedWriteEndsTheLinkWithItsError) {
     auto link = readyLink(247);
     link->sendLine("version");
-    link->onWriteDone(writes().at(0).token, hio::makeError(ErrorCode::BleNotPaired));
+    link->onWriteDone(writes().at(0).token, hwio::makeError(ErrorCode::BleNotPaired));
     EXPECT_EQ(log().events.back(), "down ble.not_paired");
     EXPECT_EQ(link->state(), NusLink::State::Down);
 }
@@ -290,7 +290,7 @@ TEST_F(NusLinkTest, QuickCccdShowsNoPrompt) {
 // No time for a retry before the deadline (H6): the first error is the final one, at once.
 TEST_F(NusLinkTest, ConnectErrorIsReported) {
     EXPECT_CALL(api(), connect(_, _))
-        .WillOnce(Return(hio::Result<LinkId>(hio::fail(ErrorCode::BleConnectFailed))));
+        .WillOnce(Return(hwio::Result<LinkId>(hwio::fail(ErrorCode::BleConnectFailed))));
     auto link = makeLink(LinkTiming{.connectDeadline = 500ms,
                                     .pairingDeadline = 60s,
                                     .pairingPromptDelay = 2s,
@@ -306,9 +306,9 @@ TEST_F(NusLinkTest, ConnectErrorIsReported) {
 // connectRetryDelay; the handler sees only the final result.
 TEST_F(NusLinkTest, FailedConnectAttemptIsRetried) {
     EXPECT_CALL(api(), connect(_, _))
-        .WillOnce(Return(hio::Result<LinkId>(hio::fail(ErrorCode::BleConnectFailed))))
-        .WillOnce(Return(hio::Result<LinkId>(7)))
-        .WillOnce(Return(hio::Result<LinkId>(8)));
+        .WillOnce(Return(hwio::Result<LinkId>(hwio::fail(ErrorCode::BleConnectFailed))))
+        .WillOnce(Return(hwio::Result<LinkId>(7)))
+        .WillOnce(Return(hwio::Result<LinkId>(8)));
     auto link = makeLink(LinkTiming{.connectDeadline = 20s,
                                     .pairingDeadline = 60s,
                                     .pairingPromptDelay = 2s,
@@ -321,7 +321,7 @@ TEST_F(NusLinkTest, FailedConnectAttemptIsRetried) {
     link->connect(false);
     EXPECT_EQ(link->state(), NusLink::State::Connecting);
     ASSERT_TRUE(runUntil([&] { return link->link() == LinkId{7}; }));
-    link->onLinkLost(hio::makeError(ErrorCode::BleConnectFailed, "UnknownError"));
+    link->onLinkLost(hwio::makeError(ErrorCode::BleConnectFailed, "UnknownError"));
     EXPECT_EQ(link->state(), NusLink::State::Connecting);
     ASSERT_TRUE(runUntil([&] { return link->link() == LinkId{8}; }));
     link->onLinkConnecting(true);
@@ -333,7 +333,7 @@ TEST_F(NusLinkTest, ConnectRetriesRunOutAtTheDeadline) {
     int attempts = 0;
     EXPECT_CALL(api(), connect(_, _)).WillRepeatedly([&attempts](auto&&...) {
         ++attempts;
-        return hio::Result<LinkId>(hio::fail(ErrorCode::BleConnectFailed));
+        return hwio::Result<LinkId>(hwio::fail(ErrorCode::BleConnectFailed));
     });
     auto link = makeLink(LinkTiming{.connectDeadline = 100ms,
                                     .pairingDeadline = 60s,
@@ -360,7 +360,7 @@ TEST_F(NusLinkTest, ImmediateConnectFailuresBackOff) {
     std::vector<std::chrono::steady_clock::time_point> attempts;
     EXPECT_CALL(api(), connect(_, _)).WillRepeatedly([&attempts](auto&&...) {
         attempts.push_back(std::chrono::steady_clock::now());
-        return hio::Result<LinkId>(hio::fail(ErrorCode::BleConnectFailed));
+        return hwio::Result<LinkId>(hwio::fail(ErrorCode::BleConnectFailed));
     });
     auto link = makeLink(LinkTiming{.connectDeadline = 1000ms,
                                     .pairingDeadline = 60s,
@@ -387,7 +387,7 @@ TEST_F(NusLinkTest, LongConnectAttemptIsFollowedByTheBusyDelay) {
     int attempts = 0;
     EXPECT_CALL(api(), connect(_, _)).WillRepeatedly([&attempts](auto&&...) {
         ++attempts;
-        return hio::Result<LinkId>(static_cast<LinkId>(attempts));
+        return hwio::Result<LinkId>(static_cast<LinkId>(attempts));
     });
     auto link = makeLink(LinkTiming{.connectDeadline = 20s,
                                     .pairingDeadline = 60s,
@@ -400,7 +400,7 @@ TEST_F(NusLinkTest, LongConnectAttemptIsFollowedByTheBusyDelay) {
                                     .connectBusyRetryDelay = 150ms});
     link->connect(false);
     runFor(60ms);
-    link->onLinkLost(hio::makeError(ErrorCode::BleConnectFailed, "UnknownError"));
+    link->onLinkLost(hwio::makeError(ErrorCode::BleConnectFailed, "UnknownError"));
     const auto lost = std::chrono::steady_clock::now();
     ASSERT_TRUE(runUntil([&] { return attempts == 2; }));
     EXPECT_GE(std::chrono::steady_clock::now() - lost, 140ms);
@@ -419,11 +419,11 @@ TEST_F(NusLinkTest, FatalConnectErrorsAndThePairingWaitAreNotRetried) {
     EXPECT_CALL(api(), connect(_, _)).Times(2);
     auto link = makeLink(timing);
     link->connect(false);
-    link->onLinkLost(hio::makeError(ErrorCode::BleServiceNotFound));
+    link->onLinkLost(hwio::makeError(ErrorCode::BleServiceNotFound));
     EXPECT_EQ(log().events.back(), "down ble.service_not_found");
     link->connect(false);
     link->onLinkConnecting(true);
-    link->onLinkLost(hio::makeError(ErrorCode::BleConnectFailed, "CCCD write refused"));
+    link->onLinkLost(hwio::makeError(ErrorCode::BleConnectFailed, "CCCD write refused"));
     EXPECT_EQ(log().events.back(), "down ble.connect_failed");
     runFor(50ms);
     EXPECT_EQ(link->state(), NusLink::State::Down);
@@ -433,7 +433,7 @@ TEST_F(NusLinkTest, FatalConnectErrorsAndThePairingWaitAreNotRetried) {
 TEST_F(NusLinkTest, LostLinkIsNotDisconnectedAgain) {
     auto link = readyLink(247);
     EXPECT_CALL(api(), disconnect(_)).Times(0);
-    link->onLinkLost(hio::makeError(ErrorCode::BleDisconnected));
+    link->onLinkLost(hwio::makeError(ErrorCode::BleDisconnected));
     EXPECT_EQ(log().events.back(), "down ble.disconnected");
     ::testing::Mock::VerifyAndClearExpectations(&api());
 }
@@ -457,7 +457,7 @@ TEST_F(NusLinkTest, LateWriteConfirmationOfAnOldLinkIsIgnored) {
     auto link = readyLink(247);
     link->sendLine("a");
     const std::uint64_t old = writes().at(0).token;
-    link->onLinkLost(hio::makeError(ErrorCode::BleDisconnected));
+    link->onLinkLost(hwio::makeError(ErrorCode::BleDisconnected));
     link->onWriteDone(old, std::nullopt);
     EXPECT_TRUE(log().written.empty());
 }

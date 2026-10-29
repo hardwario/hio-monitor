@@ -1,13 +1,13 @@
 #include "update_commands.h"
 
 #include "cli_app.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/core/version.h"
-#include "hio/update/releases.h"
-#include "hio/update/semver.h"
-#include "hio/update/update_check.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/core/version.h"
+#include "hwio/update/releases.h"
+#include "hwio/update/semver.h"
+#include "hwio/update/update_check.h"
 
 #include <QDateTime>
 #include <QJsonObject>
@@ -29,7 +29,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -119,4 +119,4 @@ void registerUpdateCommands(CLI::App& app, CommandSlot& slot) {
     });
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

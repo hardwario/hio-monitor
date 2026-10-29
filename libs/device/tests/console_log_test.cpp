@@ -1,5 +1,5 @@
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
 
 #include <gtest/gtest.h>
 
@@ -11,11 +11,11 @@
 
 namespace {
 
-using hio::device::Channel;
-using hio::device::ChannelMask;
-using hio::device::ConsoleLine;
-using hio::device::ConsoleLog;
-using hio::device::Direction;
+using hwio::device::Channel;
+using hwio::device::ChannelMask;
+using hwio::device::ConsoleLine;
+using hwio::device::ConsoleLog;
+using hwio::device::Direction;
 
 ConsoleLine line(Channel channel, std::string text) {
     ConsoleLine result;

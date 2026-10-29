@@ -9,9 +9,9 @@
 // Bounded: at most maxSegments segments of at most maxSegmentBytes bytes are kept; the input
 // itself is capped by the caller (CatalogOptions::maxPageBytes). Fuzzed by catalog_page_fuzz.
 
-#include "hio/core/error.h"
-#include "hio/firmware/designated_firmware.h"
-#include "hio/firmware/firmware_catalog.h"
+#include "hwio/core/error.h"
+#include "hwio/firmware/designated_firmware.h"
+#include "hwio/firmware/firmware_catalog.h"
 
 #include <algorithm>
 #include <array>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 namespace {
 
@@ -277,4 +277,4 @@ std::expected<CatalogInfo, Error> parseCatalogPage(std::string_view html) {
                        .sha256 = findHexChecksum(segments)};
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

@@ -1,4 +1,4 @@
-#include "hio/core/app_identity.h"
+#include "hwio/core/app_identity.h"
 
 #include <QCoreApplication>
 #include <QStandardPaths>
@@ -10,6 +10,6 @@ int main(int argc, char** argv) {
     ::testing::InitGoogleMock(&argc, argv);
     QStandardPaths::setTestModeEnabled(true);
     const QCoreApplication app(argc, argv);
-    hio::initApplicationIdentity();
+    hwio::initApplicationIdentity();
     return RUN_ALL_TESTS();
 }

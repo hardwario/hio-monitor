@@ -1,5 +1,5 @@
-// End-to-end tests of `hio mcp` (plan/features/0013 C6, "CLI e2e"): the real `hio` executable with
-// the fake J-Link library, driven over stdio with scripted JSON-RPC in both dialects (legacy
+// End-to-end tests of `hwio mcp` (plan/features/0013 C6, "CLI e2e"): the real `hwio` executable
+// with the fake J-Link library, driven over stdio with scripted JSON-RPC in both dialects (legacy
 // 2025-11-25 and modern 2026-07-28) and over HTTP with a Qt client.
 
 #include "cli_process.h"
@@ -46,8 +46,8 @@
 namespace {
 
 using namespace std::chrono_literals;
-using hio::cli::test::CliProcess;
-using hio::cli::test::RunResult;
+using hwio::cli::test::CliProcess;
+using hwio::cli::test::RunResult;
 
 constexpr const char* device = "jlink:801000001";
 // A valid token (43 base64url characters); a test value only.
@@ -121,7 +121,7 @@ QString toolErrorCode(const QJsonObject& response) {
         .toString();
 }
 
-// One running `hio mcp` child over stdio.
+// One running `hwio mcp` child over stdio.
 class McpProcess {
 public:
     McpProcess(const QStringList& args, const QProcessEnvironment& env)
@@ -198,7 +198,7 @@ public:
 private:
     static bool start(QProcess& process, const QStringList& args, const QProcessEnvironment& env) {
         process.setProcessEnvironment(env);
-        process.start(QStringLiteral(HIO_CLI_EXECUTABLE),
+        process.start(QStringLiteral(HWIO_CLI_EXECUTABLE),
                       QStringList{QStringLiteral("mcp")} << args);
         return process.waitForStarted(10000);
     }
@@ -250,8 +250,8 @@ protected:
         writeFile(QStringLiteral("scenario.json"), scenario);
         writeFile(QStringLiteral("app.hex"),
                   QByteArray::fromStdString(
-                      hio::firmware::test::hexRecord(0, 0x2000, {1, 2, 3, 4, 5, 6, 7, 8}) +
-                      hio::firmware::test::eofRecord()));
+                      hwio::firmware::test::hexRecord(0, 0x2000, {1, 2, 3, 4, 5, 6, 7, 8}) +
+                      hwio::firmware::test::eofRecord()));
     }
 
     void writeFile(const QString& name, const QByteArray& bytes) const {
@@ -265,14 +265,14 @@ protected:
 
     [[nodiscard]] QProcessEnvironment fakeEnvironment() const {
         QProcessEnvironment env = environment();
-        env.insert(QStringLiteral("HIO_FAKE_JLINK_SCENARIO"),
+        env.insert(QStringLiteral("HWIO_FAKE_JLINK_SCENARIO"),
                    path(QStringLiteral("scenario.json")));
-        env.insert(QStringLiteral("HIO_JLINK_LIBRARY"), QStringLiteral(HIO_FAKE_JLINK_LIBRARY));
-        env.remove(QStringLiteral("HIO_MCP_TOKEN"));
+        env.insert(QStringLiteral("HWIO_JLINK_LIBRARY"), QStringLiteral(HWIO_FAKE_JLINK_LIBRARY));
+        env.remove(QStringLiteral("HWIO_MCP_TOKEN"));
         return env;
     }
 
-    // `hio jlink list`: nobody (no session, no other process) uses the probe any more.
+    // `hwio jlink list`: nobody (no session, no other process) uses the probe any more.
     void expectProbeFree() const {
         const RunResult list =
             run({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")},
@@ -480,7 +480,7 @@ TEST_F(McpCli, SigintEndsWith130AndClosesSessions) {
 #endif
 
 #ifndef _WIN32
-// Review S4: a failed write to stdout (the client closed its end) ends `hio mcp` like any command
+// Review S4: a failed write to stdout (the client closed its end) ends `hwio mcp` like any command
 // whose reader went away: `cancelled` "The output was closed.", exit 130. stdin stays open.
 TEST_F(McpCli, ClosedStdoutEndsWith130) {
     QProcess shell;
@@ -488,7 +488,7 @@ TEST_F(McpCli, ClosedStdoutEndsWith130) {
     shell.start(QStringLiteral("bash"),
                 {QStringLiteral("-c"),
                  QStringLiteral(R"("$0" mcp | true; exit "${PIPESTATUS[0]}")"),
-                 QStringLiteral(HIO_CLI_EXECUTABLE)});
+                 QStringLiteral(HWIO_CLI_EXECUTABLE)});
     ASSERT_TRUE(shell.waitForStarted(10000));
     // Requests until a response write fails (the first ones may still fit the pipe buffer).
     const QByteArray request = QJsonDocument(message(1, QStringLiteral("tools/list"), {}, true))
@@ -508,7 +508,7 @@ TEST_F(McpCli, ClosedStdoutEndsWith130) {
         shell.kill();
         shell.waitForFinished(5000);
     }
-    ASSERT_TRUE(exited) << "hio mcp did not stop after its stdout was closed";
+    ASSERT_TRUE(exited) << "hwio mcp did not stop after its stdout was closed";
     const std::string err = shell.readAllStandardError().toStdString();
     EXPECT_EQ(shell.exitStatus(), QProcess::NormalExit);
     EXPECT_EQ(shell.exitCode(), 130) << err;
@@ -516,7 +516,7 @@ TEST_F(McpCli, ClosedStdoutEndsWith130) {
 }
 #endif
 
-// Review S5: `hio mcp --help` documents that stdin EOF cancels the running calls.
+// Review S5: `hwio mcp --help` documents that stdin EOF cancels the running calls.
 TEST_F(McpCli, HelpDocumentsTheEndOfInput) {
     const RunResult help =
         run({QStringLiteral("mcp"), QStringLiteral("--help")}, fakeEnvironment());
@@ -620,7 +620,7 @@ TEST_F(McpHttpCli, ToolsOverHttpWithTokenFromTheEnvironment) {
     const quint16 port = freePort();
     ASSERT_NE(port, 0);
     QProcessEnvironment env = fakeEnvironment();
-    env.insert(QStringLiteral("HIO_MCP_TOKEN"), QString::fromLatin1(testToken));
+    env.insert(QStringLiteral("HWIO_MCP_TOKEN"), QString::fromLatin1(testToken));
     McpProcess mcp({QStringLiteral("--http"), QStringLiteral("--port"), QString::number(port),
                     QStringLiteral("--allow"), QStringLiteral("erase,uicr")},
                    env);
@@ -632,7 +632,7 @@ TEST_F(McpHttpCli, ToolsOverHttpWithTokenFromTheEnvironment) {
                               .toStdString()),
               std::string::npos)
         << banner;
-    EXPECT_NE(banner.find("Token: from HIO_MCP_TOKEN\n"), std::string::npos) << banner;
+    EXPECT_NE(banner.find("Token: from HWIO_MCP_TOKEN\n"), std::string::npos) << banner;
     EXPECT_NE(banner.find("Allowed destructive tools: erase, uicr\n"), std::string::npos) << banner;
     EXPECT_EQ(banner.find(testToken), std::string::npos); // the token is not repeated
 
@@ -716,7 +716,7 @@ TEST_F(McpHttpCli, TokenFileIsCreatedAndGeneratedTokenIsPrinted) {
         EXPECT_EQ(list.status, 200) << list.body.toStdString();
     }
     {
-        // Without a file or HIO_MCP_TOKEN: a token for this run, printed once.
+        // Without a file or HWIO_MCP_TOKEN: a token for this run, printed once.
         McpProcess mcp({QStringLiteral("--http"), QStringLiteral("--port"), QString::number(port)},
                        fakeEnvironment());
         ASSERT_TRUE(mcp.started());
@@ -726,7 +726,8 @@ TEST_F(McpHttpCli, TokenFileIsCreatedAndGeneratedTokenIsPrinted) {
         const auto at = err.find(prefix);
         ASSERT_NE(at, std::string::npos) << err;
         const std::string token = err.substr(at + prefix.size(), 43);
-        EXPECT_NE(err.find("set HIO_MCP_TOKEN or use --token-file to keep one"), std::string::npos);
+        EXPECT_NE(err.find("set HWIO_MCP_TOKEN or use --token-file to keep one"),
+                  std::string::npos);
         const Reply list = post(port, message(1, QStringLiteral("tools/list"), {}, true),
                                 QByteArray::fromStdString(token));
         EXPECT_EQ(list.status, 200) << list.body.toStdString();
@@ -753,12 +754,12 @@ TEST_F(McpHttpCli, PortOutOfRangeIsAUsageError) {
 
 TEST_F(McpHttpCli, InvalidTokenInTheEnvironmentIsAUsageError) {
     QProcessEnvironment env = fakeEnvironment();
-    env.insert(QStringLiteral("HIO_MCP_TOKEN"), QStringLiteral("short"));
+    env.insert(QStringLiteral("HWIO_MCP_TOKEN"), QStringLiteral("short"));
     const RunResult result = run({QStringLiteral("mcp"), QStringLiteral("--http"),
                                   QStringLiteral("--port"), QString::number(freePort())},
                                  env);
     EXPECT_EQ(result.exitCode, 2) << result.err;
-    EXPECT_NE(result.err.find("HIO_MCP_TOKEN must hold a token"), std::string::npos) << result.err;
+    EXPECT_NE(result.err.find("HWIO_MCP_TOKEN must hold a token"), std::string::npos) << result.err;
 }
 
 } // namespace

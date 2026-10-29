@@ -13,7 +13,7 @@
 
 #include <shobjidl_core.h>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 void applyPlatformIdentity() {
     const HRESULT result = SetCurrentProcessExplicitAppUserModelID(L"com.hardwario.monitor");
@@ -23,4 +23,4 @@ void applyPlatformIdentity() {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

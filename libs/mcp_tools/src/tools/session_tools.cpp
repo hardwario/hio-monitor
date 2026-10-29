@@ -2,17 +2,17 @@
 // jlink_close / jlink_open): reconnect, stop, start, release_probe, reacquire_probe. They queue a
 // command for the session and return at once; wait_for_connection waits for the outcome.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_session.h"
-#include "hio/device/session_events.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
-#include "hio/mcp/tools/device_provider.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/session_events.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
+#include "hwio/mcp/tools/device_provider.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "tool_support.h"
 #include "tools/tools.h"
 
@@ -26,11 +26,11 @@
 #include <optional>
 #include <utility>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 namespace {
 
-using hio::mcp::Schema;
+using hwio::mcp::Schema;
 
 constexpr const char* reconnectDescription =
     "Restart the console connection without resetting the device: re-attach RTT (J-Link) or "
@@ -69,15 +69,15 @@ QJsonObject connectionResult(const DeviceRef& ref) {
 }
 
 using SessionAction =
-    std::function<hio::Result<QJsonObject>(const ResolvedDevice& device, const QJsonObject& args)>;
+    std::function<hwio::Result<QJsonObject>(const ResolvedDevice& device, const QJsonObject& args)>;
 
 // A synchronous control tool: device resolution (J-Link only when `jlinkOnly`), the start marker
 // (ADR-0105), then `action`.
-hio::mcp::ToolStart controlStart(ToolsContext& context, const char* tool, bool jlinkOnly,
-                                 SessionAction action) {
-    return [&context, tool, jlinkOnly,
-            action = std::move(action)](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                        hio::mcp::ToolEnv&) -> std::unique_ptr<hio::mcp::ToolCall> {
+hwio::mcp::ToolStart controlStart(ToolsContext& context, const char* tool, bool jlinkOnly,
+                                  SessionAction action) {
+    return [&context, tool, jlinkOnly, action = std::move(action)](
+               const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+               hwio::mcp::ToolEnv&) -> std::unique_ptr<hwio::mcp::ToolCall> {
         auto device = jlinkOnly ? resolveJLinkDevice(context.provider(), args)
                                 : resolveDevice(context.provider(), args);
         if (!device) {
@@ -94,10 +94,10 @@ QJsonObject deviceOnly() {
     return Schema::object().property(QStringLiteral("device"), deviceArgument()).json();
 }
 
-hio::Status addReconnect(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addReconnect(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "reconnect",
             .title = "Reconnect the console",
             .description = reconnectDescription,
@@ -115,8 +115,8 @@ hio::Status addReconnect(hio::mcp::Registry& registry, ToolsContext& context) {
             .annotations = control,
             .consent = {},
             .marker = true,
-            .start = [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                hio::mcp::ToolEnv&) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                                hwio::mcp::ToolEnv&) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 auto device = resolveDevice(context.provider(), args);
                 if (!device) {
                     return failed(std::move(device).error());
@@ -148,10 +148,10 @@ hio::Status addReconnect(hio::mcp::Registry& registry, ToolsContext& context) {
             .validate = {}});
 }
 
-hio::Status addStop(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addStop(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "stop",
             .title = "Stop reading RTT",
             .description = stopDescription,
@@ -163,10 +163,10 @@ hio::Status addStop(hio::mcp::Registry& registry, ToolsContext& context) {
             .marker = true,
             .start = controlStart(
                 context, "stop", true,
-                [](const ResolvedDevice& device, const QJsonObject&) -> hio::Result<QJsonObject> {
+                [](const ResolvedDevice& device, const QJsonObject&) -> hwio::Result<QJsonObject> {
                     const auto state = device.ref.console->connection().state;
-                    const bool wasReading = state == hio::device::ConnectionState::Connected ||
-                                            state == hio::device::ConnectionState::Connecting;
+                    const bool wasReading = state == hwio::device::ConnectionState::Connected ||
+                                            state == hwio::device::ConnectionState::Connecting;
                     if (auto suspended = device.ref.jlink->suspend(); !suspended) {
                         return std::unexpected(std::move(suspended).error());
                     }
@@ -177,10 +177,10 @@ hio::Status addStop(hio::mcp::Registry& registry, ToolsContext& context) {
             .validate = {}});
 }
 
-hio::Status addStart(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addStart(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "start",
             .title = "Start reading RTT",
             .description = startDescription,
@@ -192,9 +192,9 @@ hio::Status addStart(hio::mcp::Registry& registry, ToolsContext& context) {
             .marker = true,
             .start = controlStart(
                 context, "start", true,
-                [](const ResolvedDevice& device, const QJsonObject&) -> hio::Result<QJsonObject> {
+                [](const ResolvedDevice& device, const QJsonObject&) -> hwio::Result<QJsonObject> {
                     const bool reading = device.ref.console->connection().state ==
-                                         hio::device::ConnectionState::Connected;
+                                         hwio::device::ConnectionState::Connected;
                     if (!reading) {
                         if (auto resumed = device.ref.jlink->resume(); !resumed) {
                             return std::unexpected(std::move(resumed).error());
@@ -207,10 +207,10 @@ hio::Status addStart(hio::mcp::Registry& registry, ToolsContext& context) {
             .validate = {}});
 }
 
-hio::Status addReleaseProbe(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addReleaseProbe(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "release_probe",
             .title = "Release the probe",
             .description = releaseProbeDescription,
@@ -222,7 +222,7 @@ hio::Status addReleaseProbe(hio::mcp::Registry& registry, ToolsContext& context)
             .marker = true,
             .start = controlStart(
                 context, "release_probe", true,
-                [](const ResolvedDevice& device, const QJsonObject&) -> hio::Result<QJsonObject> {
+                [](const ResolvedDevice& device, const QJsonObject&) -> hwio::Result<QJsonObject> {
                     if (auto released = device.ref.jlink->releaseProbe(); !released) {
                         return std::unexpected(std::move(released).error());
                     }
@@ -233,10 +233,10 @@ hio::Status addReleaseProbe(hio::mcp::Registry& registry, ToolsContext& context)
             .validate = {}});
 }
 
-hio::Status addReacquireProbe(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addReacquireProbe(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "reacquire_probe",
             .title = "Take the probe back",
             .description = reacquireProbeDescription,
@@ -248,7 +248,7 @@ hio::Status addReacquireProbe(hio::mcp::Registry& registry, ToolsContext& contex
             .marker = true,
             .start = controlStart(
                 context, "reacquire_probe", true,
-                [](const ResolvedDevice& device, const QJsonObject&) -> hio::Result<QJsonObject> {
+                [](const ResolvedDevice& device, const QJsonObject&) -> hwio::Result<QJsonObject> {
                     if (auto reacquired = device.ref.jlink->reacquireProbe(); !reacquired) {
                         return std::unexpected(std::move(reacquired).error());
                     }
@@ -259,7 +259,7 @@ hio::Status addReacquireProbe(hio::mcp::Registry& registry, ToolsContext& contex
 
 } // namespace
 
-hio::Status registerSessionTools(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status registerSessionTools(hwio::mcp::Registry& registry, ToolsContext& context) {
     for (const auto& add :
          {&addReconnect, &addStop, &addStart, &addReleaseProbe, &addReacquireProbe}) {
         if (auto added = add(registry, context); !added) {
@@ -269,4 +269,4 @@ hio::Status registerSessionTools(hio::mcp::Registry& registry, ToolsContext& con
     return {};
 }
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

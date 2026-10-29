@@ -13,7 +13,7 @@
 
 #include <cstddef>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 PageListModel::PageListModel(const PageRegistry& registry, QObject* parent)
     : QAbstractListModel(parent), m_registry(registry) {}
@@ -69,4 +69,4 @@ void PageListModel::retranslate() {
     revisionChanged(); // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

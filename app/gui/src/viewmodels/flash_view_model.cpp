@@ -1,13 +1,13 @@
 #include "viewmodels/flash_view_model.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/firmware/program_progress.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/program_progress.h"
 #include "pages/firmware_services.h"
 #include "viewmodels/dependency_status.h"
 #include "viewmodels/device_tab_view_model.h"
@@ -39,7 +39,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -412,7 +412,7 @@ void FlashViewModel::runRecover(const QString& target) {
 }
 
 bool FlashViewModel::eraseCodeAvailable() const {
-    // The profile's default erase (CHESTER: app Code, lte All; as `hio chester lte erase`).
+    // The profile's default erase (CHESTER: app Code, lte All; as `hwio chester lte erase`).
     const device::TargetProfile* target = targetProfile(targetId());
     return target == nullptr || target->defaultErase == device::EraseScope::Code;
 }
@@ -1008,4 +1008,4 @@ void FlashViewModel::retranslate() {
     stateChanged();    // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -1,6 +1,6 @@
 #pragma once
 
-// CliDeviceProvider - the IDeviceProvider of `hio mcp` (plan/features/0013 "Device and consent
+// CliDeviceProvider - the IDeviceProvider of `hwio mcp` (plan/features/0013 "Device and consent
 // seams", ADR-0098, ADR-0156).
 //
 // It owns the sessions it opened (std::unique_ptr<ConsoleSession>, at most
@@ -15,7 +15,7 @@
 // and the lock-owner lookup (ProbeLock::owner) as one job on the server's Offloader, with copied
 // data only (library location, instance root, lock directory). The result comes back to the owner
 // thread, where it is merged with this process's sessions (SessionRegistry::sessionForProbe) and
-// cached; list() only reads the cache. `hio mcp` sets the offloader after the server is built
+// cached; list() only reads the cache. `hwio mcp` sets the offloader after the server is built
 // (setOffloader) and starts one refresh; until that first enumeration has finished,
 // firstScanPending() is true and list_devices waits for it (review V1). Without an offloader
 // refresh() fails with internal.unexpected. The enumeration cannot be interrupted (the JLinkARM
@@ -24,7 +24,7 @@
 // dropped (Offloader handle cancelled, stopAll(), the offloader destroyed) its `done` is never
 // called; the waiters are then failed with `cancelled` from a queued call (review F3).
 //
-// Connect defaults: the `hio mcp` options --jlink-speed (else the target's default speed) and
+// Connect defaults: the `hwio mcp` options --jlink-speed (else the target's default speed) and
 // --auto-reconnect; the profile "chester" and its first target when the request leaves them out.
 // beginBusy / endBusy / setAiCommandHint only log (the CLI has no UI); marker() appends to the
 // session's ConsoleLog (Shell channel). devicesChanged() follows every open and close.
@@ -33,17 +33,17 @@
 // no member. close() and closeAll() destroy sessions
 // synchronously (the worker is joined), so they must not run inside a session's signal.
 
-#include "hio/core/result.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_session.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/mcp/offload.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/tools/device_provider.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/mcp/offload.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/tools/device_provider.h"
 
 #include <QPointer>
 #include <QString>
@@ -59,7 +59,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 struct CliProviderOptions {
     // --jlink-speed: when given, the speed for `connect` without speed_khz (nullopt = automatic);
@@ -71,7 +71,7 @@ struct CliProviderOptions {
     std::optional<std::filesystem::path> nrfUtil;        // --nrfutil (modem updates, ADR-0016)
 };
 
-class CliDeviceProvider final : public hio::mcp::tools::IDeviceProvider {
+class CliDeviceProvider final : public hwio::mcp::tools::IDeviceProvider {
 public:
     // Waiters of one running refresh (list_devices calls are bounded by the server's in-flight
     // limit; one more for the start-up refresh).
@@ -89,22 +89,22 @@ public:
     CliDeviceProvider& operator=(CliDeviceProvider&&) = delete;
 
     // The open sessions, then the probes of the last enumeration (never enumerates).
-    [[nodiscard]] std::vector<hio::mcp::tools::DeviceEntry> list() override;
-    void refresh(std::function<void(hio::Status)> done) override;
+    [[nodiscard]] std::vector<hwio::mcp::tools::DeviceEntry> list() override;
+    void refresh(std::function<void(hwio::Status)> done) override;
     [[nodiscard]] bool firstScanPending() const override { return m_firstScanPending; }
     // The server's offloader for refresh() (ADR-0162). Held by a QPointer: once the offloader is
     // destroyed refresh() behaves as without one.
-    void setOffloader(hio::mcp::Offloader* offloader) { m_offloader = offloader; }
-    void open(const hio::mcp::tools::OpenRequest& request,
-              std::function<void(hio::Result<hio::mcp::tools::DeviceRef>)> done) override;
-    [[nodiscard]] hio::Status close(std::string_view id,
-                                    const hio::mcp::RequestContext& context) override;
-    [[nodiscard]] std::optional<hio::mcp::tools::DeviceRef> find(std::string_view id) override;
+    void setOffloader(hwio::mcp::Offloader* offloader) { m_offloader = offloader; }
+    void open(const hwio::mcp::tools::OpenRequest& request,
+              std::function<void(hwio::Result<hwio::mcp::tools::DeviceRef>)> done) override;
+    [[nodiscard]] hwio::Status close(std::string_view id,
+                                     const hwio::mcp::RequestContext& context) override;
+    [[nodiscard]] std::optional<hwio::mcp::tools::DeviceRef> find(std::string_view id) override;
     void beginBusy(std::string_view id, QString text, std::function<void()> cancel) override;
     void endBusy(std::string_view id) override;
     void marker(std::string_view id, QString text) override;
     void setAiCommandHint(std::string_view id, bool active) override;
-    [[nodiscard]] hio::mcp::tools::DeviceProviderNotifier& notifier() override {
+    [[nodiscard]] hwio::mcp::tools::DeviceProviderNotifier& notifier() override {
         return m_notifier;
     }
 
@@ -141,24 +141,24 @@ private:
     void finishRefresh(const Status& outcome);
 
     [[nodiscard]] Result<jlink::LibraryLocation> location();
-    [[nodiscard]] Result<hio::mcp::tools::DeviceRef>
-    openSession(const hio::mcp::tools::OpenRequest& request);
+    [[nodiscard]] Result<hwio::mcp::tools::DeviceRef>
+    openSession(const hwio::mcp::tools::OpenRequest& request);
 
     LibraryLocator m_locator;
     std::optional<jlink::LibraryLocation> m_location;
     CliProviderOptions m_options;
-    hio::mcp::tools::DeviceProviderNotifier m_notifier;
+    hwio::mcp::tools::DeviceProviderNotifier m_notifier;
     std::vector<CachedProbe> m_probes;
-    QPointer<hio::mcp::Offloader> m_offloader;
-    hio::mcp::Offloader::Handle m_refreshJob; // the running enumeration
-    std::uint64_t m_refreshJobNumber = 0;     // counts submitted enumerations (review F3)
-    bool m_refreshRequested = false;          // refresh() was called at least once
-    bool m_firstScanPending = false;          // the enumeration of the first refresh() runs (V1)
+    QPointer<hwio::mcp::Offloader> m_offloader;
+    hwio::mcp::Offloader::Handle m_refreshJob; // the running enumeration
+    std::uint64_t m_refreshJobNumber = 0;      // counts submitted enumerations (review F3)
+    bool m_refreshRequested = false;           // refresh() was called at least once
+    bool m_firstScanPending = false;           // the enumeration of the first refresh() runs (V1)
     // `done` functors of the running refresh, at most maxPendingRefreshes.
-    std::vector<std::function<void(hio::Status)>> m_refreshWaiters;
+    std::vector<std::function<void(hwio::Status)>> m_refreshWaiters;
     // The registry outlives the sessions (declared before them).
     std::unique_ptr<device::SessionRegistry> m_registry;
     std::map<std::string, Entry, std::less<>> m_sessions;
 };
 
-} // namespace hio::cli
+} // namespace hwio::cli

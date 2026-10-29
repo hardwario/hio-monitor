@@ -4,31 +4,31 @@
 # recover, modem and reset operations, workflows, PIB decoder, profile flash layout. Backend library: QtCore only (ADR-0004), static
 # (ADR-0022).
 
-hio_add_backend_library(hio_device
-    include/hio/device/ble_lock.h
-    include/hio/device/ble_session.h
-    include/hio/device/command_capture.h
-    include/hio/device/command_history.h
-    include/hio/device/command_tree.h
-    include/hio/device/command_tree_cache.h
-    include/hio/device/command_tree_learner.h
-    include/hio/device/completer.h
-    include/hio/device/console_file_sink.h
-    include/hio/device/console_line.h
-    include/hio/device/console_log.h
-    include/hio/device/console_session.h
-    include/hio/device/device_info.h
-    include/hio/device/device_session.h
-    include/hio/device/line_assembler.h
-    include/hio/device/operation.h
-    include/hio/device/pib.h
-    include/hio/device/probe_lock.h
-    include/hio/device/probe_tools.h
-    include/hio/device/profile.h
-    include/hio/device/session_events.h
-    include/hio/device/session_key.h
-    include/hio/device/session_registry.h
-    include/hio/device/shell_query.h
+hwio_add_backend_library(hwio_device
+    include/hwio/device/ble_lock.h
+    include/hwio/device/ble_session.h
+    include/hwio/device/command_capture.h
+    include/hwio/device/command_history.h
+    include/hwio/device/command_tree.h
+    include/hwio/device/command_tree_cache.h
+    include/hwio/device/command_tree_learner.h
+    include/hwio/device/completer.h
+    include/hwio/device/console_file_sink.h
+    include/hwio/device/console_line.h
+    include/hwio/device/console_log.h
+    include/hwio/device/console_session.h
+    include/hwio/device/device_info.h
+    include/hwio/device/device_session.h
+    include/hwio/device/line_assembler.h
+    include/hwio/device/operation.h
+    include/hwio/device/pib.h
+    include/hwio/device/probe_lock.h
+    include/hwio/device/probe_tools.h
+    include/hwio/device/profile.h
+    include/hwio/device/session_events.h
+    include/hwio/device/session_key.h
+    include/hwio/device/session_registry.h
+    include/hwio/device/shell_query.h
     src/ble_lock.cpp
     src/ble_session.cpp
     src/ble_session_internal.h
@@ -64,28 +64,28 @@ hio_add_backend_library(hio_device
     src/shell_query.cpp
     src/session_worker_target.cpp
     src/session_worker_target.h)
-add_library(hio::device ALIAS hio_device)
+add_library(hwio::device ALIAS hwio_device)
 
-target_include_directories(hio_device PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(hio_device PUBLIC hio::core hio::firmware hio::hw_jlink hio::hw_nrfutil hio::hw_ble Qt6::Core
+target_include_directories(hwio_device PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(hwio_device PUBLIC hwio::core hwio::firmware hwio::hw_jlink hwio::hw_nrfutil hwio::hw_ble Qt6::Core
     # M4 (plan/features/0007): CheckStatus of DiagnoseStep; usb.access_denied after a failed open.
-    hio::diag_types hio::diag_usb)
+    hwio::diag_types hwio::diag_usb)
 # ADR-0039: the nRF91 disable-AP-protect image (copied verbatim from py-hardwario, see
-# resources/nrf91_disable_ap_protect.NOTICE.txt), compiled in as :/hio/device/....
-qt_add_resources(hio_device "hio_device_resources"
-    PREFIX "/hio/device"
+# resources/nrf91_disable_ap_protect.NOTICE.txt), compiled in as :/hwio/device/....
+qt_add_resources(hwio_device "hwio_device_resources"
+    PREFIX "/hwio/device"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources"
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/nrf91_disable_ap_protect.hex"
-    OUTPUT_TARGETS _hio_device_resource_targets)
-hio_skip_linting(${_hio_device_resource_targets})
+    OUTPUT_TARGETS _hwio_device_resource_targets)
+hwio_skip_linting(${_hwio_device_resource_targets})
 # DeviceSession is a QObject (signals).
-set_target_properties(hio_device PROPERTIES AUTOMOC ON)
+set_target_properties(hwio_device PROPERTIES AUTOMOC ON)
 if(WIN32)
-    target_compile_definitions(hio_device PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_definitions(hwio_device PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
     # GetModuleFileNameExW (ProbeLock::owner mirrors QLockFile's process-name rule, review R41).
-    target_link_libraries(hio_device PRIVATE psapi)
+    target_link_libraries(hwio_device PRIVATE psapi)
 endif()
 
-if(HIO_BUILD_TESTS)
+if(HWIO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()

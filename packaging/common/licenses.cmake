@@ -1,6 +1,6 @@
 # Licence notices of the packages (ADR-0119, plan/features/0015 A4).
 #
-# hio_install_licenses(<destination>) installs into <destination> (the `licenses/` directory of the
+# hwio_install_licenses(<destination>) installs into <destination> (the `licenses/` directory of the
 # installed tree):
 #   LICENSE                     HARDWARIO licence (with the LGPLv3 section 4 exception, ADR-0119)
 #   Qt-LGPL-3.0.txt GPL-3.0.txt Qt's licence (LGPL-3.0) and the GPL-3.0 it references
@@ -13,13 +13,13 @@
 #                               below
 #
 # This file is also run in script mode (cmake -P) by the CTest
-# Packaging.LicenceTableCoversCpmDependencies: every CPMAddPackage(NAME ...) of cmake/HioDeps.cmake
-# must have a row in HIO_THIRD_PARTY (test-only dependencies with distributed = NO).
+# Packaging.LicenceTableCoversCpmDependencies: every CPMAddPackage(NAME ...) of cmake/HWioDeps.cmake
+# must have a row in HWIO_THIRD_PARTY (test-only dependencies with distributed = NO).
 
 # One row per component: name | version | SPDX licence | URL | licence file(s) in licenses/ |
 # distributed (YES = in the packages, NO = test-only, not shipped). `cpm:<name>` marks the rows
-# that correspond to a CPM dependency of cmake/HioDeps.cmake.
-set(HIO_THIRD_PARTY
+# that correspond to a CPM dependency of cmake/HWioDeps.cmake.
+set(HWIO_THIRD_PARTY
     "Qt|@QT_VERSION@|LGPL-3.0-only|https://www.qt.io/|Qt-LGPL-3.0.txt, GPL-3.0.txt, Qt-SOURCE.txt|YES|"
     "CLI11|2.7.2|BSD-3-Clause|https://github.com/CLIUtils/CLI11|CLI11-BSD-3-Clause.txt|YES|cpm:CLI11"
     "replxx|1f149bfe20bf6e49c1afd4154eaf0032c8c2fda2|BSD-3-Clause|https://github.com/AmokHuginnsson/replxx|replxx-LICENSE.md|YES|cpm:replxx"
@@ -31,7 +31,7 @@ set(HIO_THIRD_PARTY
 
 if(CMAKE_SCRIPT_MODE_FILE)
     # ---- script mode: every CPM dependency has a row -------------------------------------------
-    file(READ "${HIO_DEPS_FILE}" _deps)
+    file(READ "${HWIO_DEPS_FILE}" _deps)
     string(REGEX MATCHALL "CPMAddPackage\\([ \t\r\n]*NAME[ \t]+[A-Za-z0-9_.-]+" _calls "${_deps}")
     set(_missing "")
     set(_count 0)
@@ -39,7 +39,7 @@ if(CMAKE_SCRIPT_MODE_FILE)
         string(REGEX REPLACE ".*NAME[ \t]+" "" _name "${_call}")
         math(EXPR _count "${_count} + 1")
         set(_found FALSE)
-        foreach(_row IN LISTS HIO_THIRD_PARTY)
+        foreach(_row IN LISTS HWIO_THIRD_PARTY)
             if(_row MATCHES "\\|cpm:${_name}$")
                 set(_found TRUE)
             endif()
@@ -49,12 +49,12 @@ if(CMAKE_SCRIPT_MODE_FILE)
         endif()
     endforeach()
     if(_count EQUAL 0)
-        message(FATAL_ERROR "No CPMAddPackage(NAME ...) found in ${HIO_DEPS_FILE}.")
+        message(FATAL_ERROR "No CPMAddPackage(NAME ...) found in ${HWIO_DEPS_FILE}.")
     endif()
     if(_missing)
         message(FATAL_ERROR
             "CPM dependencies without a licence row in packaging/common/licenses.cmake: ${_missing}. "
-            "Add a row to HIO_THIRD_PARTY and the licence text to packaging/common/licenses/.")
+            "Add a row to HWIO_THIRD_PARTY and the licence text to packaging/common/licenses/.")
     endif()
     message(STATUS "Licence table covers all ${_count} CPM dependencies.")
     return()
@@ -62,7 +62,7 @@ endif()
 
 include_guard(GLOBAL)
 
-function(hio_install_licenses destination)
+function(hwio_install_licenses destination)
     set(_src "${PROJECT_SOURCE_DIR}")
     set(_out "${PROJECT_BINARY_DIR}/licenses")
     file(MAKE_DIRECTORY "${_out}")
@@ -87,9 +87,9 @@ https://www.hardwario.com/.
 ")
 
     # THIRD-PARTY-NOTICES.txt: the index of the shipped components.
-    set(_text "HARDWARIO Monitor ${HIO_VERSION} - third-party components\n")
+    set(_text "HARDWARIO Monitor ${HWIO_VERSION} - third-party components\n")
     string(APPEND _text "The licence texts are in this directory (the file names below).\n\n")
-    foreach(_row IN LISTS HIO_THIRD_PARTY)
+    foreach(_row IN LISTS HWIO_THIRD_PARTY)
         string(REPLACE "@QT_VERSION@" "${_qt}" _row "${_row}")
         string(REPLACE "|" ";" _fields "${_row}")
         list(GET _fields 0 _name)

@@ -1,11 +1,11 @@
-#include "hio/update/update_check.h"
+#include "hwio/update/update_check.h"
 
-#include "hio/core/error.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/version.h"
-#include "hio/update/releases.h"
-#include "hio/update/semver.h"
+#include "hwio/core/error.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/version.h"
+#include "hwio/update/releases.h"
+#include "hwio/update/semver.h"
 
 #include <QByteArray>
 #include <QDateTime>
@@ -32,7 +32,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::update {
+namespace hwio::update {
 
 namespace {
 
@@ -89,7 +89,7 @@ void UpdateCheck::start(QNetworkAccessManager& network, const QUrl& url, const S
     request.setRawHeader("Accept", "application/vnd.github+json");
     request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      QString::fromStdString(std::format("hio-monitor/{}", buildInfo().version)));
+                      QString::fromStdString(std::format("hwio-monitor/{}", buildInfo().version)));
     qCInfo(log::lcUpdate).noquote() << "Checking for updates:" << url.toString();
     m_reply = network.get(request);
     QObject::connect(m_reply, &QNetworkReply::readyRead, this, &UpdateCheck::onReadyRead);
@@ -208,4 +208,4 @@ Result<CheckResult> waitForCheck(UpdateCheck& check) {
     return std::unexpected(makeError(ErrorCode::InternalUnexpected, "update check did not run"));
 }
 
-} // namespace hio::update
+} // namespace hwio::update

@@ -1,4 +1,4 @@
-// The bounded response of `hio chester app command` (review R42).
+// The bounded response of `hwio chester app command` (review R42).
 
 #include "command_response.h"
 
@@ -9,7 +9,7 @@
 
 namespace {
 
-using hio::cli::CommandResponse;
+using hwio::cli::CommandResponse;
 
 TEST(CommandResponse, KeepsTheFirst10000LinesOfOutputAndLog) {
     CommandResponse response;

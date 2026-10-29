@@ -1,12 +1,12 @@
-#include "hio/hw/jlink/jlink_library.h"
+#include "hwio/hw/jlink/jlink_library.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
 #include "jlink_abi.h"
 #include "out_handlers.h"
 
@@ -43,14 +43,14 @@
 #include <utility>
 #include <vector>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 namespace {
 
 namespace fs = std::filesystem;
 
 // Bounds (plan/features/0002-m1-jlink-rtt.md): at most this many probes are listed, and at most
-// this many library error texts are kept for the next hio::Error's detail.
+// this many library error texts are kept for the next hwio::Error's detail.
 constexpr int maxListedProbes = 64;
 constexpr std::size_t maxRecentErrors = 4;
 
@@ -369,7 +369,7 @@ Result<std::unique_ptr<JLinkLibrary>> JLinkLibrary::loadCopy(const LibraryLocati
                                 std::format("{} reports version {} ({}); minimum is {}",
                                             toUtf8(location.path), formatLibraryVersion(version),
                                             version, formatLibraryVersion(minimumLibraryVersion)));
-        error.message = QCoreApplication::translate("hio::jlink", "J-Link Software %1 is too old.")
+        error.message = QCoreApplication::translate("hwio::jlink", "J-Link Software %1 is too old.")
                             .arg(toQString(formatLibraryVersion(version)))
                             .toStdString();
         return std::unexpected(std::move(error));
@@ -826,4 +826,4 @@ std::string JLinkLibrary::takeErrorText() {
     return text;
 }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

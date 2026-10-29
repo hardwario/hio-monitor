@@ -1,10 +1,10 @@
-#include "hio/device/ble_lock.h"
+#include "hwio/device/ble_lock.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/probe_lock.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/hw/ble/types.h"
 #include "lock_file.h"
 
 #include <QCoreApplication>
@@ -21,7 +21,7 @@
 #include <string_view>
 #include <utility>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -38,13 +38,13 @@ Error inUseError(const ble::BleDeviceId& id, const ProbeLockOwner& owner, const 
         makeError(ErrorCode::BleInUseByOtherProcess,
                   std::format("lock held by {} (PID {}): {}", owner.app, owner.pid, toUtf8(path)));
     error.message = QCoreApplication::translate(
-                        "hio::device", "The device %1 is used by another program (%2, PID %3).")
+                        "hwio::device", "The device %1 is used by another program (%2, PID %3).")
                         .arg(toQString(id), toQString(owner.app))
                         .arg(owner.pid)
                         .toStdString();
     if (owner.pid == 0) {
         error.suggestion =
-            QCoreApplication::translate("hio::device",
+            QCoreApplication::translate("hwio::device",
                                         "If no other HARDWARIO program is running, delete %1.")
                 .arg(QDir::toNativeSeparators(toQString(toUtf8(path))))
                 .toStdString();
@@ -79,7 +79,7 @@ Result<BleLock> BleLock::acquire(const ble::BleDeviceId& id, const fs::path& dir
                                         "the device lock is held by this process");
                 error.message =
                     QCoreApplication::translate(
-                        "hio::device", "The device %1 is already used by this application.")
+                        "hwio::device", "The device %1 is already used by this application.")
                         .arg(toQString(id))
                         .toStdString();
                 return error;
@@ -113,4 +113,4 @@ BleLock::~BleLock() { release(); }
 
 void BleLock::release() { detail::releaseLockFile(m_lock, lockKey(m_id)); }
 
-} // namespace hio::device
+} // namespace hwio::device

@@ -1,5 +1,5 @@
 # CPack WIX configuration of the Windows MSI (plan/features/0015 E1, ADR-0117, ADR-0122).
-# Included by cmake/HioPackaging.cmake when HIO_PACKAGE_KIND=msi.
+# Included by cmake/HWioPackaging.cmake when HWIO_PACKAGE_KIND=msi.
 #
 # WiX 4 or newer through CPack's WIX generator (CPACK_WIX_VERSION 4, CMake >= 3.30), per-machine,
 # %ProgramFiles%\HARDWARIO\Monitor, fixed UpgradeCode (every release is a major upgrade; downgrades
@@ -21,11 +21,11 @@ set(CPACK_GENERATOR "WIX")
 set(CPACK_WIX_VERSION 4)
 set(CPACK_PACKAGE_NAME "HARDWARIO Monitor")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "HARDWARIO/Monitor")
-set(CPACK_PACKAGE_FILE_NAME "hio-monitor-${HIO_VERSION_FILE_NAME}-windows-x64")
+set(CPACK_PACKAGE_FILE_NAME "hwio-monitor-${HWIO_VERSION_FILE_NAME}-windows-x64")
 set(CPACK_WIX_UPGRADE_GUID "D58A5657-E91D-4245-9431-FC43738716ED")
 set(CPACK_WIX_INSTALL_SCOPE "perMachine")
 set(CPACK_WIX_ARCHITECTURE "x64")
-set(CPACK_WIX_PRODUCT_ICON "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor.ico")
+set(CPACK_WIX_PRODUCT_ICON "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor.ico")
 set(CPACK_WIX_PROGRAM_MENU_FOLDER ".")
 set(CPACK_WIX_UI_REF "WixUI_FeatureTree")
 set(CPACK_WIX_TEMPLATE "${PROJECT_SOURCE_DIR}/packaging/windows/wix/WIX.template.in")

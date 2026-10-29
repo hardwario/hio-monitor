@@ -1,8 +1,8 @@
-#include "hio/firmware/program_progress.h"
+#include "hwio/firmware/program_progress.h"
 
 #include <string_view>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 std::string_view phaseId(ProgramPhase phase) noexcept {
     switch (phase) {
@@ -28,4 +28,4 @@ std::string_view phaseId(ProgramPhase phase) noexcept {
     return "connecting";
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

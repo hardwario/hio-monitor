@@ -5,8 +5,8 @@
 # Ubuntu 22.04 build container). They are put on LD_LIBRARY_PATH only when the bundled libstdc++ is
 # newer than the system one (e.g. on Ubuntu 22.04 itself, which has libstdc++ 12).
 #
-# Dispatch: started through a link named `hio` (basename of $ARGV0, set by the AppImage runtime) or
-# with `hio` as the first argument -> usr/bin/hio with the remaining arguments; otherwise the GUI.
+# Dispatch: started through a link named `hwio` (basename of $ARGV0, set by the AppImage runtime) or
+# with `hwio` as the first argument -> usr/bin/hwio with the remaining arguments; otherwise the GUI.
 HERE="$(dirname "$(readlink -f "$0")")"
 
 ldconfig_bin=ldconfig
@@ -26,14 +26,14 @@ if [ "$use_bundled" = 1 ]; then
     LD_LIBRARY_PATH="$HERE/usr/optional/libstdc++:$HERE/usr/optional/libgcc_s${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     export LD_LIBRARY_PATH
 fi
-[ -n "${HIO_APPRUN_DEBUG:-}" ] && echo "AppRun: bundled=$bundled system=$system use_bundled=$use_bundled" >&2
+[ -n "${HWIO_APPRUN_DEBUG:-}" ] && echo "AppRun: bundled=$bundled system=$system use_bundled=$use_bundled" >&2
 
 self="${ARGV0:-$0}"
-if [ "$(basename "$self")" = "hio" ]; then
-    exec "$HERE/usr/bin/hio" "$@"
+if [ "$(basename "$self")" = "hwio" ]; then
+    exec "$HERE/usr/bin/hwio" "$@"
 fi
-if [ "${1:-}" = "hio" ]; then
+if [ "${1:-}" = "hwio" ]; then
     shift
-    exec "$HERE/usr/bin/hio" "$@"
+    exec "$HERE/usr/bin/hwio" "$@"
 fi
-exec "$HERE/usr/bin/hio-monitor" "$@"
+exec "$HERE/usr/bin/hwio-monitor" "$@"

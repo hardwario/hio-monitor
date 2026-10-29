@@ -15,7 +15,7 @@
 
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class AppViewModel;
 class DeviceTabViewModel;
@@ -95,4 +95,4 @@ private:
 void registerTestWizard(AppViewModel& app, const QUrl& embeddedQml);
 
 } // namespace test
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -1,12 +1,12 @@
-#include "hio/hw/jlink/jlink_probe.h"
+#include "hwio/hw/jlink/jlink_probe.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/jlink/clock.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/jlink/clock.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <QCoreApplication>
 #include <QLoggingCategory>
@@ -26,13 +26,13 @@
 #include <utility>
 #include <vector>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 namespace {
 
 // J-Link command strings that keep the library from showing dialogs and from updating the probe
 // firmware on its own (plan/features/0002: the firmware is never updated automatically; only
-// `hio jlink update-firmware` updates it). Sources: SEGGER KB "J-Link Command Strings"
+// `hwio jlink update-firmware` updates it). Sources: SEGGER KB "J-Link Command Strings"
 // (kb.segger.com/J-Link_Command_Strings) and the command names in the installed library 9.84.
 //   DisableAutoUpdateFW      KB: "disable the automatic firmware update if a new firmware is
 //                            available"; command name present in the library.
@@ -51,7 +51,7 @@ constexpr std::array<std::string_view, 5> beforeOpenCommands{
 constexpr std::array<std::string_view, 4> afterOpenCommands{
     "DisableAutoUpdateFW", "SetBatchMode = 1", "HideDeviceSelection = 1", "DisableInfoWinFlashDL"};
 // OpenMode::FirmwareUpdate (review R11): the dialog suppression without DisableAutoUpdateFW, before
-// and after Open, so the explicit update of `hio jlink update-firmware` is not blocked.
+// and after Open, so the explicit update of `hwio jlink update-firmware` is not blocked.
 constexpr std::array<std::string_view, 3> updateOpenCommands{
     "SetBatchMode = 1", "HideDeviceSelection = 1", "DisableInfoWinFlashDL"};
 
@@ -99,12 +99,12 @@ Result<ProbeInfo> JLinkProbe::open(std::optional<std::uint32_t> serialNumber, Op
         if (serialNumber) {
             error.message =
                 isNetworkProbe(*serialNumber)
-                    ? QCoreApplication::translate("hio::jlink",
+                    ? QCoreApplication::translate("hwio::jlink",
                                                   "The J-Link %1 is a network J-Link; network "
                                                   "J-Links are not supported for sessions yet.")
                           .arg(*serialNumber)
                           .toStdString()
-                    : QCoreApplication::translate("hio::jlink",
+                    : QCoreApplication::translate("hwio::jlink",
                                                   "No J-Link probe with serial number %1 found.")
                           .arg(*serialNumber)
                           .toStdString();
@@ -118,7 +118,7 @@ Result<ProbeInfo> JLinkProbe::open(std::optional<std::uint32_t> serialNumber, Op
             makeError(ErrorCode::ProbeNotFound,
                       libraryDetail(std::format("JLINKARM_EMU_SelectByUSBSN({}) returned {}",
                                                 chosen->serialNumber, selected)));
-        error.message = QCoreApplication::translate("hio::jlink",
+        error.message = QCoreApplication::translate("hwio::jlink",
                                                     "No J-Link probe with serial number %1 found.")
                             .arg(chosen->serialNumber)
                             .toStdString();
@@ -232,7 +232,7 @@ Status JLinkProbe::connect(std::string_view deviceName, int minTargetMillivolts,
             ErrorCode::TargetNoPower,
             libraryDetail(std::format("{}; VTref {} mV", lastFailure, status->targetMillivolts)));
         error.message =
-            QCoreApplication::translate("hio::jlink", "The device has no power (%1 mV).")
+            QCoreApplication::translate("hwio::jlink", "The device has no power (%1 mV).")
                 .arg(status->targetMillivolts)
                 .toStdString();
         return std::unexpected(std::move(error));
@@ -242,7 +242,7 @@ Status JLinkProbe::connect(std::string_view deviceName, int minTargetMillivolts,
         libraryDetail(status ? std::format("{}; VTref {} mV", lastFailure, status->targetMillivolts)
                              : lastFailure));
     error.message =
-        QCoreApplication::translate("hio::jlink", "Could not connect to the device's %1 MCU.")
+        QCoreApplication::translate("hwio::jlink", "Could not connect to the device's %1 MCU.")
             .arg(toQString(deviceName))
             .toStdString();
     return std::unexpected(std::move(error));
@@ -361,4 +361,4 @@ Status JLinkProbe::halt() {
 
 void JLinkProbe::go() { m_api.go(); }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

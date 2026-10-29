@@ -220,7 +220,7 @@
                     "result": {
                         "_meta": {
                             "io.modelcontextprotocol/serverInfo": {
-                                "name": "hio-monitor",
+                                "name": "hwio-monitor",
                                 "version": "test"
                             }
                         },
@@ -314,7 +314,7 @@
                     "result": {
                         "_meta": {
                             "io.modelcontextprotocol/serverInfo": {
-                                "name": "hio-monitor",
+                                "name": "hwio-monitor",
                                 "version": "test"
                             }
                         },
@@ -400,7 +400,7 @@
                     "result": {
                         "_meta": {
                             "io.modelcontextprotocol/serverInfo": {
-                                "name": "hio-monitor",
+                                "name": "hwio-monitor",
                                 "version": "test"
                             }
                         },

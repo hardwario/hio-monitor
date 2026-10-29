@@ -21,9 +21,9 @@
 
 namespace {
 
-using hio::ble::ControllerCloser;
-using hio::ble::test::runFor;
-using hio::ble::test::runUntil;
+using hwio::ble::ControllerCloser;
+using hwio::ble::test::runFor;
+using hwio::ble::test::runUntil;
 using namespace std::chrono_literals;
 
 // A stand-in controller owned by `parent` (Qt parent ownership, as QtBleApi's controllers).

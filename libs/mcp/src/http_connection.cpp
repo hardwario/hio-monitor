@@ -1,14 +1,14 @@
 #include "http_connection.h"
 
-#include "hio/core/log.h"
-#include "hio/mcp/http_parser.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/protocol.h"
-#include "hio/mcp/reply_channel.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/server.h"
-#include "hio/mcp/token.h"
+#include "hwio/core/log.h"
+#include "hwio/mcp/http_parser.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/protocol.h"
+#include "hwio/mcp/reply_channel.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/server.h"
+#include "hwio/mcp/token.h"
 
 #include <QAbstractSocket>
 #include <QByteArray>
@@ -35,7 +35,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::mcp::detail {
+namespace hwio::mcp::detail {
 
 namespace {
 
@@ -162,9 +162,9 @@ void AuthGuard::recordFailure() {
     if (m_failures.size() >= m_limits->authFailureLimit) {
         m_failures.clear();
         m_lockedAt = now;
-        qCWarning(hio::log::lcMcp) << "MCP HTTP:" << m_limits->authFailureLimit
-                                   << "failed authentications; every request is refused for"
-                                   << m_limits->authLockout.count() << "ms";
+        qCWarning(hwio::log::lcMcp) << "MCP HTTP:" << m_limits->authFailureLimit
+                                    << "failed authentications; every request is refused for"
+                                    << m_limits->authLockout.count() << "ms";
     }
 }
 
@@ -245,17 +245,17 @@ HttpConnection::HttpConnection(QTcpSocket& socket, HttpShared& shared)
     m_heartbeatTimer.setInterval(shared.limits->sseHeartbeat);
 
     connect(&m_headerTimer, &QTimer::timeout, this, [this] {
-        qCInfo(hio::log::lcMcp) << "MCP HTTP: request headers not received in time";
+        qCInfo(hwio::log::lcMcp) << "MCP HTTP: request headers not received in time";
         refuse(408, "Request headers not received in time");
     });
     connect(&m_bodyTimer, &QTimer::timeout, this, [this] {
-        qCInfo(hio::log::lcMcp) << "MCP HTTP: request body not received in time";
+        qCInfo(hwio::log::lcMcp) << "MCP HTTP: request body not received in time";
         refuse(408, "Request body not received in time");
     });
     connect(&m_idleTimer, &QTimer::timeout, this,
             [this] { closeConnection(CloseReason::PeerClosed); });
     connect(&m_closingTimer, &QTimer::timeout, this, [this] {
-        qCInfo(hio::log::lcMcp) << "MCP HTTP: refused connection did not close in time; aborted";
+        qCInfo(hwio::log::lcMcp) << "MCP HTTP: refused connection did not close in time; aborted";
         closeConnection(CloseReason::PeerClosed);
     });
     connect(&m_jsonTimer, &QTimer::timeout, this, [this] {
@@ -552,8 +552,8 @@ void HttpConnection::refuse(int status, const QByteArray& reason, const QByteArr
     if (m_phase == Phase::Closed || m_phase == Phase::Closing) {
         return;
     }
-    qCInfo(hio::log::lcMcp).noquote() << "MCP HTTP: refused a request with" << status << "("
-                                      << QString::fromLatin1(reason) << ")";
+    qCInfo(hwio::log::lcMcp).noquote() << "MCP HTTP: refused a request with" << status << "("
+                                       << QString::fromLatin1(reason) << ")";
     const QByteArray body = serialize(
         errorResponse(QJsonValue::Undefined, RpcError{.code = protocol::errc::invalidRequest,
                                                       .message = QString::fromLatin1(reason)}));
@@ -596,8 +596,8 @@ void HttpConnection::writeRaw(const QByteArray& bytes) {
         return;
     }
     if (std::cmp_greater(m_socket.bytesToWrite(), m_shared->limits->maxSendQueueBytes)) {
-        qCWarning(hio::log::lcMcp) << "MCP HTTP: the client does not read its responses; "
-                                      "connection dropped";
+        qCWarning(hwio::log::lcMcp) << "MCP HTTP: the client does not read its responses; "
+                                       "connection dropped";
         closeConnection(CloseReason::SlowClient);
         return;
     }
@@ -626,4 +626,4 @@ void HttpConnection::closeConnection(CloseReason reason) {
     emit closed();
 }
 
-} // namespace hio::mcp::detail
+} // namespace hwio::mcp::detail

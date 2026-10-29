@@ -1,8 +1,8 @@
 #pragma once
 
 // A real QLockFile held by another process (review R41, R45): runs this test binary in its
-// helper mode (HIO_TEST_HOLD_LOCK_FILE, see main.cpp), which locks the file as ProbeLock::acquire()
-// does and keeps it until its stdin is closed (by the destructor).
+// helper mode (HWIO_TEST_HOLD_LOCK_FILE, see main.cpp), which locks the file as
+// ProbeLock::acquire() does and keeps it until its stdin is closed (by the destructor).
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -13,13 +13,13 @@
 
 #include <chrono>
 
-namespace hio::device::test {
+namespace hwio::device::test {
 
 class LockHolder {
 public:
     explicit LockHolder(const QString& lockFile) {
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-        env.insert(QStringLiteral("HIO_TEST_HOLD_LOCK_FILE"), lockFile);
+        env.insert(QStringLiteral("HWIO_TEST_HOLD_LOCK_FILE"), lockFile);
         m_process.setProcessEnvironment(env);
         m_process.start(QCoreApplication::applicationFilePath(), {});
     }
@@ -62,4 +62,4 @@ private:
     QByteArray m_out;
 };
 
-} // namespace hio::device::test
+} // namespace hwio::device::test

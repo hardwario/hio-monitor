@@ -1,10 +1,10 @@
 // HARDWARIO CHESTER (plan/features/0002-m1-jlink-rtt.md, plan/features/0003-m2-flashing.md;
 // py-hardwario hardwario/chester/cli/app.py, lte.py, hardwario/device/nrfjprog.py).
 
-#include "hio/device/profile.h"
-#include "hio/firmware/designated_firmware.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/hw/jlink/programmer.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/designated_firmware.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/hw/jlink/programmer.h"
 #include "profiles.h"
 
 #include <QtTranslation>
@@ -12,7 +12,7 @@
 #include <array>
 #include <optional>
 
-namespace hio::device::profiles {
+namespace hwio::device::profiles {
 
 namespace {
 
@@ -86,9 +86,9 @@ constexpr std::array appGuide{
     ConnectionGuideStep{
         .id = "cable",
         .illustrationSlot = "chester-app-cable",
-        .titleSourceText = QT_TRANSLATE_NOOP("hio::device", "Cable"),
+        .titleSourceText = QT_TRANSLATE_NOOP("hwio::device", "Cable"),
         .bodySourceText = QT_TRANSLATE_NOOP(
-            "hio::device",
+            "hwio::device",
             "Connect the J-Link flat cable to the programming connector of the application MCU."),
     },
 };
@@ -96,9 +96,9 @@ constexpr std::array lteGuide{
     ConnectionGuideStep{
         .id = "cable",
         .illustrationSlot = "chester-lte-cable",
-        .titleSourceText = QT_TRANSLATE_NOOP("hio::device", "Cable"),
+        .titleSourceText = QT_TRANSLATE_NOOP("hwio::device", "Cable"),
         .bodySourceText = QT_TRANSLATE_NOOP(
-            "hio::device",
+            "hwio::device",
             "Connect the J-Link flat cable to the programming connector of the LTE MCU."),
     },
 };
@@ -108,16 +108,16 @@ constexpr std::array blePairingGuide{
     ConnectionGuideStep{
         .id = "bluetooth",
         .illustrationSlot = "ble-enable",
-        .titleSourceText = QT_TRANSLATE_NOOP("hio::device", "Bluetooth"),
+        .titleSourceText = QT_TRANSLATE_NOOP("hwio::device", "Bluetooth"),
         .bodySourceText = QT_TRANSLATE_NOOP(
-            "hio::device", "Make sure the device is powered and its Bluetooth is on."),
+            "hwio::device", "Make sure the device is powered and its Bluetooth is on."),
     },
     ConnectionGuideStep{
         .id = "pair",
         .illustrationSlot = "ble-pair-os",
-        .titleSourceText = QT_TRANSLATE_NOOP("hio::device", "Pairing"),
+        .titleSourceText = QT_TRANSLATE_NOOP("hwio::device", "Pairing"),
         .bodySourceText = QT_TRANSLATE_NOOP(
-            "hio::device", "When the system asks for the passkey, enter it in the system dialog."),
+            "hwio::device", "When the system asks for the passkey, enter it in the system dialog."),
     },
 };
 
@@ -145,9 +145,9 @@ constexpr std::array firmwareDocs{
 };
 
 constexpr std::array chesterTargets{
-    // Application MCU: the RTT console of `hio chester app console` / `command`.
+    // Application MCU: the RTT console of `hwio chester app console` / `command`.
     TargetProfile{.id = "app",
-                  .displayName = QT_TRANSLATE_NOOP("hio::device", "application"),
+                  .displayName = QT_TRANSLATE_NOOP("hwio::device", "application"),
                   .jlinkDevice = "NRF52840_xxAA",
                   .rttTerminal = "Terminal",
                   .rttLogger = "Logger",
@@ -175,7 +175,7 @@ constexpr std::array chesterTargets{
     // first part's J-Link name, then with the exact part's name (to confirm in Phase 0). The PIB
     // lies in the UICR OTP area, which a UICR erase does not touch.
     TargetProfile{.id = "lte",
-                  .displayName = QT_TRANSLATE_NOOP("hio::device", "LTE"),
+                  .displayName = QT_TRANSLATE_NOOP("hwio::device", "LTE"),
                   .jlinkDevice = "NRF9151_XXCA",
                   .rttTerminal = "",
                   .rttLogger = "",
@@ -207,7 +207,7 @@ constinit const DeviceProfile chester{
     .targets = chesterTargets,
     .firmwareCatalogUrl = "https://firmware.hardwario.com/chester",
     .powerHintSourceText =
-        QT_TRANSLATE_NOOP("hio::device", "Power CHESTER with batteries or the USB-C power input."),
+        QT_TRANSLATE_NOOP("hwio::device", "Power CHESTER with batteries or the USB-C power input."),
     .ble =
         BleProfile{
             .namePattern = "CHESTER",
@@ -217,10 +217,10 @@ constinit const DeviceProfile chester{
             .shellPrompt = "bt_nus:~$ ",
             .consoleTargetId = "app",
             .passkeyHintSourceText = QT_TRANSLATE_NOOP(
-                "hio::device",
+                "hwio::device",
                 "The passkey is 123456 unless it was changed when the device was configured."),
             .pairingGuide = blePairingGuide,
         },
     .firmwareDocsUrl = firmwareDocs};
 
-} // namespace hio::device::profiles
+} // namespace hwio::device::profiles

@@ -16,8 +16,8 @@
 // atomically. A slot is released only after its library copy was unloaded, so no handler of that
 // copy can still run.
 
-#include "hio/core/bounded_queue.h"
-#include "hio/core/result.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/result.h"
 #include "jlink_abi.h"
 
 #include <cstddef>
@@ -25,7 +25,7 @@
 #include <memory>
 #include <string>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 struct LibraryMessage {
     enum class Kind : std::uint8_t {
@@ -72,4 +72,4 @@ private:
     BoundedQueue<LibraryMessage> m_queue;
 };
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

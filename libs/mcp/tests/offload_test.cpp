@@ -2,9 +2,9 @@
 // queued and while running, a receiver destroyed before the result, stopAll() / the destructor
 // joining, results on the owner thread, and a many-job stress test for TSan (linux-tsan).
 
-#include "hio/core/error.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/offload.h"
+#include "hwio/core/error.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/offload.h"
 #include "mcp_test_support.h"
 
 #include <QCoreApplication>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 using namespace std::chrono_literals;
@@ -352,4 +352,4 @@ TEST(Offloader, ManyJobsStress) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

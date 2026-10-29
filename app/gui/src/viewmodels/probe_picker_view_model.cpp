@@ -1,8 +1,8 @@
 #include "viewmodels/probe_picker_view_model.h"
 
-#include "hio/core/json.h"
-#include "hio/device/profile.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/json.h"
+#include "hwio/device/profile.h"
+#include "hwio/hw/jlink/types.h"
 #include "viewmodels/error_info.h"
 #include "workers/probe_scanner.h"
 
@@ -32,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 ProbePickerViewModel::ProbePickerViewModel(ProbeScanner* scanner,
                                            std::function<int(std::uint32_t)> tabUsingProbe,
@@ -352,4 +352,4 @@ QString ProbePickerViewModel::firmwareDate(const QString& firmware) {
     return date.isValid() ? date.toString(Qt::ISODate) : QString();
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

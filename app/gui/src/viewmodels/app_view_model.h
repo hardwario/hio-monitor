@@ -16,9 +16,9 @@
 // application; QML never owns it. The destructor closes the tabs (and so their sessions) before
 // the registries and the scanner go away. GUI thread only.
 
-#include "hio/core/settings.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/jlink/library_locator.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/jlink/library_locator.h"
 #include "settings_store.h"
 #include "update_service.h"
 #include "viewmodels/device_tab_list_model.h"
@@ -58,7 +58,7 @@ class QNetworkAccessManager;
 class QQmlEngine;
 class QWindow;
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DeviceTabViewModel;
 class LanguageManager;
@@ -71,7 +71,7 @@ struct AppOptions {
     // Registers the pages, settings sections, setting keys and page shortcuts of the GUI plans
     // (0004's placeholders, 0005, 0006), before the first tab exists.
     std::function<void(AppViewModel&)> registerExtensions;
-    // Plan 0015 B3 (ADR-0123): the crash directory (hio::crash::defaultDirectory() in main();
+    // Plan 0015 B3 (ADR-0123): the crash directory (hwio::crash::defaultDirectory() in main();
     // empty: no crash notice).
     std::filesystem::path crashDirectory;
 };
@@ -87,13 +87,13 @@ class AppViewModel : public QObject {
     Q_PROPERTY(QVariantList availableLanguages READ availableLanguages CONSTANT)
     Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY themeChanged) // system|light|dark
     Q_PROPERTY(bool reducedMotion READ reducedMotion CONSTANT)
-    Q_PROPERTY(hio::gui::DeviceTabListModel* tabs READ tabs CONSTANT)
+    Q_PROPERTY(hwio::gui::DeviceTabListModel* tabs READ tabs CONSTANT)
     Q_PROPERTY(int currentTab READ currentTab WRITE setCurrentTab NOTIFY currentTabChanged)
-    Q_PROPERTY(hio::gui::DeviceTabViewModel* currentTabViewModel READ currentTabViewModel NOTIFY
+    Q_PROPERTY(hwio::gui::DeviceTabViewModel* currentTabViewModel READ currentTabViewModel NOTIFY
                    currentTabChanged)
     Q_PROPERTY(int maxTabs READ maxTabs CONSTANT)
     // Pages for the rail and the page hosts, in order; titles translated (review S9).
-    Q_PROPERTY(hio::gui::PageListModel* pages READ pages CONSTANT)
+    Q_PROPERTY(hwio::gui::PageListModel* pages READ pages CONSTANT)
     // "settings" while the Settings tab is current (0021, ADR-0172), "" = a device tab's page.
     Q_PROPERTY(QString globalPage READ globalPage NOTIFY globalPageChanged)
     // 0021: the Settings section the Settings tab was opened for ("" = the top).
@@ -102,21 +102,21 @@ class AppViewModel : public QObject {
     Q_PROPERTY(bool railCompact READ railCompact NOTIFY railCompactChanged) // width < 1100
     Q_PROPERTY(bool shortcutOverlayVisible READ shortcutOverlayVisible WRITE
                    setShortcutOverlayVisible NOTIFY shortcutOverlayVisibleChanged)
-    Q_PROPERTY(hio::gui::ShortcutRegistry* shortcuts READ shortcuts CONSTANT)
-    Q_PROPERTY(hio::gui::SettingsStore* settings READ settingsStore CONSTANT)
+    Q_PROPERTY(hwio::gui::ShortcutRegistry* shortcuts READ shortcuts CONSTANT)
+    Q_PROPERTY(hwio::gui::SettingsStore* settings READ settingsStore CONSTANT)
     Q_PROPERTY(QStringList toasts READ toasts NOTIFY toastsChanged)
     Q_PROPERTY(QString jlinkLibraryPath READ jlinkLibraryPath NOTIFY jlinkLibraryChanged)
     Q_PROPERTY(QString jlinkLibraryVersion READ jlinkLibraryVersion NOTIFY jlinkLibraryChanged)
     // M4 (plan/features/0007): the open wizard, the launcher and the diagnostic report dialog.
-    Q_PROPERTY(hio::gui::WizardViewModel* wizard READ wizard CONSTANT)
-    Q_PROPERTY(hio::gui::WizardLauncher* launcher READ launcher CONSTANT)
-    Q_PROPERTY(hio::gui::ReportViewModel* report READ report CONSTANT)
+    Q_PROPERTY(hwio::gui::WizardViewModel* wizard READ wizard CONSTANT)
+    Q_PROPERTY(hwio::gui::WizardLauncher* launcher READ launcher CONSTANT)
+    Q_PROPERTY(hwio::gui::ReportViewModel* report READ report CONSTANT)
     Q_PROPERTY(QString documentationUrl READ documentationUrl CONSTANT)
     // Plan 0015 B3 (ADR-0123): the previous run crashed (the crash handler's marker exists); the
     // shell shows CrashNoticeBanner until reportCrash() or dismissCrashNotice().
     Q_PROPERTY(bool crashedLastRun READ crashedLastRun NOTIFY crashedLastRunChanged)
     // Plan 0016 C2 (ADR-0116): the update banner and the update block of Settings > About.
-    Q_PROPERTY(hio::gui::UpdateViewModel* update READ update CONSTANT)
+    Q_PROPERTY(hwio::gui::UpdateViewModel* update READ update CONSTANT)
 
 public:
     static constexpr int railBreakpoint = 1100; // ADR-0061
@@ -201,7 +201,7 @@ public:
     Q_INVOKABLE void closeTab(int index, bool force = false);
     // The same for a tab object (the close confirmation keeps the tab, not its index; review S6).
     // Ignored when the tab is gone.
-    Q_INVOKABLE void closeTabObject(hio::gui::DeviceTabViewModel* tab, bool force);
+    Q_INVOKABLE void closeTabObject(hwio::gui::DeviceTabViewModel* tab, bool force);
     Q_INVOKABLE void nextTab();
     Q_INVOKABLE void previousTab();
     // Selects a per-tab page of the current tab (and leaves a global page).
@@ -241,7 +241,7 @@ public:
     // [Create diagnostic report] of the crash notice: opens the report dialog (the report contains
     // the crash files) and acknowledges the crash.
     Q_INVOKABLE void reportCrash();
-    // [Dismiss]: acknowledges the crash (hio::crash::acknowledge), the notice is not shown again.
+    // [Dismiss]: acknowledges the crash (hwio::crash::acknowledge), the notice is not shown again.
     Q_INVOKABLE void dismissCrashNotice();
     // Reads the crash marker again (start-up; tests).
     void refreshCrashNotice();
@@ -264,7 +264,7 @@ signals:
     void toastsChanged();
     void jlinkLibraryChanged();
     void crashedLastRunChanged();
-    void closeConfirmationNeeded(hio::gui::DeviceTabViewModel* tab, const QString& text);
+    void closeConfirmationNeeded(hwio::gui::DeviceTabViewModel* tab, const QString& text);
     void quitConfirmationNeeded(const QString& text);
     void quitRequested();
 
@@ -335,4 +335,4 @@ private:
     UpdateViewModel* m_update = nullptr;      // child
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

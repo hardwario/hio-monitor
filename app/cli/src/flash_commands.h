@@ -1,18 +1,18 @@
 #pragma once
 
 // M2 commands (plan/features/0003-m2-flashing.md, F2-F4):
-//   hio chester app flash [HEX_FILE_OR_ID] [--halt] [--allow-uicr] [--no-cache]
-//   hio chester app erase [--all] [--yes] | reset [--halt] | recover [--yes]
-//   hio chester app pib read | uicr read --format hex|bin FILE
-//   hio chester app catalog-info ID (plan 0021)
-//   hio chester lte flash [FILE] [--allow-uicr] [--no-cache] | erase [--yes] | reset |
+//   hwio chester app flash [HEX_FILE_OR_ID] [--halt] [--allow-uicr] [--no-cache]
+//   hwio chester app erase [--all] [--yes] | reset [--halt] | recover [--yes]
+//   hwio chester app pib read | uicr read --format hex|bin FILE
+//   hwio chester app catalog-info ID (plan 0021)
+//   hwio chester lte flash [FILE] [--allow-uicr] [--no-cache] | erase [--yes] | reset |
 //                         recover [--yes]   (plan 0021: no FILE = the designated LTE firmware)
 // Each opens a session with attachRtt = false on the command's target and runs one operation
 // (operation_runner.h); progress through ProgressUi, confirmations through confirmDestructive
 // (ADR-0038).
 
 #include "cli_app.h"
-#include "hio/core/result.h"
+#include "hwio/core/result.h"
 #include "probe_options.h"
 
 #include <CLI/App.hpp>
@@ -23,7 +23,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOptions>& group,
                               CommandSlot& slot, const GlobalOptions& globals);
@@ -43,4 +43,4 @@ using FlashInput = std::variant<FlashFile, FlashCatalogId>;
 [[nodiscard]] Result<FlashInput> resolveFlashInput(const std::string& argument,
                                                    const std::filesystem::path& directory);
 
-} // namespace hio::cli
+} // namespace hwio::cli

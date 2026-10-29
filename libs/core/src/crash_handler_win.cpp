@@ -13,9 +13,9 @@
 #include <windows.h>
 // <windows.h> must come first: <dbghelp.h> needs its types. This comment ends the include block,
 // so clang-format (IncludeBlocks: Regroup) does not sort it below.
-#include "hio/core/crash_handler.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/crash_handler.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 
 #include <QString>
 #include <QStringLiteral>
@@ -32,12 +32,12 @@
 #include <string_view>
 #include <system_error>
 
-namespace hio::crash {
+namespace hwio::crash {
 
 namespace {
 
-// Sanitizer builds (HIO_SANITIZER) install nothing; the code is compiled in every build.
-#ifdef HIO_SANITIZER
+// Sanitizer builds (HWIO_SANITIZER) install nothing; the code is compiled in every build.
+#ifdef HWIO_SANITIZER
 constexpr bool sanitizerBuild = true;
 #else
 constexpr bool sanitizerBuild = false;
@@ -140,7 +140,7 @@ Result<void> install(const Config& config) {
     if (sanitizerBuild) {
         return {}; // the sanitizers install their own handlers
     }
-    if (qEnvironmentVariable("HIO_NO_CRASH_HANDLER") == QStringLiteral("1")) {
+    if (qEnvironmentVariable("HWIO_NO_CRASH_HANDLER") == QStringLiteral("1")) {
         return {};
     }
     if (installed.load()) {
@@ -178,4 +178,4 @@ Result<void> install(const Config& config) {
 
 bool isInstalled() noexcept { return installed.load(); }
 
-} // namespace hio::crash
+} // namespace hwio::crash

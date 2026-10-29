@@ -3,13 +3,13 @@
 
 #include "cli_app.h"
 #include "console_ui.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/jlink/library_locator.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/jlink/library_locator.h"
 #include "output.h"
 
 #include <QByteArray>
@@ -39,10 +39,10 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::cli::ConsoleView;
-using hio::cli::Context;
-using hio::cli::Output;
-using hio::cli::OutputMode;
+using hwio::cli::ConsoleView;
+using hwio::cli::Context;
+using hwio::cli::Output;
+using hwio::cli::OutputMode;
 
 bool processEventsUntil(const std::function<bool()>& done) {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
@@ -74,7 +74,7 @@ int stoppedEvents(const std::string& out) {
 
 class JsonConsoleView : public ::testing::Test {
 protected:
-    void TearDown() override { qunsetenv("HIO_FAKE_JLINK_SCENARIO"); }
+    void TearDown() override { qunsetenv("HWIO_FAKE_JLINK_SCENARIO"); }
 
     void useScenario(const char* json) const {
         const QString path = m_dir.filePath(QStringLiteral("scenario.json"));
@@ -82,18 +82,18 @@ protected:
         ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
         file.write(json);
         file.close();
-        qputenv("HIO_FAKE_JLINK_SCENARIO", path.toUtf8());
+        qputenv("HWIO_FAKE_JLINK_SCENARIO", path.toUtf8());
     }
 
-    [[nodiscard]] hio::Result<std::unique_ptr<hio::device::DeviceSession>> open() {
-        hio::device::SessionOptions options;
-        options.profile = hio::device::ProfileRegistry::find("chester");
+    [[nodiscard]] hwio::Result<std::unique_ptr<hwio::device::DeviceSession>> open() {
+        hwio::device::SessionOptions options;
+        options.profile = hwio::device::ProfileRegistry::find("chester");
         options.targetId = "app";
         options.speedKhz = 2000;
         options.latencyMs = 10;
         options.consoleFile = fs::path();
-        return hio::device::DeviceSession::open(
-            m_registry, hio::jlink::LibraryLocation{.path = fs::path(HIO_FAKE_JLINK_LIBRARY)},
+        return hwio::device::DeviceSession::open(
+            m_registry, hwio::jlink::LibraryLocation{.path = fs::path(HWIO_FAKE_JLINK_LIBRARY)},
             std::move(options));
     }
 
@@ -103,7 +103,7 @@ protected:
 
 private:
     QTemporaryDir m_dir;
-    hio::device::SessionRegistry m_registry{hio::device::RegistryOptions{
+    hwio::device::SessionRegistry m_registry{hwio::device::RegistryOptions{
         .instanceRoot = fs::path(m_dir.path().toStdString()) / "instances",
         .lockDirectory = fs::path(m_dir.path().toStdString()) / "locks",
         .consoleDirectory = fs::path(m_dir.path().toStdString()) / "console"}};
@@ -132,7 +132,7 @@ TEST_F(JsonConsoleView, OneStoppedEventAfterANormalEnd) {
     ASSERT_TRUE(session) << session.error().message;
     ConsoleView view(context(), **session, false, false);
     ASSERT_TRUE(processEventsUntil([&] {
-        return (*session)->connection().state == hio::device::ConnectionState::Connected &&
+        return (*session)->connection().state == hwio::device::ConnectionState::Connected &&
                out().find("\"connected\"") != std::string::npos;
     }));
     (*session)->close();
@@ -148,10 +148,10 @@ TEST_F(JsonConsoleView, OneStoppedEventAfterAConnectTimeout) {
     auto session = open();
     ASSERT_TRUE(session) << session.error().message;
     ConsoleView view(context(), **session, false, false);
-    const hio::Status status = hio::cli::waitForConsoleConnection(context(), **session, view, false,
-                                                                  std::chrono::milliseconds(200));
+    const hwio::Status status = hwio::cli::waitForConsoleConnection(
+        context(), **session, view, false, std::chrono::milliseconds(200));
     ASSERT_FALSE(status);
-    EXPECT_EQ(status.error().code, hio::ErrorCode::Timeout);
+    EXPECT_EQ(status.error().code, hwio::ErrorCode::Timeout);
     EXPECT_EQ(stoppedEvents(out()), 1) << out();
     view.printStopped(); // idempotent
     EXPECT_EQ(stoppedEvents(out()), 1) << out();
@@ -170,10 +170,10 @@ TEST_F(JsonConsoleView, OneStoppedEventWhenCancelledWhileConnecting) {
     ASSERT_TRUE(
         processEventsUntil([&] { return out().find("\"connecting\"") != std::string::npos; }));
     stop.request_stop();
-    const hio::Status status = hio::cli::waitForConsoleConnection(cancelled, **session, view, true,
-                                                                  std::chrono::milliseconds(10000));
+    const hwio::Status status = hwio::cli::waitForConsoleConnection(
+        cancelled, **session, view, true, std::chrono::milliseconds(10000));
     ASSERT_FALSE(status);
-    EXPECT_EQ(status.error().code, hio::ErrorCode::Cancelled);
+    EXPECT_EQ(status.error().code, hwio::ErrorCode::Cancelled);
     EXPECT_EQ(stoppedEvents(out()), 1) << out();
 }
 
@@ -188,8 +188,9 @@ TEST_F(JsonConsoleView, FailedStdoutWriteCallsTheOutputClosedHandler) {
     view.setOutputClosedHandler([&calls] { ++calls; });
     closeOut();
     ASSERT_TRUE(processEventsUntil([&] { return view.outputClosed(); }));
-    ASSERT_TRUE(processEventsUntil(
-        [&] { return (*session)->connection().state == hio::device::ConnectionState::Connected; }));
+    ASSERT_TRUE(processEventsUntil([&] {
+        return (*session)->connection().state == hwio::device::ConnectionState::Connected;
+    }));
     (*session)->close();
     view.printStopped();
     EXPECT_EQ(calls, 1);

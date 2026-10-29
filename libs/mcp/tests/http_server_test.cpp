@@ -5,12 +5,12 @@
 // lockout counting (review R1), the closing timeout of refused connections (R4).
 
 #include "fake_tools.h"
-#include "hio/core/error.h"
-#include "hio/mcp/http_server.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/server.h"
-#include "hio/mcp/token.h"
+#include "hwio/core/error.h"
+#include "hwio/mcp/http_server.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/server.h"
+#include "hwio/mcp/token.h"
 #include "mcp_test_support.h"
 
 #include <QAbstractSocket>
@@ -37,7 +37,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 using namespace std::chrono_literals;
@@ -685,4 +685,4 @@ TEST_F(HttpServerTest, LegacySessionOverHttp) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

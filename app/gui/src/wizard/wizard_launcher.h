@@ -14,7 +14,7 @@
 
 #include <functional>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DeviceTabViewModel;
 class WizardRegistry;
@@ -35,7 +35,7 @@ public:
     Q_INVOKABLE [[nodiscard]] bool canOpen(const QString& wizardId) const;
     // Opens the wizard with the error as context on the tab (-1 = the current tab; ignored for
     // global wizards). False when it is not registered or another wizard is open (raised).
-    Q_INVOKABLE bool open(const QString& wizardId, const hio::gui::ErrorInfo& context,
+    Q_INVOKABLE bool open(const QString& wizardId, const hwio::gui::ErrorInfo& context,
                           int tabIndex = -1);
     // The same without an error (Help menu).
     Q_INVOKABLE bool start(const QString& wizardId, int tabIndex = -1);
@@ -50,4 +50,4 @@ private:
     std::function<DeviceTabViewModel*(int)> m_tabAt;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

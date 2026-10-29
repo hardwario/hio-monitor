@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::firmware::test {
+namespace hwio::firmware::test {
 
 struct ZipItem {
     std::string name;
@@ -60,4 +60,4 @@ inline bool writeFile(const QString& path, const QByteArray& bytes) {
     return file.write(bytes) == bytes.size();
 }
 
-} // namespace hio::firmware::test
+} // namespace hwio::firmware::test

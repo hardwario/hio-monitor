@@ -3,11 +3,11 @@
 // lookup-verified ID download - against the local HTTP fixture.
 
 #include "hex_builder.h"
-#include "hio/core/error.h"
-#include "hio/firmware/designated_firmware.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
 #include "http_fixture.h"
+#include "hwio/core/error.h"
+#include "hwio/firmware/designated_firmware.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
 #include "zip_builder.h"
 
 #include <QByteArray>
@@ -35,24 +35,24 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::firmware::CatalogOptions;
-using hio::firmware::DesignatedFirmware;
-using hio::firmware::DownloadOptions;
-using hio::firmware::FirmwareCache;
-using hio::firmware::FirmwareCatalog;
-using hio::firmware::FirmwareId;
-using hio::firmware::FirmwareKind;
-using hio::firmware::parseCatalogPage;
-using hio::firmware::Sha256;
-using hio::firmware::sha256Of;
-using hio::firmware::toHex;
-using hio::firmware::waitForDownload;
-using hio::firmware::waitForLookup;
-using hio::firmware::test::eofRecord;
-using hio::firmware::test::hexRecord;
-using hio::firmware::test::HttpFixture;
-using hio::firmware::test::zipBytes;
+using hwio::ErrorCode;
+using hwio::firmware::CatalogOptions;
+using hwio::firmware::DesignatedFirmware;
+using hwio::firmware::DownloadOptions;
+using hwio::firmware::FirmwareCache;
+using hwio::firmware::FirmwareCatalog;
+using hwio::firmware::FirmwareId;
+using hwio::firmware::FirmwareKind;
+using hwio::firmware::parseCatalogPage;
+using hwio::firmware::Sha256;
+using hwio::firmware::sha256Of;
+using hwio::firmware::toHex;
+using hwio::firmware::waitForDownload;
+using hwio::firmware::waitForLookup;
+using hwio::firmware::test::eofRecord;
+using hwio::firmware::test::hexRecord;
+using hwio::firmware::test::HttpFixture;
+using hwio::firmware::test::zipBytes;
 
 Sha256 shaOf(const QByteArray& bytes) {
     return sha256Of(
@@ -71,7 +71,7 @@ QByteArray readFile(const QString& path) {
 }
 
 QByteArray savedPage() {
-    return readFile(QStringLiteral(HIO_FIRMWARE_TEST_DATA
+    return readFile(QStringLiteral(HWIO_FIRMWARE_TEST_DATA
                                    "/catalog_page_001543e218a04ffdbf65082532202736.html"));
 }
 
@@ -114,15 +114,15 @@ private:
 
 TEST(Sha256Test, HexRoundTripAndKnownDigest) {
     const std::string_view hex = "95d301a11738bcd9a9df4726159361d64fd8f681c3546f479d46b49f4bf0fe49";
-    constexpr Sha256 compiled = hio::firmware::sha256FromHex(
+    constexpr Sha256 compiled = hwio::firmware::sha256FromHex(
         "95d301a11738bcd9a9df4726159361d64fd8f681c3546f479d46b49f4bf0fe49");
-    EXPECT_EQ(hio::firmware::parseSha256(hex), compiled);
+    EXPECT_EQ(hwio::firmware::parseSha256(hex), compiled);
     EXPECT_EQ(toHex(compiled), hex);
-    EXPECT_EQ(hio::firmware::parseSha256(
+    EXPECT_EQ(hwio::firmware::parseSha256(
                   "95D301A11738BCD9A9DF4726159361D64FD8F681C3546F479D46B49F4BF0FE49"),
               compiled);
-    EXPECT_FALSE(hio::firmware::parseSha256(hex.substr(1)));
-    EXPECT_FALSE(hio::firmware::parseSha256(std::string(64, 'g')));
+    EXPECT_FALSE(hwio::firmware::parseSha256(hex.substr(1)));
+    EXPECT_FALSE(hwio::firmware::parseSha256(std::string(64, 'g')));
     // SHA-256 of "abc" (FIPS 180-2).
     EXPECT_EQ(toHex(shaOf(QByteArrayLiteral("abc"))),
               "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
@@ -261,7 +261,8 @@ TEST_F(Designated, DownloadFailureAndCancel) {
 }
 
 TEST_F(Designated, CountsAgainstTheCacheLimits) {
-    FirmwareCache cache(cacheDir(), hio::firmware::CacheLimits{.maxFiles = 1, .maxBytes = 1 << 20});
+    FirmwareCache cache(cacheDir(),
+                        hwio::firmware::CacheLimits{.maxFiles = 1, .maxBytes = 1 << 20});
     auto catalog = this->catalog(&cache);
     const QByteArray zip = bundleZip();
     serve(QStringLiteral("/chester/lte.zip"), HttpFixture::Response::ok(zip));
@@ -288,7 +289,7 @@ TEST(CatalogPage, SavedPage) {
     EXPECT_EQ(info->uploaded, "2026-09-07 12:13:53");
     // The HEX checksum, not the BIN one that follows it.
     EXPECT_EQ(info->sha256,
-              hio::firmware::parseSha256(
+              hwio::firmware::parseSha256(
                   "0c7a2286d945c1e12bf9b4f0620beff519a8ade36f98c1da33527d18fa568f5a"));
 }
 
@@ -360,9 +361,9 @@ TEST(CatalogPage, MutatedInputStaysBounded) {
         const auto info = parseCatalogPage(text);
         if (info) {
             EXPECT_FALSE(info->name.empty());
-            EXPECT_LE(info->name.size(), hio::firmware::maxCatalogFieldBytes);
-            EXPECT_LE(info->version.size(), hio::firmware::maxCatalogFieldBytes);
-            EXPECT_LE(info->uploaded.size(), hio::firmware::maxCatalogFieldBytes);
+            EXPECT_LE(info->name.size(), hwio::firmware::maxCatalogFieldBytes);
+            EXPECT_LE(info->version.size(), hwio::firmware::maxCatalogFieldBytes);
+            EXPECT_LE(info->uploaded.size(), hwio::firmware::maxCatalogFieldBytes);
         }
     }
     // Pathological input: long runs without tags, an unterminated comment / style.

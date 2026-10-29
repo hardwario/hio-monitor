@@ -1,8 +1,8 @@
 #include "probe_options.h"
 
 #include "chester_commands.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
 
 #include <CLI/CLI.hpp>
 
@@ -12,7 +12,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 void addProbeOptions(CLI::App& command, ProbeOptions& options) {
     command.add_option("-n,--jlink-sn", options.serialNumber, "J-Link serial number")
@@ -43,4 +43,4 @@ Result<std::optional<int>> speedOf(const ProbeOptions& group, const ProbeOptions
     return defaultSpeedKhz;
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

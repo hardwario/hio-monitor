@@ -1,7 +1,7 @@
 #include "support/test_wizard.h"
 
-#include "hio/core/error.h"
-#include "hio/diag/check.h"
+#include "hwio/core/error.h"
+#include "hwio/diag/check.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/error_info.h"
@@ -25,7 +25,7 @@
 #include <optional>
 #include <vector>
 
-namespace hio::gui::test {
+namespace hwio::gui::test {
 
 namespace {
 
@@ -240,4 +240,4 @@ void registerTestWizard(AppViewModel& app, const QUrl& embeddedQml) {
     (void)app.wizardRegistry().addEmbedded(QStringLiteral("test-embedded"), embeddedQml);
 }
 
-} // namespace hio::gui::test
+} // namespace hwio::gui::test

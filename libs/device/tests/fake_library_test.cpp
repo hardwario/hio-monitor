@@ -2,20 +2,20 @@
 // J-Link library (plan/features/0002, phase E2): two sessions at once, probe status with locks,
 // probe tools, stale instance cleanup, non-blocking open.
 
-#include "hio/core/error.h"
-#include "hio/device/console_line.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/probe_tools.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_registry.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/programmer.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/probe_tools.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/programmer.h"
+#include "hwio/hw/jlink/types.h"
 #include "session_test_support.h"
 
 #include <QByteArray>
@@ -44,15 +44,15 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::device::Channel;
-using hio::device::ConnectionState;
-using hio::device::DeviceSession;
-using hio::device::Direction;
-using hio::device::SessionOptions;
-using hio::device::SessionRegistry;
-using hio::device::test::Recorder;
-using hio::device::test::waitFor;
+using hwio::ErrorCode;
+using hwio::device::Channel;
+using hwio::device::ConnectionState;
+using hwio::device::DeviceSession;
+using hwio::device::Direction;
+using hwio::device::SessionOptions;
+using hwio::device::SessionRegistry;
+using hwio::device::test::Recorder;
+using hwio::device::test::waitFor;
 
 constexpr const char* twoProbes = R"({
   "probes": [
@@ -71,7 +71,7 @@ protected:
         useScenario(twoProbes);
         resetRegistry();
     }
-    void TearDown() override { qunsetenv("HIO_FAKE_JLINK_SCENARIO"); }
+    void TearDown() override { qunsetenv("HWIO_FAKE_JLINK_SCENARIO"); }
 
     void useScenario(const char* json) const {
         const QString path = m_dir.filePath(QStringLiteral("scenario.json"));
@@ -79,26 +79,26 @@ protected:
         ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
         file.write(json);
         file.close();
-        qputenv("HIO_FAKE_JLINK_SCENARIO", path.toUtf8());
+        qputenv("HWIO_FAKE_JLINK_SCENARIO", path.toUtf8());
     }
 
     void resetRegistry() {
         m_registry = std::make_unique<SessionRegistry>(
-            hio::device::RegistryOptions{.instanceRoot = root() / "instances",
-                                         .lockDirectory = root() / "locks",
-                                         .consoleDirectory = root() / "console"});
+            hwio::device::RegistryOptions{.instanceRoot = root() / "instances",
+                                          .lockDirectory = root() / "locks",
+                                          .consoleDirectory = root() / "console"});
     }
 
     [[nodiscard]] fs::path root() const { return {m_dir.path().toStdString()}; }
     [[nodiscard]] SessionRegistry& registry() { return *m_registry; }
 
-    [[nodiscard]] static hio::jlink::LibraryLocation location() {
-        return hio::jlink::LibraryLocation{.path = fs::path(HIO_FAKE_JLINK_LIBRARY)};
+    [[nodiscard]] static hwio::jlink::LibraryLocation location() {
+        return hwio::jlink::LibraryLocation{.path = fs::path(HWIO_FAKE_JLINK_LIBRARY)};
     }
 
     [[nodiscard]] static SessionOptions options(std::optional<std::uint32_t> sn) {
         SessionOptions options;
-        options.profile = hio::device::ProfileRegistry::find("chester");
+        options.profile = hwio::device::ProfileRegistry::find("chester");
         options.targetId = "app";
         options.probeSn = sn;
         options.speedKhz = 2000;
@@ -119,8 +119,8 @@ TEST_F(FakeLibrarySession, TwoSessionsAtOnceThroughLibraryCopies) {
     ASSERT_TRUE(b) << b.error().message;
     Recorder ra(**a);
     Recorder rb(**b);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**a, std::chrono::milliseconds(10000)));
-    ASSERT_TRUE(hio::device::waitUntilConnected(**b, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**a, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**b, std::chrono::milliseconds(10000)));
     ASSERT_TRUE(waitFor([&] { return ra.lines.size() >= 2 && !rb.lines.empty(); }));
     EXPECT_EQ(ra.texts(Channel::Shell, Direction::Out).front(), "uart:~$ booted A");
     EXPECT_EQ(ra.texts(Channel::Log, Direction::Out).front(), "[00:00:00.001,000] <inf> app: A");
@@ -158,7 +158,7 @@ TEST_F(FakeLibrarySession, TwoSessionsAtOnceThroughLibraryCopies) {
 TEST_F(FakeLibrarySession, ProbeStatusShowsSessionsAndOtherProcesses) {
     auto session = DeviceSession::open(registry(), location(), options(801000001));
     ASSERT_TRUE(session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     const auto list = registry().enumerateProbes(location());
     ASSERT_TRUE(list) << list.error().detail;
     EXPECT_EQ(list->libraryVersion, 81000U);
@@ -174,20 +174,20 @@ TEST_F(FakeLibrarySession, ProbeToolsInspectAndUpdateFirmware) {
         "firmware": "J-Link V11 compiled Sep 21 2023 10:38:43",
         "libraryFirmware": "J-Link V11 compiled Oct  1 2024 09:00:00",
         "vtref": [[0, 3299]]}]})");
-    const auto details = hio::device::inspectProbe(registry(), location(), std::nullopt);
+    const auto details = hwio::device::inspectProbe(registry(), location(), std::nullopt);
     ASSERT_TRUE(details) << details.error().detail;
     EXPECT_EQ(details->probe.serialNumber, 5U);
     EXPECT_EQ(details->libraryVersion, 81000U);
-    EXPECT_EQ(details->firmwareStatus, hio::jlink::FirmwareStatus::Outdated);
+    EXPECT_EQ(details->firmwareStatus, hwio::jlink::FirmwareStatus::Outdated);
     EXPECT_EQ(details->libraryFirmware, "J-Link V11 compiled Oct  1 2024 09:00:00");
     EXPECT_EQ(details->targetMillivolts, 3299);
-    EXPECT_FALSE(hio::device::ProbeLock::owner(5, root() / "locks").has_value()); // released
+    EXPECT_FALSE(hwio::device::ProbeLock::owner(5, root() / "locks").has_value()); // released
 
-    const auto update = hio::device::updateProbeFirmware(registry(), location(), 5U);
+    const auto update = hwio::device::updateProbeFirmware(registry(), location(), 5U);
     ASSERT_TRUE(update) << update.error().detail;
-    EXPECT_EQ(update->before, hio::jlink::FirmwareStatus::Outdated);
+    EXPECT_EQ(update->before, hwio::jlink::FirmwareStatus::Outdated);
 
-    const auto missing = hio::device::inspectProbe(registry(), location(), 6U);
+    const auto missing = hwio::device::inspectProbe(registry(), location(), 6U);
     ASSERT_FALSE(missing);
     EXPECT_EQ(missing.error().code, ErrorCode::ProbeNotFound);
 }
@@ -199,7 +199,7 @@ TEST_F(FakeLibrarySession, OpenDoesNotWaitForASlowConnect) {
     // Half of the 1000 ms connect it must not wait for (review R46).
     EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::milliseconds(500));
     ASSERT_TRUE(session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     EXPECT_EQ((*session)->probe().serialNumber, 9U);
 }
 
@@ -210,13 +210,13 @@ TEST_F(FakeLibrarySession, BufferedOutputComesBeforeTheEcho) {
         "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "first\n"},
                            {"atMs": 250, "buffer": 0, "text": "pending\n"}]}}]})");
     auto opts = options(7);
-    opts.latencyMs = hio::device::maxLatencyMs;
+    opts.latencyMs = hwio::device::maxLatencyMs;
     auto session = DeviceSession::open(registry(), location(), std::move(opts));
     ASSERT_TRUE(session) << session.error().message;
     Recorder recorder(**session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::seconds(10)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::seconds(10)));
     ASSERT_TRUE(waitFor([&] { return !recorder.texts(Channel::Shell, Direction::Out).empty(); }));
-    hio::device::test::spin(std::chrono::milliseconds(450));
+    hwio::device::test::spin(std::chrono::milliseconds(450));
     ASSERT_TRUE((*session)->sendLine("version"));
     ASSERT_TRUE(waitFor([&] { return !recorder.texts(Channel::Shell, Direction::In).empty(); }));
     std::vector<std::string> shell;
@@ -234,20 +234,20 @@ TEST_F(FakeLibrarySession, ALineIsNotWrittenWhenTheReadBeforeItFails) {
         "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "first\n"}],
                 "readErrors": [[300, 600000]]}}]})");
     auto opts = options(7);
-    opts.latencyMs = hio::device::maxLatencyMs;
+    opts.latencyMs = hwio::device::maxLatencyMs;
     auto session = DeviceSession::open(registry(), location(), std::move(opts));
     ASSERT_TRUE(session) << session.error().message;
     Recorder recorder(**session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::seconds(10)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::seconds(10)));
     ASSERT_TRUE(waitFor([&] { return !recorder.texts(Channel::Shell, Direction::Out).empty(); }));
-    hio::device::test::spin(std::chrono::milliseconds(450));
+    hwio::device::test::spin(std::chrono::milliseconds(450));
     ASSERT_TRUE((*session)->sendLine("version"));
     ASSERT_TRUE(waitFor([&] {
         return std::ranges::any_of(recorder.connections, [](const auto& event) {
             return event.state == ConnectionState::Disconnected;
         });
     }));
-    hio::device::test::spin(std::chrono::milliseconds(100));
+    hwio::device::test::spin(std::chrono::milliseconds(100));
     EXPECT_TRUE(recorder.texts(Channel::Shell, Direction::In).empty());
 }
 
@@ -258,9 +258,9 @@ TEST_F(FakeLibrarySession, ResetRestartsTheTargetAndReattaches) {
     auto session = DeviceSession::open(registry(), location(), options(3U));
     ASSERT_TRUE(session);
     Recorder events(**session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     ASSERT_TRUE(waitFor([&] { return events.lines.size() == 1; }));
-    ASSERT_TRUE((*session)->reset("app", hio::device::ResetMode::Go));
+    ASSERT_TRUE((*session)->reset("app", hwio::device::ResetMode::Go));
     ASSERT_TRUE(waitFor([&] { return events.lines.size() == 2; })); // replayed after the reset
     EXPECT_EQ(events.lines[1].text, "boot");
     EXPECT_EQ(events.count(ConnectionState::Disconnected), 0);
@@ -272,9 +272,9 @@ TEST_F(FakeLibrarySession, NoPowerFromTheVoltageTimeline) {
     auto session = DeviceSession::open(registry(), location(), options(4U));
     ASSERT_TRUE(session);
     Recorder events(**session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Disconnected); }));
-    EXPECT_EQ(events.connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events.connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetNoPower);
 }
 
@@ -293,14 +293,14 @@ TEST_F(FakeLibrarySession, NetworkProbesAreNotUsedForSessions) {
         {"serialNumber": 71, "product": "Test Probe"}]})");
     auto session = DeviceSession::open(registry(), location(), options(std::nullopt));
     ASSERT_TRUE(session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     EXPECT_EQ((*session)->probe().serialNumber, 71U);
     (*session)->close();
 
     auto network = DeviceSession::open(registry(), location(), options(70U));
     ASSERT_TRUE(network);
     const auto status =
-        hio::device::waitUntilConnected(**network, std::chrono::milliseconds(10000));
+        hwio::device::waitUntilConnected(**network, std::chrono::milliseconds(10000));
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().code, ErrorCode::ProbeNotFound);
     EXPECT_NE(status.error().message.find("network J-Link"), std::string::npos);
@@ -312,39 +312,39 @@ TEST_F(FakeLibrarySession, NetworkProbesAreNotUsedForSessions) {
 
 // ---- M2 flashing through the real loader and the fake flash model (plan/features/0003, E2) ----
 
-std::shared_ptr<const hio::firmware::FirmwareImage> testImage(std::size_t size = 8192) {
-    std::vector<hio::firmware::Segment> segments;
-    segments.push_back(hio::firmware::Segment{
+std::shared_ptr<const hwio::firmware::FirmwareImage> testImage(std::size_t size = 8192) {
+    std::vector<hwio::firmware::Segment> segments;
+    segments.push_back(hwio::firmware::Segment{
         .address = 0x2000, .data = std::vector<std::byte>(size, std::byte{0x3C})});
-    return std::make_shared<const hio::firmware::FirmwareImage>(
-        *hio::firmware::FirmwareImage::fromSegments(std::move(segments)));
+    return std::make_shared<const hwio::firmware::FirmwareImage>(
+        *hwio::firmware::FirmwareImage::fromSegments(std::move(segments)));
 }
 
-hio::device::OperationResult runToEnd(hio::device::DeviceSession& session,
-                                      const hio::Result<hio::device::OperationId>& id) {
+hwio::device::OperationResult runToEnd(hwio::device::DeviceSession& session,
+                                       const hwio::Result<hwio::device::OperationId>& id) {
     EXPECT_TRUE(id) << (id ? std::string() : id.error().message);
     if (!id) {
         return {};
     }
-    return hio::device::waitForOperation(session, *id);
+    return hwio::device::waitForOperation(session, *id);
 }
 
 TEST_F(FakeLibrarySession, FlashWithRttAttachedPausesAndReattaches) {
     auto session = DeviceSession::open(registry(), location(), options(801000001));
     ASSERT_TRUE(session);
     Recorder events(**session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     ASSERT_TRUE(waitFor([&] { return !events.lines.empty(); }));
     const std::size_t linesBefore = events.lines.size();
     const auto result = runToEnd(**session, (*session)->flash("app", testImage(), {}));
     ASSERT_TRUE(result.status) << result.status.error().message << " "
                                << result.status.error().detail;
     ASSERT_TRUE(result.chip.has_value());
-    EXPECT_EQ(result.chip.value_or(hio::jlink::ChipInfo{}).name, "nRF52840");
+    EXPECT_EQ(result.chip.value_or(hwio::jlink::ChipInfo{}).name, "nRF52840");
     EXPECT_EQ(events.phases(1),
-              std::vector<hio::firmware::ProgramPhase>(
-                  hio::device::plannedPhases(hio::device::OperationKind::Flash, false).begin(),
-                  hio::device::plannedPhases(hio::device::OperationKind::Flash, false).end()));
+              std::vector<hwio::firmware::ProgramPhase>(
+                  hwio::device::plannedPhases(hwio::device::OperationKind::Flash, false).begin(),
+                  hwio::device::plannedPhases(hwio::device::OperationKind::Flash, false).end()));
     // The reset after programming restarts the fake target: its boot output is read again.
     ASSERT_TRUE(waitFor([&] { return events.lines.size() > linesBefore; }));
     EXPECT_EQ(events.count(ConnectionState::Disconnected), 0);
@@ -359,14 +359,14 @@ TEST_F(FakeLibrarySession, TwoSessionsFlashConcurrently) {
     auto b = DeviceSession::open(registry(), location(), options(801000002));
     ASSERT_TRUE(a);
     ASSERT_TRUE(b);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**a, std::chrono::milliseconds(10000)));
-    ASSERT_TRUE(hio::device::waitUntilConnected(**b, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**a, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**b, std::chrono::milliseconds(10000)));
     const auto idA = (*a)->flash("app", testImage(64ULL * 1024), {});
     const auto idB = (*b)->flash("app", testImage(64ULL * 1024), {});
     ASSERT_TRUE(idA);
     ASSERT_TRUE(idB);
-    const auto resultA = hio::device::waitForOperation(**a, *idA);
-    const auto resultB = hio::device::waitForOperation(**b, *idB);
+    const auto resultA = hwio::device::waitForOperation(**a, *idA);
+    const auto resultB = hwio::device::waitForOperation(**b, *idB);
     EXPECT_TRUE(resultA.status);
     EXPECT_TRUE(resultB.status);
 }
@@ -423,9 +423,9 @@ TEST_F(FakeLibrarySession, LteEraseAllAndRecoverWithTheUnlockImage) {
     opts.attachRtt = false;
     auto session = DeviceSession::open(registry(), location(), opts);
     ASSERT_TRUE(session) << session.error().message;
-    const auto erase = runToEnd(**session, (*session)->erase("lte", hio::device::EraseScope::All));
+    const auto erase = runToEnd(**session, (*session)->erase("lte", hwio::device::EraseScope::All));
     ASSERT_TRUE(erase.status) << erase.status.error().detail;
-    EXPECT_EQ(erase.chip.value_or(hio::jlink::ChipInfo{}).name, "nRF9151");
+    EXPECT_EQ(erase.chip.value_or(hwio::jlink::ChipInfo{}).name, "nRF9151");
     const auto recover = runToEnd(**session, (*session)->recover("lte"));
     ASSERT_TRUE(recover.status) << recover.status.error().detail;
     const auto code = runToEnd(**session, (*session)->readMemory("lte", 0x0, 4));
@@ -473,7 +473,7 @@ TEST_F(FakeLibrarySession, ConnectedEventCarriesTheScenarioVoltage) {
     auto session = DeviceSession::open(registry(), location(), options(11U));
     ASSERT_TRUE(session);
     Recorder events(**session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Connected); }));
     EXPECT_EQ(events.connections.back().targetMillivolts, 3712);
     EXPECT_EQ((*session)->connection().targetMillivolts, 3712);
@@ -483,7 +483,7 @@ TEST_F(FakeLibrarySession, ConnectedEventCarriesTheScenarioVoltage) {
 
 namespace {
 
-using hio::device::AccessWidth;
+using hwio::device::AccessWidth;
 
 // M6 (plan/features/0013): the target operations through a real copy of the fake library. The
 // console stays Connected across halt / go and memory accesses (ADR-0157).
@@ -497,13 +497,13 @@ TEST_F(FakeLibrarySession, TargetOperationsThroughTheLibrary) {
     auto session = DeviceSession::open(registry(), location(), options(801000001));
     ASSERT_TRUE(session) << session.error().message;
     Recorder events(**session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     const auto halted = runToEnd(**session, (*session)->halt("app"));
     ASSERT_TRUE(halted.status) << halted.status.error().detail;
     const auto status = runToEnd(**session, (*session)->targetStatus("app"));
     ASSERT_TRUE(status.status) << status.status.error().detail;
-    EXPECT_TRUE(status.targetStatus.value_or(hio::device::TargetStatus{}).halted);
-    EXPECT_EQ(status.targetStatus.value_or(hio::device::TargetStatus{}).coreId, 0x2BA01477U);
+    EXPECT_TRUE(status.targetStatus.value_or(hwio::device::TargetStatus{}).halted);
+    EXPECT_EQ(status.targetStatus.value_or(hwio::device::TargetStatus{}).coreId, 0x2BA01477U);
     const auto registers = runToEnd(**session, (*session)->readRegisters("app"));
     ASSERT_TRUE(registers.status) << registers.status.error().detail;
     ASSERT_EQ(registers.registers.size(), 2U);
@@ -535,10 +535,10 @@ TEST_F(FakeLibrarySession, TargetOperationsThroughTheLibrary) {
 // need them fail with dependency.jlink_function_missing.
 TEST_F(FakeLibrarySession, MissingOptionalExport) {
     auto session = DeviceSession::open(
-        registry(), hio::jlink::LibraryLocation{.path = fs::path(HIO_FAKE_JLINK_BASIC_LIBRARY)},
+        registry(), hwio::jlink::LibraryLocation{.path = fs::path(HWIO_FAKE_JLINK_BASIC_LIBRARY)},
         options(801000001));
     ASSERT_TRUE(session) << session.error().message;
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     const auto status = runToEnd(**session, (*session)->targetStatus("app"));
     ASSERT_FALSE(status.status);
     EXPECT_EQ(status.status.error().code, ErrorCode::DependencyJLinkFunctionMissing);
@@ -556,10 +556,10 @@ TEST_F(FakeLibrarySession, ScenarioStartsTheCpuHalted) {
                  "registers": [{"name": "R0", "value": 7}, {"name": "PC", "value": 4096}]}}]})json");
     auto session = DeviceSession::open(registry(), location(), options(801000001));
     ASSERT_TRUE(session) << session.error().message;
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     const auto status = runToEnd(**session, (*session)->targetStatus("app"));
     ASSERT_TRUE(status.status) << status.status.error().detail;
-    EXPECT_TRUE(status.targetStatus.value_or(hio::device::TargetStatus{}).halted);
+    EXPECT_TRUE(status.targetStatus.value_or(hwio::device::TargetStatus{}).halted);
     const auto registers = runToEnd(**session, (*session)->readRegisters("app"));
     ASSERT_TRUE(registers.status) << registers.status.error().detail;
     ASSERT_EQ(registers.registers.size(), 2U);
@@ -567,7 +567,7 @@ TEST_F(FakeLibrarySession, ScenarioStartsTheCpuHalted) {
     ASSERT_TRUE(runToEnd(**session, (*session)->go("app")).status);
     const auto running = runToEnd(**session, (*session)->targetStatus("app"));
     ASSERT_TRUE(running.status);
-    EXPECT_FALSE(running.targetStatus.value_or(hio::device::TargetStatus{}).halted);
+    EXPECT_FALSE(running.targetStatus.value_or(hwio::device::TargetStatus{}).halted);
     EXPECT_EQ(runToEnd(**session, (*session)->readRegisters("app")).status.error().code,
               ErrorCode::TargetNotHalted);
 }
@@ -578,7 +578,7 @@ TEST_F(FakeLibrarySession, FicrIsReadableAndUnmappedReadsFail) {
     useScenario(R"({"probes": [{"serialNumber": 801000001}]})");
     auto session = DeviceSession::open(registry(), location(), options(801000001));
     ASSERT_TRUE(session) << session.error().message;
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     const std::vector<std::byte> part{std::byte{0x40}, std::byte{0x28}, std::byte{0x05},
                                       std::byte{0x00}}; // INFO.PART 0x52840, little-endian
     const auto bytes = runToEnd(**session, (*session)->readMemory("app", 0x10000100, 4));
@@ -605,7 +605,7 @@ TEST_F(FakeLibrarySession, RttAddressIsPassedToTheLibrary) {
     auto session = DeviceSession::open(registry(), location(), opts);
     ASSERT_TRUE(session) << session.error().message;
     Recorder events(**session);
-    ASSERT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
+    ASSERT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(10000)));
     ASSERT_TRUE(waitFor([&] { return !events.lines.empty(); }));
     EXPECT_EQ(events.lines.front().text, "found");
 }

@@ -2,22 +2,22 @@
 // go, read_memory, read_registers, memory_zones, read_pib, read_uicr, write_memory, write_flash.
 // All run as DeviceSession operations (one at a time; internal.busy with the running kind).
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/pib.h"
-#include "hio/device/profile.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/hw/jlink/programmer.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/pib.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/hw/jlink/programmer.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "tool_support.h"
 #include "tools/tools.h"
 
@@ -47,16 +47,16 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 namespace {
 
 namespace fs = std::filesystem;
-using hio::device::AccessWidth;
-using hio::device::DeviceSession;
-using hio::device::OperationResult;
-using hio::mcp::Required;
-using hio::mcp::Schema;
+using hwio::device::AccessWidth;
+using hwio::device::DeviceSession;
+using hwio::device::OperationResult;
+using hwio::mcp::Required;
+using hwio::mcp::Schema;
 
 constexpr const char* targetStatusDescription =
     "Whether the target CPU is halted, its core id and the J-Link device name. J-Link only.";
@@ -95,11 +95,11 @@ constexpr const char* memoryZonesDescription =
 constexpr const char* readPibDescription =
     "Read and decode the HARDWARIO Product Information Block of the application MCU (vendor, "
     "product, hardware variant and revision, serial number, claim token, BLE passkey); the same "
-    "JSON as `hio chester app pib read --json`. J-Link only.";
+    "JSON as `hwio chester app pib read --json`. J-Link only.";
 
 constexpr const char* readUicrDescription =
     "Read the 128-byte UICR customer area (the PIB) of the application MCU as hex; the same JSON "
-    "as `hio chester app uicr read --format hex - --json`. J-Link only.";
+    "as `hwio chester app uicr read --format hex - --json`. J-Link only.";
 
 constexpr const char* writeMemoryDescription =
     "Write target RAM or peripheral registers through J-Link (not flash: use write_flash). "
@@ -161,19 +161,19 @@ constexpr const char* writeFlashDescription =
         formatAddress(static_cast<std::uint32_t>(address + std::max<std::size_t>(size, 1) - 1)));
 }
 
-hio::Result<QJsonObject> pibJson(std::span<const std::byte> data) {
-    if (data.size() != hio::device::pibSize) {
+hwio::Result<QJsonObject> pibJson(std::span<const std::byte> data) {
+    if (data.size() != hwio::device::pibSize) {
         return std::unexpected(makeError(ErrorCode::InternalUnexpected, "short PIB read"));
     }
-    auto pib = hio::device::decodePib(data.first<hio::device::pibSize>());
+    auto pib = hwio::device::decodePib(data.first<hwio::device::pibSize>());
     if (!pib) {
         return std::unexpected(std::move(pib).error());
     }
-    return hio::device::pibToJson(*pib);
+    return hwio::device::pibToJson(*pib);
 }
 
-// As `hio chester app uicr read --format hex - --json`.
-hio::Result<QJsonObject> uicrJson(std::span<const std::byte> data) {
+// As `hwio chester app uicr read --format hex - --json`.
+hwio::Result<QJsonObject> uicrJson(std::span<const std::byte> data) {
     QJsonObject json;
     json.insert(QStringLiteral("format"), QStringLiteral("hex"));
     json.insert(QStringLiteral("file"), QStringLiteral("-"));
@@ -193,8 +193,8 @@ hio::Result<QJsonObject> uicrJson(std::span<const std::byte> data) {
 }
 
 // data_hex / path of write_memory and write_flash.
-[[nodiscard]] hio::Result<std::vector<std::byte>> dataArgument(const QJsonObject& args,
-                                                               std::size_t maxBytes) {
+[[nodiscard]] hwio::Result<std::vector<std::byte>> dataArgument(const QJsonObject& args,
+                                                                std::size_t maxBytes) {
     if (args.contains(QStringLiteral("data_hex"))) {
         auto bytes = decodeHex(args.value(QStringLiteral("data_hex")).toString());
         if (!bytes) {
@@ -210,7 +210,7 @@ hio::Result<QJsonObject> uicrJson(std::span<const std::byte> data) {
     return readInputFile(*file, maxBytes);
 }
 
-std::optional<hio::mcp::ValidationError> checkData(const QJsonObject& args, std::size_t maxBytes) {
+std::optional<hwio::mcp::ValidationError> checkData(const QJsonObject& args, std::size_t maxBytes) {
     const bool hex = args.contains(QStringLiteral("data_hex"));
     const bool path = args.contains(QStringLiteral("path"));
     if (hex == path) {
@@ -247,8 +247,8 @@ QJsonObject addressedSchema(std::initializer_list<std::pair<const char*, QJsonOb
 // ADR-0100); the partial file is removed after a failure.
 class ReadMemoryFileCall final : public OperationCall {
 public:
-    ReadMemoryFileCall(ToolsContext& tools, const hio::mcp::RequestContext& context,
-                       const hio::mcp::ToolEnv& env, ResolvedDevice device, std::string targetId,
+    ReadMemoryFileCall(ToolsContext& tools, const hwio::mcp::RequestContext& context,
+                       const hwio::mcp::ToolEnv& env, ResolvedDevice device, std::string targetId,
                        std::uint32_t address, std::size_t length, AccessWidth width, fs::path file)
         : OperationCall(tools, context, env, std::move(device), readSettings("read_memory")),
           m_target(std::move(targetId)), m_address(address), m_length(length), m_width(width),
@@ -258,9 +258,9 @@ public:
         // Review R15: missing folders are never created (the cache folder of a bare name is
         // created by the tool before this call).
         if (const fs::path parent = m_path.parent_path(); !fs::is_directory(parent, ec)) {
-            hio::Error error =
+            hwio::Error error =
                 makeError(ErrorCode::IoWriteFailed, path.toStdString() + ": the folder " +
-                                                        hio::toUtf8(parent) + " does not exist");
+                                                        hwio::toUtf8(parent) + " does not exist");
             error.cause = "The folder of the file does not exist; it is not created.";
             error.suggestion = "Create the folder first, or use another path or a bare file name.";
             completeError(std::move(error));
@@ -434,10 +434,10 @@ QJsonObject writeMemoryInputSchema() {
         QStringLiteral("width"), QJsonArray{8, 16, 32});
 }
 
-hio::Status addTargetStatus(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addTargetStatus(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "target_status",
             .title = "Target status",
             .description = targetStatusDescription,
@@ -452,8 +452,8 @@ hio::Status addTargetStatus(hio::mcp::Registry& registry, ToolsContext& context)
             .start = operationStart(
                 context,
                 [](const QJsonObject&, const ResolvedDevice&,
-                   const hio::device::TargetProfile& target,
-                   const hio::mcp::ToolLimits&) -> hio::Result<SimpleOperation> {
+                   const hwio::device::TargetProfile& target,
+                   const hwio::mcp::ToolLimits&) -> hwio::Result<SimpleOperation> {
                     const std::string id(target.id);
                     return SimpleOperation{
                         .settings = readSettings("target_status"),
@@ -461,9 +461,9 @@ hio::Status addTargetStatus(hio::mcp::Registry& registry, ToolsContext& context)
                         .details = {},
                         .action = {},
                         .start = [id](DeviceSession& s) { return s.targetStatus(id); },
-                        .result = [](const OperationResult& r) -> hio::Result<QJsonObject> {
+                        .result = [](const OperationResult& r) -> hwio::Result<QJsonObject> {
                             const auto status =
-                                r.targetStatus.value_or(hio::device::TargetStatus{});
+                                r.targetStatus.value_or(hwio::device::TargetStatus{});
                             QJsonObject json;
                             json.insert(QStringLiteral("halted"), status.halted);
                             if (status.coreId) { // absent without JLINKARM_GetId (S6)
@@ -477,10 +477,10 @@ hio::Status addTargetStatus(hio::mcp::Registry& registry, ToolsContext& context)
             .validate = {}});
 }
 
-hio::Status addReset(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addReset(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "reset",
             .title = "Reset the target",
             .description = resetDescription,
@@ -502,8 +502,8 @@ hio::Status addReset(hio::mcp::Registry& registry, ToolsContext& context) {
             .start = operationStart(
                 context,
                 [](const QJsonObject& args, const ResolvedDevice&,
-                   const hio::device::TargetProfile& target,
-                   const hio::mcp::ToolLimits&) -> hio::Result<SimpleOperation> {
+                   const hwio::device::TargetProfile& target,
+                   const hwio::mcp::ToolLimits&) -> hwio::Result<SimpleOperation> {
                     const std::string id(target.id);
                     const bool halt = args.value(QStringLiteral("halt")).toBool();
                     return SimpleOperation{
@@ -518,10 +518,10 @@ hio::Status addReset(hio::mcp::Registry& registry, ToolsContext& context) {
                                        : QStringLiteral("reset %1").arg(qs(id)),
                         .start =
                             [id, halt](DeviceSession& s) {
-                                return s.reset(id, halt ? hio::device::ResetMode::Halt
-                                                        : hio::device::ResetMode::Go);
+                                return s.reset(id, halt ? hwio::device::ResetMode::Halt
+                                                        : hwio::device::ResetMode::Go);
                             },
-                        .result = [halt](const OperationResult&) -> hio::Result<QJsonObject> {
+                        .result = [halt](const OperationResult&) -> hwio::Result<QJsonObject> {
                             QJsonObject json;
                             json.insert(QStringLiteral("halted"), halt);
                             return json;
@@ -530,12 +530,12 @@ hio::Status addReset(hio::mcp::Registry& registry, ToolsContext& context) {
             .validate = {}});
 }
 
-hio::Status addHaltAndGo(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addHaltAndGo(hwio::mcp::Registry& registry, ToolsContext& context) {
     for (const bool haltTool : {true, false}) {
         const std::string_view name = haltTool ? "halt" : "go";
         if (auto added = addTool(
                 registry,
-                hio::mcp::ToolSpec{
+                hwio::mcp::ToolSpec{
                     .name = name,
                     .title = haltTool ? "Halt the CPU" : "Resume the CPU",
                     .description = haltTool ? haltDescription : goDescription,
@@ -548,8 +548,8 @@ hio::Status addHaltAndGo(hio::mcp::Registry& registry, ToolsContext& context) {
                         context,
                         [haltTool,
                          name](const QJsonObject&, const ResolvedDevice&,
-                               const hio::device::TargetProfile& target,
-                               const hio::mcp::ToolLimits&) -> hio::Result<SimpleOperation> {
+                               const hwio::device::TargetProfile& target,
+                               const hwio::mcp::ToolLimits&) -> hwio::Result<SimpleOperation> {
                             const std::string id(target.id);
                             return SimpleOperation{
                                 .settings = OperationSettings{.tool = name,
@@ -565,7 +565,7 @@ hio::Status addHaltAndGo(hio::mcp::Registry& registry, ToolsContext& context) {
                                         return haltTool ? s.halt(id) : s.go(id);
                                     },
                                 .result = [haltTool](const OperationResult& r)
-                                    -> hio::Result<QJsonObject> {
+                                    -> hwio::Result<QJsonObject> {
                                     QJsonObject json;
                                     json.insert(QStringLiteral("halted"),
                                                 r.targetStatus ? r.targetStatus->halted : haltTool);
@@ -580,10 +580,10 @@ hio::Status addHaltAndGo(hio::mcp::Registry& registry, ToolsContext& context) {
     return {};
 }
 
-hio::Status addReadMemory(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addReadMemory(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "read_memory",
             .title = "Read memory",
             .description = readMemoryDescription,
@@ -597,8 +597,8 @@ hio::Status addReadMemory(hio::mcp::Registry& registry, ToolsContext& context) {
             .annotations = readOnly,
             .consent = {},
             .marker = false,
-            .start = [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                hio::mcp::ToolEnv& env) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                                hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 auto device = resolveJLinkDevice(context.provider(), args);
                 if (!device) {
                     return failed(std::move(device).error());
@@ -639,7 +639,7 @@ hio::Status addReadMemory(hio::mcp::Registry& registry, ToolsContext& context) {
                             [targetId, address, length, width](DeviceSession& s) {
                                 return s.readMemory(targetId, address, length, width);
                             },
-                        .result = [address](const OperationResult& r) -> hio::Result<QJsonObject> {
+                        .result = [address](const OperationResult& r) -> hwio::Result<QJsonObject> {
                             QJsonObject json;
                             json.insert(QStringLiteral("address"), formatAddress(address));
                             json.insert(QStringLiteral("length"),
@@ -649,8 +649,8 @@ hio::Status addReadMemory(hio::mcp::Registry& registry, ToolsContext& context) {
                             return json;
                         }});
             },
-            .validate = [](const QJsonObject& args, const hio::mcp::Limits& limits)
-                -> std::optional<hio::mcp::ValidationError> {
+            .validate = [](const QJsonObject& args, const hwio::mcp::Limits& limits)
+                -> std::optional<hwio::mcp::ValidationError> {
                 const auto length =
                     static_cast<std::size_t>(args.value(QStringLiteral("length")).toInteger());
                 if (!args.contains(QStringLiteral("to_file"))) {
@@ -693,10 +693,10 @@ hio::Status addReadMemory(hio::mcp::Registry& registry, ToolsContext& context) {
             }});
 }
 
-hio::Status addReadRegisters(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addReadRegisters(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "read_registers",
             .title = "Read core registers",
             .description = readRegistersDescription,
@@ -709,8 +709,8 @@ hio::Status addReadRegisters(hio::mcp::Registry& registry, ToolsContext& context
             .start = operationStart(
                 context,
                 [](const QJsonObject&, const ResolvedDevice&,
-                   const hio::device::TargetProfile& target,
-                   const hio::mcp::ToolLimits& limits) -> hio::Result<SimpleOperation> {
+                   const hwio::device::TargetProfile& target,
+                   const hwio::mcp::ToolLimits& limits) -> hwio::Result<SimpleOperation> {
                     const std::string id(target.id);
                     const std::size_t max = limits.maxRegisters;
                     return SimpleOperation{
@@ -719,7 +719,7 @@ hio::Status addReadRegisters(hio::mcp::Registry& registry, ToolsContext& context
                         .details = {},
                         .action = {},
                         .start = [id](DeviceSession& s) { return s.readRegisters(id); },
-                        .result = [max](const OperationResult& r) -> hio::Result<QJsonObject> {
+                        .result = [max](const OperationResult& r) -> hwio::Result<QJsonObject> {
                             QJsonObject registers;
                             std::size_t count = 0;
                             for (const auto& reg : r.registers) {
@@ -736,10 +736,10 @@ hio::Status addReadRegisters(hio::mcp::Registry& registry, ToolsContext& context
             .validate = {}});
 }
 
-hio::Status addMemoryZones(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addMemoryZones(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "memory_zones",
             .title = "Memory zones",
             .description = memoryZonesDescription,
@@ -755,8 +755,8 @@ hio::Status addMemoryZones(hio::mcp::Registry& registry, ToolsContext& context) 
             .start = operationStart(
                 context,
                 [](const QJsonObject&, const ResolvedDevice&,
-                   const hio::device::TargetProfile& target,
-                   const hio::mcp::ToolLimits& limits) -> hio::Result<SimpleOperation> {
+                   const hwio::device::TargetProfile& target,
+                   const hwio::mcp::ToolLimits& limits) -> hwio::Result<SimpleOperation> {
                     const std::string id(target.id);
                     const std::size_t max = limits.maxZones;
                     return SimpleOperation{
@@ -765,7 +765,7 @@ hio::Status addMemoryZones(hio::mcp::Registry& registry, ToolsContext& context) 
                         .details = {},
                         .action = {},
                         .start = [id](DeviceSession& s) { return s.memoryZones(id); },
-                        .result = [max](const OperationResult& r) -> hio::Result<QJsonObject> {
+                        .result = [max](const OperationResult& r) -> hwio::Result<QJsonObject> {
                             QJsonArray zones;
                             for (const auto& zone : r.zones) {
                                 if (std::cmp_greater_equal(zones.size(), max)) {
@@ -786,12 +786,12 @@ hio::Status addMemoryZones(hio::mcp::Registry& registry, ToolsContext& context) 
             .validate = {}});
 }
 
-hio::Status addPibAndUicr(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addPibAndUicr(hwio::mcp::Registry& registry, ToolsContext& context) {
     for (const bool pib : {true, false}) {
         const std::string_view name = pib ? "read_pib" : "read_uicr";
         if (auto added = addTool(
                 registry,
-                hio::mcp::ToolSpec{
+                hwio::mcp::ToolSpec{
                     .name = name,
                     .title = pib ? "Read the PIB" : "Read the UICR customer area",
                     .description = pib ? readPibDescription : readUicrDescription,
@@ -818,11 +818,11 @@ hio::Status addPibAndUicr(hio::mcp::Registry& registry, ToolsContext& context) {
                     .start = operationStart(
                         context,
                         [pib, name](const QJsonObject&, const ResolvedDevice&,
-                                    const hio::device::TargetProfile& target,
-                                    const hio::mcp::ToolLimits&) -> hio::Result<SimpleOperation> {
+                                    const hwio::device::TargetProfile& target,
+                                    const hwio::mcp::ToolLimits&) -> hwio::Result<SimpleOperation> {
                             const std::string id(target.id);
                             const auto address =
-                                static_cast<std::uint32_t>(hio::device::pibRange(target).start);
+                                static_cast<std::uint32_t>(hwio::device::pibRange(target).start);
                             return SimpleOperation{
                                 .settings = readSettings(name),
                                 .consent = {},
@@ -830,10 +830,10 @@ hio::Status addPibAndUicr(hio::mcp::Registry& registry, ToolsContext& context) {
                                 .action = {},
                                 .start =
                                     [id, address](DeviceSession& s) {
-                                        return s.readMemory(id, address, hio::device::pibSize);
+                                        return s.readMemory(id, address, hwio::device::pibSize);
                                     },
                                 .result =
-                                    [pib](const OperationResult& r) -> hio::Result<QJsonObject> {
+                                    [pib](const OperationResult& r) -> hwio::Result<QJsonObject> {
                                     return pib ? pibJson(r.data) : uicrJson(r.data);
                                 }};
                         },
@@ -846,23 +846,23 @@ hio::Status addPibAndUicr(hio::mcp::Registry& registry, ToolsContext& context) {
     return {};
 }
 
-hio::Status addWriteMemory(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addWriteMemory(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "write_memory",
             .title = "Write memory",
             .description = writeMemoryDescription,
             .inputSchema = writeMemoryInputSchema(),
             .outputSchema = addressedSchema({{"units_written", typed("integer")}}),
             .annotations = destructive,
-            .consent = hio::mcp::ConsentCategory::MemoryWrite,
+            .consent = hwio::mcp::ConsentCategory::MemoryWrite,
             .marker = true,
             .start = operationStart(
                 context,
                 [](const QJsonObject& args, const ResolvedDevice&,
-                   const hio::device::TargetProfile& target,
-                   const hio::mcp::ToolLimits& limits) -> hio::Result<SimpleOperation> {
+                   const hwio::device::TargetProfile& target,
+                   const hwio::mcp::ToolLimits& limits) -> hwio::Result<SimpleOperation> {
                     auto data = dataArgument(args, limits.writeMemoryMaxBytes);
                     if (!data) {
                         return std::unexpected(std::move(data).error());
@@ -873,7 +873,8 @@ hio::Status addWriteMemory(hio::mcp::Registry& registry, ToolsContext& context) 
                     const AccessWidth width = widthOf(args);
                     const std::size_t size = data->size();
                     // Review F4: the range (ADR-0160, ADR-0164) before the consent request.
-                    if (hio::Status allowed = hio::device::checkMemoryWrite(target, address, size);
+                    if (hwio::Status allowed =
+                            hwio::device::checkMemoryWrite(target, address, size);
                         !allowed) {
                         return std::unexpected(std::move(allowed).error());
                     }
@@ -882,7 +883,7 @@ hio::Status addWriteMemory(hio::mcp::Registry& registry, ToolsContext& context) 
                     details.insert(QStringLiteral("range"), rangeText(address, size));
                     details.insert(QStringLiteral("size"), static_cast<qint64>(size));
                     details.insert(QStringLiteral("width"),
-                                   static_cast<int>(hio::jlink::unitBytes(width) * 8));
+                                   static_cast<int>(hwio::jlink::unitBytes(width) * 8));
                     if (args.contains(QStringLiteral("path"))) {
                         details.insert(QStringLiteral("file"),
                                        args.value(QStringLiteral("path")).toString());
@@ -894,7 +895,7 @@ hio::Status addWriteMemory(hio::mcp::Registry& registry, ToolsContext& context) 
                                                       .busy = false,
                                                       .cursors = false,
                                                       .progress = false},
-                        .consent = hio::mcp::ConsentCategory::MemoryWrite,
+                        .consent = hwio::mcp::ConsentCategory::MemoryWrite,
                         .details = details,
                         .action = QStringLiteral("write_memory %1 (%2 bytes)")
                                       .arg(formatAddress(address), QString::number(size)),
@@ -903,23 +904,23 @@ hio::Status addWriteMemory(hio::mcp::Registry& registry, ToolsContext& context) 
                                 return s.writeMemory(id, address, *shared, width);
                             },
                         .result = [address, size,
-                                   width](const OperationResult&) -> hio::Result<QJsonObject> {
+                                   width](const OperationResult&) -> hwio::Result<QJsonObject> {
                             QJsonObject json;
                             json.insert(QStringLiteral("address"), formatAddress(address));
                             json.insert(QStringLiteral("units_written"),
-                                        static_cast<qint64>(size / hio::jlink::unitBytes(width)));
+                                        static_cast<qint64>(size / hwio::jlink::unitBytes(width)));
                             return json;
                         }};
                 }),
-            .validate = [](const QJsonObject& args, const hio::mcp::Limits& limits) {
+            .validate = [](const QJsonObject& args, const hwio::mcp::Limits& limits) {
                 return checkData(args, limits.tools.writeMemoryMaxBytes);
             }});
 }
 
-hio::Status addWriteFlash(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addWriteFlash(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "write_flash",
             .title = "Write flash",
             .description = writeFlashDescription,
@@ -947,13 +948,13 @@ hio::Status addWriteFlash(hio::mcp::Registry& registry, ToolsContext& context) {
                                              {"log_cursor_end", typed("integer")},
                                              {"terminal_cursor_end", typed("integer")}}),
             .annotations = destructive,
-            .consent = hio::mcp::ConsentCategory::Flash,
+            .consent = hwio::mcp::ConsentCategory::Flash,
             .marker = true,
             .start = operationStart(
                 context,
                 [](const QJsonObject& args, const ResolvedDevice&,
-                   const hio::device::TargetProfile& target,
-                   const hio::mcp::ToolLimits& limits) -> hio::Result<SimpleOperation> {
+                   const hwio::device::TargetProfile& target,
+                   const hwio::mcp::ToolLimits& limits) -> hwio::Result<SimpleOperation> {
                     auto data = dataArgument(args, limits.writeFlashMaxBytes);
                     if (!data) {
                         return std::unexpected(std::move(data).error());
@@ -964,20 +965,20 @@ hio::Status addWriteFlash(hio::mcp::Registry& registry, ToolsContext& context) {
                     const bool allowUicr = args.value(QStringLiteral("allow_uicr")).toBool();
                     const std::size_t size = data->size();
                     // Review F4: the flash rules of planImage before the consent request.
-                    if (hio::Status allowed =
-                            hio::device::checkFlashWrite(target, address, size, allowUicr);
+                    if (hwio::Status allowed =
+                            hwio::device::checkFlashWrite(target, address, size, allowUicr);
                         !allowed) {
                         return std::unexpected(std::move(allowed).error());
                     }
-                    const hio::firmware::AddressRange range{.start = address,
-                                                            .end = std::uint64_t{address} + size};
+                    const hwio::firmware::AddressRange range{.start = address,
+                                                             .end = std::uint64_t{address} + size};
                     // Review S2, the rule of `flash`: flash always; uicr only with allow_uicr and
                     // bytes in the UICR (ADR-0101). Without allow_uicr UICR bytes were refused
                     // above (firmware.uicr_in_image), so no uicr consent is asked for.
                     const bool uicr = allowUicr && range.overlaps(target.uicr);
-                    hio::mcp::ConsentCategories consent = hio::mcp::ConsentCategory::Flash;
+                    hwio::mcp::ConsentCategories consent = hwio::mcp::ConsentCategory::Flash;
                     if (uicr) {
-                        consent |= hio::mcp::ConsentCategory::Uicr;
+                        consent |= hwio::mcp::ConsentCategory::Uicr;
                     }
                     QJsonObject details;
                     details.insert(QStringLiteral("target"), qs(id));
@@ -1004,7 +1005,7 @@ hio::Status addWriteFlash(hio::mcp::Registry& registry, ToolsContext& context) {
                                 return s.writeFlash(id, address, *shared, allowUicr);
                             },
                         .result = [address,
-                                   size](const OperationResult& r) -> hio::Result<QJsonObject> {
+                                   size](const OperationResult& r) -> hwio::Result<QJsonObject> {
                             QJsonObject json;
                             json.insert(QStringLiteral("address"), formatAddress(address));
                             json.insert(QStringLiteral("bytes"), static_cast<qint64>(size));
@@ -1012,14 +1013,14 @@ hio::Status addWriteFlash(hio::mcp::Registry& registry, ToolsContext& context) {
                             return json;
                         }};
                 }),
-            .validate = [](const QJsonObject& args, const hio::mcp::Limits& limits) {
+            .validate = [](const QJsonObject& args, const hwio::mcp::Limits& limits) {
                 return checkData(args, limits.tools.writeFlashMaxBytes);
             }});
 }
 
 } // namespace
 
-hio::Status registerTargetTools(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status registerTargetTools(hwio::mcp::Registry& registry, ToolsContext& context) {
     for (const auto& add :
          {&addTargetStatus, &addReset, &addHaltAndGo, &addReadMemory, &addReadRegisters,
           &addMemoryZones, &addPibAndUicr, &addWriteMemory, &addWriteFlash}) {
@@ -1030,4 +1031,4 @@ hio::Status registerTargetTools(hio::mcp::Registry& registry, ToolsContext& cont
     return {};
 }
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

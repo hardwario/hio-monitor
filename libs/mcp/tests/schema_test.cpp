@@ -1,7 +1,7 @@
 // Schema builders, the supported subset and argument validation (plan/features/0013 "Argument
 // validation").
 
-#include "hio/mcp/schema.h"
+#include "hwio/mcp/schema.h"
 
 #include <QCborValue>
 #include <QJsonArray>
@@ -14,7 +14,7 @@
 
 #include <array>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 QJsonObject json(const char* text) { return QJsonDocument::fromJson(QByteArray(text)).object(); }
@@ -133,4 +133,4 @@ TEST(Schema, ParsesAndFormatsAddresses) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

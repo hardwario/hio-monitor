@@ -1,6 +1,6 @@
 // "Create diagnostic report" (plan/features/0007, ADR-0075): collecting (spinner, Cancel), then
 // the read-only summary.txt, the privacy note and [Save report…] (native file dialog, Documents,
-// hio-diagnostics-YYYYMMDD-HHMMSS.zip) · [Copy summary] · [Close]. A failed save shows an
+// hwio-diagnostics-YYYYMMDD-HHMMSS.zip) · [Copy summary] · [Close]. A failed save shows an
 // ErrorPanel (diag.report_write_failed); after saving, [Show in folder]. AppViewModel.report.
 pragma ComponentBehavior: Bound
 

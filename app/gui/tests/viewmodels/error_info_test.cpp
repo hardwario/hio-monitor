@@ -1,6 +1,6 @@
-// ErrorInfo: hio::Error for QML and the primary action per category (plan 0004, A4).
+// ErrorInfo: hwio::Error for QML and the primary action per category (plan 0004, A4).
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 #include "viewmodels/error_info.h"
 
 #include <QString>
@@ -9,9 +9,9 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::gui::ErrorInfo;
-namespace error_action = hio::gui::error_action;
+using hwio::ErrorCode;
+using hwio::gui::ErrorInfo;
+namespace error_action = hwio::gui::error_action;
 
 TEST(ErrorInfo, DefaultIsInvalid) {
     const ErrorInfo info;
@@ -21,10 +21,10 @@ TEST(ErrorInfo, DefaultIsInvalid) {
 }
 
 TEST(ErrorInfo, CarriesAllFields) {
-    hio::Error error = hio::makeError(ErrorCode::TargetNoPower, "VTref = 0 mV");
+    hwio::Error error = hwio::makeError(ErrorCode::TargetNoPower, "VTref = 0 mV");
     error.cause = "the battery is disconnected";
     error.suggestion = "connect power";
-    error.wizard = hio::WizardId::ConnectDevice;
+    error.wizard = hwio::WizardId::ConnectDevice;
     const ErrorInfo info(error);
     EXPECT_TRUE(info.valid());
     EXPECT_EQ(info.code(), QStringLiteral("target.no_power"));
@@ -38,7 +38,7 @@ TEST(ErrorInfo, CarriesAllFields) {
 }
 
 TEST(ErrorInfo, NoWizardIsEmpty) {
-    hio::Error error = hio::makeError(ErrorCode::IoReadFailed);
+    hwio::Error error = hwio::makeError(ErrorCode::IoReadFailed);
     error.wizard.reset();
     const ErrorInfo info(error);
     EXPECT_TRUE(info.wizard().isEmpty());
@@ -47,7 +47,7 @@ TEST(ErrorInfo, NoWizardIsEmpty) {
 
 TEST(ErrorInfo, PrimaryActionFollowsTheCategory) {
     const auto action = [](ErrorCode code) {
-        return ErrorInfo(hio::makeError(code)).primaryAction();
+        return ErrorInfo(hwio::makeError(code)).primaryAction();
     };
     EXPECT_EQ(action(ErrorCode::ProbeNotFound), error_action::Reconnect);
     EXPECT_EQ(action(ErrorCode::TargetConnectFailed), error_action::Reconnect);
@@ -62,8 +62,8 @@ TEST(ErrorInfo, PrimaryActionFollowsTheCategory) {
 }
 
 TEST(ErrorInfo, EveryCategoryHasAnAction) {
-    for (const hio::ErrorInfo& entry : hio::errorTable) {
-        const int action = ErrorInfo(hio::makeError(entry.code)).primaryAction();
+    for (const hwio::ErrorInfo& entry : hwio::errorTable) {
+        const int action = ErrorInfo(hwio::makeError(entry.code)).primaryAction();
         EXPECT_GE(action, error_action::Reconnect) << entry.id;
         EXPECT_LE(action, error_action::Dismiss) << entry.id;
     }

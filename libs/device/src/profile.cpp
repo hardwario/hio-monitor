@@ -1,8 +1,8 @@
-#include "hio/device/profile.h"
+#include "hwio/device/profile.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/firmware/firmware_image.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/firmware_image.h"
 #include "profiles/profiles.h"
 
 #include <QCoreApplication>
@@ -19,7 +19,7 @@
 #include <string_view>
 #include <utility>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -69,15 +69,15 @@ const ChipPart* findPart(const TargetProfile& target, std::uint32_t part) noexce
 
 QString targetDisplayName(const TargetProfile& target) {
     const std::string source(target.displayName.empty() ? target.id : target.displayName);
-    return QCoreApplication::translate("hio::device", source.c_str());
+    return QCoreApplication::translate("hwio::device", source.c_str());
 }
 
 QString guideStepTitle(const ConnectionGuideStep& step) {
-    return QCoreApplication::translate("hio::device", step.titleSourceText);
+    return QCoreApplication::translate("hwio::device", step.titleSourceText);
 }
 
 QString guideStepBody(const ConnectionGuideStep& step) {
-    return QCoreApplication::translate("hio::device", step.bodySourceText);
+    return QCoreApplication::translate("hwio::device", step.bodySourceText);
 }
 
 QString powerHint(const DeviceProfile& profile) {
@@ -85,14 +85,14 @@ QString powerHint(const DeviceProfile& profile) {
         return {};
     }
     const std::string source(profile.powerHintSourceText);
-    return QCoreApplication::translate("hio::device", source.c_str());
+    return QCoreApplication::translate("hwio::device", source.c_str());
 }
 
 QString passkeyHint(const DeviceProfile& profile) {
     if (!profile.ble || std::string_view(profile.ble->passkeyHintSourceText).empty()) {
         return {};
     }
-    return QCoreApplication::translate("hio::device", profile.ble->passkeyHintSourceText);
+    return QCoreApplication::translate("hwio::device", profile.ble->passkeyHintSourceText);
 }
 
 std::string_view firmwareDocsUrlFor(const DeviceProfile& profile,
@@ -137,11 +137,11 @@ Status checkMemoryRead(std::uint32_t address, std::size_t size) {
     Error error = makeError(ErrorCode::TargetAddressOutOfRange,
                             std::format("requested {}; the address space ends at 0x{:X}",
                                         rangeText(requested), addressSpaceEnd));
-    error.cause = QCoreApplication::translate("hio::device",
+    error.cause = QCoreApplication::translate("hwio::device",
                                               "The range runs past the end of the address space.")
                       .toStdString();
     error.suggestion =
-        QCoreApplication::translate("hio::device", "Use a shorter range or a lower address.")
+        QCoreApplication::translate("hwio::device", "Use a shorter range or a lower address.")
             .toStdString();
     return std::unexpected(std::move(error));
 }
@@ -158,12 +158,12 @@ Status checkMemoryWrite(const TargetProfile& target, std::uint32_t address, std:
             std::format("requested {}; denied {}", rangeText(requested), rangeText(*denied)));
         error.cause = denied->start >= privatePeripheralBus
                           ? QCoreApplication::translate(
-                                "hio::device",
+                                "hwio::device",
                                 "The range overlaps system or debug registers of the CPU, through "
                                 "which a write could make the device run arbitrary code.")
                                 .toStdString()
                           : QCoreApplication::translate(
-                                "hio::device",
+                                "hwio::device",
                                 "The range overlaps the flash controller registers, whose tasks "
                                 "erase flash, UICR and the product information.")
                                 .toStdString();
@@ -196,7 +196,7 @@ Status checkFlashWrite(const TargetProfile& target, std::uint32_t address, std::
                                             "0x{:08X}-0x{:08X}",
                                             range.start, range.end, pib.start, pib.end));
         error.message = QCoreApplication::translate(
-                            "hio::device",
+                            "hwio::device",
                             "The firmware writes into the Product Information Block (address %1).")
                             .arg(hexAddress(std::max(range.start, pib.start)))
                             .toStdString();
@@ -211,13 +211,13 @@ Status checkFlashWrite(const TargetProfile& target, std::uint32_t address, std::
                                             range.start, range.end, target.flash.start,
                                             target.flash.end, target.uicr.start, target.uicr.end));
         error.message = QCoreApplication::translate(
-                            "hio::device", "The firmware does not fit the %1 MCU (address %2).")
+                            "hwio::device", "The firmware does not fit the %1 MCU (address %2).")
                             .arg(targetDisplayName(target), hexAddress(outside))
                             .toStdString();
-        error.suggestion =
-            QCoreApplication::translate("hio::device", "Check that the firmware is for the %1 MCU.")
-                .arg(targetDisplayName(target))
-                .toStdString();
+        error.suggestion = QCoreApplication::translate("hwio::device",
+                                                       "Check that the firmware is for the %1 MCU.")
+                               .arg(targetDisplayName(target))
+                               .toStdString();
         return std::unexpected(std::move(error));
     }
     if (!allowUicr && range.overlaps(target.uicr)) {
@@ -228,4 +228,4 @@ Status checkFlashWrite(const TargetProfile& target, std::uint32_t address, std::
     return {};
 }
 
-} // namespace hio::device
+} // namespace hwio::device

@@ -1,18 +1,18 @@
 // Probe-only sessions, startConnection and the Diagnose operation (plan/features/0007, B1 + B2;
 // ADR-0069) with the in-process scripted J-Link. Run under ASan/UBSan and TSan by the presets.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_registry.h"
-#include "hio/diag/check.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/library_locator.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/diag/check.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/library_locator.h"
 #include "scripted_api.h"
 #include "session_internal.h"
 #include "session_test_support.h"
@@ -43,23 +43,23 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::device::ConnectionState;
-using hio::device::DeviceSession;
-using hio::device::DiagnoseStep;
-using hio::device::OperationId;
-using hio::device::OperationKind;
-using hio::device::OperationResult;
-using hio::device::SessionOptions;
-using hio::device::SessionRegistry;
-using hio::device::detail::OpenHooks;
-using hio::device::test::Recorder;
-using hio::device::test::ScriptedApi;
-using hio::device::test::ScriptedTarget;
-using hio::device::test::spin;
-using hio::device::test::waitFor;
-using hio::diag::CheckStatus;
-using hio::firmware::ProgramPhase;
+using hwio::ErrorCode;
+using hwio::device::ConnectionState;
+using hwio::device::DeviceSession;
+using hwio::device::DiagnoseStep;
+using hwio::device::OperationId;
+using hwio::device::OperationKind;
+using hwio::device::OperationResult;
+using hwio::device::SessionOptions;
+using hwio::device::SessionRegistry;
+using hwio::device::detail::OpenHooks;
+using hwio::device::test::Recorder;
+using hwio::device::test::ScriptedApi;
+using hwio::device::test::ScriptedTarget;
+using hwio::device::test::spin;
+using hwio::device::test::waitFor;
+using hwio::diag::CheckStatus;
+using hwio::firmware::ProgramPhase;
 
 constexpr std::uint32_t probeSerial = 801000001;
 
@@ -67,16 +67,16 @@ class Diagnose : public ::testing::Test {
 protected:
     Diagnose()
         : m_registry(std::make_unique<SessionRegistry>(
-              hio::device::RegistryOptions{.instanceRoot = root() / "instances",
-                                           .lockDirectory = root() / "locks",
-                                           .consoleDirectory = root() / "console"})) {}
+              hwio::device::RegistryOptions{.instanceRoot = root() / "instances",
+                                            .lockDirectory = root() / "locks",
+                                            .consoleDirectory = root() / "console"})) {}
 
     [[nodiscard]] fs::path root() const { return {m_dir.path().toStdString()}; }
 
     [[nodiscard]] static SessionOptions options(bool connectTarget,
                                                 std::string_view target = "app") {
         SessionOptions options;
-        options.profile = hio::device::ProfileRegistry::find("chester");
+        options.profile = hwio::device::ProfileRegistry::find("chester");
         options.targetId = target;
         options.probeSn = probeSerial;
         options.latencyMs = 5;
@@ -88,8 +88,8 @@ protected:
 
     [[nodiscard]] OpenHooks hooks() const {
         OpenHooks hooks;
-        hooks.apiFactory = [target =
-                                m_target]() -> hio::Result<std::unique_ptr<hio::jlink::IJLinkApi>> {
+        hooks.apiFactory =
+            [target = m_target]() -> hwio::Result<std::unique_ptr<hwio::jlink::IJLinkApi>> {
             return std::make_unique<ScriptedApi>(target);
         };
         hooks.timing.powerCheckInterval = std::chrono::milliseconds(20);
@@ -109,8 +109,8 @@ protected:
     }
 
     std::unique_ptr<DeviceSession> open(const SessionOptions& opts, ConnectionState until) {
-        auto session = hio::device::detail::openSession(*m_registry, hio::jlink::LibraryLocation{},
-                                                        opts, hooks());
+        auto session = hwio::device::detail::openSession(
+            *m_registry, hwio::jlink::LibraryLocation{}, opts, hooks());
         EXPECT_TRUE(session) << session.error().message;
         if (!session) {
             return nullptr;
@@ -123,7 +123,7 @@ protected:
         return std::move(*session);
     }
 
-    const OperationResult* finish(const hio::Result<OperationId>& id) {
+    const OperationResult* finish(const hwio::Result<OperationId>& id) {
         EXPECT_TRUE(id) << (id ? std::string() : id.error().message);
         if (!id) {
             return nullptr;
@@ -136,7 +136,7 @@ protected:
         std::vector<std::string> list;
         list.reserve(result.checks.size());
         for (const DiagnoseStep& step : result.checks) {
-            list.push_back(step.id + ":" + std::string(hio::diag::checkStatusId(step.status)));
+            list.push_back(step.id + ":" + std::string(hwio::diag::checkStatusId(step.status)));
         }
         return list;
     }
@@ -195,7 +195,7 @@ TEST_F(Diagnose, ProbeOnlySessionNeverConnectsTheTarget) {
     EXPECT_EQ(session->probe().serialNumber, probeSerial);
     EXPECT_TRUE(events().reached(ConnectionState::ProbeOpen));
     // The probe lock is held (ADR-0058).
-    const auto lock = hio::device::ProbeLock::acquire(probeSerial, root() / "locks");
+    const auto lock = hwio::device::ProbeLock::acquire(probeSerial, root() / "locks");
     EXPECT_FALSE(lock.has_value());
 }
 
@@ -206,7 +206,7 @@ TEST_F(Diagnose, StartConnectionPromotesAndKeepsTheProbe) {
     ASSERT_TRUE(waitFor([&] { return events().reached(ConnectionState::Connected); }));
     EXPECT_EQ(target().get([](ScriptedTarget& t) { return t.opens; }), 1); // not reopened
     EXPECT_GT(target().get([](ScriptedTarget& t) { return t.rttStarts; }), 0);
-    EXPECT_FALSE(hio::device::ProbeLock::acquire(probeSerial, root() / "locks").has_value());
+    EXPECT_FALSE(hwio::device::ProbeLock::acquire(probeSerial, root() / "locks").has_value());
     // A normal session cannot be promoted again.
     const auto again = session->startConnection(true);
     ASSERT_FALSE(again.has_value());
@@ -288,7 +288,7 @@ TEST_F(Diagnose, AllGoodOnAProbeOnlySession) {
     ASSERT_EQ(steps().size(), 6U);
     for (std::size_t i = 0; i < steps().size(); ++i) {
         EXPECT_EQ(steps()[i].first, *id);
-        EXPECT_EQ(steps()[i].second.id, hio::device::diagnoseStepIds.at(i));
+        EXPECT_EQ(steps()[i].second.id, hwio::device::diagnoseStepIds.at(i));
     }
     EXPECT_EQ(events().phases(*id), std::vector<ProgramPhase>{ProgramPhase::Connecting});
     expectNoWrites();
@@ -338,7 +338,7 @@ TEST_F(Diagnose, ConnectFailureIsOneAttempt) {
 
 TEST_F(Diagnose, WrongFamilyFailsIdentify) {
     // The flat cable is on the LTE connector: the "app" MCU answers as an nRF91.
-    target().set([](ScriptedTarget& t) { t.app = hio::device::test::nrf91Chip(); });
+    target().set([](ScriptedTarget& t) { t.app = hwio::device::test::nrf91Chip(); });
     auto session = open(options(false), ConnectionState::ProbeOpen);
     ASSERT_TRUE(session);
     const OperationResult* result = finish(session->diagnose("app"));
@@ -458,7 +458,7 @@ TEST_F(Diagnose, OtherTargetSwitchesAndRestores) {
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(step(*result, "identify").status, CheckStatus::Ok);
     EXPECT_EQ(step(*result, "rtt").status, CheckStatus::Skipped);
-    const auto planned = hio::device::plannedPhases(OperationKind::Diagnose, true);
+    const auto planned = hwio::device::plannedPhases(OperationKind::Diagnose, true);
     EXPECT_EQ(events().phases(*id), std::vector<ProgramPhase>(planned.begin(), planned.end()));
     EXPECT_TRUE(waitFor(
         [&] { return target().get([](ScriptedTarget& t) { return t.rttStarts; }) > starts; }));
@@ -485,11 +485,11 @@ TEST_F(Diagnose, OverallBudgetSkipsTheRemainingSteps) {
     const DiagnoseStep& identify = step(result, "identify");
     ASSERT_TRUE(identify.error);
     EXPECT_EQ(codeOf(identify), ErrorCode::DiagCheckTimeout);
-    EXPECT_EQ(identify.error.value_or(hio::Error{}).message,
+    EXPECT_EQ(identify.error.value_or(hwio::Error{}).message,
               "The check \"MCU type\" did not finish in time.");
     EXPECT_EQ(identify.result, "Not checked: the time for the checks ran out");
     EXPECT_EQ(codeOf(step(result, "rtt-buffers")), ErrorCode::DiagCheckTimeout);
-    EXPECT_EQ(step(result, "rtt-buffers").error.value_or(hio::Error{}).message,
+    EXPECT_EQ(step(result, "rtt-buffers").error.value_or(hwio::Error{}).message,
               "The check \"Console channels\" did not finish in time.");
     EXPECT_TRUE(events().reached(ConnectionState::ProbeOpen));
 }
@@ -545,8 +545,8 @@ TEST_F(Diagnose, OpenFailureWithoutUsbAccessIsUsbAccessDenied) {
     ASSERT_TRUE(session);
     const auto& event = events().connections.back();
     ASSERT_TRUE(event.error);
-    EXPECT_EQ(event.error.value_or(hio::Error{}).code, ErrorCode::UsbAccessDenied);
-    EXPECT_NE(event.error.value_or(hio::Error{}).detail.find("/dev/bus/usb/001/009"),
+    EXPECT_EQ(event.error.value_or(hwio::Error{}).code, ErrorCode::UsbAccessDenied);
+    EXPECT_NE(event.error.value_or(hwio::Error{}).detail.find("/dev/bus/usb/001/009"),
               std::string::npos);
 }
 
@@ -570,8 +570,9 @@ TEST_F(Diagnose, NotFoundWithoutUsbAccessIsUsbAccessDenied) {
     ASSERT_TRUE(session);
     const auto& event = events().connections.back();
     ASSERT_TRUE(event.error);
-    EXPECT_EQ(event.error.value_or(hio::Error{}).code, ErrorCode::UsbAccessDenied);
-    EXPECT_NE(event.error.value_or(hio::Error{}).detail.find("probe(s) listed"), std::string::npos);
+    EXPECT_EQ(event.error.value_or(hwio::Error{}).code, ErrorCode::UsbAccessDenied);
+    EXPECT_NE(event.error.value_or(hwio::Error{}).detail.find("probe(s) listed"),
+              std::string::npos);
 }
 
 TEST_F(Diagnose, NotFoundWithUsbAccessStaysNotFound) {
@@ -580,7 +581,7 @@ TEST_F(Diagnose, NotFoundWithUsbAccessStaysNotFound) {
     ASSERT_TRUE(session);
     const auto& event = events().connections.back();
     ASSERT_TRUE(event.error);
-    EXPECT_EQ(event.error.value_or(hio::Error{}).code, ErrorCode::ProbeNotFound);
+    EXPECT_EQ(event.error.value_or(hwio::Error{}).code, ErrorCode::ProbeNotFound);
 }
 
 TEST_F(Diagnose, OpenFailureWithUsbAccessStaysOpenFailed) {
@@ -589,40 +590,40 @@ TEST_F(Diagnose, OpenFailureWithUsbAccessStaysOpenFailed) {
     ASSERT_TRUE(session);
     const auto& event = events().connections.back();
     ASSERT_TRUE(event.error);
-    EXPECT_EQ(event.error.value_or(hio::Error{}).code, ErrorCode::ProbeOpenFailed);
+    EXPECT_EQ(event.error.value_or(hwio::Error{}).code, ErrorCode::ProbeOpenFailed);
 }
 #endif
 
 TEST(DiagnoseSteps, TitlesNameTheTarget) {
-    const auto* chester = hio::device::ProfileRegistry::find("chester");
+    const auto* chester = hwio::device::ProfileRegistry::find("chester");
     ASSERT_NE(chester, nullptr);
-    const auto steps = hio::device::diagnoseSteps(*hio::device::findTarget(*chester, "app"));
-    ASSERT_EQ(steps.size(), hio::device::diagnoseStepIds.size());
+    const auto steps = hwio::device::diagnoseSteps(*hwio::device::findTarget(*chester, "app"));
+    ASSERT_EQ(steps.size(), hwio::device::diagnoseStepIds.size());
     for (std::size_t i = 0; i < steps.size(); ++i) {
-        EXPECT_EQ(steps[i].id, hio::device::diagnoseStepIds.at(i));
+        EXPECT_EQ(steps[i].id, hwio::device::diagnoseStepIds.at(i));
         EXPECT_FALSE(steps[i].title.empty());
     }
     EXPECT_EQ(steps[2].title, "Connection to the application MCU");
-    EXPECT_EQ(hio::device::operationKindId(OperationKind::Diagnose), "diagnose");
+    EXPECT_EQ(hwio::device::operationKindId(OperationKind::Diagnose), "diagnose");
 }
 
 TEST(ConnectionGuide, EveryTargetHasAGuideWithTexts) {
-    for (const auto* profile : hio::device::ProfileRegistry::all()) {
+    for (const auto* profile : hwio::device::ProfileRegistry::all()) {
         EXPECT_FALSE(profile->powerHintSourceText.empty()) << profile->id;
         for (const auto& target : profile->targets) {
             ASSERT_FALSE(target.connectionGuide.empty()) << target.id;
             for (const auto& step : target.connectionGuide) {
                 EXPECT_FALSE(step.id.empty());
                 EXPECT_FALSE(step.illustrationSlot.empty());
-                EXPECT_FALSE(hio::device::guideStepTitle(step).isEmpty());
-                EXPECT_FALSE(hio::device::guideStepBody(step).isEmpty());
+                EXPECT_FALSE(hwio::device::guideStepTitle(step).isEmpty());
+                EXPECT_FALSE(hwio::device::guideStepBody(step).isEmpty());
             }
         }
     }
-    const auto* chester = hio::device::ProfileRegistry::find("chester");
-    EXPECT_EQ(hio::device::findTarget(*chester, "app")->connectionGuide.front().illustrationSlot,
+    const auto* chester = hwio::device::ProfileRegistry::find("chester");
+    EXPECT_EQ(hwio::device::findTarget(*chester, "app")->connectionGuide.front().illustrationSlot,
               "chester-app-cable");
-    EXPECT_EQ(hio::device::findTarget(*chester, "lte")->connectionGuide.front().illustrationSlot,
+    EXPECT_EQ(hwio::device::findTarget(*chester, "lte")->connectionGuide.front().illustrationSlot,
               "chester-lte-cable");
 }
 

@@ -16,14 +16,14 @@
 //   "waitMs": how long to wait for messages when the step does not complete (default 100)
 // In expectations the string "*" matches any value and "$session" the captured session id.
 //
-// HIO_MCP_UPDATE_GOLDEN=1 rewrites the "expect"/"status" members with the actual output (review
+// HWIO_MCP_UPDATE_GOLDEN=1 rewrites the "expect"/"status" members with the actual output (review
 // the diff before committing).
 
 #include "fake_tools.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/reply_channel.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/server.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/reply_channel.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/server.h"
 #include "mcp_test_support.h"
 
 #include <QByteArray>
@@ -54,7 +54,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 using test::FakeConsentBroker;
@@ -262,14 +262,14 @@ private:
 class GoldenTest : public ::testing::TestWithParam<QString> {};
 
 TEST_P(GoldenTest, Exchange) {
-    const QString path = QStringLiteral(HIO_MCP_GOLDEN_DIR) + QLatin1Char('/') + GetParam();
+    const QString path = QStringLiteral(HWIO_MCP_GOLDEN_DIR) + QLatin1Char('/') + GetParam();
     QFile file(path);
     ASSERT_TRUE(file.open(QIODevice::ReadOnly)) << path.toStdString();
     QJsonObject scenario = QJsonDocument::fromJson(file.readAll()).object();
     file.close();
     QJsonArray steps = scenario.value(QStringLiteral("steps")).toArray();
     ASSERT_FALSE(steps.isEmpty()) << path.toStdString();
-    const bool update = qEnvironmentVariableIsSet("HIO_MCP_UPDATE_GOLDEN");
+    const bool update = qEnvironmentVariableIsSet("HWIO_MCP_UPDATE_GOLDEN");
 
     ScenarioRunner runner;
     for (qsizetype index = 0; index < steps.size(); ++index) {
@@ -303,7 +303,7 @@ TEST_P(GoldenTest, Exchange) {
 }
 
 QStringList goldenFiles() {
-    return QDir(QStringLiteral(HIO_MCP_GOLDEN_DIR))
+    return QDir(QStringLiteral(HWIO_MCP_GOLDEN_DIR))
         .entryList({QStringLiteral("*.json")}, QDir::Files, QDir::Name);
 }
 
@@ -315,4 +315,4 @@ INSTANTIATE_TEST_SUITE_P(Golden, GoldenTest, ::testing::ValuesIn(goldenFiles()),
                          });
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

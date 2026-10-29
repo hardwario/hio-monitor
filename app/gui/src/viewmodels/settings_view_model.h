@@ -34,7 +34,7 @@
 
 #include <cstdint>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class AppViewModel;
 class FirmwareServices;
@@ -84,7 +84,7 @@ class SettingsViewModel : public QObject {
     Q_PROPERTY(bool nrfUtilPathChecking READ nrfUtilPathChecking NOTIFY nrfUtilChanged)
 
     // Detection (shared with the Flash page) and the setup wizard (0008: hidden until registered)
-    Q_PROPERTY(hio::gui::DependencyStatus* dependencies READ dependencies CONSTANT)
+    Q_PROPERTY(hwio::gui::DependencyStatus* dependencies READ dependencies CONSTANT)
     Q_PROPERTY(QString setupWizardId READ setupWizardId CONSTANT)
     // "Detected: <path> · <version> · <source>", "Checking…" or the problem (translated).
     Q_PROPERTY(QString jlinkStatusText READ jlinkStatusText NOTIFY aboutChanged)
@@ -95,7 +95,7 @@ class SettingsViewModel : public QObject {
     // About
     Q_PROPERTY(QString aboutText READ aboutText NOTIFY aboutChanged)
     // Plan 0016 C2 (ADR-0119): the licence files of this installation, each opens its file.
-    Q_PROPERTY(hio::gui::LicensesModel* licenceFiles READ licenceFiles CONSTANT)
+    Q_PROPERTY(hwio::gui::LicensesModel* licenceFiles READ licenceFiles CONSTANT)
     // Plan 0016 C2 (ADR-0122): the CLI of this installation (install_paths.h).
     Q_PROPERTY(QString cliCommand READ cliCommand CONSTANT)
     Q_PROPERTY(QString cliSymlinkCommand READ cliSymlinkCommand CONSTANT)
@@ -213,4 +213,4 @@ private:
     QString m_writeError;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

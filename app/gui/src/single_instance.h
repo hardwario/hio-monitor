@@ -6,7 +6,7 @@
 //   - takes QLockFile <AppLocalData>/gui.lock (stale-lock detection by process, 0 wait) and
 //     listens on the QLocalServer -> Primary. The server is the socket file gui.sock next to the
 //     lock file (AppLocalData, never /tmp; review S11, S21; the runtime directory when that path
-//     is too long for a Unix socket), on Windows the named pipe "hio-monitor-<user>". If it cannot
+//     is too long for a Unix socket), on Windows the named pipe "hwio-monitor-<user>". If it cannot
 //     listen, the lock is released again and single-instance mode is off for this run (Primary,
 //     serving() false), so that later launches are not reported as "does not respond";
 //   - when the lock is held: connects to the server, sends "activate\n" and waits for "ok\n"
@@ -28,7 +28,7 @@
 #include <cstdint>
 #include <memory>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class SingleInstance : public QObject {
     Q_OBJECT
@@ -78,4 +78,4 @@ private:
     QLocalServer m_server;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

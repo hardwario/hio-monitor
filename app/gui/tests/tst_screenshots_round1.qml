@@ -3,7 +3,7 @@
 // own file), the Settings tab, and the console with the suggestion list and the H chip; phase 2:
 // "In the device" on the Application card, the list with device commands learned through the fake
 // Zephyr shell and "Reading commands from the device…". Only when
-// HIO_SCREENSHOT_DIR is set (QT_QUICK_BACKEND=software for the offscreen platform).
+// HWIO_SCREENSHOT_DIR is set (QT_QUICK_BACKEND=software for the offscreen platform).
 import QtQuick
 import QtTest
 import HardwarioMonitor
@@ -42,7 +42,7 @@ TestCase {
 
     function initTestCase() {
         if (testSupport.screenshotDir === "")
-            skip("HIO_SCREENSHOT_DIR is not set");
+            skip("HWIO_SCREENSHOT_DIR is not set");
         window = Qt.createComponent("HardwarioMonitor", "Main").createObject(testCase);
         verify(window !== null);
         window.requestActivate();
@@ -91,7 +91,7 @@ TestCase {
 
     function test_shots(data) {
         if (testSupport.screenshotDir === "")
-            skip("HIO_SCREENSHOT_DIR is not set");
+            skip("HWIO_SCREENSHOT_DIR is not set");
         AppViewModel.theme = data.theme;
         AppViewModel.setLanguage(data.language);
 

@@ -18,7 +18,7 @@
 #include <QtQmlIntegration>
 #include <QtTypes>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class PageRegistry;
 
@@ -65,4 +65,4 @@ private:
     int m_revision = 0;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

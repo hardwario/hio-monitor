@@ -7,7 +7,7 @@
 // Owned by AppViewModel. GUI thread only. Bounded: one descriptor per WizardId, at most
 // maxEmbedded embedded controls.
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 #include "wizard/wizard.h"
 
 #include <QString>
@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class WizardRegistry {
 public:
@@ -39,4 +39,4 @@ private:
     std::vector<std::pair<QString, QUrl>> m_embedded;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

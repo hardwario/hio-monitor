@@ -13,8 +13,8 @@
 // Bounds: maxCommands commands of at most CommandHistory::maxEntryBytes bytes each.
 // Ownership: Qt parent = ConsoleViewModel. GUI thread only.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 
 #include <QObject>
 #include <QString>
@@ -27,7 +27,7 @@
 #include <optional>
 #include <string>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class BatchRunner : public QObject {
     Q_OBJECT
@@ -59,7 +59,7 @@ public:
 signals:
     void progressChanged();
     // nullopt: completed or stopped; otherwise the error that ended it.
-    void finished(const std::optional<hio::Error>& error);
+    void finished(const std::optional<hwio::Error>& error);
 
 private:
     void tick();
@@ -71,4 +71,4 @@ private:
     int m_next = 0;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

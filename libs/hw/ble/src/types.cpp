@@ -1,6 +1,6 @@
-#include "hio/hw/ble/types.h"
+#include "hwio/hw/ble/types.h"
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 
 #include <QBluetoothAddress>
 #include <QString>
@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 std::optional<Error> adapterError(const AdapterInfo& adapter) {
     switch (adapter.state) {
@@ -55,4 +55,4 @@ std::string toLowerAscii(std::string_view text) {
     return lower;
 }
 
-} // namespace hio::ble
+} // namespace hwio::ble

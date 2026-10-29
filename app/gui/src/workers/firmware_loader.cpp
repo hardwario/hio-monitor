@@ -1,13 +1,13 @@
 #include "workers/firmware_loader.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/lte_input.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/probe_enumerator.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/lte_input.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/probe_enumerator.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 
 #include <QLoggingCategory>
 #include <QMetaObject>
@@ -29,7 +29,7 @@
 #include <utility>
 #include <variant>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -261,4 +261,4 @@ void FirmwareLoader::deliver() {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

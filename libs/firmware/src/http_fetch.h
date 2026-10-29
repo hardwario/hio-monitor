@@ -11,7 +11,7 @@
 //
 // Thread safety: owner thread only (QNetworkAccessManager).
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 
 #include <QByteArray>
 #include <QNetworkReply>
@@ -30,7 +30,7 @@
 
 class QNetworkAccessManager;
 
-namespace hio::firmware::detail {
+namespace hwio::firmware::detail {
 
 struct FetchLimits {
     std::chrono::milliseconds timeout{60000}; // inactivity (no data for this long)
@@ -98,4 +98,4 @@ fetchError(const FetchOutcome& outcome, std::uint64_t maxBytes,
            const std::function<Error(std::string detail)>& failed,
            const std::function<Error(std::string detail)>& notFound);
 
-} // namespace hio::firmware::detail
+} // namespace hwio::firmware::detail

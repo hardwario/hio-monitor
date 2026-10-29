@@ -1,30 +1,30 @@
-#include "hio/device/device_session.h"
+#include "hwio/device/device_session.h"
 
 #include "flash_workflows.h"
-#include "hio/core/bounded_queue.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/device/console_file_sink.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_registry.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/lte_input.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/jlink_library.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/programmer.h"
-#include "hio/hw/jlink/rtt_channel.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/console_file_sink.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/lte_input.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/jlink_library.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/programmer.h"
+#include "hwio/hw/jlink/rtt_channel.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "session_internal.h"
 
 #include <QCoreApplication>
@@ -57,7 +57,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -75,32 +75,32 @@ Error invalidOption(const QString& message, std::string detail) {
 Result<const TargetProfile*> validate(const SessionOptions& options) {
     if (options.profile == nullptr) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "No device profile was given."), {}));
+            QCoreApplication::translate("hwio::device", "No device profile was given."), {}));
     }
     const TargetProfile* target = findTarget(*options.profile, options.targetId);
     if (target == nullptr) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The device %1 has no target \"%2\".")
+            QCoreApplication::translate("hwio::device", "The device %1 has no target \"%2\".")
                 .arg(toQString(options.profile->displayName), toQString(options.targetId)),
             {}));
     }
     if (target->rttTerminal.empty() && options.attachRtt && options.connectTarget) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The %1 target of %2 has no console.")
+            QCoreApplication::translate("hwio::device", "The %1 target of %2 has no console.")
                 .arg(toQString(target->id), toQString(options.profile->displayName)),
             {}));
     }
     if (options.speedKhz && (*options.speedKhz < minSpeedKhz || *options.speedKhz > maxSpeedKhz)) {
         return std::unexpected(
             invalidOption(QCoreApplication::translate(
-                              "hio::device", "The J-Link speed must be between %1 and %2 kHz.")
+                              "hwio::device", "The J-Link speed must be between %1 and %2 kHz.")
                               .arg(minSpeedKhz)
                               .arg(maxSpeedKhz),
                           std::to_string(*options.speedKhz)));
     }
     if (options.latencyMs < minLatencyMs || options.latencyMs > maxLatencyMs) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The latency must be between %1 and %2 ms.")
+            QCoreApplication::translate("hwio::device", "The latency must be between %1 and %2 ms.")
                 .arg(minLatencyMs)
                 .arg(maxLatencyMs),
             std::to_string(options.latencyMs)));
@@ -114,7 +114,7 @@ std::optional<std::string> slowSpeedWarning(std::optional<int> speedKhz) {
     if (!jlink::isSlowRttSpeed(speedKhz)) {
         return std::nullopt;
     }
-    return QCoreApplication::translate("hio::device",
+    return QCoreApplication::translate("hwio::device",
                                        "At this J-Link speed the console may not be found within "
                                        "%1 s. Use auto or %2 kHz or more.")
         .arg(std::chrono::duration_cast<std::chrono::seconds>(jlink::rttAttachDeadline(speedKhz))
@@ -413,7 +413,7 @@ Result<OperationId> DeviceSession::startOperation(detail::OperationCommand comma
     const TargetProfile* target = findTarget(*m_internals->profile, targetId);
     if (target == nullptr) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The device %1 has no target \"%2\".")
+            QCoreApplication::translate("hwio::device", "The device %1 has no target \"%2\".")
                 .arg(toQString(m_internals->profile->displayName), toQString(targetId)),
             {}));
     }
@@ -450,7 +450,7 @@ Result<OperationId> DeviceSession::flash(std::string_view targetId,
                                          FlashOptions options) {
     if (!image || image->empty()) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The firmware image is empty."), {}));
+            QCoreApplication::translate("hwio::device", "The firmware image is empty."), {}));
     }
     detail::OperationCommand command;
     command.kind = OperationKind::Flash;
@@ -464,7 +464,7 @@ Result<OperationId> DeviceSession::flashLteBundle(std::string_view targetId,
                                                   FlashOptions options) {
     if (!bundle || bundle->application.empty() || bundle->modemZip.empty()) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The LTE bundle is incomplete."), {}));
+            QCoreApplication::translate("hwio::device", "The LTE bundle is incomplete."), {}));
     }
     detail::OperationCommand command;
     command.kind = OperationKind::LteBundle;
@@ -492,7 +492,7 @@ Result<OperationId> DeviceSession::updateModem(std::string_view targetId,
                                                std::filesystem::path modemZip) {
     if (modemZip.empty()) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "No modem firmware file was given."), {}));
+            QCoreApplication::translate("hwio::device", "No modem firmware file was given."), {}));
     }
     detail::OperationCommand command;
     command.kind = OperationKind::Modem;
@@ -518,14 +518,14 @@ Status checkAccess(std::uint32_t address, std::size_t size, AccessWidth width, s
     const std::size_t unit = jlink::unitBytes(width);
     if (size == 0 || size > limit) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "A %1 must be between 1 and %2 bytes.")
+            QCoreApplication::translate("hwio::device", "A %1 must be between 1 and %2 bytes.")
                 .arg(what, QString::number(limit)),
             std::to_string(size)));
     }
     if (size % unit != 0 || address % unit != 0) {
         return std::unexpected(invalidOption(
             QCoreApplication::translate(
-                "hio::device",
+                "hwio::device",
                 "With %1-bit units the address and the length must be multiples of %2.")
                 .arg(QString::number(unit * 8), QString::number(unit)),
             std::format("address 0x{:08X}, size {}", address, size)));
@@ -540,12 +540,12 @@ Result<OperationId> DeviceSession::readMemory(std::string_view targetId, std::ui
     if (size == 0 || size > maxReadMemoryBytes) {
         return std::unexpected(
             invalidOption(QCoreApplication::translate(
-                              "hio::device", "A memory read must be between 1 and %1 bytes.")
+                              "hwio::device", "A memory read must be between 1 and %1 bytes.")
                               .arg(maxReadMemoryBytes),
                           std::to_string(size)));
     }
     if (Status valid = checkAccess(address, size, width, maxReadMemoryBytes,
-                                   QCoreApplication::translate("hio::device", "memory read"));
+                                   QCoreApplication::translate("hwio::device", "memory read"));
         !valid) {
         return std::unexpected(std::move(valid).error());
     }
@@ -582,7 +582,7 @@ Result<OperationId> DeviceSession::targetStatus(std::string_view targetId) {
 Result<OperationId> DeviceSession::writeMemory(std::string_view targetId, std::uint32_t address,
                                                std::vector<std::byte> data, AccessWidth width) {
     if (Status valid = checkAccess(address, data.size(), width, maxWriteMemoryBytes,
-                                   QCoreApplication::translate("hio::device", "memory write"));
+                                   QCoreApplication::translate("hwio::device", "memory write"));
         !valid) {
         return std::unexpected(std::move(valid).error());
     }
@@ -616,8 +616,8 @@ Result<OperationId> DeviceSession::writeFlash(std::string_view targetId, std::ui
                                               std::vector<std::byte> data, bool allowUicr) {
     if (data.empty() || data.size() > maxWriteFlashBytes) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "A flash write must be between 1 and %1 "
-                                                       "bytes.")
+            QCoreApplication::translate("hwio::device", "A flash write must be between 1 and %1 "
+                                                        "bytes.")
                 .arg(maxWriteFlashBytes),
             std::to_string(data.size())));
     }
@@ -655,14 +655,14 @@ Status DeviceSession::startConnection(bool attachRtt) {
         return {}; // already being promoted (review V5): idempotent
     }
     if (m_connection.state != ConnectionState::ProbeOpen) {
-        return std::unexpected(
-            invalidOption(QCoreApplication::translate(
-                              "hio::device", "Only a session with an open probe can be connected."),
-                          std::format("state {}", connectionStateId(m_connection.state))));
+        return std::unexpected(invalidOption(
+            QCoreApplication::translate("hwio::device",
+                                        "Only a session with an open probe can be connected."),
+            std::format("state {}", connectionStateId(m_connection.state))));
     }
     if (attachRtt && m_internals->target->rttTerminal.empty()) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The %1 target of %2 has no console.")
+            QCoreApplication::translate("hwio::device", "The %1 target of %2 has no console.")
                 .arg(toQString(m_internals->target->id),
                      toQString(m_internals->profile->displayName)),
             {}));
@@ -683,7 +683,7 @@ Status DeviceSession::startConnection(bool attachRtt) {
 Status DeviceSession::cancel(OperationId id) {
     if (!m_internals->runningOperation || *m_internals->runningOperation != id) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "Operation %1 is not running.").arg(id),
+            QCoreApplication::translate("hwio::device", "Operation %1 is not running.").arg(id),
             {}));
     }
     qCInfo(log::lcDevice) << "Operation" << id << "cancel requested";
@@ -912,4 +912,4 @@ OperationResult waitForOperation(DeviceSession& session, OperationId id,
     return std::move(*result);
 }
 
-} // namespace hio::device
+} // namespace hwio::device

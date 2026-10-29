@@ -18,13 +18,13 @@
 // Reset:   Connecting (identify, family check; protected allowed) -> Resetting.
 // ReadMemory: Connecting (identify, family check) -> read with the access width (review R7; M6).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/programmer.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/programmer.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -35,7 +35,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 struct WorkflowContext {
     const DeviceProfile* profile = nullptr;
@@ -43,7 +43,7 @@ struct WorkflowContext {
     jlink::IProgrammer* programmer = nullptr;
     firmware::ProgressFn progress; // phase reports
     std::stop_token stop;
-    std::function<void(const std::string&)> log; // console file "@" line + hio.flash
+    std::function<void(const std::string&)> log; // console file "@" line + hwio.flash
     // Connects the target again with this J-Link device name (LTE: the exact part's name).
     std::function<Status(std::string_view jlinkDevice)> connectAs;
     // The J-Link device name the probe is connected with now.
@@ -88,4 +88,4 @@ runRecover(WorkflowContext& context, const std::function<Status()>& reconnect);
 [[nodiscard]] Error forTarget(Error error, const DeviceProfile& profile,
                               const TargetProfile& target);
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

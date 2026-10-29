@@ -1,13 +1,13 @@
 #include "update_service.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/version.h"
-#include "hio/update/releases.h"
-#include "hio/update/semver.h"
-#include "hio/update/update_check.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/version.h"
+#include "hwio/update/releases.h"
+#include "hwio/update/semver.h"
+#include "hwio/update/update_check.h"
 #include "settings_store.h"
 
 #include <QDateTime>
@@ -26,7 +26,7 @@
 #include <chrono>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -157,4 +157,4 @@ void UpdateService::onFinished(const Result<update::CheckResult>& result) {
     emit checkFinished(automatic, result);
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

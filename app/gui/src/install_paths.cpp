@@ -1,7 +1,7 @@
 #include "install_paths.h"
 
-#include "hio/core/json.h"
-#include "hio/core/version.h"
+#include "hwio/core/json.h"
+#include "hwio/core/version.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -14,7 +14,7 @@
 #include <array>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -40,11 +40,11 @@ QString installedLicensesDir() {
     return bin.absoluteFilePath(QStringLiteral("../licenses"));
 }
 
-#ifdef HIO_GUI_DEV_SOURCE_DIR
+#ifdef HWIO_GUI_DEV_SOURCE_DIR
 // dev builds that were not installed: the files of the source and build trees.
 QString devLicenceFile(const QString& fileName) {
-    const QString source = QStringLiteral(HIO_GUI_DEV_SOURCE_DIR);
-    const QString build = QStringLiteral(HIO_GUI_DEV_BINARY_DIR);
+    const QString source = QStringLiteral(HWIO_GUI_DEV_SOURCE_DIR);
+    const QString build = QStringLiteral(HWIO_GUI_DEV_BINARY_DIR);
     const std::array<std::pair<const char*, QString>, 10> files{{
         {"LICENSE", source + QStringLiteral("/LICENSE")},
         {"Qt-SOURCE.txt", build + QStringLiteral("/licenses/Qt-SOURCE.txt")},
@@ -74,7 +74,7 @@ QString devLicenceFile(const QString& fileName) {
 
 QUrl licenceFile(const QString& fileName) {
     QString path = QDir(installedLicensesDir()).absoluteFilePath(fileName);
-#ifdef HIO_GUI_DEV_SOURCE_DIR
+#ifdef HWIO_GUI_DEV_SOURCE_DIR
     if (!QFileInfo::exists(path)) {
         path = devLicenceFile(fileName);
     }
@@ -89,30 +89,30 @@ QString cliCommand() {
     const QString kind = packageKind();
     const QDir bin(QCoreApplication::applicationDirPath());
     if (kind == QStringLiteral("deb")) {
-        return QStringLiteral("/usr/bin/hio");
+        return QStringLiteral("/usr/bin/hwio");
     }
     if (kind == QStringLiteral("appimage")) {
         const QString appImage = qEnvironmentVariable("APPIMAGE");
-        return QStringLiteral("\"%1\" hio")
+        return QStringLiteral("\"%1\" hwio")
             .arg(appImage.isEmpty() ? QStringLiteral("<AppImage>") : appImage);
     }
     if (kind == QStringLiteral("macos-bundle") || kind == QStringLiteral("msi")) {
-        return QDir::toNativeSeparators(bin.absoluteFilePath(exe(QStringLiteral("hio"))));
+        return QDir::toNativeSeparators(bin.absoluteFilePath(exe(QStringLiteral("hwio"))));
     }
     // dev: next to the GUI (installed tree) or in the build tree's app/cli.
-    const QString installed = bin.absoluteFilePath(exe(QStringLiteral("hio")));
+    const QString installed = bin.absoluteFilePath(exe(QStringLiteral("hwio")));
     if (QFileInfo::exists(installed)) {
         return QDir::toNativeSeparators(installed);
     }
     return QDir::toNativeSeparators(QDir::cleanPath(
-        bin.absoluteFilePath(QStringLiteral("../cli/") + exe(QStringLiteral("hio")))));
+        bin.absoluteFilePath(QStringLiteral("../cli/") + exe(QStringLiteral("hwio")))));
 }
 
 QString cliSymlinkCommand() {
     if (packageKind() != QStringLiteral("macos-bundle")) {
         return {};
     }
-    return QStringLiteral("sudo ln -s '%1' /usr/local/bin/hio").arg(cliCommand());
+    return QStringLiteral("sudo ln -s '%1' /usr/local/bin/hwio").arg(cliCommand());
 }
 
 bool cliOnPath() {
@@ -120,4 +120,4 @@ bool cliOnPath() {
     return kind == QStringLiteral("deb") || kind == QStringLiteral("msi");
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

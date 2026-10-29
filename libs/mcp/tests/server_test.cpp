@@ -6,19 +6,19 @@
 // instead of a fake clock.
 
 #include "fake_tools.h"
-#include "hio/core/error.h"
-#include "hio/mcp/activity.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/offload.h"
-#include "hio/mcp/protocol.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/reply_channel.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/server.h"
-#include "hio/mcp/tool_call.h"
+#include "hwio/core/error.h"
+#include "hwio/mcp/activity.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/offload.h"
+#include "hwio/mcp/protocol.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/reply_channel.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/server.h"
+#include "hwio/mcp/tool_call.h"
 #include "mcp_test_support.h"
 
 #include <QByteArray>
@@ -45,7 +45,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 using namespace std::chrono_literals;
@@ -800,4 +800,4 @@ TEST_F(ServerTest, OwnsTheOffloaderAndStopJoinsItsJobs) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

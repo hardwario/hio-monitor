@@ -1,6 +1,6 @@
-#include "hio/mcp/consent.h"
+#include "hwio/mcp/consent.h"
 
-#include "hio/mcp/request_context.h"
+#include "hwio/mcp/request_context.h"
 
 #include <QJsonObject>
 
@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 namespace {
 
@@ -66,4 +66,4 @@ ConsentRequest makeConsentRequest(const RequestContext& context, ConsentCategori
                           .details = std::move(details)};
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

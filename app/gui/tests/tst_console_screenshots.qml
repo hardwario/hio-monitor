@@ -1,5 +1,5 @@
 // Screenshots of the console page (plan 0005, C6) in both themes and both languages; only when
-// HIO_SCREENSHOT_DIR is set (QT_QUICK_BACKEND=software for the offscreen platform): normal,
+// HWIO_SCREENSHOT_DIR is set (QT_QUICK_BACKEND=software for the offscreen platform): normal,
 // search, filter, stacked below 1000 px, 960 px in Czech, the empty states, the banners and the
 // error panel, the history popup.
 import QtQuick
@@ -60,7 +60,7 @@ TestCase {
 
     function initTestCase() {
         if (testSupport.screenshotDir === "")
-            skip("HIO_SCREENSHOT_DIR is not set");
+            skip("HWIO_SCREENSHOT_DIR is not set");
         window = Qt.createComponent("HardwarioMonitor", "Main").createObject(testCase);
         verify(window !== null);
     }
@@ -81,7 +81,7 @@ TestCase {
 
     function test_shots(data) {
         if (testSupport.screenshotDir === "")
-            skip("HIO_SCREENSHOT_DIR is not set");
+            skip("HWIO_SCREENSHOT_DIR is not set");
         AppViewModel.theme = data.theme;
         AppViewModel.setLanguage(data.language);
         testSupport.resetTabs();

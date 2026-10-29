@@ -1,10 +1,10 @@
 // ZipReader limits and zip slip (phase A2), LTE input classification (phase A3).
 
 #include "hex_builder.h"
-#include "hio/core/error.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/lte_input.h"
-#include "hio/firmware/zip_reader.h"
+#include "hwio/core/error.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/lte_input.h"
+#include "hwio/firmware/zip_reader.h"
 #include "zip_builder.h"
 
 #include <QByteArray>
@@ -26,22 +26,22 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::firmware::AppHex;
-using hio::firmware::classifyLteInput;
-using hio::firmware::FirmwareImage;
-using hio::firmware::isUnsafeEntryName;
-using hio::firmware::LteBundle;
-using hio::firmware::ModemOnly;
-using hio::firmware::Segment;
-using hio::firmware::ZipLimits;
-using hio::firmware::ZipReader;
-using hio::firmware::test::eofRecord;
-using hio::firmware::test::hexRecord;
-using hio::firmware::test::patched;
-using hio::firmware::test::writeFile;
-using hio::firmware::test::zipBytes;
-using ZipItems = std::vector<hio::firmware::test::ZipItem>;
+using hwio::ErrorCode;
+using hwio::firmware::AppHex;
+using hwio::firmware::classifyLteInput;
+using hwio::firmware::FirmwareImage;
+using hwio::firmware::isUnsafeEntryName;
+using hwio::firmware::LteBundle;
+using hwio::firmware::ModemOnly;
+using hwio::firmware::Segment;
+using hwio::firmware::ZipLimits;
+using hwio::firmware::ZipReader;
+using hwio::firmware::test::eofRecord;
+using hwio::firmware::test::hexRecord;
+using hwio::firmware::test::patched;
+using hwio::firmware::test::writeFile;
+using hwio::firmware::test::zipBytes;
+using ZipItems = std::vector<hwio::firmware::test::ZipItem>;
 
 class Zip : public ::testing::Test {
 protected:
@@ -266,11 +266,11 @@ TEST_F(Zip, LteClassificationObservesTheStopToken) {
 }
 
 TEST(ModemMarker, Names) {
-    EXPECT_TRUE(hio::firmware::isModemFirmwareMarker("firmware.update.image.segments.0.hex"));
-    EXPECT_TRUE(hio::firmware::isModemFirmwareMarker("firmware.update.image.segments.12.hex"));
-    EXPECT_FALSE(hio::firmware::isModemFirmwareMarker("firmware.update.image.segments..hex"));
-    EXPECT_FALSE(hio::firmware::isModemFirmwareMarker("firmware.update.image.segments.a.hex"));
-    EXPECT_FALSE(hio::firmware::isModemFirmwareMarker("firmware.update.image.digest.txt"));
+    EXPECT_TRUE(hwio::firmware::isModemFirmwareMarker("firmware.update.image.segments.0.hex"));
+    EXPECT_TRUE(hwio::firmware::isModemFirmwareMarker("firmware.update.image.segments.12.hex"));
+    EXPECT_FALSE(hwio::firmware::isModemFirmwareMarker("firmware.update.image.segments..hex"));
+    EXPECT_FALSE(hwio::firmware::isModemFirmwareMarker("firmware.update.image.segments.a.hex"));
+    EXPECT_FALSE(hwio::firmware::isModemFirmwareMarker("firmware.update.image.digest.txt"));
 }
 
 } // namespace

@@ -1,7 +1,7 @@
-#include "hio/device/console_log.h"
+#include "hwio/device/console_log.h"
 
-#include "hio/core/ring_buffer.h"
-#include "hio/device/console_line.h"
+#include "hwio/core/ring_buffer.h"
+#include "hwio/device/console_line.h"
 
 #include <algorithm>
 #include <chrono>
@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -114,4 +114,4 @@ std::optional<std::uint64_t> ConsoleLog::firstSeq(Channel channel) const noexcep
     return ring[0].seq;
 }
 
-} // namespace hio::device
+} // namespace hwio::device

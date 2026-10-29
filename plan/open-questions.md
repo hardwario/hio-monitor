@@ -9,7 +9,7 @@ before the plan that depends on it is approved.
 | 2 | ~~Application update mechanism~~ — **resolved**: notify only, GitHub releases, SemVer, non-modal banner (ADR-0116, 0016) | — |
 | 3 | ~~Crash reporting / telemetry~~ — **resolved**: local crash dumps by an own handler, in the diagnostic report, never uploaded; no telemetry (ADR-0123) | — |
 | 4 | ~~Localization~~ — **resolved**: English + Czech via Qt Linguist, extensible; CLI English only (ADR-0027) | — |
-| 5 | ~~Product name, executable names, app ids~~ — **resolved**: "HARDWARIO Monitor", `hio-monitor`, CLI `hio`, `com.hardwario.monitor` (ADR-0018) | — |
+| 5 | ~~Product name, executable names, app ids~~ — **resolved**: "HARDWARIO Monitor", `hwio-monitor`, CLI `hwio`, `com.hardwario.monitor` (ADR-0018; executable names ADR-0181) | — |
 | 6 | ~~Code-signing certificates~~ — **resolved**: Apple Developer ID + notarytool API key, Windows Azure Trusted Signing via OIDC, owned by HARDWARIO a.s., secrets in the `release` environment (ADR-0120); Trusted Signing eligibility still to be confirmed (0015 risk) | — |
 | 7 | Flatpak: how to grant USB (J-Link) and BLE access (BLE needs D-Bus `--system-talk-name=org.bluez`, 0011); is Flatpak viable with runtime-loaded vendor libs? **Deferred from M7** (ADR-0118): own plan starting with a feasibility spike | after v2.0 |
 | 8 | ~~Windows installer format~~ — **resolved**: per-machine MSI built with WiX (ADR-0117) | — |

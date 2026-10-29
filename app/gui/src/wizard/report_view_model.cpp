@@ -1,7 +1,7 @@
 #include "wizard/report_view_model.h"
 
-#include "hio/core/result.h"
-#include "hio/diag/report.h"
+#include "hwio/core/result.h"
+#include "hwio/diag/report.h"
 #include "workers/diag_worker.h"
 
 #include <QClipboard>
@@ -21,7 +21,7 @@
 #include <memory>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 ReportViewModel::ReportViewModel(DiagWorker& worker, Hooks hooks, QObject* parent)
     : QObject(parent), m_worker(worker), m_hooks(std::move(hooks)) {
@@ -124,4 +124,4 @@ void ReportViewModel::setState(const QString& state) {
     emit changed();
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -4,9 +4,9 @@
 #include <cstdint>
 
 #ifdef _WIN32
-#define HIO_FAKE_JLINK_EXPORT __declspec(dllexport)
+#define HWIO_FAKE_JLINK_EXPORT __declspec(dllexport)
 #else
-#define HIO_FAKE_JLINK_EXPORT __attribute__((visibility("default")))
+#define HWIO_FAKE_JLINK_EXPORT __attribute__((visibility("default")))
 #endif
 
-extern "C" HIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_GetDLLVersion() { return 81000; }
+extern "C" HWIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_GetDLLVersion() { return 81000; }

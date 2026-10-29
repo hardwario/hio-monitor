@@ -1,8 +1,8 @@
-#include "hio/core/error.h"
-#include "hio/device/console_file_sink.h"
-#include "hio/device/console_line.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/session_key.h"
+#include "hwio/core/error.h"
+#include "hwio/device/console_file_sink.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/session_key.h"
 #include "lock_holder.h"
 
 #include <QFile>
@@ -30,11 +30,11 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::device::Channel;
-using hio::device::ConsoleFileConfig;
-using hio::device::ConsoleFileSink;
-using hio::device::ConsoleLine;
-using hio::device::Direction;
+using hwio::device::Channel;
+using hwio::device::ConsoleFileConfig;
+using hwio::device::ConsoleFileSink;
+using hwio::device::ConsoleLine;
+using hwio::device::Direction;
 
 ConsoleLine line(Channel channel, Direction dir, std::string text) {
     ConsoleLine result;
@@ -187,7 +187,7 @@ TEST_F(Sink, RetentionKeepsAtMost200MiB) {
 // parts, written after the lock was taken, are pruned like any other old file, so a long session
 // cannot keep its console files beyond the bounds.
 TEST_F(Sink, RetentionPrunesTheClosedPartsOfALiveSession) {
-    auto lock = hio::device::ProbeLock::acquire(777, lockDir());
+    auto lock = hwio::device::ProbeLock::acquire(777, lockDir());
     ASSERT_TRUE(lock) << lock.error().detail;
     const auto now = fs::file_time_type::clock::now();
     fs::last_write_time(lockDir() / "probe-777.lock", now - std::chrono::hours(300));
@@ -229,7 +229,7 @@ TEST_F(Sink, RetentionPrunesTheClosedPartsOfALiveSession) {
 TEST_F(Sink, RetentionKeepsOnlyTheNewestFileOfAProbeLockedByAnotherProcess) {
     makeOldFiles();
     fs::create_directories(lockDir());
-    hio::device::test::LockHolder holder(
+    hwio::device::test::LockHolder holder(
         QString::fromStdString((lockDir() / "probe-778.lock").string()));
     ASSERT_TRUE(holder.waitUntilLocked());
     const auto now = fs::file_time_type::clock::now();
@@ -269,7 +269,7 @@ TEST_F(Sink, RetentionKeepsOnlyTheNewestFileOfAProbeLockedByAnotherProcess) {
 TEST_F(Sink, RetentionKeepsTheNewestFileOfABleDeviceLockedByAnotherProcess) {
     makeOldFiles();
     fs::create_directories(lockDir());
-    hio::device::test::LockHolder holder(
+    hwio::device::test::LockHolder holder(
         QString::fromStdString((lockDir() / "ble-F1-22-33-44-55-66.lock").string()));
     ASSERT_TRUE(holder.waitUntilLocked());
     const auto now = fs::file_time_type::clock::now();
@@ -297,7 +297,7 @@ TEST_F(Sink, RetentionKeepsTheNewestFileOfABleDeviceLockedByAnotherProcess) {
 TEST_F(Sink, BleFileNameUsesTheSanitisedId) {
     const auto time = std::chrono::system_clock::now();
     auto sink = ConsoleFileSink::open(
-        defaultConfig(), hio::device::SessionKey(hio::device::BleKey{.id = "F1:22:33:44:55:66"}),
+        defaultConfig(), hwio::device::SessionKey(hwio::device::BleKey{.id = "F1:22:33:44:55:66"}),
         "Console: CHESTER, Bluetooth", time);
     ASSERT_TRUE(sink) << sink.error().detail;
     const std::string name = (*sink)->currentFile().filename().string();
@@ -365,7 +365,7 @@ TEST_F(Sink, FailedRotationOfTheExplicitFileWarnsOnceAndStaysBounded) {
     ASSERT_TRUE(sink) << sink.error().detail;
     const auto warning = (*sink)->takeWarning();
     ASSERT_TRUE(warning.has_value());
-    EXPECT_EQ(warning.value_or(hio::Error{}).code, hio::ErrorCode::IoWriteFailed);
+    EXPECT_EQ(warning.value_or(hwio::Error{}).code, hwio::ErrorCode::IoWriteFailed);
     EXPECT_TRUE(fs::is_directory(dir() / "my-console.txt.1"));
     std::uintmax_t size = fs::file_size(explicitFile);
     EXPECT_GT(size, ConsoleFileSink::maxExplicitFileBytesAfterFailedRotation - headroom);
@@ -386,7 +386,7 @@ TEST_F(Sink, FailedRotationOfTheExplicitFileWarnsOnceAndStaysBounded) {
         const auto status = (*sink)->flush();
         if (!status) {
             failed = true;
-            EXPECT_EQ(status.error().code, hio::ErrorCode::IoWriteFailed);
+            EXPECT_EQ(status.error().code, hwio::ErrorCode::IoWriteFailed);
         }
     }
     EXPECT_TRUE(failed);
@@ -401,7 +401,7 @@ TEST_F(Sink, UnwritableLocationIsAnError) {
     config.explicitFile = dir() / "file" / "below-a-file.log";
     const auto sink = ConsoleFileSink::open(config, 1, "header", std::chrono::system_clock::now());
     ASSERT_FALSE(sink);
-    EXPECT_EQ(sink.error().code, hio::ErrorCode::IoWriteFailed);
+    EXPECT_EQ(sink.error().code, hwio::ErrorCode::IoWriteFailed);
 }
 
 // ADR-0156 (M6): with consoleFileDir the generated name goes there, and the retention deletes only
@@ -437,10 +437,10 @@ TEST_F(Sink, ConsoleFileDirKeepsForeignFiles) {
 }
 
 TEST(ConsoleFilePrefix, RtttPrefixes) {
-    EXPECT_EQ(hio::device::consoleFilePrefix(line(Channel::Shell, Direction::Out, "")), " > ");
-    EXPECT_EQ(hio::device::consoleFilePrefix(line(Channel::Log, Direction::Out, "")), " # ");
-    EXPECT_EQ(hio::device::consoleFilePrefix(line(Channel::Shell, Direction::In, "")), " < ");
-    EXPECT_EQ(hio::device::consoleFilePrefix(line(Channel::Shell, Direction::Marker, "")), " @ ");
+    EXPECT_EQ(hwio::device::consoleFilePrefix(line(Channel::Shell, Direction::Out, "")), " > ");
+    EXPECT_EQ(hwio::device::consoleFilePrefix(line(Channel::Log, Direction::Out, "")), " # ");
+    EXPECT_EQ(hwio::device::consoleFilePrefix(line(Channel::Shell, Direction::In, "")), " < ");
+    EXPECT_EQ(hwio::device::consoleFilePrefix(line(Channel::Shell, Direction::Marker, "")), " @ ");
 }
 
 } // namespace

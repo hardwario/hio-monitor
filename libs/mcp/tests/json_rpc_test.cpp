@@ -1,7 +1,7 @@
 // JSON-RPC envelope parsing and building (plan/features/0013 "Protocol core").
 
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/protocol.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/protocol.h"
 
 #include <QByteArray>
 #include <QJsonObject>
@@ -12,7 +12,7 @@
 
 #include <array>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 TEST(JsonRpc, ParsesRequestNotificationAndResponse) {
@@ -115,4 +115,4 @@ TEST(JsonRpc, LargeIntegerIdIsEchoedExactly) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

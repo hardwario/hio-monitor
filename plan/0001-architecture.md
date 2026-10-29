@@ -20,7 +20,7 @@
   │ libs/hw/nrfutil   optional nRF Util subprocess (nRF91 modem firmware only)  │
   │ libs/hw/ble       Nordic UART Service transport (QtBluetooth)               │
   ├────────────────────────────────────────────────────────────────────────────┤
-  │ libs/core   hio::Error, Result, logging, settings, bounded buffers, utils   │
+  │ libs/core   hwio::Error, Result, logging, settings, bounded buffers, utils   │
   └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -31,7 +31,7 @@ and never QtGui/QtQuick (ADR-0004). Each lib is a separate CMake target with its
 
 ```
 CMakeLists.txt, CMakePresets.json, cmake/        build system, toolchains, CPM
-libs/core/            include/hio/core/...  src/  tests/
+libs/core/            include/hwio/core/...  src/  tests/
 libs/hw/jlink/
 libs/hw/nrfutil/
 libs/hw/ble/
@@ -47,13 +47,13 @@ plan/
 
 ## Key abstractions (to be refined in feature plans)
 
-- `hio::Error` — `{ ErrorCode code; std::string message; std::string cause; std::string suggestion;
-  std::string detail; std::optional<WizardId> wizard; }`; `hio::Result<T> = std::expected<T, Error>`.
+- `hwio::Error` — `{ ErrorCode code; std::string message; std::string cause; std::string suggestion;
+  std::string detail; std::optional<WizardId> wizard; }`; `hwio::Result<T> = std::expected<T, Error>`.
   One `ErrorCode` enum with stable string ids, each mapped to an `ErrorCategory` that is also the
   CLI exit code (ADR-0024).
 - `IJLinkApi` / `JLinkLibrary` — runtime-loaded DLL with typed function table from our own declarations
   (ADR-0028), minimum version 8.00 (ADR-0029); **each session loads its own copy** of the library so several
-  probes work in one process (ADR-0030); load errors are `hio::Error` with "install J-Link" wizard.
+  probes work in one process (ADR-0030); load errors are `hwio::Error` with "install J-Link" wizard.
 - `IProgrammer` — `identify` (FICR part, protection), `program(FirmwareImage, progress, stop_token)`,
   `verify` (read-back), `eraseCode`, `eraseAll`, `recover`, `readMemory`, `reset(Go|Halt)`. Implementation:
   J-Link flash download with our own Intel HEX parser (ADR-0015, ADR-0035). Modem firmware:
@@ -111,5 +111,5 @@ the GUI switches language live; the CLI is English only. Error `code` ids are th
 
 ## Error and UX contract
 
-Backend returns `hio::Error`; ViewModels turn it into a notification or an inline error panel
+Backend returns `hwio::Error`; ViewModels turn it into a notification or an inline error panel
 with "What to do" text and an optional "Help me fix this" button opening the wizard.

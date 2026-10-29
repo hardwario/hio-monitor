@@ -14,7 +14,7 @@
 #
 # Signing order (inside-out): every Mach-O in Contents/Frameworks, Contents/PlugIns and
 # Contents/Resources (Qt frameworks, plugins and QML plugins, re-signed with our identity), then
-# Contents/MacOS/hio, then the bundle (whose main executable is hio-monitor). Executables get the
+# Contents/MacOS/hwio, then the bundle (whose main executable is hwio-monitor). Executables get the
 # hardened runtime and packaging/macos/entitlements.plist; everything gets --timestamp unless ad-hoc.
 #
 # Notarization uses an App Store Connect API key (ADR-0120): MACOS_NOTARY_KEY_P8 (the .p8 content),
@@ -46,7 +46,7 @@ sign_bundle() {
     done < <(find "$app/Contents/Frameworks" -maxdepth 1 -name '*.framework' -print0 2>/dev/null)
     # 2. The CLI (keeps its embedded __info_plist, ADR-0086), 3. the bundle.
     codesign --force --sign "$identity" --options runtime "$ts" \
-        --entitlements "$entitlements" "$app/Contents/MacOS/hio"
+        --entitlements "$entitlements" "$app/Contents/MacOS/hwio"
     codesign --force --sign "$identity" --options runtime "$ts" \
         --entitlements "$entitlements" "$app"
 }
@@ -54,7 +54,7 @@ sign_bundle() {
 verify_bundle() {
     local app="$1"
     codesign --verify --deep --strict --verbose=2 "$app"
-    for binary in "$app" "$app/Contents/MacOS/hio"; do
+    for binary in "$app" "$app/Contents/MacOS/hwio"; do
         local ent
         ent="$(codesign -d --entitlements - --xml "$binary" 2>/dev/null || true)"
         if ! grep -q "com.apple.security.cs.disable-library-validation" <<<"$ent"; then
@@ -71,7 +71,7 @@ verify_bundle() {
         fi
     done
     # The Bluetooth usage description must survive the re-signing (ADR-0086).
-    otool -s __TEXT __info_plist "$app/Contents/MacOS/hio" >/dev/null
+    otool -s __TEXT __info_plist "$app/Contents/MacOS/hwio" >/dev/null
     plutil -extract NSBluetoothAlwaysUsageDescription raw "$app/Contents/Info.plist" >/dev/null
     echo "Signature and entitlements OK: $app"
 }
@@ -84,9 +84,9 @@ make_dmg() {
     rm -f "$dmg"
     # create-dmg (pinned, installed by the workflow): window with the app, an Applications link and
     # the background. --skip-jenkins leaves out the Finder (AppleScript) layout step when no
-    # Finder session is available (HIO_DMG_NO_FINDER=1).
+    # Finder session is available (HWIO_DMG_NO_FINDER=1).
     local finder=()
-    if [ -n "${HIO_DMG_NO_FINDER:-}" ]; then finder=(--skip-jenkins); fi
+    if [ -n "${HWIO_DMG_NO_FINDER:-}" ]; then finder=(--skip-jenkins); fi
     create-dmg \
         --volname "HARDWARIO Monitor" \
         --background "$here/dmg/background.png" \

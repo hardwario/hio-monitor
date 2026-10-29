@@ -18,7 +18,7 @@
 #include <thread>
 #endif
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -108,7 +108,7 @@ SignalGuard::SignalGuard(std::stop_source source) : m_source(std::move(source)) 
     action.sa_flags = SA_RESETHAND; // the second signal gets the default action (forced exit)
     sigaction(SIGINT, &action, &state.previousInt);
     sigaction(SIGTERM, &action, &state.previousTerm);
-    // SIGPIPE is ignored (review R32): a closed stdout (`hio ... | head`) makes the write fail
+    // SIGPIPE is ignored (review R32): a closed stdout (`hwio ... | head`) makes the write fail
     // with EPIPE instead of killing the process, and the console turns that into a stop request
     // (the session closes and the console file is flushed).
     struct sigaction ignore{};
@@ -156,4 +156,4 @@ SignalGuard::~SignalGuard() {
     guardActive().store(false);
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

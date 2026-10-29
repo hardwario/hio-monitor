@@ -1,7 +1,7 @@
-#include "hio/update/semver.h"
+#include "hwio/update/semver.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 
 #include <algorithm>
 #include <compare>
@@ -15,7 +15,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::update {
+namespace hwio::update {
 
 namespace {
 
@@ -183,4 +183,4 @@ SemVer comparableCurrent(const SemVer& version) {
                   .build = {}};
 }
 
-} // namespace hio::update
+} // namespace hwio::update

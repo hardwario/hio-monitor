@@ -1,10 +1,10 @@
-// Resources and the debug_device prompt (plan/features/0013 C3, ADR-0107): hio://devices,
-// hio://device/{id}/status|log|terminal, resources/list with the open devices, list_changed on
+// Resources and the debug_device prompt (plan/features/0013 C3, ADR-0107): hwio://devices,
+// hwio://device/{id}/status|log|terminal, resources/list with the open devices, list_changed on
 // open/close, resources/updated on new lines; the prompt text.
 
-#include "hio/device/console_line.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/request_context.h"
+#include "hwio/device/console_line.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/request_context.h"
 #include "mcp_test_support.h"
 #include "tools_test_support.h"
 
@@ -21,7 +21,7 @@
 #include <memory>
 #include <string>
 
-namespace hio::mcp::tools::test {
+namespace hwio::mcp::tools::test {
 namespace {
 
 using namespace std::chrono_literals;
@@ -46,7 +46,7 @@ TEST(Resources, ListAndRead) {
     Harness harness(provider);
     auto& session = provider.add("jlink:801000001");
     session.shell("uart:~$ hello");
-    session.emitLine(hio::device::Channel::Shell, hio::device::Direction::In, "version");
+    session.emitLine(hwio::device::Channel::Shell, hwio::device::Direction::In, "version");
     session.logLine("<inf> app: started");
 
     const QJsonArray resources = resultOf(harness.rpc(QStringLiteral("resources/list")))
@@ -56,28 +56,28 @@ TEST(Resources, ListAndRead) {
     for (const auto& item : resources) {
         uris.append(item.toObject().value(QStringLiteral("uri")).toString());
     }
-    EXPECT_TRUE(uris.contains(QStringLiteral("hio://devices")));
-    EXPECT_TRUE(uris.contains(QStringLiteral("hio://device/jlink:801000001/status")));
-    EXPECT_TRUE(uris.contains(QStringLiteral("hio://device/jlink:801000001/log")));
-    EXPECT_TRUE(uris.contains(QStringLiteral("hio://device/jlink:801000001/terminal")));
+    EXPECT_TRUE(uris.contains(QStringLiteral("hwio://devices")));
+    EXPECT_TRUE(uris.contains(QStringLiteral("hwio://device/jlink:801000001/status")));
+    EXPECT_TRUE(uris.contains(QStringLiteral("hwio://device/jlink:801000001/log")));
+    EXPECT_TRUE(uris.contains(QStringLiteral("hwio://device/jlink:801000001/terminal")));
 
     const QJsonObject devices =
-        QJsonDocument::fromJson(readText(harness, QStringLiteral("hio://devices")).toUtf8())
+        QJsonDocument::fromJson(readText(harness, QStringLiteral("hwio://devices")).toUtf8())
             .object();
     EXPECT_EQ(devices.value(QStringLiteral("devices")).toArray().size(), 1);
     const QJsonObject status =
         QJsonDocument::fromJson(
-            readText(harness, QStringLiteral("hio://device/jlink:801000001/status")).toUtf8())
+            readText(harness, QStringLiteral("hwio://device/jlink:801000001/status")).toUtf8())
             .object();
     EXPECT_EQ(status.value(QStringLiteral("terminal_total")).toInteger(), 2);
-    EXPECT_EQ(readText(harness, QStringLiteral("hio://device/jlink:801000001/terminal")),
+    EXPECT_EQ(readText(harness, QStringLiteral("hwio://device/jlink:801000001/terminal")),
               QStringLiteral("uart:~$ hello\n> version"));
-    EXPECT_EQ(readText(harness, QStringLiteral("hio://device/jlink:801000001/log")),
+    EXPECT_EQ(readText(harness, QStringLiteral("hwio://device/jlink:801000001/log")),
               QStringLiteral("<inf> app: started"));
 
     const QJsonObject missing =
         harness.rpc(QStringLiteral("resources/read"),
-                    {{QStringLiteral("uri"), QStringLiteral("hio://device/jlink:9/log")}});
+                    {{QStringLiteral("uri"), QStringLiteral("hwio://device/jlink:9/log")}});
     EXPECT_TRUE(missing.contains(QStringLiteral("error")));
 }
 
@@ -88,7 +88,7 @@ TEST(Resources, TerminalResourceKeepsTheLast1000Lines) {
     for (int i = 0; i < 1100; ++i) {
         session.shell("line " + std::to_string(i));
     }
-    const QString text = readText(harness, QStringLiteral("hio://device/jlink:1/terminal"));
+    const QString text = readText(harness, QStringLiteral("hwio://device/jlink:1/terminal"));
     const auto lines = text.split(QLatin1Char('\n'));
     ASSERT_EQ(lines.size(), 1000);
     EXPECT_EQ(lines.front(), QStringLiteral("line 100"));
@@ -96,14 +96,14 @@ TEST(Resources, TerminalResourceKeepsTheLast1000Lines) {
 
 TEST(Resources, ListChangedAndUpdatedNotifications) {
     FakeProvider provider;
-    hio::mcp::Limits limits;
+    hwio::mcp::Limits limits;
     limits.resourceUpdateInterval = 20ms;
     Harness harness(provider, limits);
     auto& first = provider.add("jlink:1");
 
-    auto listen = std::make_shared<hio::mcp::test::RecordingReplyChannel>();
-    hio::mcp::TransportInfo http;
-    http.kind = hio::mcp::TransportKind::Http;
+    auto listen = std::make_shared<hwio::mcp::test::RecordingReplyChannel>();
+    hwio::mcp::TransportInfo http;
+    http.kind = hwio::mcp::TransportKind::Http;
     http.connectionId = 99;
     http.protocolVersionHeader = "2026-07-28";
     http.methodHeader = "subscriptions/listen";
@@ -112,8 +112,8 @@ TEST(Resources, ListChangedAndUpdatedNotifications) {
                 {{QStringLiteral("notifications"),
                   QJsonObject{{QStringLiteral("resourcesListChanged"), true},
                               {QStringLiteral("resourceSubscriptions"),
-                               QJsonArray{QStringLiteral("hio://device/jlink:1/log"),
-                                          QStringLiteral("hio://devices")}}}}}),
+                               QJsonArray{QStringLiteral("hwio://device/jlink:1/log"),
+                                          QStringLiteral("hwio://devices")}}}}}),
         listen, http);
     ASSERT_TRUE(listen->streamStarted);
     const auto count = [&listen](const char* method) {
@@ -161,4 +161,4 @@ TEST(Prompts, DebugDevice) {
 }
 
 } // namespace
-} // namespace hio::mcp::tools::test
+} // namespace hwio::mcp::tools::test

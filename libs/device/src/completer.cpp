@@ -1,6 +1,6 @@
-#include "hio/device/completer.h"
+#include "hwio/device/completer.h"
 
-#include "hio/device/command_tree.h"
+#include "hwio/device/command_tree.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -13,7 +13,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -145,4 +145,4 @@ std::optional<std::vector<std::string>> Completer::pathToLearn(std::string_view 
     return parts.path;
 }
 
-} // namespace hio::device
+} // namespace hwio::device

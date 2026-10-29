@@ -1,9 +1,9 @@
 #include "viewmodels/console_line_model.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
 #include "viewmodels/find_filter_engine.h"
 
 #include <QAbstractListModel>
@@ -36,7 +36,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -748,4 +748,4 @@ Status ConsoleLineModel::writeRows(QIODevice& device, bool withTime) const {
     return {};
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -5,7 +5,7 @@
 //
 // A list model of the probes of the latest ProbeScanner result. Per row: serial number, product,
 // firmware date and who uses the probe: another tab of this window ("In use (tab 2)": choosing it
-// switches to that tab) or another program ("In use by another program (hio, PID 1234)": the row
+// switches to that tab) or another program ("In use by another program (hwio, PID 1234)": the row
 // is disabled). The "in use by a tab" information is added here on the GUI thread. Exactly one
 // free probe is preselected. Below the list: the device profile and the target pickers and
 // Connect.
@@ -33,7 +33,7 @@
 #include <optional>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class ProbePickerViewModel : public QAbstractListModel {
     Q_OBJECT
@@ -50,7 +50,7 @@ class ProbePickerViewModel : public QAbstractListModel {
     Q_PROPERTY(QVariantList targets READ targets NOTIFY targetsChanged)
     Q_PROPERTY(int selectedRow READ selectedRow WRITE setSelectedRow NOTIFY selectedRowChanged)
     Q_PROPERTY(bool canConnect READ canConnect NOTIFY selectedRowChanged)
-    Q_PROPERTY(hio::gui::ErrorInfo libraryError READ libraryError NOTIFY scanChanged)
+    Q_PROPERTY(hwio::gui::ErrorInfo libraryError READ libraryError NOTIFY scanChanged)
     Q_PROPERTY(QString libraryVersion READ libraryVersion NOTIFY scanChanged)
 
 public:
@@ -60,7 +60,7 @@ public:
         ProductRole,                   // "J-Link" when the library does not say
         FirmwareRole,                  // "2024-03-07" or ""
         InUseTabRole,                  // 1-based tab number, -1 = none
-        InUseOtherRole,                // "hio, PID 1234" or ""
+        InUseOtherRole,                // "hwio, PID 1234" or ""
         SelectableRole,                // false when used by another program
     };
     Q_ENUM(Roles)
@@ -154,4 +154,4 @@ private:
     QString m_targetId;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

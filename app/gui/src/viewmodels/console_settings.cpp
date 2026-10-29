@@ -1,10 +1,10 @@
 #include "viewmodels/console_settings.h"
 
 #include "gui_log.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/completer.h"
-#include "hio/device/console_file_sink.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/completer.h"
+#include "hwio/device/console_file_sink.h"
 #include "settings_store.h"
 #include "viewmodels/app_view_model.h"
 
@@ -26,7 +26,7 @@
 #include <system_error>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -219,4 +219,4 @@ bool ConsoleSettings::openUrl(const QUrl& url) const {
     return m_opener ? m_opener(url) : QDesktopServices::openUrl(url);
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

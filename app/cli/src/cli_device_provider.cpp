@@ -1,22 +1,22 @@
 #include "cli_device_provider.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/device_session.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/probe_enumerator.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/hw/nrfutil/nrfutil.h"
-#include "hio/mcp/offload.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/tools/device_provider.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/probe_enumerator.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
+#include "hwio/mcp/offload.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/tools/device_provider.h"
 
 #include <QLoggingCategory>
 #include <QMetaObject>
@@ -42,12 +42,12 @@
 #include <utility>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
-using hio::mcp::tools::DeviceEntry;
-using hio::mcp::tools::DeviceRef;
+using hwio::mcp::tools::DeviceEntry;
+using hwio::mcp::tools::DeviceRef;
 
 constexpr std::string_view jlinkPrefix = "jlink:";
 constexpr std::string_view defaultProfileId = "chester";
@@ -277,8 +277,8 @@ void CliDeviceProvider::enumerated(Enumeration found) {
     finishRefresh(outcome);
 }
 
-void CliDeviceProvider::open(const hio::mcp::tools::OpenRequest& request,
-                             std::function<void(hio::Result<DeviceRef>)> done) {
+void CliDeviceProvider::open(const hwio::mcp::tools::OpenRequest& request,
+                             std::function<void(hwio::Result<DeviceRef>)> done) {
     if (auto existing = find(request.id)) {
         done(*existing);
         return;
@@ -290,7 +290,7 @@ void CliDeviceProvider::open(const hio::mcp::tools::OpenRequest& request,
     done(std::move(opened));
 }
 
-Result<DeviceRef> CliDeviceProvider::openSession(const hio::mcp::tools::OpenRequest& request) {
+Result<DeviceRef> CliDeviceProvider::openSession(const hwio::mcp::tools::OpenRequest& request) {
     const std::optional<std::uint32_t> serial = probeSerialOf(request.id);
     if (!serial) {
         return std::unexpected(deviceNotOpen(request.id));
@@ -353,7 +353,7 @@ Result<DeviceRef> CliDeviceProvider::openSession(const hio::mcp::tools::OpenRequ
     return ref;
 }
 
-Status CliDeviceProvider::close(std::string_view id, const hio::mcp::RequestContext& /*context*/) {
+Status CliDeviceProvider::close(std::string_view id, const hwio::mcp::RequestContext& /*context*/) {
     const auto it = m_sessions.find(id);
     if (it == m_sessions.end()) {
         return std::unexpected(deviceNotOpen(id));
@@ -406,4 +406,4 @@ void CliDeviceProvider::setAiCommandHint(std::string_view id, bool active) {
     qCDebug(log::lcMcp).noquote() << "MCP:" << toQString(id) << "AI command" << active;
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

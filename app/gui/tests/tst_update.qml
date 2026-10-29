@@ -1,7 +1,7 @@
 // The update check in the GUI (plan/features/0016 C2, ADR-0116): the banner after an automatic
 // check ([Skip this version], [Later], one banner at a time with the crash notice first), Settings
 // > About (automatic check and pre-release options, [Check now], the CLI path, the licence files),
-// Czech texts. The release list comes from the local fixture (HIO_UPDATE_URL, tst_gui.cpp).
+// Czech texts. The release list comes from the local fixture (HWIO_UPDATE_URL, tst_gui.cpp).
 import QtQuick
 import QtTest
 import HardwarioMonitor
@@ -124,7 +124,7 @@ TestCase {
         compare(testSupport.setting("update/autoCheck"), "false");
         // The command line of this (development) build and the licence files.
         verify(find("cliPath").text.length > 0);
-        verify(find("cliPath").text.indexOf("hio") >= 0);
+        verify(find("cliPath").text.indexOf("hwio") >= 0);
         const licences = findAll(find("licenceFiles"), "").filter(item => item.text !== undefined
                                                                     && item.enabled !== undefined
                                                                     && item.hasOwnProperty("kind"));

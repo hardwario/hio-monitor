@@ -20,10 +20,10 @@
 
 namespace {
 
-using hio::cli::OverlongLinePolicy;
-using hio::cli::StdinItem;
-using hio::cli::StdinLineReader;
-using hio::cli::StdinReaderOptions;
+using hwio::cli::OverlongLinePolicy;
+using hwio::cli::StdinItem;
+using hwio::cli::StdinLineReader;
+using hwio::cli::StdinReaderOptions;
 using ReadStatus = StdinLineReader::ReadStatus;
 using Kind = StdinItem::Kind;
 

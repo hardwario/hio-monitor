@@ -11,7 +11,7 @@
 // (AppViewModel deletes it on the next event-loop turn, after QML has dropped its delegate).
 // Owned by AppViewModel (Qt parent). GUI thread only.
 
-#include "hio/device/session_registry.h"
+#include "hwio/device/session_registry.h"
 #include "viewmodels/device_tab_view_model.h"
 
 #include <QAbstractListModel>
@@ -28,7 +28,7 @@
 #include <memory>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DeviceTabViewModel;
 
@@ -72,7 +72,7 @@ public:
     // A live language switch (the Settings row's title).
     void retranslate();
     // nullptr for an invalid index.
-    Q_INVOKABLE [[nodiscard]] hio::gui::DeviceTabViewModel* at(int index) const;
+    Q_INVOKABLE [[nodiscard]] hwio::gui::DeviceTabViewModel* at(int index) const;
     [[nodiscard]] int indexOf(const DeviceTabViewModel* tab) const;
 
     // Takes ownership (Qt parent = this). False (and the tab is deleted) when full.
@@ -91,4 +91,4 @@ private:
     bool m_settingsOpen = false;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

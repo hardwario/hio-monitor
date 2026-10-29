@@ -1,6 +1,6 @@
 // Redaction of the diagnostic report (ADR-0075).
 
-#include "hio/diag/report.h"
+#include "hwio/diag/report.h"
 
 #include <QDir>
 #include <QSysInfo>
@@ -14,7 +14,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::diag {
+namespace hwio::diag {
 
 namespace {
 
@@ -146,4 +146,4 @@ std::string redact(std::string_view text, const RedactionContext& context) {
     return result;
 }
 
-} // namespace hio::diag
+} // namespace hwio::diag

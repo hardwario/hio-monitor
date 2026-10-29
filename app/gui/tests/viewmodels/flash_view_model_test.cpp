@@ -7,12 +7,12 @@
 
 #include "gui_test_support.h"
 #include "hex_builder.h"
-#include "hio/core/error.h"
-#include "hio/device/device_session.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/nrfutil/nrfutil.h"
 #include "http_fixture.h"
+#include "hwio/core/error.h"
+#include "hwio/device/device_session.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "pages/firmware_services.h"
 #include "settings_store.h"
 #include "support/fake_jlink_scenario.h"
@@ -58,15 +58,15 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::firmware::FirmwareImage;
-using hio::firmware::Segment;
-using hio::gui::AppViewModel;
-using hio::gui::DeviceTabViewModel;
-using hio::gui::FirmwareSourceViewModel;
-using hio::gui::FlashViewModel;
-using hio::gui::RecentSourcesModel;
-using hio::gui::test::waitFor;
+using hwio::ErrorCode;
+using hwio::firmware::FirmwareImage;
+using hwio::firmware::Segment;
+using hwio::gui::AppViewModel;
+using hwio::gui::DeviceTabViewModel;
+using hwio::gui::FirmwareSourceViewModel;
+using hwio::gui::FlashViewModel;
+using hwio::gui::RecentSourcesModel;
+using hwio::gui::test::waitFor;
 using Kind = FirmwareSourceViewModel::Kind;
 
 // One probe with RTT; `chip` is the scenario's chip object (default: an nRF52840).
@@ -80,19 +80,19 @@ std::string probeScenario(const std::string& chip = "{}") {
 
 QString randomId() { return QUuid::createUuid().toString(QUuid::Id128); }
 
-class FlashTest : public hio::gui::test::GuiTest {
+class FlashTest : public hwio::gui::test::GuiTest {
 protected:
     void SetUp() override {
         GuiTest::SetUp();
-        qputenv("HIO_NRFUTIL", (root() / "no-nrfutil" / "nrfutil").string().c_str());
+        qputenv("HWIO_NRFUTIL", (root() / "no-nrfutil" / "nrfutil").string().c_str());
     }
     void TearDown() override {
         m_app.reset();
-        qunsetenv("HIO_NRFUTIL");
-        qunsetenv("HIO_FAKE_NRFUTIL_MODE");
-        qunsetenv("HIO_CATALOG_URL");
-        qunsetenv("HIO_DESIGNATED_URL");
-        qunsetenv("HIO_DESIGNATED_SHA256");
+        qunsetenv("HWIO_NRFUTIL");
+        qunsetenv("HWIO_FAKE_NRFUTIL_MODE");
+        qunsetenv("HWIO_CATALOG_URL");
+        qunsetenv("HWIO_DESIGNATED_URL");
+        qunsetenv("HWIO_DESIGNATED_SHA256");
         GuiTest::TearDown();
     }
 
@@ -128,22 +128,22 @@ protected:
 
     [[nodiscard]] fs::path hexFile(const std::string& name = "app.hex",
                                    const FirmwareImage& content = image()) const {
-        return writeFile(name, QByteArray::fromStdString(hio::firmware::test::toHex(content)));
+        return writeFile(name, QByteArray::fromStdString(hwio::firmware::test::toHex(content)));
     }
 
     [[nodiscard]] fs::path bundleFile() const {
-        const QByteArray modem = hio::firmware::test::zipBytes(
+        const QByteArray modem = hwio::firmware::test::zipBytes(
             {{.name = "firmware.update.image.segments.0.hex", .data = ":00000001FF\n"}});
-        return writeFile("bundle.zip", hio::firmware::test::zipBytes(
+        return writeFile("bundle.zip", hwio::firmware::test::zipBytes(
                                            {{.name = "modem.zip", .data = modem.toStdString()},
                                             {.name = "application.hex",
-                                             .data = hio::firmware::test::toHex(image())}}));
+                                             .data = hwio::firmware::test::toHex(image())}}));
     }
 
     [[nodiscard]] fs::path modemFile() const {
         return writeFile(
             "mfw_nrf91x1_2.0.2.zip",
-            hio::firmware::test::zipBytes(
+            hwio::firmware::test::zipBytes(
                 {{.name = "firmware.update.image.segments.0.hex", .data = ":00000001FF\n"}}));
     }
 
@@ -320,13 +320,13 @@ TEST_F(FlashTest, CatalogIdValidation) {
 }
 
 TEST_F(FlashTest, CatalogDownloadAndErrors) {
-    hio::firmware::test::HttpFixture http;
+    hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
-    qputenv("HIO_CATALOG_URL", http.baseUrl().toUtf8());
+    qputenv("HWIO_CATALOG_URL", http.baseUrl().toUtf8());
     const QString id = randomId();
     http.set(QStringLiteral("/chester/%1/hex").arg(id),
-             hio::firmware::test::HttpFixture::Response::ok(
-                 QByteArray::fromStdString(hio::firmware::test::toHex(image()))));
+             hwio::firmware::test::HttpFixture::Response::ok(
+                 QByteArray::fromStdString(hwio::firmware::test::toHex(image()))));
     start(probeScenario());
 
     source().loadCatalogId(id.toUpper());
@@ -344,7 +344,7 @@ TEST_F(FlashTest, CatalogDownloadAndErrors) {
         waitFor([this] { return source().sourceState() != FirmwareSourceViewModel::Downloading; }));
     EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Invalid);
     EXPECT_EQ(source().error().code(), QStringLiteral("firmware.not_found_in_catalog"));
-    EXPECT_EQ(source().error().primaryAction(), hio::gui::error_action::ChooseFile);
+    EXPECT_EQ(source().error().primaryAction(), hwio::gui::error_action::ChooseFile);
 }
 
 TEST_F(FlashTest, RecentListIsBoundedPerKindAndRemovable) {
@@ -459,13 +459,13 @@ TEST_F(FlashTest, CrossTargetPhasesAndConnectorWarning) {
     // The probe is on the application MCU: the LTE operation fails early with the connector hint.
     EXPECT_EQ(flash().opState(), FlashViewModel::Failed);
     EXPECT_EQ(flash().error().code(), QStringLiteral("target.wrong_family"));
-    EXPECT_EQ(flash().errorAction(), hio::gui::error_action::Retry);
+    EXPECT_EQ(flash().errorAction(), hwio::gui::error_action::Retry);
     flash().setKind(Kind::AppFirmware); // ignored only while running
     EXPECT_TRUE(flash().connectorWarning().isEmpty());
 }
 
 TEST_F(FlashTest, LteBundleRunsInTwoStepsWithNrfUtil) {
-    qputenv("HIO_NRFUTIL", QByteArray(HIO_FAKE_NRFUTIL));
+    qputenv("HWIO_NRFUTIL", QByteArray(HWIO_FAKE_NRFUTIL));
     start(probeScenario(R"({"family": "nrf91"})"), QStringLiteral("lte"));
     ASSERT_TRUE(load(bundleFile()));
     ASSERT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready);
@@ -491,8 +491,8 @@ TEST_F(FlashTest, LteBundleRunsInTwoStepsWithNrfUtil) {
 }
 
 TEST_F(FlashTest, ModemFailureIsReported) {
-    qputenv("HIO_NRFUTIL", QByteArray(HIO_FAKE_NRFUTIL));
-    qputenv("HIO_FAKE_NRFUTIL_MODE", "fail");
+    qputenv("HWIO_NRFUTIL", QByteArray(HWIO_FAKE_NRFUTIL));
+    qputenv("HWIO_FAKE_NRFUTIL_MODE", "fail");
     start(probeScenario(R"({"family": "nrf91"})"), QStringLiteral("lte"));
     ASSERT_TRUE(load(modemFile()));
     ASSERT_TRUE(waitFor([this] { return flash().canFlash(); })); // nRF Util detected
@@ -507,14 +507,14 @@ TEST_F(FlashTest, ModemFailureIsReported) {
 // Review F5 / ADR-0114: the nRF Util path is read from the settings when the modem update is
 // requested, not when the session was opened.
 TEST_F(FlashTest, AChangedNrfUtilPathReachesAnOpenSession) {
-    qunsetenv("HIO_NRFUTIL"); // the setting decides (the environment would win over it)
+    qunsetenv("HWIO_NRFUTIL"); // the setting decides (the environment would win over it)
     start(probeScenario(R"({"family": "nrf91"})"), QStringLiteral("lte"));
-    hio::gui::SettingsStore& settings = *app().settingsStore();
+    hwio::gui::SettingsStore& settings = *app().settingsStore();
     ASSERT_TRUE(
         settings.setValue(QStringLiteral("nrfutil/path"),
                           QString::fromStdString((root() / "no-nrfutil" / "nrfutil").string())));
     tab().connectDevice();
-    const QPointer<hio::device::DeviceSession> opened(tab().session());
+    const QPointer<hwio::device::DeviceSession> opened(tab().session());
     ASSERT_FALSE(opened.isNull());
     ASSERT_TRUE(load(modemFile()));
     ASSERT_TRUE(waitFor([this] { return !flash().prerequisiteText().isEmpty(); }));
@@ -522,7 +522,7 @@ TEST_F(FlashTest, AChangedNrfUtilPathReachesAnOpenSession) {
 
     // A new path in Settings while the session stays open.
     ASSERT_TRUE(
-        settings.setValue(QStringLiteral("nrfutil/path"), QString::fromUtf8(HIO_FAKE_NRFUTIL)));
+        settings.setValue(QStringLiteral("nrfutil/path"), QString::fromUtf8(HWIO_FAKE_NRFUTIL)));
     ASSERT_TRUE(waitFor([this] { return flash().canFlash(); }));
     flash().flash();
     ASSERT_EQ(flash().opState(), FlashViewModel::Running);
@@ -551,8 +551,8 @@ TEST_F(FlashTest, AnotherBusyPageDisablesFlash) {
     start(probeScenario());
     ASSERT_TRUE(load(hexFile()));
     ASSERT_TRUE(flash().canFlash());
-    auto* testPage = qobject_cast<hio::gui::test::TestPageViewModel*>(
-        tab().pageViewModel(hio::gui::test::TestPageViewModel::pageId));
+    auto* testPage = qobject_cast<hwio::gui::test::TestPageViewModel*>(
+        tab().pageViewModel(hwio::gui::test::TestPageViewModel::pageId));
     ASSERT_NE(testPage, nullptr);
     testPage->startWork();
     EXPECT_FALSE(flash().canFlash());
@@ -697,7 +697,7 @@ TEST_F(FlashTest, AFailedDownloadIsAnInterruptedFlash) {
               QStringLiteral(
                   "Flashing was interrupted. The firmware may be partly written: flash it again."));
     // [Try again] runs the same flash again.
-    flash().triggerErrorAction(hio::gui::error_action::Retry);
+    flash().triggerErrorAction(hwio::gui::error_action::Retry);
     EXPECT_EQ(flash().opState(), FlashViewModel::Running);
     ASSERT_TRUE(finished());
 }
@@ -712,7 +712,7 @@ TEST_F(FlashTest, RetryFlashesTheStoredRequestAfterASourceChange) {
     // the view model must not depend on it).
     ASSERT_TRUE(load(hexFile("second.hex", image(0x2000))));
     ASSERT_EQ(source().sourceName(), QStringLiteral("second.hex"));
-    flash().triggerErrorAction(hio::gui::error_action::Retry);
+    flash().triggerErrorAction(hwio::gui::error_action::Retry);
     ASSERT_EQ(flash().opState(), FlashViewModel::Running);
     EXPECT_EQ(flash().operationTitle(),
               QStringLiteral("Flashing first.hex to the application MCU"));
@@ -720,21 +720,21 @@ TEST_F(FlashTest, RetryFlashesTheStoredRequestAfterASourceChange) {
 }
 
 TEST_F(FlashTest, ADependencyErrorOffersTheSettings) {
-    qputenv("HIO_NRFUTIL", QByteArray(HIO_FAKE_NRFUTIL));
+    qputenv("HWIO_NRFUTIL", QByteArray(HWIO_FAKE_NRFUTIL));
     start(probeScenario(R"({"family": "nrf91"})"), QStringLiteral("lte"));
     ASSERT_TRUE(load(modemFile()));
     ASSERT_TRUE(waitFor([this] { return flash().canFlash(); })); // nRF Util detected
     // nRF Util disappears before the session opens (it is located when the session opens).
-    qputenv("HIO_NRFUTIL", (root() / "no-nrfutil" / "nrfutil").string().c_str());
+    qputenv("HWIO_NRFUTIL", (root() / "no-nrfutil" / "nrfutil").string().c_str());
     flash().flash();
     ASSERT_TRUE(finished());
     ASSERT_EQ(flash().opState(), FlashViewModel::Failed);
     EXPECT_EQ(flash().error().code(), QStringLiteral("dependency.nrfutil_not_found"));
-    EXPECT_EQ(flash().errorAction(), hio::gui::error_action::OpenSettings); // F10
+    EXPECT_EQ(flash().errorAction(), hwio::gui::error_action::OpenSettings); // F10
     int settingsRequests = 0;
     QObject::connect(&flash(), &FlashViewModel::settingsRequested, &flash(),
                      [&settingsRequests] { ++settingsRequests; });
-    flash().triggerErrorAction(hio::gui::error_action::OpenSettings);
+    flash().triggerErrorAction(hwio::gui::error_action::OpenSettings);
     EXPECT_EQ(settingsRequests, 1);
     EXPECT_EQ(flash().opState(), FlashViewModel::Idle);
 }
@@ -772,22 +772,22 @@ TEST_F(FlashTest, ClosingTheTabMidOperationCancelsAndCloses) {
 }
 
 TEST_F(FlashTest, PhaseTitlesAreTranslatedTexts) {
-    EXPECT_EQ(FlashViewModel::phaseTitle(hio::firmware::ProgramPhase::Modem),
+    EXPECT_EQ(FlashViewModel::phaseTitle(hwio::firmware::ProgramPhase::Modem),
               QStringLiteral("Updating the modem"));
-    EXPECT_EQ(FlashViewModel::phaseTitle(hio::firmware::ProgramPhase::SwitchingTarget),
+    EXPECT_EQ(FlashViewModel::phaseTitle(hwio::firmware::ProgramPhase::SwitchingTarget),
               QStringLiteral("Switching MCU"));
 }
 
 // ---- FirmwareLoader ---------------------------------------------------------------------------
 
-class LoaderTest : public hio::gui::test::GuiTest {};
+class LoaderTest : public hwio::gui::test::GuiTest {};
 
 TEST_F(LoaderTest, NewestRequestOfARequesterWins) {
-    hio::gui::FirmwareLoader loader(root() / "instances");
+    hwio::gui::FirmwareLoader loader(root() / "instances");
     const fs::path missing = root() / "missing.hex";
     std::vector<std::uint64_t> delivered;
-    QObject::connect(&loader, &hio::gui::FirmwareLoader::fileLoaded, &loader,
-                     [&](quint64 generation, const hio::Result<hio::gui::LoadedSource>&) {
+    QObject::connect(&loader, &hwio::gui::FirmwareLoader::fileLoaded, &loader,
+                     [&](quint64 generation, const hwio::Result<hwio::gui::LoadedSource>&) {
                          delivered.push_back(generation);
                      });
     const int requester = 0;
@@ -803,17 +803,17 @@ TEST_F(LoaderTest, NewestRequestOfARequesterWins) {
 TEST_F(LoaderTest, ARequestDroppedFromTheFullQueueIsAnswered) {
     // The worker is kept busy by an nRF Util version probe that answers after 30 s.
     const fs::path log = root() / "nrfutil.log";
-    qputenv("HIO_FAKE_NRFUTIL_MODE", "slowversion");
-    qputenv("HIO_FAKE_NRFUTIL_LOG", QByteArray::fromStdString(log.string()));
-    auto loader = std::make_unique<hio::gui::FirmwareLoader>(root() / "instances");
+    qputenv("HWIO_FAKE_NRFUTIL_MODE", "slowversion");
+    qputenv("HWIO_FAKE_NRFUTIL_LOG", QByteArray::fromStdString(log.string()));
+    auto loader = std::make_unique<hwio::gui::FirmwareLoader>(root() / "instances");
     std::vector<std::pair<std::uint64_t, ErrorCode>> answers;
-    QObject::connect(loader.get(), &hio::gui::FirmwareLoader::fileLoaded, loader.get(),
-                     [&](quint64 generation, const hio::Result<hio::gui::LoadedSource>& result) {
+    QObject::connect(loader.get(), &hwio::gui::FirmwareLoader::fileLoaded, loader.get(),
+                     [&](quint64 generation, const hwio::Result<hwio::gui::LoadedSource>& result) {
                          answers.emplace_back(generation, result ? ErrorCode::InternalUnexpected
                                                                  : result.error().code);
                      });
-    hio::nrfutil::LocatorOptions options;
-    options.option = fs::path(HIO_FAKE_NRFUTIL);
+    hwio::nrfutil::LocatorOptions options;
+    options.option = fs::path(HWIO_FAKE_NRFUTIL);
     const int prober = 0;
     (void)loader->checkNrfUtil(&prober, options);
     ASSERT_TRUE(waitFor([&log] { return fs::exists(log); })); // the probe runs
@@ -834,32 +834,32 @@ TEST_F(LoaderTest, ARequestDroppedFromTheFullQueueIsAnswered) {
     const auto before = std::chrono::steady_clock::now();
     loader.reset();
     EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::seconds(5));
-    qunsetenv("HIO_FAKE_NRFUTIL_MODE");
-    qunsetenv("HIO_FAKE_NRFUTIL_LOG");
+    qunsetenv("HWIO_FAKE_NRFUTIL_MODE");
+    qunsetenv("HWIO_FAKE_NRFUTIL_LOG");
 }
 
 // ---- 0021 (ADR-0174 ... ADR-0167) ---------------------------------------------------------------
 
 // The designated LTE firmware: downloaded when its row is shown, verified, then flashed as an LTE
 // bundle; a damaged download says so and [Try again] downloads again. The fixture serves it
-// through the test-only HIO_DESIGNATED_URL / HIO_DESIGNATED_SHA256.
+// through the test-only HWIO_DESIGNATED_URL / HWIO_DESIGNATED_SHA256.
 TEST_F(FlashTest, DesignatedLteFirmware) {
-    hio::firmware::test::HttpFixture http;
+    hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
     // Unique content: the firmware cache of the test data directory never has it yet.
-    const QByteArray modem = hio::firmware::test::zipBytes(
+    const QByteArray modem = hwio::firmware::test::zipBytes(
         {{.name = "firmware.update.image.segments.0.hex", .data = ":00000001FF\n"},
          {.name = "x" + randomId().toStdString() + ".txt", .data = "x"}});
-    const QByteArray bundle = hio::firmware::test::zipBytes(
+    const QByteArray bundle = hwio::firmware::test::zipBytes(
         {{.name = "modem.zip", .data = modem.toStdString()},
-         {.name = "application.hex", .data = hio::firmware::test::toHex(image())}});
+         {.name = "application.hex", .data = hwio::firmware::test::toHex(image())}});
     const QString sha =
         QString::fromLatin1(QCryptographicHash::hash(bundle, QCryptographicHash::Sha256).toHex());
     http.set(QStringLiteral("/chester/lte.zip"),
-             hio::firmware::test::HttpFixture::Response::ok(bundle));
-    qputenv("HIO_DESIGNATED_URL", (http.baseUrl() + QStringLiteral("/lte.zip")).toUtf8());
-    qputenv("HIO_DESIGNATED_SHA256", sha.toUtf8());
-    qputenv("HIO_NRFUTIL", QByteArray(HIO_FAKE_NRFUTIL));
+             hwio::firmware::test::HttpFixture::Response::ok(bundle));
+    qputenv("HWIO_DESIGNATED_URL", (http.baseUrl() + QStringLiteral("/lte.zip")).toUtf8());
+    qputenv("HWIO_DESIGNATED_SHA256", sha.toUtf8());
+    qputenv("HWIO_NRFUTIL", QByteArray(HWIO_FAKE_NRFUTIL));
     start(probeScenario(R"({"family": "nrf91"})"), QStringLiteral("lte"));
     ASSERT_EQ(flash().kind(), Kind::LteFirmware);
     EXPECT_TRUE(source().designatedAvailable());
@@ -899,7 +899,7 @@ TEST_F(FlashTest, DesignatedLteFirmware) {
     EXPECT_EQ(source().sourceState(), FirmwareSourceViewModel::Ready);
 
     // Another tab with a damaged file (another pinned hash): checksum mismatch, Try again.
-    qputenv("HIO_DESIGNATED_SHA256", QByteArray(64, 'a'));
+    qputenv("HWIO_DESIGNATED_SHA256", QByteArray(64, 'a'));
     app().newTab();
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("lte"), 801000001,
                                 QStringLiteral("Test Probe")));
@@ -915,7 +915,7 @@ TEST_F(FlashTest, DesignatedLteFirmware) {
               QStringLiteral("The LTE firmware could not be downloaded"));
     source().prepareDesignated(); // not after a failure: that needs Try again
     EXPECT_EQ(source().designatedState(), FirmwareSourceViewModel::DesignatedFailed);
-    qputenv("HIO_DESIGNATED_SHA256", sha.toUtf8());
+    qputenv("HWIO_DESIGNATED_SHA256", sha.toUtf8());
     source().retryDesignated();
     ASSERT_TRUE(waitFor([this] {
         return source().designatedState() != FirmwareSourceViewModel::DesignatedDownloading;
@@ -924,8 +924,8 @@ TEST_F(FlashTest, DesignatedLteFirmware) {
     EXPECT_FALSE(source().designatedError().valid());
 
     // A failed download says that an own file works too.
-    qputenv("HIO_DESIGNATED_URL", (http.baseUrl() + QStringLiteral("/missing.zip")).toUtf8());
-    qputenv("HIO_DESIGNATED_SHA256", QByteArray(64, 'b'));
+    qputenv("HWIO_DESIGNATED_URL", (http.baseUrl() + QStringLiteral("/missing.zip")).toUtf8());
+    qputenv("HWIO_DESIGNATED_SHA256", QByteArray(64, 'b'));
     app().newTab();
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("lte"), 801000001,
                                 QStringLiteral("Test Probe")));
@@ -936,18 +936,18 @@ TEST_F(FlashTest, DesignatedLteFirmware) {
     EXPECT_EQ(source().designatedError().code(), QStringLiteral("network.download_failed"));
     EXPECT_TRUE(source().designatedError().suggestion().endsWith(
         QStringLiteral("You can also choose your own file.")));
-    qunsetenv("HIO_DESIGNATED_URL");
-    qunsetenv("HIO_DESIGNATED_SHA256");
+    qunsetenv("HWIO_DESIGNATED_URL");
+    qunsetenv("HWIO_DESIGNATED_SHA256");
 }
 
 // The catalog page of a valid ID (ADR-0166): name, version and upload date; "Unknown firmware"
 // when the page cannot be read; its SHA-256 verifies the download.
 TEST_F(FlashTest, CatalogInfoOfAnId) {
-    hio::firmware::test::HttpFixture http;
+    hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
-    qputenv("HIO_CATALOG_URL", http.baseUrl().toUtf8());
+    qputenv("HWIO_CATALOG_URL", http.baseUrl().toUtf8());
     const QString id = randomId();
-    const QByteArray hex = QByteArray::fromStdString(hio::firmware::test::toHex(image()));
+    const QByteArray hex = QByteArray::fromStdString(hwio::firmware::test::toHex(image()));
     const auto page = [](const QByteArray& sha) {
         return QByteArrayLiteral(
                    "<h2>hio-chester-push-fm:v4.0.1</h2><div>download the HEX file:</div>"
@@ -956,10 +956,10 @@ TEST_F(FlashTest, CatalogInfoOfAnId) {
                QByteArrayLiteral("</div><div>Upload date/time</div><div>2026-09-07 12:13:53</div>");
     };
     http.set(QStringLiteral("/chester/%1").arg(id),
-             hio::firmware::test::HttpFixture::Response::ok(
+             hwio::firmware::test::HttpFixture::Response::ok(
                  page(QCryptographicHash::hash(hex, QCryptographicHash::Sha256).toHex())));
     http.set(QStringLiteral("/chester/%1/hex").arg(id),
-             hio::firmware::test::HttpFixture::Response::ok(hex));
+             hwio::firmware::test::HttpFixture::Response::ok(hex));
     start(probeScenario());
     EXPECT_EQ(source().catalogInfo().value(QStringLiteral("lookupState")).toString(),
               QStringLiteral("none"));
@@ -992,9 +992,9 @@ TEST_F(FlashTest, CatalogInfoOfAnId) {
     // A page that lists another hash: the download is refused as damaged.
     const QString other = randomId();
     http.set(QStringLiteral("/chester/%1").arg(other),
-             hio::firmware::test::HttpFixture::Response::ok(page(QByteArray(64, 'c'))));
+             hwio::firmware::test::HttpFixture::Response::ok(page(QByteArray(64, 'c'))));
     http.set(QStringLiteral("/chester/%1/hex").arg(other),
-             hio::firmware::test::HttpFixture::Response::ok(hex));
+             hwio::firmware::test::HttpFixture::Response::ok(hex));
     EXPECT_TRUE(source().checkCatalogId(other));
     ASSERT_TRUE(waitFor([this] {
         return source().catalogInfo().value(QStringLiteral("lookupState")).toString() ==
@@ -1021,18 +1021,18 @@ TEST_F(FlashTest, CatalogInfoOfAnId) {
 // Review F1: a download started while the page lookup still runs waits for it, so the page's hash
 // verifies it (the Recent list, a paste + Enter); a cached HEX is checked against the page too.
 TEST_F(FlashTest, ACatalogDownloadWaitsForTheLookup) {
-    hio::firmware::test::HttpFixture http;
+    hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
-    qputenv("HIO_CATALOG_URL", http.baseUrl().toUtf8());
+    qputenv("HWIO_CATALOG_URL", http.baseUrl().toUtf8());
     const QString id = randomId();
-    const QByteArray hex = QByteArray::fromStdString(hio::firmware::test::toHex(image()));
+    const QByteArray hex = QByteArray::fromStdString(hwio::firmware::test::toHex(image()));
     const auto page = [](const QByteArray& sha) {
         return QByteArrayLiteral("<h2>hio-chester-push-fm:v4.0.1</h2><div>the HEX file:</div>"
                                  "<div>SHA256 checksum: ") +
                sha + QByteArrayLiteral("</div>");
     };
     http.set(QStringLiteral("/chester/%1/hex").arg(id),
-             hio::firmware::test::HttpFixture::Response::ok(hex));
+             hwio::firmware::test::HttpFixture::Response::ok(hex));
     start(probeScenario());
 
     // No page yet (unknown firmware): the download waits for the lookup, then runs unverified.
@@ -1049,7 +1049,7 @@ TEST_F(FlashTest, ACatalogDownloadWaitsForTheLookup) {
     // The page now lists another file: loading the ID again (from Recent: the info is read
     // anew) waits for the page and refuses the cached HEX as well as the download.
     http.set(QStringLiteral("/chester/%1").arg(id),
-             hio::firmware::test::HttpFixture::Response::ok(page(QByteArray(64, 'd'))));
+             hwio::firmware::test::HttpFixture::Response::ok(page(QByteArray(64, 'd'))));
     EXPECT_TRUE(source().checkCatalogId(QString())); // clears the info of the field
     ASSERT_EQ(source().recent()->sourceAt(0), RecentSourcesModel::catalogPrefix + id);
     source().loadRecent(0);
@@ -1078,8 +1078,8 @@ TEST_F(FlashTest, DocsUrlFollowsTheLanguage) {
                              "catalog-applications/#application-firmware"));
 }
 
-TEST_F(LoaderTest, LoadErrorsAreHioErrors) {
-    const auto result = hio::gui::loadFirmwareFile(root() / "missing.hex");
+TEST_F(LoaderTest, LoadErrorsAreHWioErrors) {
+    const auto result = hwio::gui::loadFirmwareFile(root() / "missing.hex");
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().code, ErrorCode::IoFileNotFound);
 }

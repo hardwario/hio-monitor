@@ -1,9 +1,9 @@
-#include "hio/device/console_line.h"
+#include "hwio/device/console_line.h"
 
 #include <optional>
 #include <string_view>
 
-namespace hio::device {
+namespace hwio::device {
 
 std::string_view channelId(Channel channel) noexcept {
     return channel == Channel::Log ? "log" : "shell";
@@ -39,4 +39,4 @@ std::optional<std::string_view> levelId(LogLevel level) noexcept {
     return std::nullopt;
 }
 
-} // namespace hio::device
+} // namespace hwio::device

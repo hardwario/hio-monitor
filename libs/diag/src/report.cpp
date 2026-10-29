@@ -1,14 +1,14 @@
 // The diagnostic report (ADR-0075, plan/features/0007).
 
-#include "hio/diag/report.h"
+#include "hwio/diag/report.h"
 
-#include "hio/core/crash_handler.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/version.h"
-#include "hio/diag/check.h"
+#include "hwio/core/crash_handler.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/version.h"
+#include "hwio/diag/check.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -44,7 +44,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::diag {
+namespace hwio::diag {
 
 namespace {
 
@@ -136,7 +136,7 @@ bool isTextCrashFile(const fs::path& path) {
     return extension == ".txt" || extension == ".ips" || extension == ".crash";
 }
 
-// A crash file for crashes/: the whole file (crash files are bounded: hio::crash, and the macOS
+// A crash file for crashes/: the whole file (crash files are bounded: hwio::crash, and the macOS
 // reports are read up to maxDumpBytes), text redacted.
 std::optional<ZipEntry> crashEntry(const fs::path& path, const RedactionContext& redaction) {
     QFile file(QString::fromStdU16String(path.u16string()));
@@ -227,7 +227,7 @@ QJsonObject appInfoJson(std::string_view uiLanguage) {
 std::vector<fs::path> recentCrashFiles(const fs::path& crashDir) {
     std::vector<fs::path> files = crash::recent(crashDir, crash::reportCrashFiles);
 #ifdef Q_OS_MACOS
-    // macOS's own reports of our processes (hio-monitor-*.ips, hio-*.ips), newest 3.
+    // macOS's own reports of our processes (hwio-monitor-*.ips, hwio-*.ips), newest 3.
     const fs::path reports =
         fs::path(QDir::homePath().toStdU16String()) / "Library" / "Logs" / "DiagnosticReports";
     std::vector<std::pair<fs::file_time_type, fs::path>> found;
@@ -237,7 +237,7 @@ std::vector<fs::path> recentCrashFiles(const fs::path& crashDir) {
     std::size_t entries = 0;
     for (; !error && it != fs::directory_iterator() && entries < maxEntries;
          it.increment(error), ++entries) {
-        if (!it->path().filename().string().starts_with("hio")) {
+        if (!it->path().filename().string().starts_with("hwio")) {
             continue;
         }
         std::error_code timeError;
@@ -256,7 +256,7 @@ std::vector<fs::path> recentCrashFiles(const fs::path& crashDir) {
 
 std::string defaultReportFileName() {
     return std::format(
-        "hio-diagnostics-{}.zip",
+        "hwio-diagnostics-{}.zip",
         QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")).toStdString());
 }
 
@@ -481,4 +481,4 @@ Result<std::size_t> ReportBuilder::writeZip(const ReportInput& input, const fs::
     return size;
 }
 
-} // namespace hio::diag
+} // namespace hwio::diag

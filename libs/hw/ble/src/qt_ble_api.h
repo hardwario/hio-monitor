@@ -9,10 +9,10 @@
 // detail::mapLinkError(), so it can be adjusted in one place after HIL (review B7).
 
 #include "controller_closer.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QBluetoothDeviceDiscoveryAgent>
 #include <QBluetoothDeviceInfo>
@@ -35,7 +35,7 @@
 #include <string>
 #include <vector>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 // The mapping of QtBluetooth results (plan 0011; kept here so that HIL findings change one
 // place, and unit-tested for the legacy defects).
@@ -146,4 +146,4 @@ private:
 // The BleDeviceId of a discovered device (address, or the CoreBluetooth UUID on macOS).
 [[nodiscard]] BleDeviceId deviceIdOf(const QBluetoothDeviceInfo& info);
 
-} // namespace hio::ble
+} // namespace hwio::ble

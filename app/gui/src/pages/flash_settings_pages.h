@@ -5,7 +5,7 @@
 // with its sections General, J-Link, nRF Util and About (other plans add theirs, e.g. Console by
 // 0005), the setting keys of 0006 and the Flash page shortcuts (Ctrl+Enter, Ctrl+O; ADR-0051).
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class AppViewModel;
 
@@ -13,4 +13,4 @@ class AppViewModel;
 // `app`). Called from AppOptions::registerExtensions (registerBuiltInPages), before the first tab.
 void registerFlashAndSettingsPages(AppViewModel& app);
 
-} // namespace hio::gui
+} // namespace hwio::gui

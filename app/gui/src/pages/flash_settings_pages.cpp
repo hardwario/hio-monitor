@@ -1,10 +1,10 @@
 #include "pages/flash_settings_pages.h"
 
 #include "gui_log.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "pages/firmware_services.h"
 #include "settings_store.h"
 #include "viewmodels/app_view_model.h"
@@ -23,7 +23,7 @@
 
 #include <optional>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -124,4 +124,4 @@ void registerFlashAndSettingsPages(AppViewModel& app) {
                               QT_TRANSLATE_NOOP("Shortcuts", "Choose a firmware file")));
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

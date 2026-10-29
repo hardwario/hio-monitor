@@ -17,10 +17,10 @@
 //
 // Thread safety: the public functions are called on the GUI thread (the owner).
 
-#include "hio/core/result.h"
-#include "hio/diag/check.h"
-#include "hio/diag/environment.h"
-#include "hio/diag/report.h"
+#include "hwio/core/result.h"
+#include "hwio/diag/check.h"
+#include "hwio/diag/environment.h"
+#include "hwio/diag/report.h"
 
 #include <QJsonArray>
 #include <QObject>
@@ -41,7 +41,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DiagWorker : public QObject {
     Q_OBJECT
@@ -81,12 +81,12 @@ public:
     void cancel(std::uint64_t generation);
 
 signals:
-    void checkProgress(quint64 generation, const hio::diag::CheckResult& result);
-    void checksFinished(quint64 generation, const std::vector<hio::diag::CheckResult>& results);
+    void checkProgress(quint64 generation, const hwio::diag::CheckResult& result);
+    void checksFinished(quint64 generation, const std::vector<hwio::diag::CheckResult>& results);
     void reportCollected(quint64 generation,
-                         const std::shared_ptr<const hio::diag::ReportInput>& input,
+                         const std::shared_ptr<const hwio::diag::ReportInput>& input,
                          const QString& summary);
-    void reportSaved(quint64 generation, const hio::Result<std::size_t>& bytes);
+    void reportSaved(quint64 generation, const hwio::Result<std::size_t>& bytes);
 
 private:
     enum class Kind : std::uint8_t { Checks, Collect, Save };
@@ -134,4 +134,4 @@ private:
     std::jthread m_worker; // last member: started last, joined first
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

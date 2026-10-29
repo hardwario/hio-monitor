@@ -1,9 +1,9 @@
-#include "hio/device/command_history.h"
+#include "hwio/device/command_history.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -26,7 +26,7 @@
 #include <system_error>
 #include <utility>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -170,4 +170,4 @@ Status CommandHistory::save() {
     return {};
 }
 
-} // namespace hio::device
+} // namespace hwio::device

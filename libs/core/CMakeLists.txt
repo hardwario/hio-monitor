@@ -1,18 +1,18 @@
-# libs/core - hio::Error, Result, JSON, logging, settings, bounded buffers, i18n, build info.
+# libs/core - hwio::Error, Result, JSON, logging, settings, bounded buffers, i18n, build info.
 # Backend library: QtCore only (ADR-0004), static (ADR-0022).
 
-hio_add_backend_library(hio_core
-    include/hio/core/app_identity.h
-    include/hio/core/bounded_queue.h
-    include/hio/core/crash_handler.h
-    include/hio/core/error.h
-    include/hio/core/i18n.h
-    include/hio/core/json.h
-    include/hio/core/log.h
-    include/hio/core/result.h
-    include/hio/core/ring_buffer.h
-    include/hio/core/settings.h
-    include/hio/core/version.h
+hwio_add_backend_library(hwio_core
+    include/hwio/core/app_identity.h
+    include/hwio/core/bounded_queue.h
+    include/hwio/core/crash_handler.h
+    include/hwio/core/error.h
+    include/hwio/core/i18n.h
+    include/hwio/core/json.h
+    include/hwio/core/log.h
+    include/hwio/core/result.h
+    include/hwio/core/ring_buffer.h
+    include/hwio/core/settings.h
+    include/hwio/core/version.h
     src/app_identity.cpp
     src/crash_handler.cpp
     src/error.cpp
@@ -22,23 +22,23 @@ hio_add_backend_library(hio_core
     src/settings.cpp
     src/settings_internal.h
     src/version.cpp)
-add_library(hio::core ALIAS hio_core)
+add_library(hwio::core ALIAS hwio_core)
 
-target_include_directories(hio_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(hio_core
+target_include_directories(hwio_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(hwio_core
     PUBLIC Qt6::Core
-    PRIVATE hio::version_info)
+    PRIVATE hwio::version_info)
 
 # Crash handler (ADR-0123, plan/features/0015 B1): the platform part.
 if(WIN32)
-    target_sources(hio_core PRIVATE src/crash_handler_win.cpp)
-    target_compile_definitions(hio_core PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_sources(hwio_core PRIVATE src/crash_handler_win.cpp)
+    target_compile_definitions(hwio_core PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
     # MiniDumpWriteDump: dbghelp is a Windows system library (not a vendor SDK).
-    target_link_libraries(hio_core PRIVATE dbghelp)
+    target_link_libraries(hwio_core PRIVATE dbghelp)
 else()
-    target_sources(hio_core PRIVATE src/crash_handler_posix.cpp)
+    target_sources(hwio_core PRIVATE src/crash_handler_posix.cpp)
 endif()
 
-if(HIO_BUILD_TESTS)
+if(HWIO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()

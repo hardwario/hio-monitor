@@ -11,7 +11,7 @@
 // Json mode: exactly one envelope per line on stdout, also for errors; streaming commands emit
 // one envelope per event (NDJSON). Logs never go to stdout.
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 
 #include <QJsonValue>
 
@@ -22,7 +22,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 enum class OutputMode : std::uint8_t {
     Human,
@@ -30,7 +30,7 @@ enum class OutputMode : std::uint8_t {
 };
 
 // A table with columns two spaces apart (widths in UTF-8 characters), one line per row, each
-// ending with "\n" (`hio jlink list`, `hio ble scan`).
+// ending with "\n" (`hwio jlink list`, `hwio ble scan`).
 [[nodiscard]] std::string formatTable(const std::vector<std::string>& header,
                                       const std::vector<std::vector<std::string>>& rows);
 
@@ -84,4 +84,4 @@ private:
 #endif
 };
 
-} // namespace hio::cli
+} // namespace hwio::cli

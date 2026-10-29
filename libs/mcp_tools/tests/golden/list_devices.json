@@ -26,7 +26,7 @@
       "display_name": "J-Link 801000003",
       "profile": null,
       "state": "in_use_by_other_process",
-      "owner": {"app": "hio-monitor", "pid": 4242},
+      "owner": {"app": "hwio-monitor", "pid": 4242},
       "connection": null,
       "opened_by_mcp": false
     }

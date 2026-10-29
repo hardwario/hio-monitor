@@ -1,8 +1,8 @@
 #include "exit_codes.h"
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 
-namespace hio::cli {
+namespace hwio::cli {
 
 int exitCodeFor(ErrorCategory category) noexcept {
     switch (category) {
@@ -30,4 +30,4 @@ int exitCodeFor(ErrorCategory category) noexcept {
     return 1;
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

@@ -16,7 +16,7 @@
 #include <array>
 #include <cstddef>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -28,11 +28,11 @@ struct Row {
 
 // The order of the About page (plan 0016).
 constexpr std::array<Row, 10> rows{{
-    {.name = QT_TRANSLATE_NOOP("hio::gui::LicensesModel", "HARDWARIO licence"),
+    {.name = QT_TRANSLATE_NOOP("hwio::gui::LicensesModel", "HARDWARIO licence"),
      .translate = true,
      .file = "LICENSE"},
     {.name = "Qt (LGPL-3.0)", .translate = false, .file = "Qt-LGPL-3.0.txt"},
-    {.name = QT_TRANSLATE_NOOP("hio::gui::LicensesModel", "Qt source code"),
+    {.name = QT_TRANSLATE_NOOP("hwio::gui::LicensesModel", "Qt source code"),
      .translate = true,
      .file = "Qt-SOURCE.txt"},
     {.name = "Inter (OFL-1.1)", .translate = false, .file = "Inter-LICENSE.txt"},
@@ -43,7 +43,7 @@ constexpr std::array<Row, 10> rows{{
     {.name = "CLI11 (BSD-3-Clause)", .translate = false, .file = "CLI11-BSD-3-Clause.txt"},
     {.name = "replxx (BSD-3-Clause)", .translate = false, .file = "replxx-LICENSE.md"},
     {.name = "miniz (MIT)", .translate = false, .file = "miniz-MIT.txt"},
-    {.name = QT_TRANSLATE_NOOP("hio::gui::LicensesModel", "Third-party notices"),
+    {.name = QT_TRANSLATE_NOOP("hwio::gui::LicensesModel", "Third-party notices"),
      .translate = true,
      .file = "THIRD-PARTY-NOTICES.txt"},
 }};
@@ -85,4 +85,4 @@ void LicensesModel::retranslate() {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

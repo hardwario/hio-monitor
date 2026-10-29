@@ -5,8 +5,8 @@
 // model contract under eviction / clear / rebuild with QAbstractItemModelTester).
 
 #include "gui_test_support.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
 #include "viewmodels/console_line_model.h"
 #include "viewmodels/find_filter_engine.h"
 
@@ -35,15 +35,15 @@
 
 namespace {
 
-using hio::device::Channel;
-using hio::device::ChannelMask;
-using hio::device::ConsoleLine;
-using hio::device::ConsoleLog;
-using hio::device::Direction;
-using hio::device::LogLevel;
-using hio::gui::ConsoleLineModel;
-using hio::gui::test::waitFor;
-namespace level_bits = hio::gui::level_bits;
+using hwio::device::Channel;
+using hwio::device::ChannelMask;
+using hwio::device::ConsoleLine;
+using hwio::device::ConsoleLog;
+using hwio::device::Direction;
+using hwio::device::LogLevel;
+using hwio::gui::ConsoleLineModel;
+using hwio::gui::test::waitFor;
+namespace level_bits = hwio::gui::level_bits;
 
 class ConsoleLineModelTest : public ::testing::Test {
 protected:

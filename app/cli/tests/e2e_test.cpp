@@ -1,8 +1,8 @@
-// End-to-end tests: run the real `hio` executable (HIO_CLI_EXECUTABLE) with QProcess.
+// End-to-end tests: run the real `hwio` executable (HWIO_CLI_EXECUTABLE) with QProcess.
 
 #include "cli_process.h"
-#include "hio/core/json.h"
-#include "hio/core/version.h"
+#include "hwio/core/json.h"
+#include "hwio/core/version.h"
 
 #include <QByteArray>
 #include <QDir>
@@ -26,8 +26,8 @@
 
 namespace {
 
-using hio::cli::test::CliProcess;
-using hio::cli::test::RunResult;
+using hwio::cli::test::CliProcess;
+using hwio::cli::test::RunResult;
 
 QJsonObject parseEnvelope(const std::string& line) {
     const QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(line));
@@ -39,7 +39,7 @@ TEST_F(CliProcess, Version) {
     const RunResult result = run({QStringLiteral("--version")});
     ASSERT_TRUE(result.normalExit);
     EXPECT_EQ(result.exitCode, 0);
-    EXPECT_EQ(result.out, "hio " + std::string(hio::buildInfo().version) + "\n");
+    EXPECT_EQ(result.out, "hwio " + std::string(hwio::buildInfo().version) + "\n");
 }
 
 TEST_F(CliProcess, JsonVersion) {
@@ -52,9 +52,9 @@ TEST_F(CliProcess, JsonVersion) {
     EXPECT_EQ(envelope.value(QStringLiteral("schema")).toInt(), 1);
     EXPECT_TRUE(envelope.value(QStringLiteral("ok")).toBool());
     const QJsonObject data = envelope.value(QStringLiteral("data")).toObject();
-    EXPECT_EQ(data.value(QStringLiteral("name")).toString(), QStringLiteral("hio"));
+    EXPECT_EQ(data.value(QStringLiteral("name")).toString(), QStringLiteral("hwio"));
     EXPECT_EQ(data.value(QStringLiteral("version")).toString(),
-              hio::toQString(hio::buildInfo().version));
+              hwio::toQString(hwio::buildInfo().version));
 }
 
 TEST_F(CliProcess, HumanErrorAndExitCode) {
@@ -96,7 +96,7 @@ TEST_F(CliProcess, UnknownOptionIsUsageError) {
     const RunResult human = run({QStringLiteral("--bogus")});
     ASSERT_TRUE(human.normalExit);
     EXPECT_EQ(human.exitCode, 2);
-    EXPECT_NE(human.err.find("Run `hio --help`."), std::string::npos) << human.err;
+    EXPECT_NE(human.err.find("Run `hwio --help`."), std::string::npos) << human.err;
 
     const RunResult json = run({QStringLiteral("--bogus"), QStringLiteral("--json")});
     EXPECT_EQ(json.exitCode, 2);
@@ -140,14 +140,14 @@ TEST_F(CliProcess, LogsNeverGoToStdout) {
              QStringLiteral("_selftest"), QStringLiteral("error"), QStringLiteral("timeout")});
     EXPECT_EQ(result.exitCode, 9);
     EXPECT_EQ(result.out.find('\n'), result.out.size() - 1) << result.out;
-    EXPECT_NE(result.err.find("[inf] hio.core"), std::string::npos) << result.err;
+    EXPECT_NE(result.err.find("[inf] hwio.core"), std::string::npos) << result.err;
 }
 
 #ifndef _WIN32
 void cancelWaitWith(const QProcessEnvironment& env, int signal) {
     QProcess process;
     process.setProcessEnvironment(env);
-    process.start(QStringLiteral(HIO_CLI_EXECUTABLE),
+    process.start(QStringLiteral(HWIO_CLI_EXECUTABLE),
                   {QStringLiteral("--log-level"), QStringLiteral("debug"),
                    QStringLiteral("_selftest"), QStringLiteral("wait")});
     ASSERT_TRUE(process.waitForStarted(10000));
@@ -161,7 +161,7 @@ void cancelWaitWith(const QProcessEnvironment& env, int signal) {
     }
     ASSERT_TRUE(err.contains("waiting for cancellation")) << err.toStdString();
     ASSERT_EQ(::kill(static_cast<int>(process.processId()), signal), 0);
-    ASSERT_TRUE(process.waitForFinished(10000)) << "hio did not stop after the signal";
+    ASSERT_TRUE(process.waitForFinished(10000)) << "hwio did not stop after the signal";
     err += process.readAllStandardError();
     EXPECT_EQ(process.exitStatus(), QProcess::NormalExit);
     EXPECT_EQ(process.exitCode(), 130);

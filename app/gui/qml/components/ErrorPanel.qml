@@ -1,4 +1,4 @@
-// Inline error card for every hio::Error (UX 0003, design system § 5): headline (message),
+// Inline error card for every hwio::Error (UX 0003, design system § 5): headline (message),
 // "Probably:" cause, "What to do:" suggestion, the primary action of the error category (a page
 // may override `primaryAction`), an optional secondary action, "Help me fix this" when the error's
 // wizard is registered (plan/features/0007: it opens the wizard with the error as context) and a

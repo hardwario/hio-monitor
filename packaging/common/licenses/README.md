@@ -9,9 +9,9 @@ and the generated index `THIRD-PARTY-NOTICES.txt`, into the `licenses/` director
 |---|---|---|
 | `Qt-LGPL-3.0.txt` | Qt 6 (LGPL-3.0-only) | FSF text, Debian `/usr/share/common-licenses/LGPL-3` |
 | `GPL-3.0.txt` | GPL-3.0, referenced by the LGPL-3.0 | FSF text, Debian `/usr/share/common-licenses/GPL-3` |
-| `CLI11-BSD-3-Clause.txt` | CLI11 2.7.2 | `LICENSE` of the pinned release archive (`cmake/HioDeps.cmake`) |
+| `CLI11-BSD-3-Clause.txt` | CLI11 2.7.2 | `LICENSE` of the pinned release archive (`cmake/HWioDeps.cmake`) |
 | `replxx-LICENSE.md` | replxx (commit 1f149bf) | `LICENSE.md` of the pinned archive |
 | `miniz-MIT.txt` | miniz 3.1.2 | `LICENSE` of the pinned release archive |
 
-When a dependency is added or upgraded (`cmake/HioDeps.cmake`), update its row in `packaging/common/licenses.cmake`
+When a dependency is added or upgraded (`cmake/HWioDeps.cmake`), update its row in `packaging/common/licenses.cmake`
 and its text here; the CTest `Packaging.LicenceTableCoversCpmDependencies` fails while a CPM dependency has no row.

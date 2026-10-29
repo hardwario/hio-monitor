@@ -5,19 +5,19 @@
 // the shared session registry (B2).
 
 #include "ble_session_internal.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/ble_session.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_key.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/nus_link.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/ble_session.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_key.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/nus_link.h"
+#include "hwio/hw/ble/types.h"
 #include "mock_ble_api.h"
 #include "session_test_support.h"
 
@@ -54,21 +54,21 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::ble::IBleListener;
-using hio::ble::LinkId;
-using hio::ble::LinkReady;
-using hio::ble::WriteMode;
-using hio::device::BleSession;
-using hio::device::BleSessionOptions;
-using hio::device::Channel;
-using hio::device::ConnectionEvent;
-using hio::device::ConnectionState;
-using hio::device::ConsoleLine;
-using hio::device::Direction;
-using hio::device::SessionRegistry;
-using hio::device::test::spin;
-using hio::device::test::waitFor;
+using hwio::ErrorCode;
+using hwio::ble::IBleListener;
+using hwio::ble::LinkId;
+using hwio::ble::LinkReady;
+using hwio::ble::WriteMode;
+using hwio::device::BleSession;
+using hwio::device::BleSessionOptions;
+using hwio::device::Channel;
+using hwio::device::ConnectionEvent;
+using hwio::device::ConnectionState;
+using hwio::device::ConsoleLine;
+using hwio::device::Direction;
+using hwio::device::SessionRegistry;
+using hwio::device::test::spin;
+using hwio::device::test::waitFor;
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -89,7 +89,7 @@ struct Driver {
     std::vector<std::string> calls;     // "connect <id>", "disconnect <id>" in order
     std::optional<ErrorCode> scanError; // startScan() fails with it
     int actionsDone = 0;                // run() actions finished on the BLE thread
-    hio::Result<LinkId> nextConnect = LinkId{1};
+    hwio::Result<LinkId> nextConnect = LinkId{1};
 
     // Runs `action` with the listener on the BLE thread.
     void run(std::function<void(IBleListener&)> action) {
@@ -146,7 +146,7 @@ struct Driver {
     }
 };
 
-class DrivenApi : public NiceMock<hio::ble::test::MockBleApi> {
+class DrivenApi : public NiceMock<hwio::ble::test::MockBleApi> {
 public:
     explicit DrivenApi(std::shared_ptr<Driver> driver) : m_driver(std::move(driver)) {
         {
@@ -157,7 +157,7 @@ public:
             const std::scoped_lock lock(m_driver->mutex);
             m_driver->listener = listener;
         });
-        ON_CALL(*this, adapter()).WillByDefault(Return(hio::ble::test::readyAdapter()));
+        ON_CALL(*this, adapter()).WillByDefault(Return(hwio::ble::test::readyAdapter()));
         ON_CALL(*this, connect(_, _)).WillByDefault([this](const auto&, const auto&) {
             const std::scoped_lock lock(m_driver->mutex);
             ++m_driver->connects;
@@ -175,9 +175,9 @@ public:
             const std::scoped_lock lock(m_driver->mutex);
             ++m_driver->scans;
             if (m_driver->scanError) {
-                return hio::Status(std::unexpected(hio::makeError(*m_driver->scanError)));
+                return hwio::Status(std::unexpected(hwio::makeError(*m_driver->scanError)));
             }
-            return hio::Status{};
+            return hwio::Status{};
         });
         ON_CALL(*this, stopScan()).WillByDefault([this] {
             const std::scoped_lock lock(m_driver->mutex);
@@ -192,7 +192,7 @@ public:
                     }
                     const std::scoped_lock lock(m_driver->mutex);
                     m_driver->writes.emplace_back(std::move(bytes), token);
-                    return hio::Status{};
+                    return hwio::Status{};
                 });
     }
     DrivenApi(const DrivenApi&) = delete;
@@ -212,10 +212,10 @@ private:
 struct Events {
     std::vector<ConnectionEvent> connections;
     std::vector<ConsoleLine> lines;
-    std::vector<hio::Error> warnings;
+    std::vector<hwio::Error> warnings;
     int prompts = 0;
     int pairingPrompts = 0;
-    std::vector<hio::Status> pairings;
+    std::vector<hwio::Status> pairings;
     std::uint64_t dropped = 0;
 
     [[nodiscard]] bool reached(ConnectionState state) const {
@@ -237,11 +237,11 @@ class BleSessionTest : public ::testing::Test {
 public:
     BleSessionTest()
         : m_registry(std::make_unique<SessionRegistry>(
-              hio::device::RegistryOptions{.instanceRoot = root() / "instances",
-                                           .lockDirectory = root() / "locks",
-                                           .consoleDirectory = root() / "console"})),
-          m_host(std::make_unique<hio::ble::BleHost>(
-              [driver = m_driver]() -> std::unique_ptr<hio::ble::IBleApi> {
+              hwio::device::RegistryOptions{.instanceRoot = root() / "instances",
+                                            .lockDirectory = root() / "locks",
+                                            .consoleDirectory = root() / "console"})),
+          m_host(std::make_unique<hwio::ble::BleHost>(
+              [driver = m_driver]() -> std::unique_ptr<hwio::ble::IBleApi> {
                   return std::make_unique<DrivenApi>(driver);
               })) {}
 
@@ -265,7 +265,7 @@ protected:
 
     static BleSessionOptions options(bool autoReconnect = false, std::string id = deviceId) {
         BleSessionOptions result;
-        result.profile = hio::device::ProfileRegistry::find("chester");
+        result.profile = hwio::device::ProfileRegistry::find("chester");
         result.deviceId = std::move(id);
         result.deviceName = "CHESTER-ABC123";
         result.autoReconnect = autoReconnect;
@@ -273,8 +273,8 @@ protected:
         return result;
     }
 
-    static hio::device::detail::BleSessionTiming timing() {
-        hio::device::detail::BleSessionTiming result;
+    static hwio::device::detail::BleSessionTiming timing() {
+        hwio::device::detail::BleSessionTiming result;
         result.link.pairingPromptDelay = 50ms;
         result.link.writeTimeout = 2s;
         result.reconnectInterval = 100ms;
@@ -282,8 +282,9 @@ protected:
         return result;
     }
 
-    hio::Result<std::unique_ptr<BleSession>> open(BleSessionOptions opts) {
-        return hio::device::detail::openBleSession(*m_registry, *m_host, std::move(opts), timing());
+    hwio::Result<std::unique_ptr<BleSession>> open(BleSessionOptions opts) {
+        return hwio::device::detail::openBleSession(*m_registry, *m_host, std::move(opts),
+                                                    timing());
     }
 
     BleSession* openRecorded(BleSessionOptions opts, Events*& events) {
@@ -306,11 +307,11 @@ protected:
                              }
                          });
         QObject::connect(raw, &BleSession::warning, raw,
-                         [sink](const hio::Error& error) { sink->warnings.push_back(error); });
+                         [sink](const hwio::Error& error) { sink->warnings.push_back(error); });
         QObject::connect(raw, &BleSession::promptSeen, raw, [sink] { ++sink->prompts; });
         QObject::connect(raw, &BleSession::pairingPrompt, raw, [sink] { ++sink->pairingPrompts; });
         QObject::connect(raw, &BleSession::pairingFinished, raw,
-                         [sink](const hio::Status& status) { sink->pairings.push_back(status); });
+                         [sink](const hwio::Status& status) { sink->pairings.push_back(status); });
         QObject::connect(raw, &BleSession::linesDropped, raw,
                          [sink](quint64 count) { sink->dropped += count; });
         m_sessions.push_back(std::move(*session));
@@ -342,7 +343,7 @@ private:
     QTemporaryDir m_dir;
     std::shared_ptr<Driver> m_driver = std::make_shared<Driver>();
     std::unique_ptr<SessionRegistry> m_registry;
-    std::unique_ptr<hio::ble::BleHost> m_host;
+    std::unique_ptr<hwio::ble::BleHost> m_host;
     std::vector<std::unique_ptr<Events>> m_recorded;
     std::vector<std::unique_ptr<BleSession>> m_sessions;
 };
@@ -363,16 +364,16 @@ TEST_F(BleSessionTest, ConnectsWithTheMtuAndIdentity) {
     ASSERT_GE(events->connections.size(), 2U);
     EXPECT_EQ(events->connections.front().state, ConnectionState::Connecting);
     const ConnectionEvent& last = events->connections.back();
-    EXPECT_EQ(last.transport, hio::device::Transport::Ble);
+    EXPECT_EQ(last.transport, hwio::device::Transport::Ble);
     EXPECT_EQ(last.mtu, std::optional<std::uint16_t>(247));
     EXPECT_EQ(session->mtu(), 247);
     const auto identity = session->identity();
-    EXPECT_EQ(identity.transport, hio::device::Transport::Ble);
+    EXPECT_EQ(identity.transport, hwio::device::Transport::Ble);
     EXPECT_EQ(identity.id, deviceId);
     EXPECT_EQ(identity.displayName, "CHESTER-ABC123");
-    EXPECT_FALSE(session->capabilities().testFlag(hio::device::Capability::Reset));
+    EXPECT_FALSE(session->capabilities().testFlag(hwio::device::Capability::Reset));
     EXPECT_EQ(session->consoleTargetId(), "app");
-    EXPECT_EQ(registry()->sessionFor(hio::device::BleKey{.id = deviceId}), session);
+    EXPECT_EQ(registry()->sessionFor(hwio::device::BleKey{.id = deviceId}), session);
 }
 
 TEST_F(BleSessionTest, LinesPromptAndRouting) {
@@ -385,7 +386,7 @@ TEST_F(BleSessionTest, LinesPromptAndRouting) {
     EXPECT_EQ(events->texts(Channel::Shell, Direction::Out), std::vector<std::string>{"hello"});
     EXPECT_EQ(events->texts(Channel::Log, Direction::Out),
               (std::vector<std::string>{"# legacy log", "[00:00:01.000,000] <wrn> app: low"}));
-    EXPECT_EQ(events->lines.at(2).level, hio::device::LogLevel::Warning);
+    EXPECT_EQ(events->lines.at(2).level, hwio::device::LogLevel::Warning);
     data("\r\x1b[Kbt_nus:~$ ");
     ASSERT_TRUE(waitFor([events] { return events->prompts == 2; }));
     // UTF-8 split across notifications.
@@ -467,7 +468,7 @@ TEST_F(BleSessionTest, TooLongLineIsAUsageError) {
     Events* events = nullptr;
     BleSession* session = connected(events);
     ASSERT_NE(session, nullptr);
-    const auto sent = session->sendLine(std::string(hio::ble::NusLink::maxLineBytes + 1, 'x'));
+    const auto sent = session->sendLine(std::string(hwio::ble::NusLink::maxLineBytes + 1, 'x'));
     ASSERT_FALSE(sent);
     EXPECT_EQ(sent.error().code, ErrorCode::UsageInvalidArgument);
 }
@@ -496,10 +497,10 @@ TEST_F(BleSessionTest, NotPairedIsFatalEvenWithAutoReconnect) {
     ASSERT_NE(openRecorded(options(true), events), nullptr);
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 1; }));
     driver()->run([](IBleListener& l) {
-        l.onLinkLost(1, hio::makeError(ErrorCode::BleNotPaired, "CCCD write rejected"));
+        l.onLinkLost(1, hwio::makeError(ErrorCode::BleNotPaired, "CCCD write rejected"));
     });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Stopped); }));
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::BleNotPaired);
 }
 
@@ -510,10 +511,10 @@ TEST_F(BleSessionTest, FirstFailureWithoutAutoReconnectIsStopped) {
     // During the CCCD write: not retried by NusLink (H6), so the first failure is final.
     driver()->run([](IBleListener& l) {
         l.onLinkConnecting(1, true);
-        l.onLinkLost(1, hio::makeError(ErrorCode::BleConnectFailed));
+        l.onLinkLost(1, hwio::makeError(ErrorCode::BleConnectFailed));
     });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Stopped); }));
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).message,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).message,
               "Could not connect to CHESTER-ABC123 over Bluetooth.");
 }
 
@@ -522,9 +523,9 @@ TEST_F(BleSessionTest, ReconnectsOnlyWhileTheDeviceIsSeen) {
     BleSession* session = connected(events, true);
     ASSERT_NE(session, nullptr);
     driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+        [](IBleListener& l) { l.onLinkLost(1, hwio::makeError(ErrorCode::BleDisconnected)); });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Disconnected); }));
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).message,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).message,
               "The Bluetooth connection to CHESTER-ABC123 was lost.");
     ASSERT_TRUE(
         waitFor([this] { return driver()->count(&Driver::scans) == 1; })); // background scan
@@ -535,11 +536,11 @@ TEST_F(BleSessionTest, ReconnectsOnlyWhileTheDeviceIsSeen) {
         driver()->nextConnect = LinkId{2};
     }
     driver()->run([](IBleListener& l) {
-        l.onAdvertisement(hio::ble::Advertisement{.id = deviceId,
-                                                  .name = "CHESTER-ABC123",
-                                                  .rssi = -61,
-                                                  .serviceUuids = {},
-                                                  .seen = std::chrono::steady_clock::now()});
+        l.onAdvertisement(hwio::ble::Advertisement{.id = deviceId,
+                                                   .name = "CHESTER-ABC123",
+                                                   .rssi = -61,
+                                                   .serviceUuids = {},
+                                                   .seen = std::chrono::steady_clock::now()});
     });
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 2; }));
     EXPECT_EQ(session->rssi(), std::optional<int>(-61));
@@ -560,7 +561,7 @@ TEST_F(BleSessionTest, ExplicitReconnectAlwaysTries) {
     // During the CCCD write: not retried by NusLink (H6), so the first failure is final.
     driver()->run([](IBleListener& l) {
         l.onLinkConnecting(1, true);
-        l.onLinkLost(1, hio::makeError(ErrorCode::BleConnectFailed));
+        l.onLinkLost(1, hwio::makeError(ErrorCode::BleConnectFailed));
     });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Stopped); }));
     ASSERT_TRUE(session->reconnect());
@@ -575,21 +576,21 @@ TEST_F(BleSessionTest, SameFailureIsReportedOnce) {
     BleSession* session = connected(events, true);
     ASSERT_NE(session, nullptr);
     driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+        [](IBleListener& l) { l.onLinkLost(1, hwio::makeError(ErrorCode::BleDisconnected)); });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Disconnected); }));
     const std::size_t count = events->connections.size();
     for (int i = 0; i < 3; ++i) {
         driver()->run([](IBleListener& l) {
-            l.onAdvertisement(hio::ble::Advertisement{.id = deviceId,
-                                                      .name = {},
-                                                      .rssi = -60,
-                                                      .serviceUuids = {},
-                                                      .seen = std::chrono::steady_clock::now()});
+            l.onAdvertisement(hwio::ble::Advertisement{.id = deviceId,
+                                                       .name = {},
+                                                       .rssi = -60,
+                                                       .serviceUuids = {},
+                                                       .seen = std::chrono::steady_clock::now()});
         });
         const int before = driver()->count(&Driver::connects);
         ASSERT_TRUE(waitFor([&] { return driver()->count(&Driver::connects) > before; }));
         driver()->run(
-            [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+            [](IBleListener& l) { l.onLinkLost(1, hwio::makeError(ErrorCode::BleDisconnected)); });
         spin(30ms);
     }
     EXPECT_EQ(events->connections.size(), count);
@@ -617,7 +618,7 @@ TEST_F(BleSessionTest, PairResultsArrive) {
     // The mock's isPaired() is false and requestPairing() succeeds: the result comes later.
     EXPECT_TRUE(events->pairings.empty());
     driver()->run([](IBleListener& l) {
-        l.onPairingFinished(deviceId, hio::fail(ErrorCode::BlePairingFailed));
+        l.onPairingFinished(deviceId, hwio::fail(ErrorCode::BlePairingFailed));
     });
     ASSERT_TRUE(waitFor([events] { return events->pairings.size() == 1; }));
     EXPECT_FALSE(events->pairings.front().has_value());
@@ -697,7 +698,7 @@ TEST_F(BleSessionTest, ConsoleFileHeaderWithoutAKnownName) {
     std::stringstream content;
     content << input.rdbuf();
     const std::string text = content.str();
-    EXPECT_NE(text.find("Console: CHESTER, Bluetooth F1:22:33:44:55:66, hio "), std::string::npos)
+    EXPECT_NE(text.find("Console: CHESTER, Bluetooth F1:22:33:44:55:66, hwio "), std::string::npos)
         << text;
     EXPECT_EQ(text.find("(f1:22"), std::string::npos) << text;
 }
@@ -802,15 +803,16 @@ TEST_F(BleSessionTest, BackgroundScanErrorIsShownOnceAndPaced) {
         driver()->scanError = ErrorCode::Timeout;
     }
     driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+        [](IBleListener& l) { l.onLinkLost(1, hwio::makeError(ErrorCode::BleDisconnected)); });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Disconnected); }));
     const auto started = std::chrono::steady_clock::now();
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::scans) >= 3; }));
     const auto elapsed = std::chrono::steady_clock::now() - started;
     // 3 starts need at least 2 reconnect intervals (100 ms in these timings).
     EXPECT_GE(elapsed, 180ms);
-    const auto timeouts = std::ranges::count_if(
-        events->warnings, [](const hio::Error& error) { return error.code == ErrorCode::Timeout; });
+    const auto timeouts = std::ranges::count_if(events->warnings, [](const hwio::Error& error) {
+        return error.code == ErrorCode::Timeout;
+    });
     EXPECT_EQ(timeouts, 1);
     EXPECT_EQ(session->connection().state, ConnectionState::Disconnected);
 }
@@ -825,9 +827,9 @@ TEST_F(BleSessionTest, BackgroundScanAdapterErrorStops) {
         driver()->scanError = ErrorCode::BleAdapterOff;
     }
     driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+        [](IBleListener& l) { l.onLinkLost(1, hwio::makeError(ErrorCode::BleDisconnected)); });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Stopped); }));
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::BleAdapterOff);
     spin(300ms);
     EXPECT_EQ(driver()->count(&Driver::scans), 1); // not restarted
@@ -840,9 +842,9 @@ TEST_F(BleSessionTest, LinesInFlightAreBounded) {
     BleSession* session = connected(events);
     ASSERT_NE(session, nullptr);
     std::size_t accepted = 0;
-    std::optional<hio::Error> refused;
+    std::optional<hwio::Error> refused;
     for (std::size_t i = 0; i < BleSession::maxLinesInFlight + 10 && !refused; ++i) {
-        if (hio::Status sent = session->sendLine("x" + std::to_string(i)); sent) {
+        if (hwio::Status sent = session->sendLine("x" + std::to_string(i)); sent) {
             ++accepted;
         } else {
             refused = sent.error();
@@ -850,7 +852,7 @@ TEST_F(BleSessionTest, LinesInFlightAreBounded) {
     }
     EXPECT_EQ(accepted, BleSession::maxLinesInFlight);
     ASSERT_TRUE(refused.has_value());
-    EXPECT_EQ(refused.value_or(hio::Error{}).code, ErrorCode::InternalQueueFull);
+    EXPECT_EQ(refused.value_or(hwio::Error{}).code, ErrorCode::InternalQueueFull);
     // The first write is confirmed: its echo frees one place.
     ASSERT_TRUE(waitFor([this] { return !driver()->written().empty(); }));
     driver()->run([token = driver()->written().front().second](IBleListener& l) {
@@ -860,7 +862,7 @@ TEST_F(BleSessionTest, LinesInFlightAreBounded) {
     EXPECT_FALSE(session->sendLine("full again").has_value());
     // A lost link rejects every waiting line (warnings), which frees all places.
     driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+        [](IBleListener& l) { l.onLinkLost(1, hwio::makeError(ErrorCode::BleDisconnected)); });
     ASSERT_TRUE(waitFor([&] { return session->sendLine("after").has_value(); }));
 }
 
@@ -871,23 +873,23 @@ TEST_F(BleSessionTest, HeldLinesAreValidatedFirstAndCountAsInFlight) {
     Events* events = nullptr;
     BleSession* session = connected(events);
     ASSERT_NE(session, nullptr);
-    session->setShellCapture([](const hio::device::ConsoleLine&) { return false; });
-    const auto tooLong = session->sendLine(std::string(hio::ble::NusLink::maxLineBytes + 1, 'x'));
+    session->setShellCapture([](const hwio::device::ConsoleLine&) { return false; });
+    const auto tooLong = session->sendLine(std::string(hwio::ble::NusLink::maxLineBytes + 1, 'x'));
     ASSERT_FALSE(tooLong);
     EXPECT_EQ(tooLong.error().code, ErrorCode::UsageInvalidArgument);
     std::size_t accepted = 0;
-    std::optional<hio::Error> refused;
+    std::optional<hwio::Error> refused;
     for (std::size_t i = 0; i < BleSession::maxLinesInFlight + 10 && !refused; ++i) {
-        if (hio::Status sent = session->sendLine("h" + std::to_string(i)); sent) {
+        if (hwio::Status sent = session->sendLine("h" + std::to_string(i)); sent) {
             ++accepted;
         } else {
             refused = sent.error();
         }
     }
     EXPECT_EQ(accepted,
-              std::min(BleSession::maxLinesInFlight, hio::device::ConsoleSession::maxHeldLines));
+              std::min(BleSession::maxLinesInFlight, hwio::device::ConsoleSession::maxHeldLines));
     ASSERT_TRUE(refused.has_value());
-    EXPECT_EQ(refused.value_or(hio::Error{}).code, ErrorCode::InternalQueueFull);
+    EXPECT_EQ(refused.value_or(hwio::Error{}).code, ErrorCode::InternalQueueFull);
     spin(50ms);
     EXPECT_TRUE(driver()->written().empty()); // held
     session->setShellCapture({});
@@ -925,15 +927,15 @@ TEST_F(BleSessionTest, ScanFatalStopReachesTheHandler) {
         driver()->scanError = ErrorCode::BleAdapterOff;
     }
     driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+        [](IBleListener& l) { l.onLinkLost(1, hwio::makeError(ErrorCode::BleDisconnected)); });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Stopped); }));
     ASSERT_TRUE(session->sendLine("version"));
     ASSERT_TRUE(waitFor([events] {
-        return std::ranges::any_of(events->warnings, [](const hio::Error& error) {
+        return std::ranges::any_of(events->warnings, [](const hwio::Error& error) {
             return error.code == ErrorCode::TargetNotConnected;
         });
     }));
-    for (const hio::Error& error : events->warnings) {
+    for (const hwio::Error& error : events->warnings) {
         EXPECT_EQ(error.suggestion.find("Wait for the console to reconnect"), std::string::npos);
     }
     const fs::path file = session->consoleFile();
@@ -955,23 +957,23 @@ TEST_F(BleSessionTest, ScanFatalStopIsNotUndoneByAnAutomaticAttempt) {
     ASSERT_NE(session, nullptr);
     driver()->setNextConnect(2);
     driver()->run(
-        [](IBleListener& l) { l.onLinkLost(1, hio::makeError(ErrorCode::BleDisconnected)); });
+        [](IBleListener& l) { l.onLinkLost(1, hwio::makeError(ErrorCode::BleDisconnected)); });
     ASSERT_TRUE(waitFor([events] { return events->reached(ConnectionState::Disconnected); }));
     driver()->run([](IBleListener& l) {
-        l.onAdvertisement(hio::ble::Advertisement{.id = deviceId,
-                                                  .name = {},
-                                                  .rssi = -60,
-                                                  .serviceUuids = {},
-                                                  .seen = std::chrono::steady_clock::now()});
+        l.onAdvertisement(hwio::ble::Advertisement{.id = deviceId,
+                                                   .name = {},
+                                                   .rssi = -60,
+                                                   .serviceUuids = {},
+                                                   .seen = std::chrono::steady_clock::now()});
     });
     ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 2; })); // in flight
     driver()->run(
-        [](IBleListener& l) { l.onScanFinished(hio::makeError(ErrorCode::BleAdapterOff)); });
+        [](IBleListener& l) { l.onScanFinished(hwio::makeError(ErrorCode::BleAdapterOff)); });
     ASSERT_TRUE(
         waitFor([session] { return session->connection().state == ConnectionState::Stopped; }));
     // The in-flight attempt was cancelled (disconnected); a late result of it changes nothing.
     driver()->run(
-        [](IBleListener& l) { l.onLinkLost(2, hio::makeError(ErrorCode::BleConnectFailed)); });
+        [](IBleListener& l) { l.onLinkLost(2, hwio::makeError(ErrorCode::BleConnectFailed)); });
     spin(300ms);
     EXPECT_EQ(session->connection().state, ConnectionState::Stopped);
     EXPECT_EQ(driver()->count(&Driver::connects), 2);
@@ -997,7 +999,7 @@ TEST_F(BleSessionTest, SameDeviceTwiceIsAlreadyUsed) {
     EXPECT_EQ(second.error().code, ErrorCode::BleInUseByOtherProcess);
     EXPECT_EQ(second.error().message,
               "The device F1:22:33:44:55:66 is already used by this application.");
-    const hio::device::BleUse use = registry()->bleInUse(deviceId);
+    const hwio::device::BleUse use = registry()->bleInUse(deviceId);
     EXPECT_NE(use.session, nullptr);
 }
 

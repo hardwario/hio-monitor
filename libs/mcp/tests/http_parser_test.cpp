@@ -1,7 +1,7 @@
 // HttpParser: table-driven malformed input, limits, incremental feeding, keep-alive reuse
 // (plan/features/0013 "HTTP transport"; the fuzzer covers the rest, ADR-0152).
 
-#include "hio/mcp/http_parser.h"
+#include "hwio/mcp/http_parser.h"
 
 #include <QByteArray>
 #include <QtTypes>
@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <utility>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 HttpParser parseAll(const QByteArray& input, HttpLimits limits = {}) {
@@ -159,4 +159,4 @@ TEST(HttpParser, HeadersCompleteWaitsForTheCaller) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

@@ -11,10 +11,10 @@
 // before it (AppViewModel's destructor deletes the tabs and the global page view models first), so
 // no catalog operation and no loader request outlives it. GUI thread only.
 
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "viewmodels/dependency_status.h"
 #include "workers/firmware_loader.h"
 
@@ -27,11 +27,11 @@
 #include <memory>
 #include <string>
 
-namespace hio::device {
+namespace hwio::device {
 struct DeviceProfile;
-} // namespace hio::device
+} // namespace hwio::device
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DeviceTabViewModel;
 class SettingsStore;
@@ -93,4 +93,4 @@ private:
     std::map<std::string, std::unique_ptr<firmware::FirmwareCatalog>, std::less<>> m_catalogs;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

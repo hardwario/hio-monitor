@@ -1,11 +1,11 @@
 // ToolCall: finish exactly once, cancellation, consent helper, result helpers
 // (plan/features/0013 "Protocol core").
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/tool_call.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/tool_call.h"
 #include "mcp_test_support.h"
 
 #include <QJsonArray>
@@ -20,14 +20,14 @@
 #include <optional>
 #include <utility>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 using test::FakeConsentBroker;
 using test::ManualToolCall;
 
 // Placeholders that no code path produces (`timeout`).
-hio::Result<ToolResult> notFinished() { return std::unexpected(makeError(ErrorCode::Timeout)); }
+hwio::Result<ToolResult> notFinished() { return std::unexpected(makeError(ErrorCode::Timeout)); }
 ConsentDecision notDecided() { return std::unexpected(makeError(ErrorCode::Timeout)); }
 
 TEST(ToolCall, FinishesExactlyOnce) {
@@ -170,4 +170,4 @@ TEST(Consent, CategoryIds) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

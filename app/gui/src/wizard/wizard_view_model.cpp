@@ -23,7 +23,7 @@
 
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 WizardViewModel::WizardViewModel(const WizardRegistry& registry, QObject* parent)
     : QObject(parent), m_registry(registry) {}
@@ -311,4 +311,4 @@ void WizardViewModel::close(bool completed) {
     emit changed();
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

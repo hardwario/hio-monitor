@@ -1,21 +1,21 @@
 // Console tools (plan/features/0013 C1, ADR-0104, ADR-0105, ADR-0155): send_command,
 // read_terminal, read_log, wait_for_state, wait_for_connection.
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/command_capture.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/session_events.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
-#include "hio/mcp/tools/device_provider.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_capture.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/session_events.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
+#include "hwio/mcp/tools/device_provider.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "scan_scheduler.h"
 #include "tool_support.h"
 #include "tools/tools.h"
@@ -47,16 +47,16 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 namespace {
 
-using hio::device::Channel;
-using hio::device::ChannelMask;
-using hio::device::ConsoleLine;
-using hio::device::Direction;
-using hio::mcp::Required;
-using hio::mcp::Schema;
+using hwio::device::Channel;
+using hwio::device::ChannelMask;
+using hwio::device::ConsoleLine;
+using hwio::device::Direction;
+using hwio::mcp::Required;
+using hwio::mcp::Schema;
 
 constexpr const char* sendCommandDescription =
     "Send one shell command to the device and return its output. Output belongs to this command "
@@ -126,8 +126,8 @@ constexpr const char* waitForConnectionDescription =
     return regex;
 }
 
-std::optional<hio::mcp::ValidationError>
-checkPattern(const QJsonObject& args, const hio::mcp::Limits& limits, bool required) {
+std::optional<hwio::mcp::ValidationError>
+checkPattern(const QJsonObject& args, const hwio::mcp::Limits& limits, bool required) {
     if (!args.contains(QStringLiteral("pattern"))) {
         return required ? invalid(QStringLiteral("pattern"), QStringLiteral("is required"))
                         : std::nullopt;
@@ -160,7 +160,7 @@ struct ReadOutcome {
 // across both channels, so the gap below firstSeq may also hold lines of the other channel: the
 // value is exact for a channel that received all lines of the gap and an upper bound otherwise
 // (capped by the lines the channel ever lost).
-[[nodiscard]] std::uint64_t droppedBefore(const hio::device::ConsoleLog& log, Channel channel,
+[[nodiscard]] std::uint64_t droppedBefore(const hwio::device::ConsoleLog& log, Channel channel,
                                           std::uint64_t cursor) {
     const std::uint64_t gapEnd = log.firstSeq(channel).value_or(log.lastSeq() + 1);
     if (cursor + 1 >= gapEnd) {
@@ -175,7 +175,7 @@ class LineBudget {
 public:
     enum class Verdict : std::uint8_t { Take, Enough, Bounded };
 
-    LineBudget(std::int64_t count, const hio::mcp::ToolLimits& limits)
+    LineBudget(std::int64_t count, const hwio::mcp::ToolLimits& limits)
         : m_wanted(count >= 0 ? static_cast<std::size_t>(count)
                               : std::numeric_limits<std::size_t>::max()),
           m_maxLines(limits.readMaxLines), m_maxBytes(limits.readMaxBytes) {}
@@ -225,10 +225,10 @@ private:
 
 // Forward from the cursor, oldest first, in bounded chunks. With a pattern at most
 // readScanMaxLines lines are scanned (review R10); then cursorEnd is the last scanned line.
-[[nodiscard]] ReadOutcome readAfter(const hio::device::ConsoleLog& log, Channel channel,
+[[nodiscard]] ReadOutcome readAfter(const hwio::device::ConsoleLog& log, Channel channel,
                                     std::uint64_t cursor, LineBudget budget,
                                     const std::optional<QRegularExpression>& regex,
-                                    const hio::mcp::ToolLimits& limits) {
+                                    const hwio::mcp::ToolLimits& limits) {
     ReadOutcome outcome;
     outcome.droppedBefore = droppedBefore(log, channel, cursor);
     std::uint64_t position = cursor;
@@ -264,10 +264,10 @@ private:
 
 // The newest lines. A pattern filters the newest readScanMaxLines buffered lines (review R10;
 // truncated when older lines were not searched).
-[[nodiscard]] ReadOutcome readNewest(const hio::device::ConsoleLog& log, Channel channel,
+[[nodiscard]] ReadOutcome readNewest(const hwio::device::ConsoleLog& log, Channel channel,
                                      LineBudget budget,
                                      const std::optional<QRegularExpression>& regex,
-                                     const hio::mcp::ToolLimits& limits) {
+                                     const hwio::mcp::ToolLimits& limits) {
     ReadOutcome outcome;
     outcome.cursorEnd = log.lastSeq();
     const std::size_t stored = log.size(channel);
@@ -289,10 +289,10 @@ private:
     return outcome;
 }
 
-[[nodiscard]] ReadOutcome readLines(const hio::device::ConsoleLog& log, Channel channel,
+[[nodiscard]] ReadOutcome readLines(const hwio::device::ConsoleLog& log, Channel channel,
                                     std::optional<std::uint64_t> cursor, std::int64_t count,
                                     const std::optional<QRegularExpression>& regex,
-                                    const hio::mcp::ToolLimits& limits) {
+                                    const hwio::mcp::ToolLimits& limits) {
     const LineBudget budget(count, limits);
     return cursor ? readAfter(log, channel, *cursor, budget, regex, limits)
                   : readNewest(log, channel, budget, regex, limits);
@@ -333,31 +333,31 @@ QJsonObject readOutputSchema(bool logLines) {
 
 class SendCommandCall final : public DeviceCall {
 public:
-    SendCommandCall(ToolsContext& tools, const hio::mcp::RequestContext& context,
-                    hio::mcp::ToolEnv& env, ResolvedDevice device, QString command,
+    SendCommandCall(ToolsContext& tools, const hwio::mcp::RequestContext& context,
+                    hwio::mcp::ToolEnv& env, ResolvedDevice device, QString command,
                     std::chrono::milliseconds timeout)
         : DeviceCall(tools, context, env, std::move(device)), m_command(std::move(command)),
           m_hint(true) {
-        hio::device::ConsoleSession& session = *ref().console;
+        hwio::device::ConsoleSession& session = *ref().console;
         provider().marker(id(), markerStart(this->context(), QStringLiteral("send_command")));
         provider().setAiCommandHint(id(), true);
         m_start = session.log().lastSeq();
         // The ADR-0104 end rule lives in libs/device (ADR-0175); this tool keeps the result
         // format, the markers, the AI hint and the cursors.
-        auto capture = hio::device::CommandCapture::start(
+        auto capture = hwio::device::CommandCapture::start(
             session, m_command.toStdString(),
-            hio::device::CaptureOptions{.timeout = timeout,
-                                        .silence = limits().sendCommandSilence,
-                                        .maxLines = limits().sendCommandMaxLines,
-                                        .maxBytes = limits().sendCommandMaxBytes,
-                                        .silent = false});
+            hwio::device::CaptureOptions{.timeout = timeout,
+                                         .silence = limits().sendCommandSilence,
+                                         .maxLines = limits().sendCommandMaxLines,
+                                         .maxBytes = limits().sendCommandMaxBytes,
+                                         .silent = false});
         if (!capture) {
             clearHint();
             completeError(std::move(capture).error());
             return;
         }
         m_capture = std::move(*capture);
-        connect(m_capture.get(), &hio::device::CommandCapture::finished, this, [this] { end(); });
+        connect(m_capture.get(), &hwio::device::CommandCapture::finished, this, [this] { end(); });
     }
 
     ~SendCommandCall() override { clearHint(); }
@@ -382,7 +382,7 @@ private:
         if (isFinished() || !m_capture || !m_capture->result()) {
             return;
         }
-        const hio::device::CaptureResult& captured = *m_capture->result();
+        const hwio::device::CaptureResult& captured = *m_capture->result();
         clearHint();
         if (!alive()) {
             completeError(deviceNotOpen(id()));
@@ -391,7 +391,7 @@ private:
         QJsonArray output;
         for (const ConsoleLine& line : captured.lines) {
             QJsonObject item;
-            item.insert(QStringLiteral("dir"), qs(hio::device::directionId(line.dir)));
+            item.insert(QStringLiteral("dir"), qs(hwio::device::directionId(line.dir)));
             item.insert(QStringLiteral("text"), qs(line.text));
             output.append(item);
         }
@@ -399,7 +399,7 @@ private:
         QJsonObject result;
         result.insert(QStringLiteral("command"), m_command);
         result.insert(QStringLiteral("output"), output);
-        result.insert(QStringLiteral("end"), qs(hio::device::captureEndId(captured.end)));
+        result.insert(QStringLiteral("end"), qs(hwio::device::captureEndId(captured.end)));
         result.insert(QStringLiteral("interleaved"), captured.interleaved);
         result.insert(QStringLiteral("log_cursor"), seqJson(m_start));
         result.insert(QStringLiteral("log_cursor_end"), seqJson(cursor));
@@ -423,7 +423,7 @@ private:
     }
 
     QString m_command;
-    std::unique_ptr<hio::device::CommandCapture> m_capture;
+    std::unique_ptr<hwio::device::CommandCapture> m_capture;
     std::uint64_t m_start = 0;
     bool m_hint = false;
 };
@@ -434,8 +434,8 @@ class WaitForStateCall final : public DeviceCall, public LineScanner {
 public:
     static constexpr std::size_t lastLinesKept = 10;
 
-    WaitForStateCall(ToolsContext& tools, const hio::mcp::RequestContext& context,
-                     hio::mcp::ToolEnv& env, ResolvedDevice device, QRegularExpression regex,
+    WaitForStateCall(ToolsContext& tools, const hwio::mcp::RequestContext& context,
+                     hwio::mcp::ToolEnv& env, ResolvedDevice device, QRegularExpression regex,
                      ChannelMask mask, std::chrono::milliseconds timeout, QString command,
                      std::chrono::milliseconds pollInterval)
         : DeviceCall(tools, context, env, std::move(device)), m_regex(std::move(regex)),
@@ -450,7 +450,7 @@ public:
             m_hint = true;
         }
         m_cursor = ref().console->log().lastSeq();
-        connect(ref().console.data(), &hio::device::ConsoleSession::linesReceived, this,
+        connect(ref().console.data(), &hwio::device::ConsoleSession::linesReceived, this,
                 [this](const QList<ConsoleLine>&) {
                     if (!isFinished()) {
                         this->tools().scanScheduler().request(*this);
@@ -638,18 +638,18 @@ private:
 
 class WaitForConnectionCall final : public DeviceCall {
 public:
-    WaitForConnectionCall(ToolsContext& tools, const hio::mcp::RequestContext& context,
-                          hio::mcp::ToolEnv& env, ResolvedDevice device,
+    WaitForConnectionCall(ToolsContext& tools, const hwio::mcp::RequestContext& context,
+                          hwio::mcp::ToolEnv& env, ResolvedDevice device,
                           std::chrono::milliseconds timeout)
         : DeviceCall(tools, context, env, std::move(device)), m_timeout(timeout) {
         m_elapsed.start();
-        if (ref().console->connection().state == hio::device::ConnectionState::Connected) {
+        if (ref().console->connection().state == hwio::device::ConnectionState::Connected) {
             finishWith(true);
             return;
         }
-        connect(ref().console.data(), &hio::device::ConsoleSession::connectionChanged, this,
-                [this](const hio::device::ConnectionEvent& event) {
-                    if (event.state == hio::device::ConnectionState::Connected) {
+        connect(ref().console.data(), &hwio::device::ConsoleSession::connectionChanged, this,
+                [this](const hwio::device::ConnectionEvent& event) {
+                    if (event.state == hwio::device::ConnectionState::Connected) {
                         finishWith(true);
                     }
                 });
@@ -687,13 +687,13 @@ private:
             completeError(deviceNotOpen(id()));
             return;
         }
-        const hio::device::ConnectionEvent& event = ref().console->connection();
+        const hwio::device::ConnectionEvent& event = ref().console->connection();
         QJsonObject result;
         result.insert(QStringLiteral("status"),
                       connected ? QStringLiteral("ok") : QStringLiteral("timeout"));
         result.insert(QStringLiteral("connected"), connected);
-        result.insert(QStringLiteral("state"), qs(hio::device::connectionStateId(event.state)));
-        result.insert(QStringLiteral("error"), event.error ? QJsonValue(hio::toJson(*event.error))
+        result.insert(QStringLiteral("state"), qs(hwio::device::connectionStateId(event.state)));
+        result.insert(QStringLiteral("error"), event.error ? QJsonValue(hwio::toJson(*event.error))
                                                            : QJsonValue(QJsonValue::Null));
         result.insert(QStringLiteral("elapsed"),
                       seconds(std::chrono::milliseconds(m_elapsed.elapsed())));
@@ -706,10 +706,10 @@ private:
     QTimer m_progress;
 };
 
-hio::Status addSendCommand(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addSendCommand(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "send_command",
             .title = "Send a shell command",
             .description = sendCommandDescription,
@@ -742,8 +742,8 @@ hio::Status addSendCommand(hio::mcp::Registry& registry, ToolsContext& context) 
             .annotations = control,
             .consent = {},
             .marker = true,
-            .start = [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                hio::mcp::ToolEnv& env) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                                hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 auto device = resolveDevice(context.provider(), args);
                 if (!device) {
                     return failed(std::move(device).error());
@@ -756,8 +756,8 @@ hio::Status addSendCommand(hio::mcp::Registry& registry, ToolsContext& context) 
                     context, rc, env, std::move(*device),
                     args.value(QStringLiteral("command")).toString(), timeout);
             },
-            .validate = [](const QJsonObject& args, const hio::mcp::Limits& limits)
-                -> std::optional<hio::mcp::ValidationError> {
+            .validate = [](const QJsonObject& args, const hwio::mcp::Limits& limits)
+                -> std::optional<hwio::mcp::ValidationError> {
                 const QString command = args.value(QStringLiteral("command")).toString();
                 if (command.contains(QLatin1Char('\n')) || command.contains(QLatin1Char('\r'))) {
                     return invalid(QStringLiteral("command"),
@@ -772,9 +772,9 @@ hio::Status addSendCommand(hio::mcp::Registry& registry, ToolsContext& context) 
             }});
 }
 
-hio::Status addReadTerminal(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addReadTerminal(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
-        registry, hio::mcp::ToolSpec{
+        registry, hwio::mcp::ToolSpec{
                       .name = "read_terminal",
                       .title = "Read the terminal",
                       .description = readTerminalDescription,
@@ -796,8 +796,8 @@ hio::Status addReadTerminal(hio::mcp::Registry& registry, ToolsContext& context)
                       .consent = {},
                       .marker = false,
                       .start =
-                          [&context](const hio::mcp::RequestContext&, const QJsonObject& args,
-                                     hio::mcp::ToolEnv& env) {
+                          [&context](const hwio::mcp::RequestContext&, const QJsonObject& args,
+                                     hwio::mcp::ToolEnv& env) {
                               auto device = resolveDevice(context.provider(), args);
                               if (!device) {
                                   return failed(std::move(device).error());
@@ -816,10 +816,10 @@ hio::Status addReadTerminal(hio::mcp::Registry& registry, ToolsContext& context)
                       .validate = {}});
 }
 
-hio::Status addReadLog(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addReadLog(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "read_log",
             .title = "Read the device log",
             .description = readLogDescription,
@@ -844,8 +844,8 @@ hio::Status addReadLog(hio::mcp::Registry& registry, ToolsContext& context) {
             .consent = {},
             .marker = false,
             .start =
-                [&context](const hio::mcp::RequestContext&, const QJsonObject& args,
-                           hio::mcp::ToolEnv& env) {
+                [&context](const hwio::mcp::RequestContext&, const QJsonObject& args,
+                           hwio::mcp::ToolEnv& env) {
                     auto device = resolveDevice(context.provider(), args);
                     if (!device) {
                         return failed(std::move(device).error());
@@ -866,15 +866,15 @@ hio::Status addReadLog(hio::mcp::Registry& registry, ToolsContext& context) {
                     return done(readResult(outcome, true, device->ref));
                 },
             .validate =
-                [](const QJsonObject& args, const hio::mcp::Limits& limits) {
+                [](const QJsonObject& args, const hwio::mcp::Limits& limits) {
                     return checkPattern(args, limits, false);
                 }});
 }
 
-hio::Status addWaitForState(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addWaitForState(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "wait_for_state",
             .title = "Wait for output",
             .description = waitForStateDescription,
@@ -923,8 +923,8 @@ hio::Status addWaitForState(hio::mcp::Registry& registry, ToolsContext& context)
             .annotations = readOnly,
             .consent = {},
             .marker = true,
-            .start = [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                hio::mcp::ToolEnv& env) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                                hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 auto device = resolveDevice(context.provider(), args);
                 if (!device) {
                     return failed(std::move(device).error());
@@ -947,8 +947,8 @@ hio::Status addWaitForState(hio::mcp::Registry& registry, ToolsContext& context)
                     args.value(QStringLiteral("command")).toString(),
                     secondsArgument(args, "poll_interval", limits.waitMaxTimeout));
             },
-            .validate = [](const QJsonObject& args, const hio::mcp::Limits& limits)
-                -> std::optional<hio::mcp::ValidationError> {
+            .validate = [](const QJsonObject& args, const hwio::mcp::Limits& limits)
+                -> std::optional<hwio::mcp::ValidationError> {
                 if (auto bad = checkPattern(args, limits, true)) {
                     return bad;
                 }
@@ -961,10 +961,10 @@ hio::Status addWaitForState(hio::mcp::Registry& registry, ToolsContext& context)
             }});
 }
 
-hio::Status addWaitForConnection(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addWaitForConnection(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "wait_for_connection",
             .title = "Wait for the connection",
             .description = waitForConnectionDescription,
@@ -985,8 +985,8 @@ hio::Status addWaitForConnection(hio::mcp::Registry& registry, ToolsContext& con
             .annotations = readOnly,
             .consent = {},
             .marker = false,
-            .start = [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                hio::mcp::ToolEnv& env) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                                hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 auto device = resolveDevice(context.provider(), args);
                 if (!device) {
                     return failed(std::move(device).error());
@@ -1000,7 +1000,7 @@ hio::Status addWaitForConnection(hio::mcp::Registry& registry, ToolsContext& con
 
 } // namespace
 
-hio::Status registerConsoleTools(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status registerConsoleTools(hwio::mcp::Registry& registry, ToolsContext& context) {
     for (const auto& add : {&addSendCommand, &addReadTerminal, &addReadLog, &addWaitForState,
                             &addWaitForConnection}) {
         if (auto added = add(registry, context); !added) {
@@ -1010,4 +1010,4 @@ hio::Status registerConsoleTools(hio::mcp::Registry& registry, ToolsContext& con
     return {};
 }
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

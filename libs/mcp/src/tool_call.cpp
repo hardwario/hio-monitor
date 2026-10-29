@@ -1,11 +1,11 @@
-#include "hio/mcp/tool_call.h"
+#include "hwio/mcp/tool_call.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/json_rpc.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/json_rpc.h"
 
 #include <QByteArrayView>
 #include <QJsonArray>
@@ -24,14 +24,14 @@
 #include <optional>
 #include <utility>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 namespace {
 
 // A call created already finished (ToolCall::completed).
 class CompletedCall final : public ToolCall {
 public:
-    explicit CompletedCall(hio::Result<ToolResult> result) { finish(std::move(result)); }
+    explicit CompletedCall(hwio::Result<ToolResult> result) { finish(std::move(result)); }
 };
 
 } // namespace
@@ -42,9 +42,9 @@ ToolResult toolResult(const QJsonObject& structured) {
                       .isError = false};
 }
 
-ToolResult toolErrorResult(const hio::Error& error) {
+ToolResult toolErrorResult(const hwio::Error& error) {
     QJsonObject structured;
-    structured.insert(QStringLiteral("error"), hio::toJson(error));
+    structured.insert(QStringLiteral("error"), hwio::toJson(error));
     QString text =
         QLatin1StringView(idOf(error.code)) + QStringLiteral(": ") + toQString(error.message);
     if (!error.suggestion.empty()) {
@@ -70,7 +70,7 @@ ToolCall::~ToolCall() {
     }
 }
 
-std::unique_ptr<ToolCall> ToolCall::completed(hio::Result<ToolResult> result) {
+std::unique_ptr<ToolCall> ToolCall::completed(hwio::Result<ToolResult> result) {
     return std::make_unique<CompletedCall>(std::move(result));
 }
 
@@ -91,9 +91,9 @@ void ToolCall::cancel() {
 
 void ToolCall::onCancel() { finish(std::unexpected(makeError(ErrorCode::Cancelled))); }
 
-void ToolCall::finish(hio::Result<ToolResult> result) {
+void ToolCall::finish(hwio::Result<ToolResult> result) {
     if (isFinished()) {
-        qCWarning(hio::log::lcMcp) << "ToolCall::finish called twice; ignored";
+        qCWarning(hwio::log::lcMcp) << "ToolCall::finish called twice; ignored";
         return;
     }
     if (m_consentPending) {
@@ -149,4 +149,4 @@ void ToolCall::requestConsent(IConsentBroker& broker, ConsentRequest request,
     }
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

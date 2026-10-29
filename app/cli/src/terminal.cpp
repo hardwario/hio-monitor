@@ -1,7 +1,7 @@
 #include "terminal.h"
 
 #include "cli_log.h"
-#include "hio/core/bounded_queue.h"
+#include "hwio/core/bounded_queue.h"
 
 #include <QtEnvironmentVariables>
 
@@ -35,7 +35,7 @@
 #include <unistd.h>
 #endif
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -354,4 +354,4 @@ void StdinLineReader::readLines(const std::stop_token& stop) {
     }
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

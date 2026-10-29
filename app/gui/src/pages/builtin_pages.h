@@ -4,11 +4,11 @@
 // (registerConsolePage) and the Flash page and the global Settings page of plan 0006
 // (registerFlashAndSettingsPages).
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class AppViewModel;
 
 // Registers the built-in pages. Called from AppOptions::registerExtensions.
 void registerBuiltInPages(AppViewModel& app);
 
-} // namespace hio::gui
+} // namespace hwio::gui

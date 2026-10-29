@@ -25,11 +25,11 @@
 //
 // Thread safety: the public functions are called on the GUI thread (the owner).
 
-#include "hio/core/result.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/lte_input.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/lte_input.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 
 #include <QObject>
 #include <QtTypes>
@@ -47,7 +47,7 @@
 #include <thread>
 #include <variant>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 // What a loaded firmware file is (ADR-0040 classes).
 enum class SourceClass : std::uint8_t {
@@ -106,9 +106,9 @@ public:
     std::uint64_t checkNrfUtil(const void* requester, nrfutil::LocatorOptions options);
 
 signals:
-    void fileLoaded(quint64 generation, const hio::Result<hio::gui::LoadedSource>& result);
-    void jlinkChecked(quint64 generation, const hio::Result<hio::gui::JLinkFound>& result);
-    void nrfUtilChecked(quint64 generation, const hio::gui::NrfUtilStatus& status);
+    void fileLoaded(quint64 generation, const hwio::Result<hwio::gui::LoadedSource>& result);
+    void jlinkChecked(quint64 generation, const hwio::Result<hwio::gui::JLinkFound>& result);
+    void nrfUtilChecked(quint64 generation, const hwio::gui::NrfUtilStatus& status);
 
 private:
     struct LoadFile {
@@ -166,4 +166,4 @@ private:
 // firmware::classifyLteInput (io.*, firmware.invalid_image, firmware.hex_parse_error).
 [[nodiscard]] Result<LoadedSource> loadFirmwareFile(const std::filesystem::path& path);
 
-} // namespace hio::gui
+} // namespace hwio::gui

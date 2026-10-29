@@ -1,7 +1,7 @@
 // SemVer 2.0.0 parsing and precedence (plan/features/0016 A1).
 
-#include "hio/core/error.h"
-#include "hio/update/semver.h"
+#include "hwio/core/error.h"
+#include "hwio/update/semver.h"
 
 #include <gtest/gtest.h>
 
@@ -12,7 +12,7 @@
 
 namespace {
 
-using hio::update::SemVer;
+using hwio::update::SemVer;
 
 SemVer v(std::string_view text) {
     auto version = SemVer::parse(text);
@@ -46,7 +46,7 @@ TEST(SemVer, RejectsInvalidText) {
           "V2.0.0", "2.0.0-dev+abc+def"}) {
         const auto version = SemVer::parse(text);
         ASSERT_FALSE(version.has_value()) << text;
-        EXPECT_EQ(version.error().code, hio::ErrorCode::UsageInvalidArgument);
+        EXPECT_EQ(version.error().code, hwio::ErrorCode::UsageInvalidArgument);
     }
 }
 
@@ -90,13 +90,13 @@ TEST(SemVer, NumericIdentifiersCompareByValue) {
 
 TEST(SemVer, DevelopmentBuildsCompareByTheirNumericPart) {
     const SemVer dev = v("2.0.1-dev.5+abc1234");
-    EXPECT_TRUE(hio::update::isDevelopmentBuild(dev));
-    EXPECT_EQ(hio::update::comparableCurrent(dev), v("2.0.1"));
-    EXPECT_TRUE(hio::update::isDevelopmentBuild(v("2.0.0-rc.1.dev.5+abc")));
-    EXPECT_TRUE(hio::update::isDevelopmentBuild(v("2.0.0-dev+abc")));
-    EXPECT_FALSE(hio::update::isDevelopmentBuild(v("2.0.0-rc.1")));
-    EXPECT_EQ(hio::update::comparableCurrent(v("2.0.0-rc.1")), v("2.0.0-rc.1"));
-    EXPECT_FALSE(hio::update::isDevelopmentBuild(v("2.0.0-devel")));
+    EXPECT_TRUE(hwio::update::isDevelopmentBuild(dev));
+    EXPECT_EQ(hwio::update::comparableCurrent(dev), v("2.0.1"));
+    EXPECT_TRUE(hwio::update::isDevelopmentBuild(v("2.0.0-rc.1.dev.5+abc")));
+    EXPECT_TRUE(hwio::update::isDevelopmentBuild(v("2.0.0-dev+abc")));
+    EXPECT_FALSE(hwio::update::isDevelopmentBuild(v("2.0.0-rc.1")));
+    EXPECT_EQ(hwio::update::comparableCurrent(v("2.0.0-rc.1")), v("2.0.0-rc.1"));
+    EXPECT_FALSE(hwio::update::isDevelopmentBuild(v("2.0.0-devel")));
 }
 
 } // namespace

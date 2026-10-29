@@ -6,7 +6,7 @@
 // Test-only: never installed or shipped.
 //
 // The scenario is read from the JSON file named by the environment variable
-// HIO_FAKE_JLINK_SCENARIO when the library copy is first used (QJsonDocument, ADR-0019). Without
+// HWIO_FAKE_JLINK_SCENARIO when the library copy is first used (QJsonDocument, ADR-0019). Without
 // the variable (or with an unreadable file) the library has no probes. Each loaded copy has its
 // own state; all copies read the same scenario, and each copy works with the probe it selects.
 //
@@ -126,14 +126,14 @@
 #include <vector>
 
 #ifdef _WIN32
-#define HIO_FAKE_JLINK_EXPORT __declspec(dllexport)
+#define HWIO_FAKE_JLINK_EXPORT __declspec(dllexport)
 #else
-#define HIO_FAKE_JLINK_EXPORT __attribute__((visibility("default")))
+#define HWIO_FAKE_JLINK_EXPORT __attribute__((visibility("default")))
 #endif
 
 namespace {
 
-namespace abi = hio::jlink::abi;
+namespace abi = hwio::jlink::abi;
 using Clock = std::chrono::steady_clock;
 using Milliseconds = std::chrono::milliseconds;
 
@@ -444,7 +444,7 @@ ChipScenario readChip(const QJsonObject& object) {
 
 Scenario loadScenario() {
     Scenario scenario;
-    const QString path = qEnvironmentVariable("HIO_FAKE_JLINK_SCENARIO");
+    const QString path = qEnvironmentVariable("HWIO_FAKE_JLINK_SCENARIO");
     if (path.isEmpty()) {
         return scenario;
     }
@@ -711,20 +711,20 @@ void chipDelay(std::int64_t ChipScenario::* field) {
 
 extern "C" {
 
-HIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_GetDLLVersion() {
+HWIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_GetDLLVersion() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     return s.data().libraryVersion;
 }
 
-HIO_FAKE_JLINK_EXPORT const char* JLINKARM_GetCompileDateTime() {
+HWIO_FAKE_JLINK_EXPORT const char* JLINKARM_GetCompileDateTime() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     return s.data().compileDateTime.c_str();
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_EMU_GetList(int hosts, abi::EmuConnectInfo* infos,
-                                               int maxInfos) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_EMU_GetList(int hosts, abi::EmuConnectInfo* infos,
+                                                int maxInfos) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const auto& probes = s.data().probes;
@@ -751,7 +751,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_EMU_GetList(int hosts, abi::EmuConnectInfo* i
     return static_cast<int>(count);
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_EMU_SelectByUSBSN(std::uint32_t serialNumber) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_EMU_SelectByUSBSN(std::uint32_t serialNumber) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const auto& probes = s.data().probes;
@@ -765,7 +765,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_EMU_SelectByUSBSN(std::uint32_t serialNumber)
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT const char* JLINKARM_Open() {
+HWIO_FAKE_JLINK_EXPORT const char* JLINKARM_Open() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (!s.selected && !s.data().probes.empty()) {
@@ -793,7 +793,7 @@ HIO_FAKE_JLINK_EXPORT const char* JLINKARM_Open() {
     return nullptr;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_Close() {
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_Close() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (s.downloading) { // Phase 0 item 0.10 (ADR-0109): the close programs the buffer
@@ -807,13 +807,13 @@ HIO_FAKE_JLINK_EXPORT void JLINKARM_Close() {
     s.rttStarted = false;
 }
 
-HIO_FAKE_JLINK_EXPORT char JLINKARM_IsOpen() {
+HWIO_FAKE_JLINK_EXPORT char JLINKARM_IsOpen() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     return s.open ? 1 : 0;
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_ExecCommand(const char* command, char* output, int size) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_ExecCommand(const char* command, char* output, int size) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (output != nullptr && size > 0) {
@@ -825,11 +825,11 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_ExecCommand(const char* command, char* output
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_TIF_Select(int /*targetInterface*/) { return 0; }
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_TIF_Select(int /*targetInterface*/) { return 0; }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_SetSpeed(std::uint32_t /*speed*/) {}
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_SetSpeed(std::uint32_t /*speed*/) {}
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_Connect() {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_Connect() {
     std::int64_t delay = 0;
     {
         State& s = state();
@@ -869,13 +869,13 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_Connect() {
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT char JLINKARM_IsConnected() {
+HWIO_FAKE_JLINK_EXPORT char JLINKARM_IsConnected() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     return s.connected ? 1 : 0;
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_GetHWStatus(abi::HwStatus* status) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_GetHWStatus(abi::HwStatus* status) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (!s.open || status == nullptr) {
@@ -886,7 +886,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_GetHWStatus(abi::HwStatus* status) {
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_GetFirmwareString(char* buffer, int size) {
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_GetFirmwareString(char* buffer, int size) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (buffer == nullptr || size <= 0) {
@@ -897,8 +897,8 @@ HIO_FAKE_JLINK_EXPORT void JLINKARM_GetFirmwareString(char* buffer, int size) {
              std::span<char>(buffer, static_cast<std::size_t>(size)));
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_GetEmbeddedFWString(const char* /*id*/, char* buffer,
-                                                       std::uint32_t size) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_GetEmbeddedFWString(const char* /*id*/, char* buffer,
+                                                        std::uint32_t size) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const ProbeScenario* probe = s.probe();
@@ -909,7 +909,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_GetEmbeddedFWString(const char* /*id*/, char*
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_UpdateFirmwareIfNewer() {
+HWIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_UpdateFirmwareIfNewer() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
@@ -920,16 +920,16 @@ HIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_UpdateFirmwareIfNewer() {
     return 0x1234ABCDU;
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_GetSN() {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_GetSN() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const ProbeScenario* probe = s.probe();
     return probe != nullptr ? static_cast<int>(probe->serialNumber) : -1;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_SetResetDelay(int /*milliseconds*/) {}
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_SetResetDelay(int /*milliseconds*/) {}
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_Reset() {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_Reset() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (!s.connected) {
@@ -940,7 +940,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_Reset() {
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT char JLINKARM_Halt() {
+HWIO_FAKE_JLINK_EXPORT char JLINKARM_Halt() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (!s.connected) {
@@ -950,32 +950,32 @@ HIO_FAKE_JLINK_EXPORT char JLINKARM_Halt() {
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_Go() {
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_Go() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     s.halted = false;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_EnableLog(abi::LogHandler handler) {
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_EnableLog(abi::LogHandler handler) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     s.logHandler = handler;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_SetWarnOutHandler(abi::LogHandler handler) {
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_SetWarnOutHandler(abi::LogHandler handler) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     s.warnHandler = handler;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_SetErrorOutHandler(abi::LogHandler handler) {
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_SetErrorOutHandler(abi::LogHandler handler) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     s.errorHandler = handler;
 }
 
-HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_RTTERMINAL_Control(std::uint32_t command,
-                                                                     void* config) {
+HWIO_FAKE_JLINK_EXPORT int HWIO_JLINK_STDCALL JLINK_RTTERMINAL_Control(std::uint32_t command,
+                                                                       void* config) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
@@ -1026,8 +1026,9 @@ HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_RTTERMINAL_Control(std::uint32
     }
 }
 
-HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_RTTERMINAL_Read(std::uint32_t index, char* buffer,
-                                                                  std::uint32_t size) {
+HWIO_FAKE_JLINK_EXPORT int HWIO_JLINK_STDCALL JLINK_RTTERMINAL_Read(std::uint32_t index,
+                                                                    char* buffer,
+                                                                    std::uint32_t size) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const ProbeScenario* probe = s.probe();
@@ -1050,9 +1051,9 @@ HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_RTTERMINAL_Read(std::uint32_t 
     return static_cast<int>(count);
 }
 
-HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_RTTERMINAL_Write(std::uint32_t index,
-                                                                   const char* data,
-                                                                   std::uint32_t size) {
+HWIO_FAKE_JLINK_EXPORT int HWIO_JLINK_STDCALL JLINK_RTTERMINAL_Write(std::uint32_t index,
+                                                                     const char* data,
+                                                                     std::uint32_t size) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
@@ -1103,13 +1104,14 @@ HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_RTTERMINAL_Write(std::uint32_t
 
 // ---- M2: memory, flash download, erase, CoreSight (plan/features/0003, E1) ----------------------
 
-HIO_FAKE_JLINK_EXPORT void JLINK_SetFlashProgProgressCallback(abi::FlashProgressCallback callback) {
+HWIO_FAKE_JLINK_EXPORT void
+JLINK_SetFlashProgProgressCallback(abi::FlashProgressCallback callback) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     s.flashProgress = callback;
 }
 
-HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL
+HWIO_FAKE_JLINK_EXPORT int HWIO_JLINK_STDCALL
 JLINK_SetHookUnsecureDialog(abi::UnsecureDialogHook hook) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
@@ -1117,15 +1119,15 @@ JLINK_SetHookUnsecureDialog(abi::UnsecureDialogHook hook) {
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT void JLINKARM_BeginDownload(std::uint32_t /*flags*/) {
+HWIO_FAKE_JLINK_EXPORT void JLINKARM_BeginDownload(std::uint32_t /*flags*/) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     s.downloading = true;
     s.downloadData.clear();
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_WriteMem(std::uint32_t address, std::uint32_t count,
-                                            const void* data) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_WriteMem(std::uint32_t address, std::uint32_t count,
+                                             const void* data) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
@@ -1148,7 +1150,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_WriteMem(std::uint32_t address, std::uint32_t
     return static_cast<int>(count);
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_EndDownload() {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_EndDownload() {
     chipDelay(&ChipScenario::downloadDelayMs);
     State& s = state();
     const std::scoped_lock lock(s.mutex);
@@ -1182,8 +1184,8 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_EndDownload() {
     return static_cast<int>(std::min<std::size_t>(total, 0x7FFFFFFF));
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemEx(std::uint32_t address, std::uint32_t count, void* data,
-                                             std::uint32_t access) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemEx(std::uint32_t address, std::uint32_t count,
+                                              void* data, std::uint32_t access) {
     chipDelay(&ChipScenario::readDelayMs);
     State& s = state();
     const std::scoped_lock lock(s.mutex);
@@ -1209,8 +1211,8 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemEx(std::uint32_t address, std::uint32_
     return static_cast<int>(count);
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemU32(std::uint32_t address, std::uint32_t count,
-                                              std::uint32_t* data, std::uint8_t* status) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemU32(std::uint32_t address, std::uint32_t count,
+                                               std::uint32_t* data, std::uint8_t* status) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
@@ -1251,7 +1253,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadMemU32(std::uint32_t address, std::uint32
     return static_cast<int>(count);
 }
 
-HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_EraseChip() {
+HWIO_FAKE_JLINK_EXPORT int HWIO_JLINK_STDCALL JLINK_EraseChip() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
@@ -1264,7 +1266,7 @@ HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_EraseChip() {
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_Configure(const char* /*config*/) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_Configure(const char* /*config*/) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (!s.open) {
@@ -1274,8 +1276,8 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_Configure(const char* /*config*/) {
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_ReadAPDPReg(std::uint8_t index, std::uint8_t ap,
-                                                         std::uint32_t* data) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_ReadAPDPReg(std::uint8_t index, std::uint8_t ap,
+                                                          std::uint32_t* data) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
@@ -1328,8 +1330,8 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_ReadAPDPReg(std::uint8_t index, std
     }
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_WriteAPDPReg(std::uint8_t index, std::uint8_t ap,
-                                                          std::uint32_t value) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_WriteAPDPReg(std::uint8_t index, std::uint8_t ap,
+                                                           std::uint32_t value) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     ProbeScenario* probe = s.probe();
@@ -1358,12 +1360,12 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_CORESIGHT_WriteAPDPReg(std::uint8_t index, st
     return 0;
 }
 
-// ---- M6: optional target functions (ADR-0151; left out of hio_fake_jlink_basic)
+// ---- M6: optional target functions (ADR-0151; left out of hwio_fake_jlink_basic)
 // ------------------
 
-#ifndef HIO_FAKE_JLINK_BASIC
+#ifndef HWIO_FAKE_JLINK_BASIC
 
-HIO_FAKE_JLINK_EXPORT signed char JLINKARM_IsHalted() {
+HWIO_FAKE_JLINK_EXPORT signed char JLINKARM_IsHalted() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     if (!s.connected) {
@@ -1372,7 +1374,7 @@ HIO_FAKE_JLINK_EXPORT signed char JLINKARM_IsHalted() {
     return s.halted ? 1 : 0;
 }
 
-HIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_GetId() {
+HWIO_FAKE_JLINK_EXPORT std::uint32_t JLINKARM_GetId() {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const ProbeScenario* probe = s.probe();
@@ -1404,15 +1406,15 @@ int writeUnit(std::uint32_t address, std::uint32_t value, std::uint32_t size) {
 
 } // namespace
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_WriteU16(std::uint32_t address, std::uint16_t value) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_WriteU16(std::uint32_t address, std::uint16_t value) {
     return writeUnit(address, value, 2);
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_WriteU32(std::uint32_t address, std::uint32_t value) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_WriteU32(std::uint32_t address, std::uint32_t value) {
     return writeUnit(address, value, 4);
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_GetRegisterList(std::uint32_t* list, int maxItems) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_GetRegisterList(std::uint32_t* list, int maxItems) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const ProbeScenario* probe = s.probe();
@@ -1428,7 +1430,7 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_GetRegisterList(std::uint32_t* list, int maxI
     return static_cast<int>(count);
 }
 
-HIO_FAKE_JLINK_EXPORT const char* JLINKARM_GetRegisterName(std::uint32_t index) {
+HWIO_FAKE_JLINK_EXPORT const char* JLINKARM_GetRegisterName(std::uint32_t index) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const ProbeScenario* probe = s.probe();
@@ -1438,8 +1440,8 @@ HIO_FAKE_JLINK_EXPORT const char* JLINKARM_GetRegisterName(std::uint32_t index) 
     return probe->chip.registers.at(index).name.c_str(); // lives as long as the scenario
 }
 
-HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadRegs(const std::uint32_t* indexes, std::uint32_t* values,
-                                            std::uint8_t* statuses, std::uint32_t count) {
+HWIO_FAKE_JLINK_EXPORT int JLINKARM_ReadRegs(const std::uint32_t* indexes, std::uint32_t* values,
+                                             std::uint8_t* statuses, std::uint32_t count) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const ProbeScenario* probe = s.probe();
@@ -1460,8 +1462,8 @@ HIO_FAKE_JLINK_EXPORT int JLINKARM_ReadRegs(const std::uint32_t* indexes, std::u
     return 0;
 }
 
-HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_GetMemZones(abi::MemZoneInfo* zones,
-                                                              int maxZones) {
+HWIO_FAKE_JLINK_EXPORT int HWIO_JLINK_STDCALL JLINK_GetMemZones(abi::MemZoneInfo* zones,
+                                                                int maxZones) {
     State& s = state();
     const std::scoped_lock lock(s.mutex);
     const ProbeScenario* probe = s.probe();
@@ -1483,6 +1485,6 @@ HIO_FAKE_JLINK_EXPORT int HIO_JLINK_STDCALL JLINK_GetMemZones(abi::MemZoneInfo* 
     return static_cast<int>(count);
 }
 
-#endif // HIO_FAKE_JLINK_BASIC
+#endif // HWIO_FAKE_JLINK_BASIC
 
 } // extern "C"

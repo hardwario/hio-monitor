@@ -5,9 +5,9 @@
 
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 PlaceholderViewModel::PlaceholderViewModel(QString pageId, QObject* parent)
     : QObject(parent), m_pageId(std::move(pageId)) {}
 
-} // namespace hio::gui
+} // namespace hwio::gui

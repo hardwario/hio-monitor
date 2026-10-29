@@ -4,14 +4,14 @@
 // ADR-0159): version negotiation, the initialize result and the client identity.
 
 #include "dialect_modern.h"
-#include "hio/mcp/request_context.h"
+#include "hwio/mcp/request_context.h"
 
 #include <QJsonObject>
 #include <QString>
 
 #include <string>
 
-namespace hio::mcp::detail {
+namespace hwio::mcp::detail {
 
 // The requested revision when it is 2025-11-25, 2025-06-18 or 2025-03-26 (echoed, served with
 // 2025-11-25 semantics), else 2025-11-25 (ADR-0159, amending ADR-0095: the spec requires an
@@ -26,4 +26,4 @@ namespace hio::mcp::detail {
 // params.clientInfo of initialize (empty when absent).
 [[nodiscard]] ClientInfo legacyClientInfo(const QJsonObject& params);
 
-} // namespace hio::mcp::detail
+} // namespace hwio::mcp::detail

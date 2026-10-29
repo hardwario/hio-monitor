@@ -1,7 +1,7 @@
 #pragma once
 
-// The fake J-Link library (tests/fake_jlink) for the GUI tests: HIO_JLINK_LIBRARY points the
-// locator at it and HIO_FAKE_JLINK_SCENARIO at a scenario file in a temporary directory.
+// The fake J-Link library (tests/fake_jlink) for the GUI tests: HWIO_JLINK_LIBRARY points the
+// locator at it and HWIO_FAKE_JLINK_SCENARIO at a scenario file in a temporary directory.
 
 #include <QByteArray>
 #include <QFile>
@@ -9,7 +9,7 @@
 #include <QString>
 #include <QtEnvironmentVariables>
 
-namespace hio::gui::test {
+namespace hwio::gui::test {
 
 // Two probes with RTT shells (the second one powered and answering after 0 ms).
 inline constexpr const char* twoProbesScenario = R"({
@@ -33,9 +33,9 @@ inline bool useFakeJLink(const QString& directory, const char* json) {
     }
     file.write(json);
     file.close();
-    qputenv("HIO_FAKE_JLINK_SCENARIO", path.toUtf8());
-    qputenv("HIO_JLINK_LIBRARY", QByteArray(HIO_FAKE_JLINK_LIBRARY));
+    qputenv("HWIO_FAKE_JLINK_SCENARIO", path.toUtf8());
+    qputenv("HWIO_JLINK_LIBRARY", QByteArray(HWIO_FAKE_JLINK_LIBRARY));
     return true;
 }
 
-} // namespace hio::gui::test
+} // namespace hwio::gui::test

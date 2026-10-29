@@ -2,11 +2,11 @@
 
 // GMock of IBleApi (ADR-0087) and a recording ILinkHandler, shared with the libs/device tests.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/link_handler.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/link_handler.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::ble::test {
+namespace hwio::ble::test {
 
 class MockBleApi : public IBleApi {
 public:
@@ -107,4 +107,4 @@ inline void runFor(std::chrono::milliseconds duration) {
     static_cast<void>(runUntil([] { return false; }, duration));
 }
 
-} // namespace hio::ble::test
+} // namespace hwio::ble::test

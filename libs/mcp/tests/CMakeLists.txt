@@ -4,7 +4,7 @@
 # instead of a fake clock. Run under ASan/UBSan and TSan. mcp_test_support.h holds reusable test
 # doubles (also for libs/mcp_tools tests).
 
-add_executable(hio_mcp_tests
+add_executable(hwio_mcp_tests
     golden_test.cpp
     http_parser_test.cpp
     http_server_test.cpp
@@ -18,14 +18,14 @@ add_executable(hio_mcp_tests
     stdio_transport_test.cpp
     token_test.cpp
     tool_call_test.cpp)
-hio_apply_target_defaults(hio_mcp_tests)
-target_include_directories(hio_mcp_tests PRIVATE
+hwio_apply_target_defaults(hwio_mcp_tests)
+target_include_directories(hwio_mcp_tests PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src")
-target_link_libraries(hio_mcp_tests PRIVATE hio::mcp GTest::gmock Qt6::Network)
-target_compile_definitions(hio_mcp_tests PRIVATE
-    "HIO_MCP_GOLDEN_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/golden\"")
+target_link_libraries(hwio_mcp_tests PRIVATE hwio::mcp GTest::gmock Qt6::Network)
+target_compile_definitions(hwio_mcp_tests PRIVATE
+    "HWIO_MCP_GOLDEN_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/golden\"")
 
-gtest_discover_tests(hio_mcp_tests
+gtest_discover_tests(hwio_mcp_tests
     DISCOVERY_TIMEOUT 60
     PROPERTIES LABELS "unit")

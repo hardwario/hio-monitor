@@ -2,10 +2,10 @@
 
 // GUI language switching (ADR-0027).
 //
-// Owns the translators for the project catalog (":/i18n/hio_<lang>.qm") and Qt's own catalogs
+// Owns the translators for the project catalog (":/i18n/hwio_<lang>.qm") and Qt's own catalogs
 // (qtbase_<lang>, qtdeclarative_<lang> from QLibraryInfo::TranslationsPath; missing ones are
 // logged, not fatal). The setting "ui/language" is "system" (default) | a code from
-// hio::i18n::supportedLanguages; "system" follows QLocale::system().uiLanguages() and falls back
+// hwio::i18n::supportedLanguages; "system" follows QLocale::system().uiLanguages() and falls back
 // to English. apply() switches live: translators, QLocale::setDefault, QQmlEngine::retranslate().
 //
 // The setting is read and written through the SettingsStore (the GUI's only settings writer,
@@ -14,7 +14,7 @@
 // Ownership: one instance per GUI process, created in main() on the stack after AppViewModel (it
 // keeps a non-owning pointer to AppViewModel's SettingsStore). It lives on the GUI thread.
 
-#include "hio/core/result.h"
+#include "hwio/core/result.h"
 
 #include <QObject>
 #include <QPointer>
@@ -27,7 +27,7 @@
 
 class QQmlEngine;
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class SettingsStore;
 
@@ -74,4 +74,4 @@ private:
     QString m_effectiveLanguage;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

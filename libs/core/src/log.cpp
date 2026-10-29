@@ -1,8 +1,8 @@
-#include "hio/core/log.h"
+#include "hwio/core/log.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -33,17 +33,17 @@
 #include <utility>
 #include <vector>
 
-namespace hio::log {
+namespace hwio::log {
 
-Q_LOGGING_CATEGORY(lcCore, "hio.core")
-Q_LOGGING_CATEGORY(lcJLink, "hio.jlink")
-Q_LOGGING_CATEGORY(lcDevice, "hio.device")
-Q_LOGGING_CATEGORY(lcFirmware, "hio.firmware")
-Q_LOGGING_CATEGORY(lcFlash, "hio.flash")
-Q_LOGGING_CATEGORY(lcDiag, "hio.diag")
-Q_LOGGING_CATEGORY(lcBle, "hio.ble")
-Q_LOGGING_CATEGORY(lcMcp, "hio.mcp")
-Q_LOGGING_CATEGORY(lcUpdate, "hio.update")
+Q_LOGGING_CATEGORY(lcCore, "hwio.core")
+Q_LOGGING_CATEGORY(lcJLink, "hwio.jlink")
+Q_LOGGING_CATEGORY(lcDevice, "hwio.device")
+Q_LOGGING_CATEGORY(lcFirmware, "hwio.firmware")
+Q_LOGGING_CATEGORY(lcFlash, "hwio.flash")
+Q_LOGGING_CATEGORY(lcDiag, "hwio.diag")
+Q_LOGGING_CATEGORY(lcBle, "hwio.ble")
+Q_LOGGING_CATEGORY(lcMcp, "hwio.mcp")
+Q_LOGGING_CATEGORY(lcUpdate, "hwio.update")
 
 namespace {
 
@@ -288,7 +288,7 @@ void messageHandler(QtMsgType type, const QMessageLogContext& context,
         }
     } catch (...) {
         try {
-            std::cerr << "hio: a log message could not be written\n";
+            std::cerr << "hwio: a log message could not be written\n";
         } catch (...) { // NOLINT(bugprone-empty-catch): nothing else can be done here
         }
     }
@@ -304,7 +304,7 @@ void terminateHandler() noexcept {
             previous = state.previousTerminateHandler;
             if (state.sink != nullptr) {
                 state.sink->write(
-                    Level::Critical, "hio.core",
+                    Level::Critical, "hwio.core",
                     "std::terminate called (unhandled exception or contract violation)");
                 state.sink->flush();
             }
@@ -381,4 +381,4 @@ Logging::~Logging() {
 
 std::filesystem::path Logging::currentFile() const { return m_sink->currentFile(); }
 
-} // namespace hio::log
+} // namespace hwio::log

@@ -19,7 +19,7 @@
                         },
                         "protocolVersion": "2025-11-25",
                         "serverInfo": {
-                            "name": "hio-monitor",
+                            "name": "hwio-monitor",
                             "version": "test"
                         }
                     }

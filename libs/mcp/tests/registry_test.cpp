@@ -1,11 +1,11 @@
 // Registry: registration rules and resource matching (plan/features/0013 "Protocol core").
 
 #include "fake_tools.h"
-#include "hio/core/error.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
+#include "hwio/core/error.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
 
 #include <QJsonObject>
 #include <QString>
@@ -15,7 +15,7 @@
 #include <map>
 #include <string_view>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 ToolSpec simpleTool(std::string_view name) {
@@ -98,4 +98,4 @@ TEST(Registry, UriTemplateRules) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

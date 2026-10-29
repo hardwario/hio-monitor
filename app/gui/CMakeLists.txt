@@ -1,16 +1,16 @@
-# app/gui - the hio-monitor desktop application (Qt Quick, ADR-0003, ADR-0018;
+# app/gui - the hwio-monitor desktop application (Qt Quick, ADR-0003, ADR-0018;
 # plan/features/0004-m3-gui-shell.md).
 #
-# hio_gui        static library with the QML module "HardwarioMonitor" (shell QML, components,
+# hwio_gui        static library with the QML module "HardwarioMonitor" (shell QML, components,
 #                view models, workers), the embedded translations, fonts (ADR-0048, Git LFS) and
 #                icons (ADR-0060); not a backend library (it uses QtQuick), so the ADR-0004 rule
 #                does not apply to it.
-# hio-monitor    the executable: src/main.cpp, links the module's static plugin.
-# tests/         tst_gui (Qt Quick Test) and hio_gui_tests (GoogleTest view model tests).
+# hwio-monitor    the executable: src/main.cpp, links the module's static plugin.
+# tests/         tst_gui (Qt Quick Test) and hwio_gui_tests (GoogleTest view model tests).
 
 find_package(Qt6 6.8 REQUIRED COMPONENTS Gui Network Qml Quick QuickControls2 QuickTest Test)
 
-set(HIO_GUI_QML_FILES
+set(HWIO_GUI_QML_FILES
     qml/AlreadyRunningDialog.qml
     qml/Main.qml
     qml/Shortcuts.qml
@@ -71,22 +71,22 @@ set(HIO_GUI_QML_FILES
     qml/shell/TabView.qml)
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
-file(GLOB HIO_GUI_ICONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
+file(GLOB HWIO_GUI_ICONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/*.svg")
 # Wizard illustration slots (ADR-0076, Git LFS): <slot>[-dark].svg / .png.
-file(GLOB HIO_GUI_ILLUSTRATIONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
+file(GLOB HWIO_GUI_ILLUSTRATIONS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/wizard/*.svg"
     "${CMAKE_CURRENT_SOURCE_DIR}/assets/wizard/*.png")
 
-qt_add_library(hio_gui STATIC)
-hio_apply_target_defaults(hio_gui)
+qt_add_library(hwio_gui STATIC)
+hwio_apply_target_defaults(hwio_gui)
 # The output directory ends in the module's target path so that qmllint and qmlls find it.
-qt_add_qml_module(hio_gui
+qt_add_qml_module(hwio_gui
     URI HardwarioMonitor
     VERSION 1.0
     OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/qml/HardwarioMonitor"
-    QML_FILES ${HIO_GUI_QML_FILES}
-    RESOURCES ${HIO_GUI_ICONS} ${HIO_GUI_ILLUSTRATIONS}
+    QML_FILES ${HWIO_GUI_QML_FILES}
+    RESOURCES ${HWIO_GUI_ICONS} ${HWIO_GUI_ILLUSTRATIONS}
     SOURCES
         src/fonts.cpp
         src/fonts.h
@@ -177,19 +177,19 @@ qt_add_qml_module(hio_gui
         src/workers/firmware_loader.h
         src/workers/probe_scanner.cpp
         src/workers/probe_scanner.h)
-target_include_directories(hio_gui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(hwio_gui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # The generated QML type registration includes the view model headers by file name.
-target_include_directories(hio_gui PRIVATE
+target_include_directories(hwio_gui PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/pages"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/wizard"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/workers")
-target_link_libraries(hio_gui PUBLIC
-    hio::core
-    hio::device
-    hio::diag
-    hio::firmware
-    hio::update
+target_link_libraries(hwio_gui PUBLIC
+    hwio::core
+    hwio::device
+    hwio::diag
+    hwio::firmware
+    hwio::update
     Qt6::Core
     Qt6::Gui
     Qt6::Network
@@ -198,27 +198,27 @@ target_link_libraries(hio_gui PUBLIC
     Qt6::QuickControls2)
 # Plan 0016 C2: development builds show the licence files of the source and build trees in
 # Settings > About when they are not installed (install_paths.cpp); packages use licenses/.
-if(HIO_PACKAGE_KIND STREQUAL "dev")
-    target_compile_definitions(hio_gui PRIVATE
-        "HIO_GUI_DEV_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}\""
-        "HIO_GUI_DEV_BINARY_DIR=\"${PROJECT_BINARY_DIR}\"")
+if(HWIO_PACKAGE_KIND STREQUAL "dev")
+    target_compile_definitions(hwio_gui PRIVATE
+        "HWIO_GUI_DEV_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}\""
+        "HWIO_GUI_DEV_BINARY_DIR=\"${PROJECT_BINARY_DIR}\"")
 endif()
 if(WIN32)
-    target_compile_definitions(hio_gui PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_definitions(hwio_gui PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
     # SetCurrentProcessExplicitAppUserModelID (shell32, a system library).
-    target_sources(hio_gui PRIVATE src/platform_win.cpp)
-    target_link_libraries(hio_gui PRIVATE shell32)
+    target_sources(hwio_gui PRIVATE src/platform_win.cpp)
+    target_link_libraries(hwio_gui PRIVATE shell32)
 else()
-    target_sources(hio_gui PRIVATE src/platform_default.cpp)
+    target_sources(hwio_gui PRIVATE src/platform_default.cpp)
 endif()
 
 # ADR-0044: Material, Dense variant (read by QQuickStyle from :/qtquickcontrols2.conf).
 # ADR-0048: the bundled fonts (Git LFS) under :/fonts.
-qt_add_resources(hio_gui "hio_gui_style"
+qt_add_resources(hwio_gui "hwio_gui_style"
     PREFIX "/"
     FILES qtquickcontrols2.conf
-    OUTPUT_TARGETS _hio_gui_style_targets)
-qt_add_resources(hio_gui "hio_gui_fonts"
+    OUTPUT_TARGETS _hwio_gui_style_targets)
+qt_add_resources(hwio_gui "hwio_gui_fonts"
     PREFIX "/fonts"
     BASE "assets/fonts"
     FILES
@@ -227,45 +227,45 @@ qt_add_resources(hio_gui "hio_gui_fonts"
         assets/fonts/Inter-SemiBold.ttf
         assets/fonts/JetBrainsMono-Bold.ttf
         assets/fonts/JetBrainsMono-Regular.ttf
-    OUTPUT_TARGETS _hio_gui_font_targets)
+    OUTPUT_TARGETS _hwio_gui_font_targets)
 # Plan 0015 A3: the window icon (the v1 icon, packaging/common/icons, Git LFS) under :/appicon.
-qt_add_resources(hio_gui "hio_gui_app_icon"
+qt_add_resources(hwio_gui "hwio_gui_app_icon"
     PREFIX "/appicon"
     BASE "${PROJECT_SOURCE_DIR}/packaging/common/icons"
     FILES
-        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-16.png"
-        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-32.png"
-        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-48.png"
-        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-64.png"
-        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-128.png"
-        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor-256.png"
-    OUTPUT_TARGETS _hio_gui_app_icon_targets)
-hio_skip_linting(${_hio_gui_style_targets} ${_hio_gui_font_targets} ${_hio_gui_app_icon_targets})
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor-16.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor-32.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor-48.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor-64.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor-128.png"
+        "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor-256.png"
+    OUTPUT_TARGETS _hwio_gui_app_icon_targets)
+hwio_skip_linting(${_hwio_gui_style_targets} ${_hwio_gui_font_targets} ${_hwio_gui_app_icon_targets})
 
-qt_add_executable(hio-monitor src/main.cpp)
+qt_add_executable(hwio-monitor src/main.cpp)
 # Plan 0015 A3: icon and VERSIONINFO (Windows), icon in the bundle (macOS).
 if(WIN32)
-    set(HIO_RC_FILE_DESCRIPTION "HARDWARIO Monitor")
-    set(HIO_RC_INTERNAL_NAME "hio-monitor")
-    set(HIO_RC_ORIGINAL_FILENAME "hio-monitor.exe")
+    set(HWIO_RC_FILE_DESCRIPTION "HARDWARIO Monitor")
+    set(HWIO_RC_INTERNAL_NAME "hwio-monitor")
+    set(HWIO_RC_ORIGINAL_FILENAME "hwio-monitor.exe")
     configure_file("${PROJECT_SOURCE_DIR}/packaging/windows/version.rc.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/hio-monitor.rc" @ONLY)
-    target_sources(hio-monitor PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/hio-monitor.rc")
+        "${CMAKE_CURRENT_BINARY_DIR}/hwio-monitor.rc" @ONLY)
+    target_sources(hwio-monitor PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/hwio-monitor.rc")
 elseif(APPLE)
-    set(_hio_icns "${PROJECT_SOURCE_DIR}/packaging/common/icons/hio-monitor.icns")
-    target_sources(hio-monitor PRIVATE "${_hio_icns}")
-    set_source_files_properties("${_hio_icns}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set(_hwio_icns "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor.icns")
+    target_sources(hwio-monitor PRIVATE "${_hwio_icns}")
+    set_source_files_properties("${_hwio_icns}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 endif()
-hio_apply_target_defaults(hio-monitor)
-target_link_libraries(hio-monitor PRIVATE hio_gui hio_guiplugin)
-set_target_properties(hio-monitor PROPERTIES
+hwio_apply_target_defaults(hwio-monitor)
+target_link_libraries(hwio-monitor PRIVATE hwio_gui hwio_guiplugin)
+set_target_properties(hwio-monitor PROPERTIES
     WIN32_EXECUTABLE ON
     MACOSX_BUNDLE ON
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.hardwario.monitor"
     MACOSX_BUNDLE_BUNDLE_NAME "HARDWARIO Monitor"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-    MACOSX_BUNDLE_ICON_FILE "hio-monitor.icns"
+    MACOSX_BUNDLE_ICON_FILE "hwio-monitor.icns"
     MACOSX_BUNDLE_COPYRIGHT "Copyright © HARDWARIO a.s."
     # ADR-0086: CMake's default keys + NSBluetoothAlwaysUsageDescription.
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/macos/Info.plist.in"
@@ -273,6 +273,6 @@ set_target_properties(hio-monitor PROPERTIES
     # static-import scan is not needed; our own module's plugin is linked and imported explicitly.
     QT_QML_MODULE_NO_IMPORT_SCAN ON)
 
-if(HIO_BUILD_TESTS)
+if(HWIO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()

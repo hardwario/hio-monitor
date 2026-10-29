@@ -5,9 +5,9 @@
 // R41), the own-PID rule (R15, R20) and the stale retry (R51). Shared implementation; the public
 // types are ProbeLock and BleLock.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/probe_lock.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/probe_lock.h"
 
 #include <QLockFile>
 
@@ -17,7 +17,7 @@
 #include <optional>
 #include <string>
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 struct LockErrors {
     // The lock is held by another process (owner "?" / PID 0 when unreadable).
@@ -39,4 +39,4 @@ acquireLockFile(const std::filesystem::path& directory, const std::filesystem::p
 // Unlocks and forgets `key` (no-op for nullptr).
 void releaseLockFile(std::unique_ptr<QLockFile>& lock, const std::string& key);
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

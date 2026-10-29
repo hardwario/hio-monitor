@@ -4,9 +4,9 @@
 // HTTP header/body validation, result decoration (resultType, serverInfo, caching hints) and the
 // shared server description (capabilities, identity).
 
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/reply_channel.h"
-#include "hio/mcp/request_context.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/reply_channel.h"
+#include "hwio/mcp/request_context.h"
 
 #include <QJsonObject>
 #include <QString>
@@ -15,7 +15,7 @@
 #include <optional>
 #include <string_view>
 
-namespace hio::mcp::detail {
+namespace hwio::mcp::detail {
 
 struct ServerIdentity {
     QString name;
@@ -56,4 +56,4 @@ checkModernHeaders(const Message& message, const TransportInfo& transport, const
 // visible ASCII, space or tab. nullopt for invalid values.
 [[nodiscard]] std::optional<QString> decodeHeaderValue(std::string_view raw);
 
-} // namespace hio::mcp::detail
+} // namespace hwio::mcp::detail

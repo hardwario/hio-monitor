@@ -1,7 +1,7 @@
 // Out-handler slots (review fix 6, 2026-10-09): handlers called by "vendor" threads while the slot
 // is torn down never touch a destroyed queue. Run under TSan and ASan by the sanitizer presets.
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 #include "jlink_abi.h"
 #include "out_handlers.h"
 
@@ -18,8 +18,8 @@
 
 namespace {
 
-using hio::jlink::LibraryMessage;
-using hio::jlink::OutHandlerSlot;
+using hwio::jlink::LibraryMessage;
+using hwio::jlink::OutHandlerSlot;
 
 TEST(OutHandlers, MessagesReachTheSlotQueueTruncated) {
     auto slot = OutHandlerSlot::acquire();
@@ -47,7 +47,7 @@ TEST(OutHandlers, AtMostMaxSlots) {
     }
     const auto extra = OutHandlerSlot::acquire();
     ASSERT_FALSE(extra);
-    EXPECT_EQ(extra.error().code, hio::ErrorCode::InternalSessionLimit);
+    EXPECT_EQ(extra.error().code, hwio::ErrorCode::InternalSessionLimit);
     slots.pop_back();
     EXPECT_TRUE(OutHandlerSlot::acquire());
 }
@@ -58,8 +58,8 @@ TEST(OutHandlers, TeardownWhileVendorThreadsAreInsideHandlers) {
     for (int round = 0; round < 50; ++round) {
         auto slot = OutHandlerSlot::acquire();
         ASSERT_TRUE(slot);
-        const hio::jlink::abi::LogHandler log = (*slot)->logHandler();
-        const hio::jlink::abi::LogHandler error = (*slot)->errorHandler();
+        const hwio::jlink::abi::LogHandler log = (*slot)->logHandler();
+        const hwio::jlink::abi::LogHandler error = (*slot)->errorHandler();
         std::atomic<bool> running{true};
         std::vector<std::jthread> vendor;
         vendor.reserve(4);

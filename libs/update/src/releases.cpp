@@ -1,8 +1,8 @@
-#include "hio/update/releases.h"
+#include "hwio/update/releases.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/update/semver.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/update/semver.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -26,7 +26,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::update {
+namespace hwio::update {
 
 namespace {
 
@@ -115,9 +115,9 @@ CheckResult makeCheckResult(const SemVer& current, std::optional<ReleaseInfo> la
 }
 
 QUrl releasesUrl() {
-#ifdef HIO_TEST_OVERRIDES
-    // Test builds only (CMake option HIO_TEST_OVERRIDES; like HIO_CATALOG_URL).
-    const QString override = qEnvironmentVariable("HIO_UPDATE_URL");
+#ifdef HWIO_TEST_OVERRIDES
+    // Test builds only (CMake option HWIO_TEST_OVERRIDES; like HWIO_CATALOG_URL).
+    const QString override = qEnvironmentVariable("HWIO_UPDATE_URL");
     if (!override.isEmpty()) {
         return {override};
     }
@@ -125,4 +125,4 @@ QUrl releasesUrl() {
     return {QString::fromLatin1(defaultReleasesUrl)};
 }
 
-} // namespace hio::update
+} // namespace hwio::update

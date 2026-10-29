@@ -1,11 +1,11 @@
-#include "hio/device/command_capture.h"
+#include "hwio/device/command_capture.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
 
 #include <QList>
 #include <QObject>
@@ -19,7 +19,7 @@
 #include <string_view>
 #include <utility>
 
-namespace hio::device {
+namespace hwio::device {
 
 std::string_view captureEndId(CaptureEnd end) noexcept {
     switch (end) {
@@ -195,4 +195,4 @@ void CommandCapture::stop() {
     }
 }
 
-} // namespace hio::device
+} // namespace hwio::device

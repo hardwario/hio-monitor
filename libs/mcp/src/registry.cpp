@@ -1,8 +1,8 @@
-#include "hio/mcp/registry.h"
+#include "hwio/mcp/registry.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/mcp/schema.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/mcp/schema.h"
 
 #include <QByteArray>
 #include <QLatin1StringView>
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 namespace {
 
@@ -208,4 +208,4 @@ std::optional<ResourceMatch> Registry::matchResource(const QString& uri) const {
     return std::nullopt;
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

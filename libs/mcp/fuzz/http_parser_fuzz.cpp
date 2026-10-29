@@ -3,7 +3,7 @@
 // Invariants: feed() never consumes more than it was given, never stalls with input left in the
 // Headers/Body states, and every complete request respects the limits.
 
-#include "hio/mcp/http_parser.h"
+#include "hwio/mcp/http_parser.h"
 
 #include <QByteArrayView>
 #include <QtTypes>
@@ -27,8 +27,8 @@ void check(bool condition) {
 
 // NOLINTNEXTLINE(readability-identifier-naming): the libFuzzer entry point
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
-    using hio::mcp::HttpLimits;
-    using hio::mcp::HttpParser;
+    using hwio::mcp::HttpLimits;
+    using hwio::mcp::HttpParser;
     if (size == 0) {
         return 0;
     }

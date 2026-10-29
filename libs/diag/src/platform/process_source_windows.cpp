@@ -9,8 +9,8 @@
 #include <windows.h>
 // <windows.h> must come first: <tlhelp32.h> needs its types (HANDLE, DWORD, WCHAR). This comment
 // ends the include block, so clang-format (IncludeBlocks: Regroup) does not sort it below.
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 #include "platform/process_source.h"
 
 #include <QString>
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::diag::platform {
+namespace hwio::diag::platform {
 
 namespace {
 
@@ -81,6 +81,6 @@ std::shared_ptr<IProcessSource> makeProcessSource() {
     return std::make_shared<WindowsProcessSource>();
 }
 
-} // namespace hio::diag::platform
+} // namespace hwio::diag::platform
 
 #endif

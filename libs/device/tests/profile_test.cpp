@@ -1,8 +1,8 @@
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/profile.h"
-#include "hio/firmware/designated_firmware.h"
-#include "hio/firmware/firmware_image.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/designated_firmware.h"
+#include "hwio/firmware/firmware_image.h"
 
 #include <QString>
 
@@ -15,10 +15,10 @@
 
 namespace {
 
-using hio::device::ProfileRegistry;
+using hwio::device::ProfileRegistry;
 
 TEST(Profiles, ChesterIsRegistered) {
-    const hio::device::DeviceProfile* chester = ProfileRegistry::find("chester");
+    const hwio::device::DeviceProfile* chester = ProfileRegistry::find("chester");
     ASSERT_NE(chester, nullptr);
     EXPECT_EQ(chester->displayName, "CHESTER");
     EXPECT_EQ(ProfileRegistry::find("nope"), nullptr);
@@ -27,10 +27,10 @@ TEST(Profiles, ChesterIsRegistered) {
 }
 
 TEST(Profiles, ChesterAppTarget) {
-    const auto* app = hio::device::findTarget(*ProfileRegistry::find("chester"), "app");
+    const auto* app = hwio::device::findTarget(*ProfileRegistry::find("chester"), "app");
     ASSERT_NE(app, nullptr);
     EXPECT_EQ(app->jlinkDevice, "NRF52840_xxAA");
-    EXPECT_EQ(hio::device::targetDisplayName(*app), QStringLiteral("application"));
+    EXPECT_EQ(hwio::device::targetDisplayName(*app), QStringLiteral("application"));
     EXPECT_EQ(app->rttTerminal, "Terminal");
     EXPECT_EQ(app->rttLogger, "Logger");
     EXPECT_TRUE(app->hashPrefixIsLog);
@@ -40,20 +40,20 @@ TEST(Profiles, ChesterAppTarget) {
 }
 
 TEST(Profiles, ChesterLteTargetIsDeclaredWithoutConsole) {
-    const auto* lte = hio::device::findTarget(*ProfileRegistry::find("chester"), "lte");
+    const auto* lte = hwio::device::findTarget(*ProfileRegistry::find("chester"), "lte");
     ASSERT_NE(lte, nullptr);
     EXPECT_EQ(lte->jlinkDevice, "NRF9151_XXCA");
-    EXPECT_EQ(hio::device::targetDisplayName(*lte), QStringLiteral("LTE"));
+    EXPECT_EQ(hwio::device::targetDisplayName(*lte), QStringLiteral("LTE"));
     EXPECT_TRUE(lte->rttTerminal.empty());
     EXPECT_FALSE(lte->hashPrefixIsLog);
-    EXPECT_EQ(hio::device::findTarget(*ProfileRegistry::find("chester"), "ble"), nullptr);
+    EXPECT_EQ(hwio::device::findTarget(*ProfileRegistry::find("chester"), "ble"), nullptr);
 }
 
 TEST(Profiles, EveryProfileIsConsistent) {
-    for (const hio::device::DeviceProfile* profile : ProfileRegistry::all()) {
+    for (const hwio::device::DeviceProfile* profile : ProfileRegistry::all()) {
         EXPECT_FALSE(profile->id.empty());
         EXPECT_FALSE(profile->targets.empty()) << profile->id;
-        for (const hio::device::TargetProfile& target : profile->targets) {
+        for (const hwio::device::TargetProfile& target : profile->targets) {
             EXPECT_FALSE(target.jlinkDevice.empty()) << target.id;
             EXPECT_FALSE(target.displayName.empty()) << target.id;
             EXPECT_GT(target.defaultSpeedKhz.value_or(1), 0) << target.id; // nullopt = auto
@@ -71,22 +71,22 @@ namespace {
 TEST(Profiles, ChesterFlashLayout) {
     const auto& chester = *ProfileRegistry::find("chester");
     EXPECT_EQ(chester.firmwareCatalogUrl, "https://firmware.hardwario.com/chester");
-    const auto* app = hio::device::findTarget(chester, "app");
-    const auto* lte = hio::device::findTarget(chester, "lte");
+    const auto* app = hwio::device::findTarget(chester, "app");
+    const auto* lte = hwio::device::findTarget(chester, "lte");
     ASSERT_NE(app, nullptr);
     ASSERT_NE(lte, nullptr);
-    ASSERT_NE(hio::device::findPart(*app, 0x52840), nullptr);
-    EXPECT_EQ(hio::device::findPart(*app, 0x52840)->displayName, "nRF52840");
-    EXPECT_EQ(hio::device::findPart(*app, 0x9160), nullptr);
-    EXPECT_EQ(hio::device::findPart(*lte, 0x9120)->displayName, "nRF9151");
-    EXPECT_EQ(hio::device::findPart(*lte, 0x9120)->jlinkDevice, "NRF9151_XXCA");
-    EXPECT_EQ(hio::device::findPart(*lte, 0x9160)->jlinkDevice, "NRF9160_xxAA");
-    EXPECT_EQ(hio::device::pibRange(*app).start, 0x10001080U);
-    EXPECT_EQ(hio::device::pibRange(*lte).start, 0x00FF8108U);
-    EXPECT_EQ(hio::device::pibRange(*lte).size(), 128U);
-    EXPECT_EQ(app->defaultErase, hio::device::EraseScope::Code);
-    EXPECT_EQ(lte->defaultErase, hio::device::EraseScope::All);
-    EXPECT_EQ(lte->recoverImage, hio::device::RecoverImage::Nrf91DisableApProtect);
+    ASSERT_NE(hwio::device::findPart(*app, 0x52840), nullptr);
+    EXPECT_EQ(hwio::device::findPart(*app, 0x52840)->displayName, "nRF52840");
+    EXPECT_EQ(hwio::device::findPart(*app, 0x9160), nullptr);
+    EXPECT_EQ(hwio::device::findPart(*lte, 0x9120)->displayName, "nRF9151");
+    EXPECT_EQ(hwio::device::findPart(*lte, 0x9120)->jlinkDevice, "NRF9151_XXCA");
+    EXPECT_EQ(hwio::device::findPart(*lte, 0x9160)->jlinkDevice, "NRF9160_xxAA");
+    EXPECT_EQ(hwio::device::pibRange(*app).start, 0x10001080U);
+    EXPECT_EQ(hwio::device::pibRange(*lte).start, 0x00FF8108U);
+    EXPECT_EQ(hwio::device::pibRange(*lte).size(), 128U);
+    EXPECT_EQ(app->defaultErase, hwio::device::EraseScope::Code);
+    EXPECT_EQ(lte->defaultErase, hwio::device::EraseScope::All);
+    EXPECT_EQ(lte->recoverImage, hwio::device::RecoverImage::Nrf91DisableApProtect);
     EXPECT_EQ(app->chipFamily.ctrlApIndex, 1U);
     EXPECT_EQ(lte->chipFamily.ctrlApIndex, 4U);
     EXPECT_TRUE(app->pibErasableWithUicr);
@@ -94,13 +94,13 @@ TEST(Profiles, ChesterFlashLayout) {
 }
 
 TEST(Profiles, FlashLayoutIsConsistent) {
-    for (const hio::device::DeviceProfile* profile : ProfileRegistry::all()) {
-        for (const hio::device::TargetProfile& target : profile->targets) {
+    for (const hwio::device::DeviceProfile* profile : ProfileRegistry::all()) {
+        for (const hwio::device::TargetProfile& target : profile->targets) {
             EXPECT_FALSE(target.parts.empty()) << target.id;
             EXPECT_EQ(target.parts.front().jlinkDevice, target.jlinkDevice) << target.id;
             EXPECT_FALSE(target.flash.empty()) << target.id;
             EXPECT_FALSE(target.uicr.overlaps(target.flash)) << target.id;
-            EXPECT_TRUE(target.uicr.contains(hio::device::pibRange(target))) << target.id;
+            EXPECT_TRUE(target.uicr.contains(hwio::device::pibRange(target))) << target.id;
         }
     }
 }
@@ -114,16 +114,16 @@ namespace {
 TEST(Profiles, ChesterMemoryRangesAndPrompt) {
     const auto& chester = *ProfileRegistry::find("chester");
     for (const std::string_view id : {std::string_view("app"), std::string_view("lte")}) {
-        const auto* target = hio::device::findTarget(chester, id);
+        const auto* target = hwio::device::findTarget(chester, id);
         ASSERT_NE(target, nullptr);
         EXPECT_EQ(target->ram,
-                  (hio::firmware::AddressRange{.start = 0x20000000, .end = 0x20040000}))
+                  (hwio::firmware::AddressRange{.start = 0x20000000, .end = 0x20040000}))
             << id;
         ASSERT_EQ(target->peripherals.size(), 2U) << id;
         EXPECT_EQ(target->peripherals[0],
-                  (hio::firmware::AddressRange{.start = 0x40000000, .end = 0x60000000}));
+                  (hwio::firmware::AddressRange{.start = 0x40000000, .end = 0x60000000}));
         EXPECT_EQ(target->peripherals[1],
-                  (hio::firmware::AddressRange{.start = 0xE0000000, .end = 0xE0100000}));
+                  (hwio::firmware::AddressRange{.start = 0xE0000000, .end = 0xE0100000}));
         EXPECT_TRUE(target->shellPrompt.empty()) << id;
         EXPECT_FALSE(target->ram.overlaps(target->flash)) << id;
         EXPECT_FALSE(target->ram.overlaps(target->uicr)) << id;
@@ -134,39 +134,39 @@ TEST(Profiles, ChesterMemoryRangesAndPrompt) {
 // nRF91 both the secure and the non-secure alias. ADR-0164: also the FPB and the System Control
 // Space on both targets.
 TEST(Profiles, ChesterWriteDeniedRanges) {
-    constexpr hio::firmware::AddressRange fpb{.start = 0xE0002000, .end = 0xE0003000};
-    constexpr hio::firmware::AddressRange scs{.start = 0xE000E000, .end = 0xE000F000};
+    constexpr hwio::firmware::AddressRange fpb{.start = 0xE0002000, .end = 0xE0003000};
+    constexpr hwio::firmware::AddressRange scs{.start = 0xE000E000, .end = 0xE000F000};
     const auto& chester = *ProfileRegistry::find("chester");
-    const auto* app = hio::device::findTarget(chester, "app");
+    const auto* app = hwio::device::findTarget(chester, "app");
     ASSERT_NE(app, nullptr);
     ASSERT_EQ(app->writeDenied.size(), 3U);
     EXPECT_EQ(app->writeDenied[0],
-              (hio::firmware::AddressRange{.start = 0x4001E000, .end = 0x4001F000}));
+              (hwio::firmware::AddressRange{.start = 0x4001E000, .end = 0x4001F000}));
     EXPECT_EQ(app->writeDenied[1], fpb);
     EXPECT_EQ(app->writeDenied[2], scs);
-    const auto* lte = hio::device::findTarget(chester, "lte");
+    const auto* lte = hwio::device::findTarget(chester, "lte");
     ASSERT_NE(lte, nullptr);
     ASSERT_EQ(lte->writeDenied.size(), 4U);
     EXPECT_EQ(lte->writeDenied[0],
-              (hio::firmware::AddressRange{.start = 0x40039000, .end = 0x4003A000}));
+              (hwio::firmware::AddressRange{.start = 0x40039000, .end = 0x4003A000}));
     EXPECT_EQ(lte->writeDenied[1],
-              (hio::firmware::AddressRange{.start = 0x50039000, .end = 0x5003A000}));
+              (hwio::firmware::AddressRange{.start = 0x50039000, .end = 0x5003A000}));
     EXPECT_EQ(lte->writeDenied[2], fpb);
     EXPECT_EQ(lte->writeDenied[3], scs);
 }
 
 // The error code of checkMemoryWrite(); nullopt = allowed.
-std::optional<hio::ErrorCode> writeCode(std::string_view targetId, std::uint32_t address,
-                                        std::size_t size) {
-    const auto* target = hio::device::findTarget(*ProfileRegistry::find("chester"), targetId);
-    const hio::Status status = hio::device::checkMemoryWrite(*target, address, size);
+std::optional<hwio::ErrorCode> writeCode(std::string_view targetId, std::uint32_t address,
+                                         std::size_t size) {
+    const auto* target = hwio::device::findTarget(*ProfileRegistry::find("chester"), targetId);
+    const hwio::Status status = hwio::device::checkMemoryWrite(*target, address, size);
     if (status) {
         return std::nullopt;
     }
     return status.error().code;
 }
 
-constexpr std::optional<hio::ErrorCode> denied{hio::ErrorCode::TargetAddressOutOfRange};
+constexpr std::optional<hwio::ErrorCode> denied{hwio::ErrorCode::TargetAddressOutOfRange};
 
 // ADR-0160: the NVMC task registers (nRF52840: CONFIG 0x504, ERASEPAGE 0x508, ERASEALL 0x50C,
 // ERASEUICR 0x514; nRF9160: CONFIG 0x504, ERASEALL 0x50C, ERASEPAGEPARTIALCFG 0x51C, register
@@ -192,8 +192,8 @@ TEST(Profiles, NvmcWritesAreDenied) {
     // The app target denies only its own NVMC (0x40039000 is another peripheral on nRF52840).
     EXPECT_EQ(writeCode("app", 0x4003950C, 4), std::nullopt);
 
-    const auto* app = hio::device::findTarget(*ProfileRegistry::find("chester"), "app");
-    const hio::Status status = hio::device::checkMemoryWrite(*app, 0x4001E50C, 4);
+    const auto* app = hwio::device::findTarget(*ProfileRegistry::find("chester"), "app");
+    const hwio::Status status = hwio::device::checkMemoryWrite(*app, 0x4001E50C, 4);
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().detail,
               "requested 0x4001E50C-0x4001E510; denied 0x4001E000-0x4001F000");
@@ -218,8 +218,8 @@ TEST(Profiles, CodeExecutionRegistersAreDenied) {
         EXPECT_EQ(writeCode(target, 0xE000DFFC, 4), std::nullopt) << target; // below the SCS
         EXPECT_EQ(writeCode(target, 0xE000F000, 4), std::nullopt) << target; // after the SCS
     }
-    const auto* app = hio::device::findTarget(*ProfileRegistry::find("chester"), "app");
-    const hio::Status status = hio::device::checkMemoryWrite(*app, 0xE000ED08, 4);
+    const auto* app = hwio::device::findTarget(*ProfileRegistry::find("chester"), "app");
+    const hwio::Status status = hwio::device::checkMemoryWrite(*app, 0xE000ED08, 4);
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().detail,
               "requested 0xE000ED08-0xE000ED0C; denied 0xE000E000-0xE000F000");
@@ -230,12 +230,12 @@ TEST(Profiles, CodeExecutionRegistersAreDenied) {
 TEST(Profiles, CheckFlashWrite) {
     const auto& chester = *ProfileRegistry::find("chester");
     const auto code = [&](std::string_view targetId, std::uint32_t address, std::size_t size,
-                          bool allowUicr) -> std::optional<hio::ErrorCode> {
-        const hio::Status status = hio::device::checkFlashWrite(
-            *hio::device::findTarget(chester, targetId), address, size, allowUicr);
+                          bool allowUicr) -> std::optional<hwio::ErrorCode> {
+        const hwio::Status status = hwio::device::checkFlashWrite(
+            *hwio::device::findTarget(chester, targetId), address, size, allowUicr);
         return status ? std::nullopt : std::optional(status.error().code);
     };
-    using hio::ErrorCode;
+    using hwio::ErrorCode;
     EXPECT_EQ(code("app", 0x00010000, 8, false), std::nullopt);
     EXPECT_EQ(code("app", 0x000FFFF8, 8, false), std::nullopt); // ends at flash end
     EXPECT_EQ(code("app", 0x000FFFF8, 16, false), ErrorCode::FirmwareOutOfRange); // past it
@@ -253,13 +253,13 @@ TEST(Profiles, CheckFlashWrite) {
 
 // ADR-0160: reads may touch any range that does not wrap past 0xFFFFFFFF.
 TEST(Profiles, MemoryReadsAreUnrestrictedButMustNotWrap) {
-    EXPECT_TRUE(hio::device::checkMemoryRead(0x10000100, 4));  // FICR
-    EXPECT_TRUE(hio::device::checkMemoryRead(0xE00FF000, 64)); // ROM table
-    EXPECT_TRUE(hio::device::checkMemoryRead(0x30000000, 4));  // unmapped: the backend fails
-    EXPECT_TRUE(hio::device::checkMemoryRead(0xFFFFFFFC, 4));  // ends exactly at 2^32
-    const hio::Status wrapped = hio::device::checkMemoryRead(0xFFFFFFFC, 8);
+    EXPECT_TRUE(hwio::device::checkMemoryRead(0x10000100, 4));  // FICR
+    EXPECT_TRUE(hwio::device::checkMemoryRead(0xE00FF000, 64)); // ROM table
+    EXPECT_TRUE(hwio::device::checkMemoryRead(0x30000000, 4));  // unmapped: the backend fails
+    EXPECT_TRUE(hwio::device::checkMemoryRead(0xFFFFFFFC, 4));  // ends exactly at 2^32
+    const hwio::Status wrapped = hwio::device::checkMemoryRead(0xFFFFFFFC, 8);
     ASSERT_FALSE(wrapped);
-    EXPECT_EQ(wrapped.error().code, hio::ErrorCode::TargetAddressOutOfRange);
+    EXPECT_EQ(wrapped.error().code, hwio::ErrorCode::TargetAddressOutOfRange);
 }
 
 } // namespace
@@ -270,24 +270,24 @@ namespace {
 
 TEST(Profiles, ChesterLteDesignatedFirmware) {
     const auto& chester = *ProfileRegistry::find("chester");
-    const auto* lte = hio::device::findTarget(chester, "lte");
+    const auto* lte = hwio::device::findTarget(chester, "lte");
     ASSERT_NE(lte, nullptr);
     ASSERT_TRUE(lte->designatedFirmware.has_value());
-    const hio::firmware::DesignatedFirmware designated =
-        lte->designatedFirmware.value_or(hio::firmware::DesignatedFirmware{});
+    const hwio::firmware::DesignatedFirmware designated =
+        lte->designatedFirmware.value_or(hwio::firmware::DesignatedFirmware{});
     EXPECT_EQ(designated.name, "HARDWARIO LTE firmware");
     EXPECT_EQ(designated.version, "1.7.0");
     EXPECT_EQ(designated.url, "https://docs.hardwario.com/download/hio-chester-lte-v1.7.0.zip");
-    EXPECT_EQ(hio::firmware::toHex(designated.sha256),
+    EXPECT_EQ(hwio::firmware::toHex(designated.sha256),
               "95d301a11738bcd9a9df4726159361d64fd8f681c3546f479d46b49f4bf0fe49");
-    EXPECT_EQ(designated.kind, hio::firmware::FirmwareKind::LteBundle);
+    EXPECT_EQ(designated.kind, hwio::firmware::FirmwareKind::LteBundle);
     // The application MCU has no designated firmware (it is chosen from the catalog).
-    EXPECT_FALSE(hio::device::findTarget(chester, "app")->designatedFirmware.has_value());
+    EXPECT_FALSE(hwio::device::findTarget(chester, "app")->designatedFirmware.has_value());
 }
 
 TEST(Profiles, EveryDesignatedFirmwareIsHttps) {
-    for (const hio::device::DeviceProfile* profile : ProfileRegistry::all()) {
-        for (const hio::device::TargetProfile& target : profile->targets) {
+    for (const hwio::device::DeviceProfile* profile : ProfileRegistry::all()) {
+        for (const hwio::device::TargetProfile& target : profile->targets) {
             if (target.designatedFirmware) {
                 EXPECT_TRUE(target.designatedFirmware->url.starts_with("https://")) << target.id;
                 EXPECT_FALSE(target.designatedFirmware->name.empty()) << target.id;
@@ -307,12 +307,12 @@ TEST(Profiles, ChesterFirmwareDocsUrlPerLanguage) {
     const std::string_view czech =
         "https://docs.hardwario.com/cs/chester/catalog-applications/catalog-applications/"
         "#application-firmware";
-    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "en"), english);
-    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "cs"), czech);
-    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "cs_CZ"), czech);
-    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "cs-CZ"), czech);
-    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, "de"), english);
-    EXPECT_EQ(hio::device::firmwareDocsUrlFor(chester, ""), english);
+    EXPECT_EQ(hwio::device::firmwareDocsUrlFor(chester, "en"), english);
+    EXPECT_EQ(hwio::device::firmwareDocsUrlFor(chester, "cs"), czech);
+    EXPECT_EQ(hwio::device::firmwareDocsUrlFor(chester, "cs_CZ"), czech);
+    EXPECT_EQ(hwio::device::firmwareDocsUrlFor(chester, "cs-CZ"), czech);
+    EXPECT_EQ(hwio::device::firmwareDocsUrlFor(chester, "de"), english);
+    EXPECT_EQ(hwio::device::firmwareDocsUrlFor(chester, ""), english);
     // The catalog URL stays the download base (ADR-0037).
     EXPECT_EQ(chester.firmwareCatalogUrl, "https://firmware.hardwario.com/chester");
 }

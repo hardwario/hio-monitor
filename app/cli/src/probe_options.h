@@ -4,7 +4,7 @@
 // subcommands (py-hardwario compatible; the subcommand value wins only when it is given - the
 // py-hardwario bug that overwrote the group value is not reproduced).
 
-#include "hio/core/result.h"
+#include "hwio/core/result.h"
 
 #include <CLI/App.hpp>
 
@@ -12,7 +12,7 @@
 #include <optional>
 #include <string>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 struct ProbeOptions {
     std::optional<std::uint32_t> serialNumber;
@@ -27,4 +27,4 @@ void addProbeOptions(CLI::App& command, ProbeOptions& options);
 [[nodiscard]] Result<std::optional<int>> speedOf(const ProbeOptions& group, const ProbeOptions& own,
                                                  std::optional<int> defaultSpeedKhz);
 
-} // namespace hio::cli
+} // namespace hwio::cli

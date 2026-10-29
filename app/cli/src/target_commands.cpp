@@ -2,13 +2,13 @@
 
 #include "cli_app.h"
 #include "confirm.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/hw/jlink/programmer.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/hw/jlink/programmer.h"
 #include "operation_runner.h"
 #include "output.h"
 #include "probe_options.h"
@@ -44,7 +44,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -778,4 +778,4 @@ void registerTargetCommands(CLI::App& targetGroup, const std::shared_ptr<ProbeOp
     });
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

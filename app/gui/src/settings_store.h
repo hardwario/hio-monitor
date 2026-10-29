@@ -3,7 +3,7 @@
 // SettingsStore - the GUI's single writer of the settings (plan/features/0004-m3-gui-shell.md, A5;
 // ADR-0025, ADR-0058).
 //
-// A QObject over hio::Settings with a key table: every key a GUI plan uses is registered with its
+// A QObject over hwio::Settings with a key table: every key a GUI plan uses is registered with its
 // type, default and validator (registerKeys; 0004 registers the ui/*, jlink/*, rtt/* and probes/*
 // keys in AppViewModel, 0005 and 0006 register theirs). setValue() validates the value against the
 // table (usage.invalid_argument; nothing is written), writes it, calls sync() at once (ADR-0058:
@@ -18,8 +18,8 @@
 //
 // Ownership: owned by AppViewModel (Qt parent). Thread safety: GUI thread only.
 
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
 
 #include <QAnyStringView>
 #include <QHash>
@@ -35,7 +35,7 @@
 #include <span>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 struct SettingKey {
     QString path;
@@ -71,7 +71,7 @@ public:
     // settings.newer_schema (read-only), io.write_failed.
     [[nodiscard]] Status setValue(QAnyStringView key, const QVariant& newValue);
     // Removes a group and every key under it ("probes/683012345", ADR-0092), then sync().
-    // Errors: those of hio::Settings::remove (settings.newer_schema, io.write_failed,
+    // Errors: those of hwio::Settings::remove (settings.newer_schema, io.write_failed,
     // usage.invalid_argument for an empty group or "meta").
     [[nodiscard]] Status removeGroup(const QString& group);
     // Duplicate paths are a programming error: asserted in debug, ignored and logged in release.
@@ -79,7 +79,7 @@ public:
     [[nodiscard]] bool isRegistered(QAnyStringView key) const;
     [[nodiscard]] bool readOnly() const;
 
-    // For backend helpers that read hio::Settings directly (jlink::defaultLocatorOptions); nullptr
+    // For backend helpers that read hwio::Settings directly (jlink::defaultLocatorOptions); nullptr
     // when the file could not be opened.
     [[nodiscard]] const Settings* settings() const;
 
@@ -99,4 +99,4 @@ private:
     QHash<QString, QVariant> m_memory; // used only when m_settings is empty
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

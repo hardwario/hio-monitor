@@ -15,7 +15,7 @@
 #include <QtQmlIntegration>
 #include <QtTypes>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class LicensesModel : public QAbstractListModel {
     Q_OBJECT
@@ -39,4 +39,4 @@ public:
     void retranslate();
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

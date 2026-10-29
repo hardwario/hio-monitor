@@ -22,8 +22,8 @@
 // Bounds: one scan per LineScan; each slice copies at most `sliceLines` lines (5 000).
 // Ownership: values / Qt parent (LineScan). Thread safety: GUI thread only (as ConsoleLog).
 
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
 
 #include <QObject>
 #include <QRegularExpression>
@@ -39,7 +39,7 @@
 #include <span>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 // Bits of the level chips (ConsoleLineModel::levelMask).
 namespace level_bits {
@@ -168,4 +168,4 @@ private:
 
 [[nodiscard]] device::ChannelMask maskOf(device::Channel channel) noexcept;
 
-} // namespace hio::gui
+} // namespace hwio::gui

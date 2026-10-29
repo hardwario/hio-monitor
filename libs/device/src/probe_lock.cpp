@@ -1,8 +1,8 @@
-#include "hio/device/probe_lock.h"
+#include "hwio/device/probe_lock.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 #include "lock_file.h"
 
 #include <QByteArray>
@@ -44,7 +44,7 @@
 #endif
 #endif
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -61,7 +61,7 @@ Error inUseError(std::uint32_t serialNumber, const ProbeLockOwner& owner, const 
         makeError(ErrorCode::ProbeInUseByOtherProcess,
                   std::format("lock held by {} (PID {}): {}", owner.app, owner.pid, toUtf8(path)));
     error.message = QCoreApplication::translate(
-                        "hio::device", "The J-Link %1 is used by another program (%2, PID %3).")
+                        "hwio::device", "The J-Link %1 is used by another program (%2, PID %3).")
                         .arg(serialNumber)
                         .arg(toQString(owner.app))
                         .arg(owner.pid)
@@ -71,7 +71,7 @@ Error inUseError(std::uint32_t serialNumber, const ProbeLockOwner& owner, const 
         // stale for QLockFile, so it is not removed automatically; the user is told which file it
         // is (review R53).
         error.suggestion =
-            QCoreApplication::translate("hio::device",
+            QCoreApplication::translate("hwio::device",
                                         "If no other HARDWARIO program is running, delete %1.")
                 .arg(QDir::toNativeSeparators(toQString(toUtf8(path))))
                 .toStdString();
@@ -102,7 +102,7 @@ Result<ProbeLock> ProbeLock::acquire(std::uint32_t serialNumber, const fs::path&
                     makeError(ErrorCode::ProbeOpenFailed, "the probe lock is held by this process");
                 error.message =
                     QCoreApplication::translate(
-                        "hio::device", "The J-Link %1 is already used by this application.")
+                        "hwio::device", "The J-Link %1 is already used by this application.")
                         .arg(serialNumber)
                         .toStdString();
                 return error;
@@ -142,4 +142,4 @@ ProbeLock::~ProbeLock() { release(); }
 
 void ProbeLock::release() { detail::releaseLockFile(m_lock, lockKey(m_serialNumber)); }
 
-} // namespace hio::device
+} // namespace hwio::device

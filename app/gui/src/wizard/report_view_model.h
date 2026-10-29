@@ -17,7 +17,7 @@
 #include <functional>
 #include <memory>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class ReportViewModel : public QObject {
     Q_OBJECT
@@ -28,7 +28,7 @@ class ReportViewModel : public QObject {
     // "collecting" | "ready" | "saving" | "saved" | "error"
     Q_PROPERTY(QString state READ state NOTIFY changed)
     Q_PROPERTY(QString summary READ summary NOTIFY changed)
-    Q_PROPERTY(hio::gui::ErrorInfo error READ error NOTIFY changed)
+    Q_PROPERTY(hwio::gui::ErrorInfo error READ error NOTIFY changed)
     Q_PROPERTY(QString defaultFileName READ defaultFileName NOTIFY changed)
     Q_PROPERTY(QUrl defaultFolder READ defaultFolder CONSTANT) // Documents
     Q_PROPERTY(QString savedPath READ savedPath NOTIFY changed)
@@ -79,4 +79,4 @@ private:
     std::shared_ptr<const diag::ReportInput> m_input;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

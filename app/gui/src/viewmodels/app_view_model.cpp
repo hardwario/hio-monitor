@@ -1,20 +1,20 @@
 #include "viewmodels/app_view_model.h"
 
 #include "gui_log.h"
-#include "hio/core/crash_handler.h"
-#include "hio/core/i18n.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/core/version.h"
-#include "hio/device/device_session.h"
-#include "hio/device/session_registry.h"
-#include "hio/diag/environment.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/hw/nrfutil/nrfutil.h"
-#include "hio/update/semver.h"
+#include "hwio/core/crash_handler.h"
+#include "hwio/core/i18n.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/core/version.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/diag/environment.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
+#include "hwio/update/semver.h"
 #include "language_manager.h"
 #include "report_view_model.h"
 #include "settings_store.h"
@@ -75,7 +75,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -171,7 +171,7 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
     // update/includePrerelease defaults to on when this version is a pre-release (a release
     // candidate, not a development build).
     const update::SemVer running =
-        update::SemVer::parse(hio::buildInfo().version).value_or(update::SemVer{});
+        update::SemVer::parse(hwio::buildInfo().version).value_or(update::SemVer{});
     UpdateService::registerKeys(*m_settings,
                                 running.isPrerelease() && !update::isDevelopmentBuild(running));
     m_updateService = new UpdateService( // NOLINT(cppcoreguidelines-owning-memory)
@@ -402,7 +402,7 @@ void AppViewModel::setLanguageManager(LanguageManager* manager) {
     }
 }
 
-QString AppViewModel::version() { return toQString(hio::buildInfo().version); }
+QString AppViewModel::version() { return toQString(hwio::buildInfo().version); }
 
 void AppViewModel::refreshCrashNotice() {
     const bool crashed =
@@ -433,7 +433,7 @@ void AppViewModel::dismissCrashNotice() {
 }
 
 QString AppViewModel::buildInfo() {
-    const BuildInfo info = hio::buildInfo();
+    const BuildInfo info = hwio::buildInfo();
     return QStringLiteral("%1 · Qt %2 · %3")
         .arg(toQString(info.version), toQString(info.qtRuntime), toQString(info.compiler));
 }
@@ -1073,4 +1073,4 @@ void AppViewModel::retranslate() {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

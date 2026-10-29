@@ -1,6 +1,6 @@
 // Linux process source (ADR-0073): /proc/<pid>/comm and the /proc/<pid>/exe link.
 
-#include "hio/diag/process_scan.h"
+#include "hwio/diag/process_scan.h"
 
 #include <QtSystemDetection>
 
@@ -8,9 +8,9 @@
 
 #ifdef Q_OS_LINUX
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 #include "platform/process_source.h"
 
 #include <QString>
@@ -29,7 +29,7 @@
 #include <system_error>
 #include <vector>
 
-namespace hio::diag::platform {
+namespace hwio::diag::platform {
 
 namespace {
 
@@ -102,6 +102,6 @@ std::shared_ptr<IProcessSource> makeProcessSource() {
     return std::make_shared<LinuxProcessSource>("/proc");
 }
 
-} // namespace hio::diag::platform
+} // namespace hwio::diag::platform
 
 #endif

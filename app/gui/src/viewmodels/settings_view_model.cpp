@@ -1,12 +1,12 @@
 #include "viewmodels/settings_view_model.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/core/version.h"
-#include "hio/device/device_session.h"
-#include "hio/device/profile.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/core/version.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/profile.h"
 #include "install_paths.h"
 #include "pages/firmware_services.h"
 #include "settings_store.h"
@@ -31,7 +31,7 @@
 
 #include <filesystem>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -440,11 +440,11 @@ QString SettingsViewModel::aboutText() const {
     return lines.join(QLatin1Char('\n'));
 }
 
-QString SettingsViewModel::cliCommand() { return hio::gui::cliCommand(); }
+QString SettingsViewModel::cliCommand() { return hwio::gui::cliCommand(); }
 
-QString SettingsViewModel::cliSymlinkCommand() { return hio::gui::cliSymlinkCommand(); }
+QString SettingsViewModel::cliSymlinkCommand() { return hwio::gui::cliSymlinkCommand(); }
 
-bool SettingsViewModel::cliOnPath() { return hio::gui::cliOnPath(); }
+bool SettingsViewModel::cliOnPath() { return hwio::gui::cliOnPath(); }
 
 QString SettingsViewModel::documentationUrl() { return AppViewModel::documentationUrl(); }
 
@@ -478,4 +478,4 @@ void SettingsViewModel::retranslate() {
     aboutChanged();        // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

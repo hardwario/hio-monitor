@@ -5,7 +5,7 @@
 
 #include <QString>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 inline const QString uiFontFamily = QStringLiteral("Inter");
 inline const QString monoFontFamily = QStringLiteral("JetBrains Mono");
@@ -15,4 +15,4 @@ inline const QString monoFontFamily = QStringLiteral("JetBrains Mono");
 // Returns the number of fonts loaded. GUI thread, after the QGuiApplication exists.
 int loadBundledFonts();
 
-} // namespace hio::gui
+} // namespace hwio::gui

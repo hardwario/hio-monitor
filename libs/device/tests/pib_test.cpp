@@ -1,8 +1,8 @@
 // PIB decoder test vectors (plan/features/0003, C3). The valid vector was produced by py-hardwario
 // 1.7.2 (hardwario.chester.pib.PIB().get_buffer() with the values below).
 
-#include "hio/core/error.h"
-#include "hio/device/pib.h"
+#include "hwio/core/error.h"
+#include "hwio/device/pib.h"
 
 #include <QByteArray>
 #include <QtTypes>
@@ -17,8 +17,8 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::device::decodePib;
+using hwio::ErrorCode;
+using hwio::device::decodePib;
 
 constexpr const char* validHex =
     "babecafe027b48415244574152494f0000000000000000434845535445522d4d00000000000000004344474c53"
@@ -36,7 +36,7 @@ std::array<std::byte, 128> bytes(const char* hex = validHex) {
 }
 
 void restoreCrc(std::array<std::byte, 128>& pib) {
-    const std::uint32_t crc = hio::device::pibCrc32(std::span(pib).first(0x77));
+    const std::uint32_t crc = hwio::device::pibCrc32(std::span(pib).first(0x77));
     pib[0x77] = static_cast<std::byte>(crc >> 24U);
     pib[0x78] = static_cast<std::byte>(crc >> 16U);
     pib[0x79] = static_cast<std::byte>(crc >> 8U);
@@ -113,7 +113,7 @@ TEST(Pib, VersionOneCannotPassTheSizeCheck) {
 
 TEST(Pib, Crc32IsTheStandardOne) {
     const std::string text = "123456789";
-    EXPECT_EQ(hio::device::pibCrc32(std::as_bytes(std::span(text))), 0xCBF43926U);
+    EXPECT_EQ(hwio::device::pibCrc32(std::as_bytes(std::span(text))), 0xCBF43926U);
 }
 
 } // namespace

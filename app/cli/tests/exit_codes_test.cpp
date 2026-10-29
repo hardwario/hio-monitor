@@ -1,16 +1,16 @@
 #include "exit_codes.h"
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 
 #include <gtest/gtest.h>
 
 namespace {
 
-using hio::ErrorCategory;
-using hio::cli::exitCodeFor;
+using hwio::ErrorCategory;
+using hwio::cli::exitCodeFor;
 
 // ADR-0024 / plan/0006-cli.md: public contract, never change.
 TEST(ExitCodes, MatchTheDocumentedTable) {
-    EXPECT_EQ(hio::cli::exitSuccess, 0);
+    EXPECT_EQ(hwio::cli::exitSuccess, 0);
     EXPECT_EQ(exitCodeFor(ErrorCategory::Internal), 1);
     EXPECT_EQ(exitCodeFor(ErrorCategory::Usage), 2);
     EXPECT_EQ(exitCodeFor(ErrorCategory::Io), 3);
@@ -24,7 +24,7 @@ TEST(ExitCodes, MatchTheDocumentedTable) {
 }
 
 TEST(ExitCodes, EveryErrorCodeMapsToNonZero) {
-    for (const hio::ErrorInfo& info : hio::errorTable) {
+    for (const hwio::ErrorInfo& info : hwio::errorTable) {
         EXPECT_NE(exitCodeFor(info.category), 0) << info.id;
     }
 }

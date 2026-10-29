@@ -1,20 +1,20 @@
 // DeviceSession with an in-process scripted J-Link (plan/features/0002, phase D1). Run under
 // ASan/UBSan and TSan by the sanitizer presets.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
 #include "scripted_api.h"
 #include "session_internal.h"
 #include "session_test_support.h"
@@ -46,19 +46,19 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::device::Channel;
-using hio::device::ConnectionState;
-using hio::device::DeviceSession;
-using hio::device::Direction;
-using hio::device::SessionOptions;
-using hio::device::SessionRegistry;
-using hio::device::detail::OpenHooks;
-using hio::device::test::Recorder;
-using hio::device::test::ScriptedApi;
-using hio::device::test::ScriptedTarget;
-using hio::device::test::spin;
-using hio::device::test::waitFor;
+using hwio::ErrorCode;
+using hwio::device::Channel;
+using hwio::device::ConnectionState;
+using hwio::device::DeviceSession;
+using hwio::device::Direction;
+using hwio::device::SessionOptions;
+using hwio::device::SessionRegistry;
+using hwio::device::detail::OpenHooks;
+using hwio::device::test::Recorder;
+using hwio::device::test::ScriptedApi;
+using hwio::device::test::ScriptedTarget;
+using hwio::device::test::spin;
+using hwio::device::test::waitFor;
 
 constexpr std::uint32_t defaultSerial = 801000001;
 
@@ -66,15 +66,15 @@ class Session : public ::testing::Test {
 protected:
     Session()
         : m_registry(std::make_unique<SessionRegistry>(
-              hio::device::RegistryOptions{.instanceRoot = root() / "instances",
-                                           .lockDirectory = root() / "locks",
-                                           .consoleDirectory = root() / "console"})) {}
+              hwio::device::RegistryOptions{.instanceRoot = root() / "instances",
+                                            .lockDirectory = root() / "locks",
+                                            .consoleDirectory = root() / "console"})) {}
 
     [[nodiscard]] fs::path root() const { return {m_dir.path().toStdString()}; }
 
     [[nodiscard]] static SessionOptions options() {
         SessionOptions options;
-        options.profile = hio::device::ProfileRegistry::find("chester");
+        options.profile = hwio::device::ProfileRegistry::find("chester");
         options.targetId = "app";
         options.speedKhz = 2000;
         options.latencyMs = 5;
@@ -88,11 +88,12 @@ protected:
             target = m_target;
         }
         OpenHooks hooks;
-        hooks.apiFactory = [target, this]() -> hio::Result<std::unique_ptr<hio::jlink::IJLinkApi>> {
+        hooks.apiFactory = [target,
+                            this]() -> hwio::Result<std::unique_ptr<hwio::jlink::IJLinkApi>> {
             ++m_loads;
             std::this_thread::sleep_for(m_loadDelay.load());
             if (m_loadError) {
-                return std::unexpected(hio::makeError(ErrorCode::DependencyJLinkNotFound));
+                return std::unexpected(hwio::makeError(ErrorCode::DependencyJLinkNotFound));
             }
             return std::make_unique<ScriptedApi>(target);
         };
@@ -109,9 +110,9 @@ protected:
         return hooks;
     }
 
-    hio::Result<std::unique_ptr<DeviceSession>> open(SessionOptions opts) {
-        return hio::device::detail::openSession(*m_registry, hio::jlink::LibraryLocation{},
-                                                std::move(opts), hooks());
+    hwio::Result<std::unique_ptr<DeviceSession>> open(SessionOptions opts) {
+        return hwio::device::detail::openSession(*m_registry, hwio::jlink::LibraryLocation{},
+                                                 std::move(opts), hooks());
     }
 
     std::unique_ptr<DeviceSession> openConnected(SessionOptions opts, Recorder*& recorder) {
@@ -125,7 +126,7 @@ protected:
         EXPECT_TRUE(waitFor([&] { return recorder->reached(ConnectionState::Connected); }))
             << (recorder->connections.empty() || !recorder->connections.back().error
                     ? std::string("no error")
-                    : recorder->connections.back().error.value_or(hio::Error{}).detail);
+                    : recorder->connections.back().error.value_or(hwio::Error{}).detail);
         return std::move(*session);
     }
 
@@ -220,18 +221,18 @@ TEST_F(Session, IsAConsoleSessionWithAllCapabilities) {
     Recorder* events = nullptr;
     auto session = openConnected(options(), events);
     ASSERT_TRUE(session);
-    hio::device::ConsoleSession& console = *session;
-    const hio::device::SessionIdentity identity = console.identity();
-    EXPECT_EQ(identity.transport, hio::device::Transport::JLink);
+    hwio::device::ConsoleSession& console = *session;
+    const hwio::device::SessionIdentity identity = console.identity();
+    EXPECT_EQ(identity.transport, hwio::device::Transport::JLink);
     EXPECT_EQ(identity.id, std::to_string(defaultSerial));
     EXPECT_EQ(identity.displayName, "J-Link " + std::to_string(defaultSerial));
-    EXPECT_TRUE(console.capabilities().testFlag(hio::device::Capability::Reset));
-    EXPECT_TRUE(console.capabilities().testFlag(hio::device::Capability::LogChannel));
-    EXPECT_TRUE(console.capabilities().testFlag(hio::device::Capability::Operations));
+    EXPECT_TRUE(console.capabilities().testFlag(hwio::device::Capability::Reset));
+    EXPECT_TRUE(console.capabilities().testFlag(hwio::device::Capability::LogChannel));
+    EXPECT_TRUE(console.capabilities().testFlag(hwio::device::Capability::Operations));
     EXPECT_EQ(console.consoleTargetId(), "app");
     EXPECT_EQ(&console.profile(), &session->profile());
     EXPECT_EQ(console.connection().state, ConnectionState::Connected);
-    EXPECT_EQ(console.connection().transport, hio::device::Transport::JLink);
+    EXPECT_EQ(console.connection().transport, hwio::device::Transport::JLink);
     EXPECT_FALSE(console.connection().mtu.has_value());
     console.close();
     console.close(); // idempotent
@@ -269,7 +270,7 @@ TEST_F(Session, WriteStallReportsDisconnectAndDataReconnects) {
     ASSERT_TRUE(session->sendLine("version"));
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
     ASSERT_TRUE(events->connections.back().error.has_value());
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetRttWriteTimeout);
     EXPECT_TRUE(events->texts(Channel::Shell, Direction::In).empty()); // never echoed
     target().output(0, "alive\n");
@@ -282,7 +283,7 @@ TEST_F(Session, ReadFailureReportsDisconnectOnceAndDataClearsIt) {
     ASSERT_TRUE(session);
     target().set([](ScriptedTarget& t) { t.readFails = true; });
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetRttReadFailed);
     // Many failing reads, still one event (state events only on change).
     ASSERT_TRUE(waitForCount(&ScriptedTarget::rttReads, 20));
@@ -301,9 +302,9 @@ TEST_F(Session, PowerLossAfterAHealthyReadingIsDisconnect) {
     ASSERT_TRUE(waitForCount(&ScriptedTarget::hwStatusCalls, 1)); // a healthy VTref reading
     target().set([](ScriptedTarget& t) { t.vtref = 0; });
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetNoPower);
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).message,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).message,
               "The device has no power (0 mV).");
 }
 
@@ -333,12 +334,12 @@ TEST_F(Session, AlwaysZeroVoltProbeWithACableGlitchKeepsRetryingAndRecovers) {
     });
     ASSERT_TRUE(waitFor([&] {
         return events->reached(ConnectionState::Disconnected) &&
-               events->connections.back().error.value_or(hio::Error{}).code ==
+               events->connections.back().error.value_or(hwio::Error{}).code ==
                    ErrorCode::TargetConnectFailed;
     }));
     ASSERT_TRUE(waitForCount(&ScriptedTarget::connectsStarted, 9)); // three more retries
     for (const auto& event : events->connections) {
-        EXPECT_NE(event.error.value_or(hio::Error{}).code, ErrorCode::TargetNoPower);
+        EXPECT_NE(event.error.value_or(hwio::Error{}).code, ErrorCode::TargetNoPower);
     }
     target().set([](ScriptedTarget& t) {
         t.readFails = false;
@@ -359,11 +360,11 @@ TEST_F(Session, FirstAttemptWithZeroVoltsIsConnectFailedAndKeepsRetrying) {
     auto session = open(opts);
     ASSERT_TRUE(session);
     Recorder events(**session);
-    EXPECT_TRUE(hio::device::waitForFirstAttempt(**session, std::chrono::milliseconds(5000)));
+    EXPECT_TRUE(hwio::device::waitForFirstAttempt(**session, std::chrono::milliseconds(5000)));
     EXPECT_TRUE(waitFor([&] { return events.reached(ConnectionState::Connected); }));
     EXPECT_GE(target().get([](ScriptedTarget& t) { return t.connects; }), 7);
     for (const auto& event : events.connections) {
-        EXPECT_NE(event.error.value_or(hio::Error{}).code, ErrorCode::TargetNoPower);
+        EXPECT_NE(event.error.value_or(hwio::Error{}).code, ErrorCode::TargetNoPower);
     }
 }
 
@@ -425,7 +426,7 @@ TEST_F(Session, ResetReattaches) {
     auto session = openConnected(options(), events);
     ASSERT_TRUE(session);
     const int starts = target().get([](ScriptedTarget& t) { return t.rttStarts; });
-    ASSERT_TRUE(session->reset("app", hio::device::ResetMode::Go));
+    ASSERT_TRUE(session->reset("app", hwio::device::ResetMode::Go));
     ASSERT_TRUE(waitFor([&] {
         return target().get([](ScriptedTarget& t) { return t.resets; }) == 1 &&
                target().get([](ScriptedTarget& t) { return t.rttStarts; }) > starts;
@@ -444,7 +445,7 @@ TEST_F(Session, HaltResetIsNotReattachedAutomatically) {
     auto session = openConnected(opts, events);
     ASSERT_TRUE(session);
     const int starts = target().get([](ScriptedTarget& t) { return t.rttStarts; });
-    ASSERT_TRUE(session->reset("app", hio::device::ResetMode::Halt));
+    ASSERT_TRUE(session->reset("app", hwio::device::ResetMode::Halt));
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
     EXPECT_FALSE(events->connections.back().error.has_value());
     // Review R40: wait for worker cycles instead of a fixed time. Each cycle lasts at least the
@@ -469,11 +470,11 @@ TEST_F(Session, ResetWithoutHaltAfterAHaltResetReattaches) {
     Recorder* events = nullptr;
     auto session = openConnected(opts, events);
     ASSERT_TRUE(session);
-    const auto halt = session->reset("app", hio::device::ResetMode::Halt);
+    const auto halt = session->reset("app", hwio::device::ResetMode::Halt);
     ASSERT_TRUE(halt);
     ASSERT_TRUE(waitFor([&] { return events->result(*halt) != nullptr; })); // one at a time
     EXPECT_TRUE(events->reached(ConnectionState::Disconnected));
-    ASSERT_TRUE(session->reset("app", hio::device::ResetMode::Go));
+    ASSERT_TRUE(session->reset("app", hwio::device::ResetMode::Go));
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Connected); }));
 }
 
@@ -515,7 +516,7 @@ TEST_F(Session, SendAfterSuspendIsNotConnected) {
     EXPECT_EQ(events->warnings.back().code, ErrorCode::TargetNotConnected);
     EXPECT_EQ(events->warnings.back().suggestion, "Reconnect the console (F4).");
     // The probe is released: a reset operation is not possible either (ADR-0062).
-    const auto reset = session->reset("app", hio::device::ResetMode::Go);
+    const auto reset = session->reset("app", hwio::device::ResetMode::Go);
     ASSERT_TRUE(reset);
     ASSERT_TRUE(waitFor([&] { return events->result(*reset) != nullptr; }));
     ASSERT_FALSE(events->result(*reset)->status);
@@ -530,7 +531,7 @@ TEST_F(Session, NotConnectedSuggestionWhileHaltedIsReconnect) {
     Recorder* events = nullptr;
     auto session = openConnected(opts, events);
     ASSERT_TRUE(session);
-    ASSERT_TRUE(session->reset("app", hio::device::ResetMode::Halt));
+    ASSERT_TRUE(session->reset("app", hwio::device::ResetMode::Halt));
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
     ASSERT_TRUE(session->sendLine("version"));
     ASSERT_TRUE(waitFor([&] { return !events->warnings.empty(); }));
@@ -576,7 +577,7 @@ TEST_F(Session, NotConnectedSuggestionWithoutAutoReconnectIsReconnect) {
     ASSERT_TRUE(session->reconnect());
     ASSERT_TRUE(waitFor([&] {
         return events->reached(ConnectionState::Disconnected) &&
-               events->connections.back().error.value_or(hio::Error{}).code ==
+               events->connections.back().error.value_or(hwio::Error{}).code ==
                    ErrorCode::TargetRttNotFound;
     }));
     ASSERT_TRUE(session->sendLine("version"));
@@ -593,7 +594,7 @@ TEST_F(Session, NoProbeIsStopped) {
     ASSERT_TRUE(session);
     Recorder events(**session);
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Stopped); }));
-    EXPECT_EQ(events.connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events.connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::ProbeNotFound);
 }
 
@@ -605,7 +606,7 @@ TEST_F(Session, LibraryErrorIsStoppedEvenWithAutoReconnect) {
     ASSERT_TRUE(session);
     Recorder events(**session);
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Stopped); }));
-    EXPECT_EQ(events.connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events.connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::DependencyJLinkNotFound);
 }
 
@@ -615,7 +616,7 @@ TEST_F(Session, TargetErrorIsStoppedWithoutAutoReconnect) {
     ASSERT_TRUE(session);
     Recorder events(**session);
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Stopped); }));
-    EXPECT_EQ(events.connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events.connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetNoPower);
 }
 
@@ -627,7 +628,7 @@ TEST_F(Session, TargetErrorIsDisconnectedWithAutoReconnectAndRecovers) {
     ASSERT_TRUE(session);
     Recorder events(**session);
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Disconnected); }));
-    EXPECT_EQ(events.connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events.connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetNoPower);
     target().set([](ScriptedTarget& t) { t.vtref = 3300; });
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Connected); }));
@@ -648,7 +649,7 @@ TEST_F(Session, RttNotFoundIsStopped) {
     ASSERT_TRUE(session);
     Recorder events(**session);
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Stopped); }));
-    EXPECT_EQ(events.connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events.connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetRttNotFound);
 }
 
@@ -670,7 +671,7 @@ TEST_F(Session, AttachDeadlineScalesWithAFixedLowSpeed) {
         const auto begin = std::chrono::steady_clock::now();
         ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Stopped); }));
         const auto elapsed = std::chrono::steady_clock::now() - begin;
-        const hio::Error error = events.connections.back().error.value_or(hio::Error{});
+        const hwio::Error error = events.connections.back().error.value_or(hwio::Error{});
         EXPECT_EQ(error.code, ErrorCode::TargetRttNotFound);
         EXPECT_EQ(error.detail, detail);
         if (speed) {
@@ -689,7 +690,7 @@ TEST_F(Session, OutdatedProbeFirmwareIsOneWarning) {
     ASSERT_TRUE(session->reconnect());
     ASSERT_TRUE(waitFor([&] { return events->count(ConnectionState::Connected) == 2; }));
     int warnings = 0;
-    for (const hio::Error& warning : events->warnings) {
+    for (const hwio::Error& warning : events->warnings) {
         warnings += warning.code == ErrorCode::ProbeFirmwareOutdated ? 1 : 0;
     }
     EXPECT_EQ(warnings, 1);
@@ -767,37 +768,37 @@ TEST_F(Session, ExplicitSerialTakesTheProbeLock) {
     opts.probeSn = defaultSerial;
     auto session = open(opts);
     ASSERT_TRUE(session);
-    EXPECT_TRUE(hio::device::ProbeLock::owner(defaultSerial, root() / "locks").has_value());
+    EXPECT_TRUE(hwio::device::ProbeLock::owner(defaultSerial, root() / "locks").has_value());
     (*session)->close();
-    EXPECT_FALSE(hio::device::ProbeLock::owner(defaultSerial, root() / "locks").has_value());
+    EXPECT_FALSE(hwio::device::ProbeLock::owner(defaultSerial, root() / "locks").has_value());
     EXPECT_EQ(registry().sessionCount(), 0U);
 }
 
 TEST_F(Session, FirstProbeSelectionSkipsLockedProbes) {
     target().set([](ScriptedTarget& t) {
-        t.probes.push_back(hio::jlink::ProbeInfo{.serialNumber = 222,
-                                                 .product = "Test Probe 2",
-                                                 .connection = hio::jlink::Connection::Usb,
-                                                 .firmware = {}});
+        t.probes.push_back(hwio::jlink::ProbeInfo{.serialNumber = 222,
+                                                  .product = "Test Probe 2",
+                                                  .connection = hwio::jlink::Connection::Usb,
+                                                  .firmware = {}});
     });
-    auto held = hio::device::ProbeLock::acquire(defaultSerial, root() / "locks");
+    auto held = hwio::device::ProbeLock::acquire(defaultSerial, root() / "locks");
     ASSERT_TRUE(held);
     Recorder* events = nullptr;
     auto session = openConnected(options(), events);
     ASSERT_TRUE(session);
     EXPECT_EQ(session->probe().serialNumber, 222U);
-    EXPECT_TRUE(hio::device::ProbeLock::owner(222, root() / "locks").has_value());
+    EXPECT_TRUE(hwio::device::ProbeLock::owner(222, root() / "locks").has_value());
     EXPECT_EQ(registry().sessionForProbe(222), session.get());
 }
 
 TEST_F(Session, AllProbesLockedIsTheLockError) {
-    auto held = hio::device::ProbeLock::acquire(defaultSerial, root() / "locks");
+    auto held = hwio::device::ProbeLock::acquire(defaultSerial, root() / "locks");
     ASSERT_TRUE(held);
     auto session = open(options());
     ASSERT_TRUE(session);
     Recorder events(**session);
     ASSERT_TRUE(waitFor([&] { return events.reached(ConnectionState::Stopped); }));
-    EXPECT_EQ(events.connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events.connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::ProbeOpenFailed);
 }
 
@@ -859,7 +860,7 @@ TEST_F(Session, FullCommandQueueIsRejected) {
     }); // worker busy connecting
     auto session = open(options());
     ASSERT_TRUE(session);
-    std::optional<hio::Error> rejected;
+    std::optional<hwio::Error> rejected;
     for (std::size_t i = 0; i <= DeviceSession::commandQueueCapacity + 1 && !rejected; ++i) {
         const auto status = (*session)->sendLine("x");
         if (!status) {
@@ -867,7 +868,7 @@ TEST_F(Session, FullCommandQueueIsRejected) {
         }
     }
     ASSERT_TRUE(rejected.has_value());
-    EXPECT_EQ(rejected.value_or(hio::Error{}).code, ErrorCode::InternalQueueFull);
+    EXPECT_EQ(rejected.value_or(hwio::Error{}).code, ErrorCode::InternalQueueFull);
 }
 
 TEST_F(Session, EventOverflowIsReportedAsDroppedLines) {
@@ -907,7 +908,7 @@ TEST_F(Session, ManyCommandsAndClose) {
 TEST_F(Session, WaitUntilConnectedSuccess) {
     auto session = open(options());
     ASSERT_TRUE(session);
-    EXPECT_TRUE(hio::device::waitUntilConnected(**session, std::chrono::milliseconds(5000)));
+    EXPECT_TRUE(hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(5000)));
     EXPECT_EQ((*session)->connection().state, ConnectionState::Connected);
 }
 
@@ -915,7 +916,8 @@ TEST_F(Session, WaitUntilConnectedFailure) {
     target().set([](ScriptedTarget& t) { t.probes.clear(); });
     auto session = open(options());
     ASSERT_TRUE(session);
-    const auto status = hio::device::waitUntilConnected(**session, std::chrono::milliseconds(5000));
+    const auto status =
+        hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(5000));
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().code, ErrorCode::ProbeNotFound);
 }
@@ -924,7 +926,7 @@ TEST_F(Session, WaitUntilConnectedTimeout) {
     setLoadDelay(std::chrono::milliseconds(500));
     auto session = open(options());
     ASSERT_TRUE(session);
-    const auto status = hio::device::waitUntilConnected(**session, std::chrono::milliseconds(50));
+    const auto status = hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(50));
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().code, ErrorCode::Timeout);
 }
@@ -935,8 +937,8 @@ TEST_F(Session, WaitUntilConnectedCancelled) {
     ASSERT_TRUE(session);
     std::stop_source stop;
     stop.request_stop();
-    const auto status = hio::device::waitUntilConnected(**session, std::chrono::milliseconds(5000),
-                                                        stop.get_token());
+    const auto status = hwio::device::waitUntilConnected(**session, std::chrono::milliseconds(5000),
+                                                         stop.get_token());
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().code, ErrorCode::Cancelled);
 }
@@ -944,7 +946,7 @@ TEST_F(Session, WaitUntilConnectedCancelled) {
 // ---- console log (ADR-0063) and console file --------------------------------------------------
 
 TEST_F(Session, ProvidedLogReceivesTheLinesOfConsecutiveSessions) {
-    auto log = std::make_shared<hio::device::ConsoleLog>(100);
+    auto log = std::make_shared<hwio::device::ConsoleLog>(100);
     SessionOptions opts = options();
     opts.consoleLog = log;
     {
@@ -975,7 +977,7 @@ TEST_F(Session, OwnLogWhenNoneIsProvided) {
     auto session = openConnected(options(), events);
     ASSERT_TRUE(session);
     EXPECT_EQ(session->log().capacityPerChannel(),
-              hio::device::ConsoleLog::defaultCapacityPerChannel);
+              hwio::device::ConsoleLog::defaultCapacityPerChannel);
 }
 
 TEST_F(Session, ConsoleFileGetsHeaderLinesAndConnectionChanges) {
@@ -1063,7 +1065,7 @@ TEST_F(Session, ConsoleFileIsEmptyAfterAWriteFailure) {
     ASSERT_TRUE(session);
     ASSERT_TRUE(session->sendLine("x")); // a line to write (the sink flushes every cycle)
     ASSERT_TRUE(waitFor([&] {
-        return std::ranges::any_of(events->warnings, [](const hio::Error& warning) {
+        return std::ranges::any_of(events->warnings, [](const hwio::Error& warning) {
             return warning.code == ErrorCode::IoWriteFailed;
         });
     }));
@@ -1120,7 +1122,7 @@ TEST_F(Session, NetworkProbeCheckRunsOnceDuringRetries) {
     });
     ASSERT_TRUE(waitFor([&] {
         return events->reached(ConnectionState::Disconnected) &&
-               events->connections.back().error.value_or(hio::Error{}).code ==
+               events->connections.back().error.value_or(hwio::Error{}).code ==
                    ErrorCode::ProbeNotFound;
     }));
     ASSERT_TRUE(waitForCount(&ScriptedTarget::lists, 5)); // several retries
@@ -1143,7 +1145,7 @@ TEST_F(Session, AutomaticRetriesReportOnlyChanges) {
     });
     ASSERT_TRUE(waitFor([&] {
         return events->reached(ConnectionState::Disconnected) &&
-               events->connections.back().error.value_or(hio::Error{}).code ==
+               events->connections.back().error.value_or(hwio::Error{}).code ==
                    ErrorCode::ProbeNotFound;
     }));
     ASSERT_TRUE(waitForCount(&ScriptedTarget::lists, 4));       // several automatic retries
@@ -1176,9 +1178,10 @@ TEST_F(Session, FirstAttemptWithoutPowerWaitsForPowerWithAutoReconnect) {
     auto session = open(opts);
     ASSERT_TRUE(session);
     Recorder events(**session);
-    EXPECT_TRUE(hio::device::waitForFirstAttempt(**session, std::chrono::milliseconds(5000)));
+    EXPECT_TRUE(hwio::device::waitForFirstAttempt(**session, std::chrono::milliseconds(5000)));
     EXPECT_EQ((*session)->connection().state, ConnectionState::Disconnected);
-    EXPECT_EQ((*session)->connection().error.value_or(hio::Error{}).code, ErrorCode::TargetNoPower);
+    EXPECT_EQ((*session)->connection().error.value_or(hwio::Error{}).code,
+              ErrorCode::TargetNoPower);
     const int connects = target().get([](ScriptedTarget& t) { return t.connects; });
     // Retries stay off the probe while unpowered (each interval checks the power).
     ASSERT_TRUE(waitForCount(&ScriptedTarget::hwStatusCalls, 4));
@@ -1194,7 +1197,7 @@ TEST_F(Session, WaitForFirstAttemptFailsOnFatalErrors) {
     auto session = open(opts);
     ASSERT_TRUE(session);
     const auto status =
-        hio::device::waitForFirstAttempt(**session, std::chrono::milliseconds(5000));
+        hwio::device::waitForFirstAttempt(**session, std::chrono::milliseconds(5000));
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().code, ErrorCode::ProbeNotFound); // probe errors stay fatal
 }
@@ -1207,7 +1210,7 @@ TEST_F(Session, WaitUntilConnectedOnASuspendedSessionIsCancelled) {
     ASSERT_TRUE(session->suspend());
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Stopped); }));
     const auto start = std::chrono::steady_clock::now();
-    const auto status = hio::device::waitUntilConnected(*session, std::chrono::milliseconds(5000));
+    const auto status = hwio::device::waitUntilConnected(*session, std::chrono::milliseconds(5000));
     EXPECT_LT(std::chrono::steady_clock::now() - start, std::chrono::milliseconds(1000));
     ASSERT_FALSE(status);
     EXPECT_EQ(status.error().code, ErrorCode::Cancelled);
@@ -1304,7 +1307,7 @@ TEST_F(Session, FailedStatusReadIsProbeIoFailed) {
     ASSERT_TRUE(session);
     target().set([](ScriptedTarget& t) { t.hardwareStatusFails = true; });
     ASSERT_TRUE(waitFor([&] { return events->reached(ConnectionState::Disconnected); }));
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::ProbeIoFailed);
 }
 
@@ -1345,7 +1348,7 @@ TEST_F(Session, PowerLossIsDetectedDuringContinuousOutput) {
         target().output(0, "still printing\n"); // data every event-loop round
         return events->reached(ConnectionState::Disconnected);
     }));
-    EXPECT_EQ(events->connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events->connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetNoPower);
 }
 
@@ -1366,7 +1369,7 @@ TEST_F(Session, FailedRetriesArePacedFromTheEndOfEachAttempt) {
     Recorder events(**session);
     ASSERT_TRUE(waitFor([&] {
         return events.reached(ConnectionState::Disconnected) &&
-               events.connections.back().error.value_or(hio::Error{}).code ==
+               events.connections.back().error.value_or(hwio::Error{}).code ==
                    ErrorCode::TargetRttNotFound;
     }));
     ASSERT_TRUE(
@@ -1428,15 +1431,15 @@ TEST_F(Session, AlwaysZeroVoltProbeRecoversAfterAFailedStatusRead) {
 class ConnectTimeout : public Session {
 protected:
     struct Attempt {
-        hio::Status status;
+        hwio::Status status;
         std::chrono::milliseconds elapsed{0};
     };
 
     // The timeout of the test timings with `budget`; checked against the hand-computed value.
-    std::chrono::milliseconds timeoutFor(const hio::device::ConnectTimeoutBudget& budget,
+    std::chrono::milliseconds timeoutFor(const hwio::device::ConnectTimeoutBudget& budget,
                                          std::chrono::milliseconds handComputed) {
-        const hio::device::detail::SessionTiming timing = hooks().timing;
-        const auto timeout = hio::device::connectTimeoutFor(timing.probe, timing.rtt, budget);
+        const hwio::device::detail::SessionTiming timing = hooks().timing;
+        const auto timeout = hwio::device::connectTimeoutFor(timing.probe, timing.rtt, budget);
         EXPECT_EQ(timeout, handComputed);
         return timeout;
     }
@@ -1445,10 +1448,10 @@ protected:
         auto session = open(options());
         EXPECT_TRUE(session);
         if (!session) {
-            return {.status = hio::fail(ErrorCode::InternalUnexpected)};
+            return {.status = hwio::fail(ErrorCode::InternalUnexpected)};
         }
         const auto begin = std::chrono::steady_clock::now();
-        Attempt attempt{.status = hio::device::waitUntilConnected(**session, timeout)};
+        Attempt attempt{.status = hwio::device::waitUntilConnected(**session, timeout)};
         attempt.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - begin);
         return attempt;
@@ -1470,32 +1473,32 @@ protected:
 // counted twice or not multiplied by the connect attempts changes the digits.
 TEST_F(ConnectTimeout, HandComputedValues) {
     using std::chrono::milliseconds;
-    EXPECT_EQ(hio::device::connectTimeoutFor(hio::jlink::ProbeTiming{}, hio::jlink::RttTiming{}),
+    EXPECT_EQ(hwio::device::connectTimeoutFor(hwio::jlink::ProbeTiming{}, hwio::jlink::RttTiming{}),
               milliseconds(35500));
-    EXPECT_EQ(hio::device::defaultConnectTimeout, milliseconds(35500));
+    EXPECT_EQ(hwio::device::defaultConnectTimeout, milliseconds(35500));
     // ADR-0110: the attach deadline of the speed; 30 s at 500 kHz, capped at 60 s.
-    EXPECT_EQ(hio::device::connectTimeoutForSpeed(std::nullopt), milliseconds(35500));
-    EXPECT_EQ(hio::device::connectTimeoutForSpeed(1000), milliseconds(35500));
-    EXPECT_EQ(hio::device::connectTimeoutForSpeed(500), milliseconds(50500));
-    EXPECT_EQ(hio::device::connectTimeoutForSpeed(100), milliseconds(80500));
-    hio::jlink::ProbeTiming probe;
+    EXPECT_EQ(hwio::device::connectTimeoutForSpeed(std::nullopt), milliseconds(35500));
+    EXPECT_EQ(hwio::device::connectTimeoutForSpeed(1000), milliseconds(35500));
+    EXPECT_EQ(hwio::device::connectTimeoutForSpeed(500), milliseconds(50500));
+    EXPECT_EQ(hwio::device::connectTimeoutForSpeed(100), milliseconds(80500));
+    hwio::jlink::ProbeTiming probe;
     probe.connectAttempts = 3;
     probe.connectRetryDelay = milliseconds(100);
-    hio::jlink::RttTiming rtt;
+    hwio::jlink::RttTiming rtt;
     rtt.attachDeadline = milliseconds(1000);
     rtt.loggerWait = milliseconds(10000);
-    const hio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(1),
-                                                   .connectAttempt = milliseconds(10),
-                                                   .margin = milliseconds(100000)};
+    const hwio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(1),
+                                                    .connectAttempt = milliseconds(10),
+                                                    .margin = milliseconds(100000)};
     // 1 + 3 x (10 + 100) + 1000 + 10000 + 100000
-    EXPECT_EQ(hio::device::connectTimeoutFor(probe, rtt, budget), milliseconds(111331));
+    EXPECT_EQ(hwio::device::connectTimeoutFor(probe, rtt, budget), milliseconds(111331));
 }
 
 // ADR-0110: the CLI warning before connecting at a fixed speed below 125 kHz.
 TEST(SlowSpeedWarning, OnlyBelow125kHz) {
-    EXPECT_FALSE(hio::device::slowSpeedWarning(std::nullopt));
-    EXPECT_FALSE(hio::device::slowSpeedWarning(125));
-    EXPECT_EQ(hio::device::slowSpeedWarning(100).value_or(std::string()),
+    EXPECT_FALSE(hwio::device::slowSpeedWarning(std::nullopt));
+    EXPECT_FALSE(hwio::device::slowSpeedWarning(125));
+    EXPECT_EQ(hwio::device::slowSpeedWarning(100).value_or(std::string()),
               "At this J-Link speed the console may not be found within 60 s. Use auto or "
               "1000 kHz or more.");
 }
@@ -1504,9 +1507,9 @@ TEST_F(ConnectTimeout, LibraryLoadTermCoversASlowLoad) {
     using std::chrono::milliseconds;
     setLoadDelay(milliseconds(800));
     target().set([](ScriptedTarget& t) { t.controlBlockFound = false; });
-    const hio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(1000),
-                                                   .connectAttempt = milliseconds(50),
-                                                   .margin = milliseconds(300)};
+    const hwio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(1000),
+                                                    .connectAttempt = milliseconds(50),
+                                                    .margin = milliseconds(300)};
     // 1000 + 3 x (50 + 5) + 100 + 50 + 300
     const auto timeout = timeoutFor(budget, milliseconds(1615));
     const Attempt attempt = connectWithin(timeout);
@@ -1521,9 +1524,9 @@ TEST_F(ConnectTimeout, ConnectAttemptTermCoversThreeSlowConnects) {
         t.connectDelay = milliseconds(450);
         t.controlBlockFound = false;
     });
-    const hio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
-                                                   .connectAttempt = milliseconds(500),
-                                                   .margin = milliseconds(300)};
+    const hwio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
+                                                    .connectAttempt = milliseconds(500),
+                                                    .margin = milliseconds(300)};
     // 100 + 3 x (500 + 5) + 100 + 50 + 300
     const auto timeout = timeoutFor(budget, milliseconds(2065));
     const Attempt attempt = connectWithin(timeout);
@@ -1540,9 +1543,9 @@ TEST_F(ConnectTimeout, RetryDelayTermCoversTheDelaysBetweenConnects) {
         t.connectFailures = 2;
         t.controlBlockFound = false;
     });
-    const hio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
-                                                   .connectAttempt = milliseconds(50),
-                                                   .margin = milliseconds(300)};
+    const hwio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
+                                                    .connectAttempt = milliseconds(50),
+                                                    .margin = milliseconds(300)};
     // 100 + 3 x (50 + 500) + 100 + 50 + 300
     const auto timeout = timeoutFor(budget, milliseconds(2200));
     const Attempt attempt = connectWithin(timeout);
@@ -1555,9 +1558,9 @@ TEST_F(ConnectTimeout, AttachDeadlineTermCoversFirmwareWithoutRtt) {
     using std::chrono::milliseconds;
     setAttachDeadline(milliseconds(1000));
     target().set([](ScriptedTarget& t) { t.controlBlockFound = false; });
-    const hio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
-                                                   .connectAttempt = milliseconds(50),
-                                                   .margin = milliseconds(300)};
+    const hwio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
+                                                    .connectAttempt = milliseconds(50),
+                                                    .margin = milliseconds(300)};
     // 100 + 3 x (50 + 5) + 1000 + 50 + 300
     const auto timeout = timeoutFor(budget, milliseconds(1615));
     const Attempt attempt = connectWithin(timeout);
@@ -1572,9 +1575,9 @@ TEST_F(ConnectTimeout, LoggerWaitTermCoversALateLogger) {
     setLoggerWait(milliseconds(1000));
     target().set(
         [](ScriptedTarget& t) { t.up = {{.name = "Terminal", .size = 1024, .flags = 0}}; });
-    const hio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
-                                                   .connectAttempt = milliseconds(50),
-                                                   .margin = milliseconds(300)};
+    const hwio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
+                                                    .connectAttempt = milliseconds(50),
+                                                    .margin = milliseconds(300)};
     // 100 + 3 x (50 + 5) + 100 + 1000 + 300
     const auto timeout = timeoutFor(budget, milliseconds(1665));
     const Attempt attempt = connectWithin(timeout);
@@ -1590,9 +1593,9 @@ TEST_F(ConnectTimeout, MarginCoversOtherDelays) {
         t.openDelay = milliseconds(700);
         t.controlBlockFound = false;
     });
-    const hio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
-                                                   .connectAttempt = milliseconds(50),
-                                                   .margin = milliseconds(1000)};
+    const hwio::device::ConnectTimeoutBudget budget{.libraryLoad = milliseconds(100),
+                                                    .connectAttempt = milliseconds(50),
+                                                    .margin = milliseconds(1000)};
     // 100 + 3 x (50 + 5) + 100 + 50 + 1000
     const auto timeout = timeoutFor(budget, milliseconds(1415));
     const Attempt attempt = connectWithin(timeout);

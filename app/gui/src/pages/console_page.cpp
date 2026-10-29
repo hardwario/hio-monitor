@@ -1,8 +1,8 @@
 #include "pages/console_page.h"
 
 #include "gui_log.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/console_settings.h"
 #include "viewmodels/console_view_model.h"
@@ -19,7 +19,7 @@
 
 #include <array>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -125,4 +125,4 @@ void registerConsolePage(AppViewModel& app) {
     registerShortcuts(*app.shortcuts());
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

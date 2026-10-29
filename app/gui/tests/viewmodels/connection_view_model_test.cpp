@@ -2,9 +2,9 @@
 // the profile, per-probe memory with the LRU bound (plan 0004, B4; ADR-0052).
 
 #include "gui_test_support.h"
-#include "hio/core/error.h"
-#include "hio/device/device_session.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/session_events.h"
 #include "settings_store.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/connection_view_model.h"
@@ -29,14 +29,14 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::device::ConnectionEvent;
-using hio::device::ConnectionState;
-using hio::gui::AppViewModel;
-using hio::gui::ConnectionViewModel;
-using hio::gui::DeviceTabViewModel;
+using hwio::ErrorCode;
+using hwio::device::ConnectionEvent;
+using hwio::device::ConnectionState;
+using hwio::gui::AppViewModel;
+using hwio::gui::ConnectionViewModel;
+using hwio::gui::DeviceTabViewModel;
 
-class ConnectionTest : public hio::gui::test::GuiTest {
+class ConnectionTest : public hwio::gui::test::GuiTest {
 protected:
     void SetUp() override {
         GuiTest::SetUp();
@@ -96,7 +96,7 @@ TEST_F(ConnectionTest, StateTextForEveryConnectionEvent) {
     EXPECT_DOUBLE_EQ(vm.targetVolts(), 3.3);
 
     vm.setConnection(ConnectionEvent{.state = ConnectionState::Disconnected,
-                                     .error = hio::makeError(ErrorCode::TargetNoPower),
+                                     .error = hwio::makeError(ErrorCode::TargetNoPower),
                                      .targetMillivolts = std::nullopt});
     EXPECT_EQ(vm.stateText(), QStringLiteral("Reconnecting… (target not powered)"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("reconnecting"));
@@ -109,7 +109,7 @@ TEST_F(ConnectionTest, StateTextForEveryConnectionEvent) {
     EXPECT_EQ(vm.stateText(), QStringLiteral("Reconnecting…"));
 
     vm.setConnection(ConnectionEvent{.state = ConnectionState::Stopped,
-                                     .error = hio::makeError(ErrorCode::TargetConnectFailed),
+                                     .error = hwio::makeError(ErrorCode::TargetConnectFailed),
                                      .targetMillivolts = std::nullopt});
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected — target does not respond"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("error"));
@@ -128,11 +128,11 @@ TEST_F(ConnectionTest, StateTextForEveryConnectionEvent) {
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected"));
 
     // An error without a session (open() failed), then dismissed.
-    vm.setOpenError(hio::makeError(ErrorCode::ProbeInUseByOtherProcess));
+    vm.setOpenError(hwio::makeError(ErrorCode::ProbeInUseByOtherProcess));
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected — J-Link used by another program"));
     EXPECT_EQ(vm.stateKind(), QStringLiteral("error"));
     EXPECT_TRUE(tab().hasError() || vm.error().valid());
-    vm.triggerErrorAction(hio::gui::error_action::Dismiss);
+    vm.triggerErrorAction(hwio::gui::error_action::Dismiss);
     EXPECT_FALSE(vm.error().valid());
     EXPECT_EQ(vm.stateText(), QStringLiteral("Disconnected"));
 }
@@ -153,13 +153,13 @@ TEST_F(ConnectionTest, VoltageFollowsTheLocale) {
 }
 
 TEST_F(ConnectionTest, ShortCauses) {
-    EXPECT_EQ(ConnectionViewModel::shortCause(hio::makeError(ErrorCode::ProbeNotFound)),
+    EXPECT_EQ(ConnectionViewModel::shortCause(hwio::makeError(ErrorCode::ProbeNotFound)),
               QStringLiteral("J-Link not found"));
-    EXPECT_EQ(ConnectionViewModel::shortCause(hio::makeError(ErrorCode::TargetRttNotFound)),
+    EXPECT_EQ(ConnectionViewModel::shortCause(hwio::makeError(ErrorCode::TargetRttNotFound)),
               QStringLiteral("no RTT console found"));
-    EXPECT_EQ(ConnectionViewModel::shortCause(hio::makeError(ErrorCode::DependencyJLinkTooOld)),
+    EXPECT_EQ(ConnectionViewModel::shortCause(hwio::makeError(ErrorCode::DependencyJLinkTooOld)),
               QStringLiteral("J-Link Software missing"));
-    const hio::Error other = hio::makeError(ErrorCode::IoReadFailed);
+    const hwio::Error other = hwio::makeError(ErrorCode::IoReadFailed);
     EXPECT_EQ(ConnectionViewModel::shortCause(other), QString::fromStdString(other.message));
 }
 
@@ -270,7 +270,7 @@ TEST_F(ConnectionTest, SlowSpeedWarningBelow125Khz) {
     connection().setSpeedKhz(100);
     EXPECT_TRUE(connection().speedWarning().isEmpty()); // automatic
     connection().setAutoSpeed(false);
-    const std::optional<std::string> expected = hio::device::slowSpeedWarning(100);
+    const std::optional<std::string> expected = hwio::device::slowSpeedWarning(100);
     ASSERT_TRUE(expected.has_value());
     EXPECT_EQ(connection().speedWarning(),
               QString::fromStdString(expected.value_or(std::string())));
@@ -286,13 +286,13 @@ TEST_F(ConnectionTest, SlowSpeedWarningBelow125Khz) {
 // Plan 0005 amendment (2026-10-16): the console file's write failure has the console's text in
 // the shell banner; the backend detail stays for [Details]. Other warnings keep their text.
 TEST_F(ConnectionTest, ConsoleFileWarningText) {
-    connection().setWarning(hio::makeError(ErrorCode::IoWriteFailed, "/x/console.log: disk full"));
+    connection().setWarning(hwio::makeError(ErrorCode::IoWriteFailed, "/x/console.log: disk full"));
     EXPECT_EQ(connection().warning().message(),
               QStringLiteral("The console log file could not be written; logging to file is off "
                              "for this session."));
     EXPECT_EQ(connection().warning().code(), QStringLiteral("io.write_failed"));
     EXPECT_EQ(connection().warning().detail(), QStringLiteral("/x/console.log: disk full"));
-    hio::Error outdated = hio::makeError(ErrorCode::ProbeFirmwareOutdated, "firmware: 2020");
+    hwio::Error outdated = hwio::makeError(ErrorCode::ProbeFirmwareOutdated, "firmware: 2020");
     outdated.message = "The J-Link firmware is outdated.";
     connection().setWarning(outdated);
     EXPECT_EQ(connection().warning().message(), QStringLiteral("The J-Link firmware is outdated."));

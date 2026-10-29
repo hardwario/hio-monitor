@@ -5,7 +5,7 @@
 # (packaging/RELEASE.md). Nothing is published automatically.
 #
 #   gate      the version computed from the tag equals the tag, 0 unfinished Czech translations,
-#             HIO_TEST_OVERRIDES=OFF in the package configuration, and the full CI matrix
+#             HWIO_TEST_OVERRIDES=OFF in the package configuration, and the full CI matrix
 #             (ci.yml through workflow_call, incl. the unsigned package jobs)
 #   linux     Ubuntu 22.04 container: .deb + AppImage, checks, split DWARF symbols
 #   macos     universal bundle signed with the Developer ID (temporary keychain), DMG notarized
@@ -77,14 +77,14 @@ jobs:
           aqtversion: ${{ env.AQT_VERSION }}
           modules: qtconnectivity
           cache: true
-      - name: Package configuration (version from the tag, HIO_TEST_OVERRIDES=OFF)
+      - name: Package configuration (version from the tag, HWIO_TEST_OVERRIDES=OFF)
         run: |
           cmake --preset linux-package | tee configure.log
           grep -q "HARDWARIO Monitor version: ${{ steps.version.outputs.version }} " configure.log
-          grep -q '^HIO_TEST_OVERRIDES:BOOL=OFF$' build/linux-package/CMakeCache.txt
+          grep -q '^HWIO_TEST_OVERRIDES:BOOL=OFF$' build/linux-package/CMakeCache.txt
       - name: 0 unfinished Czech translations (ADR-0027)
         run: |
-          cmake --preset linux-debug -DHIO_BUILD_TESTS=OFF > /dev/null
+          cmake --preset linux-debug -DHWIO_BUILD_TESTS=OFF > /dev/null
           cmake --build --preset linux-debug --target check_translations | tee translations.log
           grep -q "Translations: 0 unfinished Czech" translations.log
 
@@ -104,26 +104,26 @@ jobs:
           fetch-depth: 0
           lfs: true
       - name: Build image
-        run: docker build -t hio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
+        run: docker build -t hwio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
       - name: Build the .deb and the AppImage
         run: |
           docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" \
-            -e CPM_SOURCE_CACHE="$PWD/.cpm-cache" hio-monitor-build:22.04 \
+            -e CPM_SOURCE_CACHE="$PWD/.cpm-cache" hwio-monitor-build:22.04 \
             packaging/linux/build-packages.sh build/packages
       - name: Check the packages
         run: |
-          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hio-monitor-build:22.04 \
+          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hwio-monitor-build:22.04 \
             packaging/linux/check-packages.sh build/packages
           packaging/linux/smoke-clean.sh build/packages
       - name: Symbols (split DWARF, ADR-0123)
         run: |
           version="${{ needs.gate.outputs.version }}"
           mkdir -p symbols
-          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hio-monitor-build:22.04 bash -c '
-            for exe in app/gui/hio-monitor app/cli/hio; do
+          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hwio-monitor-build:22.04 bash -c '
+            for exe in app/gui/hwio-monitor app/cli/hwio; do
               llvm-objcopy-21 --only-keep-debug "build/linux-package/$exe" "symbols/$(basename $exe).debug"
             done'
-          (cd symbols && zip -9 "../build/packages/hio-monitor-${version}-symbols-linux.zip" *.debug)
+          (cd symbols && zip -9 "../build/packages/hwio-monitor-${version}-symbols-linux.zip" *.debug)
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-linux
@@ -188,7 +188,7 @@ jobs:
           MACOS_NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
         run: |
           app="build/macos-install/HARDWARIO Monitor.app"
-          dmg="build/packages/hio-monitor-${{ needs.gate.outputs.version }}-macos-universal.dmg"
+          dmg="build/packages/hwio-monitor-${{ needs.gate.outputs.version }}-macos-universal.dmg"
           packaging/macos/sign-and-notarize.sh sign "$app" "$MACOS_IDENTITY"
           spctl -a -t exec -vv "$app" || true # Gatekeeper accepts it only after notarization
           packaging/macos/sign-and-notarize.sh dmg "$app" "$dmg" "$MACOS_IDENTITY"
@@ -196,9 +196,9 @@ jobs:
       - name: Symbols (.dSYM, ADR-0123)
         run: |
           mkdir -p symbols
-          dsymutil build/macos-package/app/gui/hio-monitor.app/Contents/MacOS/hio-monitor -o symbols/hio-monitor.dSYM
-          dsymutil build/macos-package/app/cli/hio -o symbols/hio.dSYM
-          (cd symbols && zip -9 -r "../build/packages/hio-monitor-${{ needs.gate.outputs.version }}-symbols-macos.zip" .)
+          dsymutil build/macos-package/app/gui/hwio-monitor.app/Contents/MacOS/hwio-monitor -o symbols/hwio-monitor.dSYM
+          dsymutil build/macos-package/app/cli/hwio -o symbols/hwio.dSYM
+          (cd symbols && zip -9 -r "../build/packages/hwio-monitor-${{ needs.gate.outputs.version }}-symbols-macos.zip" .)
       - name: Remove the keychain
         if: always()
         run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
@@ -265,8 +265,8 @@ jobs:
           signing-account-name: ${{ secrets.TRUSTED_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
           files: |
-            ${{ github.workspace }}\build\windows-package\app\gui\hio-monitor.exe
-            ${{ github.workspace }}\build\windows-package\app\cli\hio.exe
+            ${{ github.workspace }}\build\windows-package\app\gui\hwio-monitor.exe
+            ${{ github.workspace }}\build\windows-package\app\cli\hwio.exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
@@ -307,7 +307,7 @@ jobs:
         shell: pwsh
         run: |
           $msi = (Get-ChildItem build/packages -Filter *.msi | Select-Object -First 1).FullName
-          foreach ($file in @("build/windows-package/app/gui/hio-monitor.exe", "build/windows-package/app/cli/hio.exe", $msi)) {
+          foreach ($file in @("build/windows-package/app/gui/hwio-monitor.exe", "build/windows-package/app/cli/hwio.exe", $msi)) {
             & signtool verify /pa /v $file
             if ($LASTEXITCODE -ne 0) { throw "signtool verify failed: $file" }
           }
@@ -316,8 +316,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force symbols | Out-Null
-          Copy-Item build/windows-package/app/gui/hio-monitor.pdb, build/windows-package/app/cli/hio.pdb symbols/
-          Compress-Archive -Path symbols/* -DestinationPath "build/packages/hio-monitor-${{ needs.gate.outputs.version }}-symbols-windows.zip"
+          Copy-Item build/windows-package/app/gui/hwio-monitor.pdb, build/windows-package/app/cli/hwio.pdb symbols/
+          Compress-Archive -Path symbols/* -DestinationPath "build/packages/hwio-monitor-${{ needs.gate.outputs.version }}-symbols-windows.zip"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-windows

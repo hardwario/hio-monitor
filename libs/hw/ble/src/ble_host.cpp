@@ -1,12 +1,12 @@
-#include "hio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/ble_host.h"
 
 #include "ble_worker.h"
-#include "hio/core/bounded_queue.h"
-#include "hio/core/error.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/error.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QEventLoop>
 #include <QLoggingCategory>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <variant>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 namespace {
 
@@ -193,4 +193,4 @@ void BleHost::stop() {
     qCDebug(log::lcBle) << "BLE thread stopped";
 }
 
-} // namespace hio::ble
+} // namespace hwio::ble

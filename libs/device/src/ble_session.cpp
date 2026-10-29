@@ -1,24 +1,24 @@
-#include "hio/device/ble_session.h"
+#include "hwio/device/ble_session.h"
 
 #include "ble_session_internal.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/version.h"
-#include "hio/device/ble_lock.h"
-#include "hio/device/console_file_sink.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/line_assembler.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_key.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/nus_link.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/version.h"
+#include "hwio/device/ble_lock.h"
+#include "hwio/device/console_file_sink.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/line_assembler.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_key.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/nus_link.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QCoreApplication>
 #include <QList>
@@ -45,7 +45,7 @@
 #include <utility>
 #include <variant>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -175,7 +175,7 @@ void BleConsoleHandler::openSink() {
     const std::string device =
         named ? std::format("{} ({})", m_config.deviceId, m_config.deviceName) : m_config.deviceId;
     const std::string header =
-        std::format("Console: {}, Bluetooth {}, hio {}", m_config.profile->displayName, device,
+        std::format("Console: {}, Bluetooth {}, hwio {}", m_config.profile->displayName, device,
                     buildInfo().version);
     auto sink = ConsoleFileSink::open(*m_config.consoleFile, BleKey{.id = m_config.deviceId},
                                       header, std::chrono::system_clock::now());
@@ -258,7 +258,7 @@ void BleConsoleHandler::onLineRejected(std::string /*line*/, Error error) {
     if (error.code == ErrorCode::TargetNotConnected && m_config.autoReconnect && !m_fatal) {
         // Only when the session will really reconnect by itself (as DeviceSession, review R35).
         error.suggestion =
-            QCoreApplication::translate("hio::device", "Wait for the console to reconnect.")
+            QCoreApplication::translate("hwio::device", "Wait for the console to reconnect.")
                 .toStdString();
     }
     warn(std::move(error));
@@ -273,17 +273,17 @@ void BleConsoleHandler::onDown(Error error) {
             m_config.deviceName.empty() ? m_config.deviceId : m_config.deviceName;
         const QString who = toQString(name);
         if (error.code == ErrorCode::BleDisconnected) {
-            error.message = QCoreApplication::translate("hio::device",
+            error.message = QCoreApplication::translate("hwio::device",
                                                         "The Bluetooth connection to %1 was lost.")
                                 .arg(who)
                                 .toStdString();
         } else if (error.code == ErrorCode::BleConnectFailed) {
-            error.message = QCoreApplication::translate("hio::device",
+            error.message = QCoreApplication::translate("hwio::device",
                                                         "Could not connect to %1 over Bluetooth.")
                                 .arg(who)
                                 .toStdString();
         } else if (error.code == ErrorCode::BlePairingFailed) {
-            error.message = QCoreApplication::translate("hio::device", "Pairing with %1 failed.")
+            error.message = QCoreApplication::translate("hwio::device", "Pairing with %1 failed.")
                                 .arg(who)
                                 .toStdString();
         }
@@ -339,11 +339,11 @@ Result<std::unique_ptr<BleSession>> BleSessionInternals::open(SessionRegistry& r
     // 1. options
     if (options.profile == nullptr) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "No device profile was given."), {}));
+            QCoreApplication::translate("hwio::device", "No device profile was given."), {}));
     }
     if (!options.profile->ble) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The device %1 has no Bluetooth console.")
+            QCoreApplication::translate("hwio::device", "The device %1 has no Bluetooth console.")
                 .arg(toQString(options.profile->displayName)),
             std::string(options.profile->id)));
     }
@@ -351,7 +351,7 @@ Result<std::unique_ptr<BleSession>> BleSessionInternals::open(SessionRegistry& r
     const TargetProfile* target = findTarget(*options.profile, ble.consoleTargetId);
     if (target == nullptr) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "The device %1 has no target \"%2\".")
+            QCoreApplication::translate("hwio::device", "The device %1 has no target \"%2\".")
                 .arg(toQString(options.profile->displayName), toQString(ble.consoleTargetId)),
             {}));
     }
@@ -359,7 +359,7 @@ Result<std::unique_ptr<BleSession>> BleSessionInternals::open(SessionRegistry& r
     options.deviceId = ble::canonicalDeviceId(options.deviceId);
     if (options.deviceId.empty()) {
         return std::unexpected(invalidOption(
-            QCoreApplication::translate("hio::device", "No Bluetooth device was given."), {}));
+            QCoreApplication::translate("hwio::device", "No Bluetooth device was given."), {}));
     }
     // 2. the registry slot, 3. the cross-process lock (ADR-0083)
     if (auto available =
@@ -493,7 +493,7 @@ Status BleSession::sendLine(std::string line) {
     if (line.size() > ble::NusLink::maxLineBytes) {
         return std::unexpected(
             invalidOption(QCoreApplication::translate(
-                              "hio::device", "A command line must not be longer than %1 bytes.")
+                              "hwio::device", "A command line must not be longer than %1 bytes.")
                               .arg(ble::NusLink::maxLineBytes),
                           std::to_string(line.size())));
     }
@@ -785,4 +785,4 @@ void BleSession::drainEvents() {
     }
 }
 
-} // namespace hio::device
+} // namespace hwio::device

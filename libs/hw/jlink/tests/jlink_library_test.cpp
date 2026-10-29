@@ -1,12 +1,12 @@
 // JLinkLibrary against the test-only fake library (tests/fake_jlink): real copy + load + symbol
 // resolution + version check + out handlers (plan/features/0002, phases A1 and E2).
 
-#include "hio/core/error.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/jlink_library.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/probe_enumerator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/jlink_library.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/probe_enumerator.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -40,14 +40,14 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::jlink::JLinkLibrary;
-using hio::jlink::LibraryLocation;
+using hwio::ErrorCode;
+using hwio::jlink::JLinkLibrary;
+using hwio::jlink::LibraryLocation;
 
 class FakeLibrary : public ::testing::Test {
 protected:
     void SetUp() override { useScenario(R"({"probes": []})"); }
-    void TearDown() override { qunsetenv("HIO_FAKE_JLINK_SCENARIO"); }
+    void TearDown() override { qunsetenv("HWIO_FAKE_JLINK_SCENARIO"); }
 
     void useScenario(const char* json) {
         const QString path = m_dir.filePath(QStringLiteral("scenario.json"));
@@ -55,7 +55,7 @@ protected:
         ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
         file.write(json);
         file.close();
-        qputenv("HIO_FAKE_JLINK_SCENARIO", path.toUtf8());
+        qputenv("HWIO_FAKE_JLINK_SCENARIO", path.toUtf8());
     }
 
     [[nodiscard]] fs::path instanceRoot() const {
@@ -63,7 +63,7 @@ protected:
     }
 
     [[nodiscard]] static LibraryLocation fakeLocation() {
-        return LibraryLocation{.path = fs::path(HIO_FAKE_JLINK_LIBRARY)};
+        return LibraryLocation{.path = fs::path(HWIO_FAKE_JLINK_LIBRARY)};
     }
 
     [[nodiscard]] std::size_t instanceCount() const {
@@ -88,7 +88,7 @@ TEST_F(FakeLibrary, LoadsACopyAndRemovesItAgain) {
         copy = (*library)->copyPath();
         EXPECT_TRUE(fs::exists(copy));
         EXPECT_NE(copy, (*library)->sourcePath());
-        EXPECT_EQ(copy.filename(), fs::path(HIO_FAKE_JLINK_LIBRARY).filename());
+        EXPECT_EQ(copy.filename(), fs::path(HWIO_FAKE_JLINK_LIBRARY).filename());
         EXPECT_EQ((*library)->libraryVersion(), 81000U);
         EXPECT_EQ(instanceCount(), 1U);
     }
@@ -119,14 +119,14 @@ TEST_F(FakeLibrary, ListsProbes) {
         {"serialNumber": 801000001, "product": "Test Probe"},
         {"serialNumber": 801000002, "product": "Test Probe IP", "connection": "ip",
          "listFirmware": "J-Link V4 compiled Oct  1 2024 10:00:00"}]})");
-    const auto enumeration = hio::jlink::enumerateProbes(fakeLocation(), instanceRoot());
+    const auto enumeration = hwio::jlink::enumerateProbes(fakeLocation(), instanceRoot());
     ASSERT_TRUE(enumeration) << enumeration.error().detail;
     EXPECT_EQ(enumeration->libraryVersion, 81000U);
     ASSERT_EQ(enumeration->probes.size(), 2U);
     EXPECT_EQ(enumeration->probes[0].serialNumber, 801000001U);
     EXPECT_EQ(enumeration->probes[0].product, "Test Probe");
-    EXPECT_EQ(enumeration->probes[0].connection, hio::jlink::Connection::Usb);
-    EXPECT_EQ(enumeration->probes[1].connection, hio::jlink::Connection::Ip);
+    EXPECT_EQ(enumeration->probes[0].connection, hwio::jlink::Connection::Usb);
+    EXPECT_EQ(enumeration->probes[1].connection, hwio::jlink::Connection::Ip);
     EXPECT_EQ(enumeration->probes[1].firmware, "J-Link V4 compiled Oct  1 2024 10:00:00");
     EXPECT_EQ(instanceCount(), 0U); // the short-lived copy is gone
 }
@@ -138,7 +138,7 @@ TEST_F(FakeLibrary, TooOldLibraryIsRejected) {
     EXPECT_EQ(library.error().code, ErrorCode::DependencyJLinkTooOld);
     EXPECT_EQ(library.error().message, "J-Link Software 7.94k is too old.");
     EXPECT_NE(library.error().detail.find("8.00"), std::string::npos);
-    EXPECT_EQ(library.error().wizard, hio::WizardId::FirstRunSetup);
+    EXPECT_EQ(library.error().wizard, hwio::WizardId::FirstRunSetup);
     EXPECT_EQ(instanceCount(), 0U);
 }
 
@@ -161,7 +161,7 @@ TEST_F(FakeLibrary, NonLibraryFileFailsToLoad) {
 
 TEST_F(FakeLibrary, MissingSymbolsAreNamed) {
     const auto library = JLinkLibrary::loadCopy(
-        LibraryLocation{.path = fs::path(HIO_FAKE_JLINK_INCOMPLETE_LIBRARY)}, instanceRoot());
+        LibraryLocation{.path = fs::path(HWIO_FAKE_JLINK_INCOMPLETE_LIBRARY)}, instanceRoot());
     ASSERT_FALSE(library);
     EXPECT_EQ(library.error().code, ErrorCode::DependencyJLinkLoadFailed);
     EXPECT_NE(library.error().detail.find("JLINKARM_Open"), std::string::npos)
@@ -370,13 +370,13 @@ namespace {
 TEST_F(FakeLibrary, ProbeEnumeratorKeepsOneCopy) {
     useScenario(R"({"probes": [{"serialNumber": 1, "product": "A"},
                                {"serialNumber": 2, "connection": "ip"}]})");
-    const auto oneShot = hio::jlink::enumerateProbes(fakeLocation(), instanceRoot());
+    const auto oneShot = hwio::jlink::enumerateProbes(fakeLocation(), instanceRoot());
     ASSERT_TRUE(oneShot);
     EXPECT_EQ(instanceCount(), 0U);
     {
-        auto loaded = hio::jlink::ProbeEnumerator::load(fakeLocation(), instanceRoot());
+        auto loaded = hwio::jlink::ProbeEnumerator::load(fakeLocation(), instanceRoot());
         ASSERT_TRUE(loaded) << loaded.error().detail;
-        hio::jlink::ProbeEnumerator enumerator = std::move(*loaded); // movable
+        hwio::jlink::ProbeEnumerator enumerator = std::move(*loaded); // movable
         EXPECT_EQ(instanceCount(), 1U);
         std::vector<fs::path> copies;
         for (int i = 0; i < 5; ++i) {
@@ -399,14 +399,14 @@ TEST_F(FakeLibrary, ProbeEnumeratorKeepsOneCopy) {
 
 namespace {
 
-using hio::jlink::OptionalFunction;
+using hwio::jlink::OptionalFunction;
 
 constexpr std::array allOptionalFunctions{
     OptionalFunction::IsHalted,        OptionalFunction::GetId,
     OptionalFunction::WriteU16,        OptionalFunction::WriteU32,
     OptionalFunction::GetRegisterList, OptionalFunction::GetRegisterName,
     OptionalFunction::ReadRegs,        OptionalFunction::GetMemZones};
-static_assert(allOptionalFunctions.size() == hio::jlink::optionalFunctionCount);
+static_assert(allOptionalFunctions.size() == hwio::jlink::optionalFunctionCount);
 
 // M6 (plan/features/0013, ADR-0151): the optional target functions through a real copy of the
 // fake: halted state, RAM, registers, zones.
@@ -420,7 +420,7 @@ TEST_F(FakeLibrary, TargetFunctionsReachTheLibrary) {
     ASSERT_TRUE(library) << library.error().detail;
     JLinkLibrary& api = **library;
     for (const OptionalFunction function : allOptionalFunctions) {
-        EXPECT_TRUE(api.has(function)) << hio::jlink::optionalFunctionName(function);
+        EXPECT_TRUE(api.has(function)) << hwio::jlink::optionalFunctionName(function);
     }
     ASSERT_EQ(api.selectBySerialNumber(5), 0);
     ASSERT_FALSE(api.open().has_value());
@@ -470,10 +470,10 @@ TEST_F(FakeLibrary, TargetFunctionsReachTheLibrary) {
     ASSERT_EQ(zones->size(), 1U);
     EXPECT_EQ((*zones)[0].name, "AHB-AP");
     EXPECT_EQ((*zones)[0].description, "AHB-AP (AP0)");
-    EXPECT_EQ(api.memoryZones(0).value_or(std::vector<hio::jlink::MemoryZone>{{}}).size(), 0U);
+    EXPECT_EQ(api.memoryZones(0).value_or(std::vector<hwio::jlink::MemoryZone>{{}}).size(), 0U);
 }
 
-// The hio.jlink messages logged while it lives (owner thread only; restores the previous handler).
+// The hwio.jlink messages logged while it lives (owner thread only; restores the previous handler).
 class JLinkLogCapture {
 public:
     JLinkLogCapture() : m_previous(qInstallMessageHandler(&JLinkLogCapture::handle)) {}
@@ -491,7 +491,7 @@ public:
 private:
     static void handle(QtMsgType /*type*/, const QMessageLogContext& context,
                        const QString& message) {
-        if (context.category != nullptr && std::string_view(context.category) == "hio.jlink") {
+        if (context.category != nullptr && std::string_view(context.category) == "hwio.jlink") {
             messages().append(message);
         }
     }
@@ -536,11 +536,11 @@ TEST_F(FakeLibrary, MemoryZoneTruncationIsLogged) {
 TEST_F(FakeLibrary, MissingOptionalFunctionsDoNotFailTheLoad) {
     useScenario(R"({"probes": [{"serialNumber": 5}]})");
     auto library = JLinkLibrary::loadCopy(
-        LibraryLocation{.path = fs::path(HIO_FAKE_JLINK_BASIC_LIBRARY)}, instanceRoot());
+        LibraryLocation{.path = fs::path(HWIO_FAKE_JLINK_BASIC_LIBRARY)}, instanceRoot());
     ASSERT_TRUE(library) << library.error().detail;
     JLinkLibrary& api = **library;
     for (const OptionalFunction function : allOptionalFunctions) {
-        EXPECT_FALSE(api.has(function)) << hio::jlink::optionalFunctionName(function);
+        EXPECT_FALSE(api.has(function)) << hwio::jlink::optionalFunctionName(function);
     }
     ASSERT_EQ(api.selectBySerialNumber(5), 0);
     ASSERT_FALSE(api.open().has_value());
@@ -550,7 +550,8 @@ TEST_F(FakeLibrary, MissingOptionalFunctionsDoNotFailTheLoad) {
     EXPECT_LT(api.writeU32(0x20000000, 1), 0);
     EXPECT_FALSE(api.registerList());
     EXPECT_FALSE(api.memoryZones(32));
-    EXPECT_EQ(hio::jlink::optionalFunctionName(OptionalFunction::GetMemZones), "JLINK_GetMemZones");
+    EXPECT_EQ(hwio::jlink::optionalFunctionName(OptionalFunction::GetMemZones),
+              "JLINK_GetMemZones");
 }
 
 // M6: RTT START carries the control block address (JLINK_RTTERMINAL_START); with "autoSearch"
@@ -565,11 +566,11 @@ TEST_F(FakeLibrary, RttStartPassesTheBlockAddress) {
     ASSERT_FALSE(api.open().has_value());
     ASSERT_GE(api.connect(), 0);
     ASSERT_GE(api.rttStart(std::nullopt), 0);
-    EXPECT_LT(api.rttBufferCount(hio::jlink::RttDirection::Up), 0); // no search
+    EXPECT_LT(api.rttBufferCount(hwio::jlink::RttDirection::Up), 0); // no search
     ASSERT_GE(api.rttStart(0x20000000U), 0);
-    EXPECT_LT(api.rttBufferCount(hio::jlink::RttDirection::Up), 0); // wrong address
+    EXPECT_LT(api.rttBufferCount(hwio::jlink::RttDirection::Up), 0); // wrong address
     ASSERT_GE(api.rttStart(0x20001000U), 0);
-    EXPECT_EQ(api.rttBufferCount(hio::jlink::RttDirection::Up), 2);
+    EXPECT_EQ(api.rttBufferCount(hwio::jlink::RttDirection::Up), 2);
 }
 
 } // namespace

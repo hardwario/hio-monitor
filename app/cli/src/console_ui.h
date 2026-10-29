@@ -1,6 +1,6 @@
 #pragma once
 
-// The console front end of `hio chester app console` and `hio ble console` (ADR-0033,
+// The console front end of `hwio chester app console` and `hwio ble console` (ADR-0033,
 // plan/features/0002-m1-jlink-rtt.md; M5: any ConsoleSession, ADR-0079, plan 0011 C1).
 //
 // Interactive (stdin and stdout are terminals, no --json): a scrolling line mode with replxx -
@@ -17,12 +17,12 @@
 // connecting/connected events too).
 
 #include "cli_app.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/command_tree_learner.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_session.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_tree_learner.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/session_events.h"
 
 #include <QJsonValue>
 #include <QList>
@@ -37,7 +37,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 enum class ConsoleStream : std::uint8_t {
     Out, // device output
@@ -126,4 +126,4 @@ struct ConsoleUiOptions {
 [[nodiscard]] Status runConsole(const Context& context, device::ConsoleSession& session,
                                 ConsoleView& view, const ConsoleUiOptions& options);
 
-} // namespace hio::cli
+} // namespace hwio::cli

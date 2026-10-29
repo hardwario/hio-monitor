@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 bool CommandResponse::add(std::vector<std::string>& target, std::string text) {
     // Once truncated nothing more is collected, so the kept lines are the first ones in order.
@@ -17,4 +17,4 @@ bool CommandResponse::add(std::vector<std::string>& target, std::string text) {
     return true;
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

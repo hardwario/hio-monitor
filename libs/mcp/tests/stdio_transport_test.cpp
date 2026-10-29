@@ -2,10 +2,10 @@
 // end of input, a reader thread posting wake-ups (TSan), output failures.
 
 #include "fake_tools.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/server.h"
-#include "hio/mcp/stdio_transport.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/server.h"
+#include "hwio/mcp/stdio_transport.h"
 #include "mcp_test_support.h"
 
 #include <QBuffer>
@@ -28,7 +28,7 @@
 #include <thread>
 #include <utility>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 using namespace std::chrono_literals;
@@ -213,4 +213,4 @@ TEST_F(StdioTest, DestroyingTheTransportRemovesTheWakeup) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

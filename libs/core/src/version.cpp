@@ -1,13 +1,13 @@
-#include "hio/core/version.h"
+#include "hwio/core/version.h"
 
-#include "hio/core/package_kind.h"
-#include "hio/core/version_generated.h"
+#include "hwio/core/package_kind.h"
+#include "hwio/core/version_generated.h"
 
 #include <QtVersion> // qVersion()
 
 #include <string_view>
 
-namespace hio {
+namespace hwio {
 
 BuildInfo buildInfo() {
     return BuildInfo{
@@ -20,4 +20,4 @@ BuildInfo buildInfo() {
     };
 }
 
-} // namespace hio
+} // namespace hwio

@@ -1,7 +1,7 @@
 {
   "problemMatcher": [
     {
-      "owner": "hio-clang",
+      "owner": "hwio-clang",
       "pattern": [
         {
           "regexp": "^(.+?):(\\d+):(\\d+): (?:fatal )?(error|warning): (.+)$",
@@ -14,7 +14,7 @@
       ]
     },
     {
-      "owner": "hio-clang-cl",
+      "owner": "hwio-clang-cl",
       "pattern": [
         {
           "regexp": "^(.+?)\\((\\d+),(\\d+)\\): (?:fatal )?(error|warning)\\s*:?\\s*(.+)$",
@@ -27,7 +27,7 @@
       ]
     },
     {
-      "owner": "hio-cmake",
+      "owner": "hwio-cmake",
       "severity": "error",
       "pattern": [
         {
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "owner": "hio-gtest",
+      "owner": "hwio-gtest",
       "severity": "error",
       "pattern": [
         {
@@ -54,7 +54,7 @@
       ]
     },
     {
-      "owner": "hio-tool-errors",
+      "owner": "hwio-tool-errors",
       "severity": "error",
       "pattern": [
         {

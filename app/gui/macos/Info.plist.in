@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- HARDWARIO Monitor GUI bundle (ADR-0086, plan/features/0011 D1): the keys of CMake's default
-     MacOSXBundleInfo.plist.in, filled from the MACOSX_BUNDLE_* properties of hio-monitor
+     MacOSXBundleInfo.plist.in, filled from the MACOSX_BUNDLE_* properties of hwio-monitor
      (app/gui/CMakeLists.txt), plus the Bluetooth usage description macOS requires before
      CoreBluetooth may be used. Plan 0015 A3: icon, minimum macOS version, copyright, category. -->
 <plist version="1.0">

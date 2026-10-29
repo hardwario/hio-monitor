@@ -1,14 +1,14 @@
-#include "hio/device/probe_tools.h"
+#include "hwio/device/probe_tools.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/jlink/clock.h"
-#include "hio/hw/jlink/jlink_library.h"
-#include "hio/hw/jlink/jlink_probe.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/jlink/clock.h"
+#include "hwio/hw/jlink/jlink_library.h"
+#include "hwio/hw/jlink/jlink_probe.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <cstdint>
 #include <expected>
@@ -17,7 +17,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -138,4 +138,4 @@ Result<FirmwareUpdate> updateProbeFirmware(const SessionRegistry& registry,
     return FirmwareUpdate{.serialNumber = open->info.serialNumber, .before = *before};
 }
 
-} // namespace hio::device
+} // namespace hwio::device

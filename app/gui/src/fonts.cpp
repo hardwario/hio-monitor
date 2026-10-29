@@ -12,7 +12,7 @@
 
 #include <array>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 int loadBundledFonts() {
     static constexpr std::array files{
@@ -41,4 +41,4 @@ int loadBundledFonts() {
     return loaded;
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

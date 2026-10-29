@@ -1,8 +1,8 @@
 #include "pages/firmware_services.h"
 
-#include "hio/device/profile.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
 #include "settings_store.h"
 #include "viewmodels/dependency_status.h"
 #include "workers/firmware_loader.h"
@@ -17,7 +17,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -93,4 +93,4 @@ void FirmwareServices::retranslate() {
     languageChanged(); // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

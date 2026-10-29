@@ -1,9 +1,9 @@
 #include "viewmodels/history_store.h"
 
 #include "gui_log.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/command_history.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_history.h"
 
 #include <QLoggingCategory>
 #include <QSet>
@@ -19,7 +19,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 SharedHistory::SharedHistory(std::filesystem::path file) {
     auto opened = device::CommandHistory::open(std::move(file));
@@ -103,4 +103,4 @@ std::shared_ptr<SharedHistory> HistoryStore::history(const QString& profileId,
     return created;
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

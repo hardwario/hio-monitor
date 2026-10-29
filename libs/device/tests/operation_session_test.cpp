@@ -1,20 +1,20 @@
 // DeviceSession operations (plan/features/0003, C4; ADR-0057, ADR-0062) with the in-process
 // scripted J-Link and an in-process modem updater. Run under ASan/UBSan and TSan by the presets.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_registry.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/lte_input.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/programmer.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/lte_input.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/programmer.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "scripted_api.h"
 #include "session_internal.h"
 #include "session_test_support.h"
@@ -45,26 +45,26 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::Status;
-using hio::device::ConnectionState;
-using hio::device::DeviceSession;
-using hio::device::EraseScope;
-using hio::device::FlashOptions;
-using hio::device::OperationId;
-using hio::device::OperationKind;
-using hio::device::OperationResult;
-using hio::device::ResetMode;
-using hio::device::SessionOptions;
-using hio::device::SessionRegistry;
-using hio::device::detail::OpenHooks;
-using hio::device::test::Recorder;
-using hio::device::test::ScriptedApi;
-using hio::device::test::ScriptedTarget;
-using hio::device::test::waitFor;
-using hio::firmware::FirmwareImage;
-using hio::firmware::ProgramPhase;
-using hio::firmware::Segment;
+using hwio::ErrorCode;
+using hwio::Status;
+using hwio::device::ConnectionState;
+using hwio::device::DeviceSession;
+using hwio::device::EraseScope;
+using hwio::device::FlashOptions;
+using hwio::device::OperationId;
+using hwio::device::OperationKind;
+using hwio::device::OperationResult;
+using hwio::device::ResetMode;
+using hwio::device::SessionOptions;
+using hwio::device::SessionRegistry;
+using hwio::device::detail::OpenHooks;
+using hwio::device::test::Recorder;
+using hwio::device::test::ScriptedApi;
+using hwio::device::test::ScriptedTarget;
+using hwio::device::test::waitFor;
+using hwio::firmware::FirmwareImage;
+using hwio::firmware::ProgramPhase;
+using hwio::firmware::Segment;
 
 // What the in-process modem updater does.
 struct ModemScript {
@@ -78,14 +78,14 @@ struct ModemScript {
     std::vector<fs::path> locators;
 };
 
-class ScriptedModemUpdater final : public hio::nrfutil::IModemUpdater {
+class ScriptedModemUpdater final : public hwio::nrfutil::IModemUpdater {
 public:
     ScriptedModemUpdater(std::shared_ptr<ModemScript> script,
                          std::shared_ptr<ScriptedTarget> target)
         : m_script(std::move(script)), m_target(std::move(target)) {}
 
     Status updateModem(const fs::path& /*zip*/, std::uint32_t probeSn,
-                       const hio::firmware::ProgressFn& progress, std::stop_token stop) override {
+                       const hwio::firmware::ProgressFn& progress, std::stop_token stop) override {
         ModemScript::Mode mode{};
         {
             const std::scoped_lock lock(m_script->mutex);
@@ -102,11 +102,11 @@ public:
             while (!stop.stop_requested()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(2));
             }
-            return hio::fail(ErrorCode::Cancelled);
+            return hwio::fail(ErrorCode::Cancelled);
         }
         if (mode == ModemScript::Mode::Fail) {
             return std::unexpected(
-                hio::makeError(ErrorCode::FirmwareModemUpdateFailed, "simulated"));
+                hwio::makeError(ErrorCode::FirmwareModemUpdateFailed, "simulated"));
         }
         return {};
     }
@@ -127,16 +127,16 @@ class Operations : public ::testing::Test {
 protected:
     Operations()
         : m_registry(std::make_unique<SessionRegistry>(
-              hio::device::RegistryOptions{.instanceRoot = root() / "instances",
-                                           .lockDirectory = root() / "locks",
-                                           .consoleDirectory = root() / "console"})) {}
+              hwio::device::RegistryOptions{.instanceRoot = root() / "instances",
+                                            .lockDirectory = root() / "locks",
+                                            .consoleDirectory = root() / "console"})) {}
 
     [[nodiscard]] fs::path root() const { return {m_dir.path().toStdString()}; }
 
     [[nodiscard]] static SessionOptions options(std::string_view target = "app",
                                                 bool attachRtt = true) {
         SessionOptions options;
-        options.profile = hio::device::ProfileRegistry::find("chester");
+        options.profile = hwio::device::ProfileRegistry::find("chester");
         options.targetId = target;
         options.speedKhz = 2000;
         options.latencyMs = 5;
@@ -147,18 +147,18 @@ protected:
 
     [[nodiscard]] OpenHooks hooks() {
         OpenHooks hooks;
-        hooks.apiFactory = [target =
-                                m_target]() -> hio::Result<std::unique_ptr<hio::jlink::IJLinkApi>> {
+        hooks.apiFactory =
+            [target = m_target]() -> hwio::Result<std::unique_ptr<hwio::jlink::IJLinkApi>> {
             return std::make_unique<ScriptedApi>(target);
         };
-        hooks.modemUpdaterFactory = [script = m_modem,
-                                     target = m_target](const hio::nrfutil::LocatorOptions& locator)
-            -> hio::Result<std::unique_ptr<hio::nrfutil::IModemUpdater>> {
+        hooks.modemUpdaterFactory =
+            [script = m_modem, target = m_target](const hwio::nrfutil::LocatorOptions& locator)
+            -> hwio::Result<std::unique_ptr<hwio::nrfutil::IModemUpdater>> {
             {
                 const std::scoped_lock lock(script->mutex);
                 script->locators.push_back(locator.option.value_or(fs::path()));
                 if (script->factoryFails) {
-                    return std::unexpected(hio::makeError(ErrorCode::DependencyNrfUtilNotFound));
+                    return std::unexpected(hwio::makeError(ErrorCode::DependencyNrfUtilNotFound));
                 }
             }
             return std::make_unique<ScriptedModemUpdater>(script, target);
@@ -176,8 +176,8 @@ protected:
     }
 
     std::unique_ptr<DeviceSession> openConnected(const SessionOptions& opts) {
-        auto session = hio::device::detail::openSession(*m_registry, hio::jlink::LibraryLocation{},
-                                                        opts, hooks());
+        auto session = hwio::device::detail::openSession(
+            *m_registry, hwio::jlink::LibraryLocation{}, opts, hooks());
         EXPECT_TRUE(session) << session.error().message;
         if (!session) {
             return nullptr;
@@ -188,7 +188,7 @@ protected:
     }
 
     // Waits for the result of `id`.
-    const OperationResult* finish(const hio::Result<OperationId>& id) {
+    const OperationResult* finish(const hwio::Result<OperationId>& id) {
         EXPECT_TRUE(id) << (id ? std::string() : id.error().message);
         if (!id) {
             return nullptr;
@@ -209,8 +209,8 @@ protected:
     [[nodiscard]] int rttStarts() {
         return target().get([](ScriptedTarget& t) { return t.rttStarts; });
     }
-    [[nodiscard]] std::shared_ptr<const hio::firmware::LteBundle> bundle() const {
-        auto result = std::make_shared<hio::firmware::LteBundle>();
+    [[nodiscard]] std::shared_ptr<const hwio::firmware::LteBundle> bundle() const {
+        auto result = std::make_shared<hwio::firmware::LteBundle>();
         result->modemZip = root() / "modem.zip";
         result->application = appImage();
         return result;
@@ -218,9 +218,9 @@ protected:
 
     static void expectPlanned(const Recorder& recorder, OperationId id, OperationKind kind,
                               bool cross, bool image = false) {
-        const auto planned = hio::device::plannedPhases(kind, cross, image);
+        const auto planned = hwio::device::plannedPhases(kind, cross, image);
         EXPECT_EQ(recorder.phases(id), std::vector<ProgramPhase>(planned.begin(), planned.end()))
-            << hio::device::operationKindId(kind);
+            << hwio::device::operationKindId(kind);
     }
 
 private:
@@ -241,7 +241,7 @@ TEST_F(Operations, FlashWithRttPausesAndReattaches) {
     ASSERT_NE(result, nullptr);
     ASSERT_TRUE(result->status) << result->status.error().detail;
     ASSERT_TRUE(result->chip);
-    EXPECT_EQ(result->chip.value_or(hio::jlink::ChipInfo{}).name, "nRF52840");
+    EXPECT_EQ(result->chip.value_or(hwio::jlink::ChipInfo{}).name, "nRF52840");
     expectPlanned(events(), *id, OperationKind::Flash, false);
     EXPECT_GT(target().get([](ScriptedTarget& t) { return t.rttStops; }), stops);
     EXPECT_TRUE(waitFor([&] { return rttStarts() > starts; }));
@@ -337,7 +337,7 @@ TEST_F(Operations, CrossTargetFlashSwitchesAndRestores) {
     const OperationResult* result = finish(id);
     ASSERT_NE(result, nullptr);
     ASSERT_TRUE(result->status) << result->status.error().detail;
-    EXPECT_EQ(result->chip.value_or(hio::jlink::ChipInfo{}).name, "nRF9151");
+    EXPECT_EQ(result->chip.value_or(hwio::jlink::ChipInfo{}).name, "nRF9151");
     expectPlanned(events(), *id, OperationKind::Flash, true);
     const auto sequence = ops();
     const auto lte = std::ranges::find(sequence, "connect:NRF9151_XXCA");
@@ -396,7 +396,7 @@ TEST_F(Operations, FailedRestoreReportsDisconnected) {
     EXPECT_TRUE(result->status); // the reset itself worked
     ASSERT_TRUE(waitFor([&] { return events().reached(ConnectionState::Disconnected); }));
     ASSERT_TRUE(events().connections.back().error.has_value());
-    EXPECT_EQ(events().connections.back().error.value_or(hio::Error{}).code,
+    EXPECT_EQ(events().connections.back().error.value_or(hwio::Error{}).code,
               ErrorCode::TargetConnectFailed);
 }
 
@@ -515,7 +515,7 @@ TEST_F(Operations, LteBundleCancelInEachStep) {
 
     modem().mode = ModemScript::Mode::Succeed;
     target().set([](ScriptedTarget& t) { t.readDelay = std::chrono::milliseconds(50); });
-    auto big = std::make_shared<hio::firmware::LteBundle>(*bundle());
+    auto big = std::make_shared<hwio::firmware::LteBundle>(*bundle());
     big->application = appImage(64ULL * 1024);
     const auto second = session->flashLteBundle("lte", big, {});
     ASSERT_TRUE(second);
@@ -542,8 +542,8 @@ TEST_F(Operations, CrossTargetModemAndBundle) {
 
 // ---- ADR-0114: nRF Util locator options resolved per operation ---------------------------------
 
-hio::nrfutil::LocatorOptions locatorWith(const fs::path& option) {
-    hio::nrfutil::LocatorOptions options;
+hwio::nrfutil::LocatorOptions locatorWith(const fs::path& option) {
+    hwio::nrfutil::LocatorOptions options;
     options.option = option;
     return options;
 }
@@ -601,7 +601,7 @@ TEST_F(Operations, NrfUtilMissingFailsBeforeReleasingTheProbe) {
 
 TEST_F(Operations, WrongFamilyOnTheConsoleTarget) {
     // The probe reaches an nRF91 although the session is on app (wrong connector).
-    target().set([](ScriptedTarget& t) { t.app = hio::device::test::nrf91Chip(); });
+    target().set([](ScriptedTarget& t) { t.app = hwio::device::test::nrf91Chip(); });
     auto session = openConnected(options("app", false));
     ASSERT_TRUE(session);
     const OperationResult* result = finish(session->erase("app", EraseScope::Code));
@@ -617,12 +617,12 @@ TEST_F(Operations, WaitEndsWhenTheWorkerDies) {
     target().set([](ScriptedTarget& t) { t.throwOnReadMemory = true; });
     const auto id = session->readMemory("app", 0x10001080, 4);
     ASSERT_TRUE(id);
-    const OperationResult result = hio::device::waitForOperation(*session, *id);
+    const OperationResult result = hwio::device::waitForOperation(*session, *id);
     ASSERT_FALSE(result.status);
     EXPECT_EQ(result.status.error().code, ErrorCode::InternalUnexpected);
     EXPECT_FALSE(session->runningOperation());
     // Review R14: nothing is queued for a dead worker.
-    const auto next = session->reset("app", hio::device::ResetMode::Go);
+    const auto next = session->reset("app", hwio::device::ResetMode::Go);
     ASSERT_FALSE(next);
     EXPECT_EQ(next.error().code, ErrorCode::InternalUnexpected);
 }
@@ -635,7 +635,7 @@ TEST_F(Operations, WaitEndsWhenTheSessionIsClosed) {
         session->flash("app", std::make_shared<FirmwareImage>(appImage(256ULL * 1024)), {});
     ASSERT_TRUE(id);
     QTimer::singleShot(std::chrono::milliseconds(100), [&session] { session->close(); });
-    const OperationResult result = hio::device::waitForOperation(*session, *id);
+    const OperationResult result = hwio::device::waitForOperation(*session, *id);
     ASSERT_FALSE(result.status);
     EXPECT_EQ(result.status.error().code, ErrorCode::Cancelled);
     EXPECT_FALSE(session->runningOperation());
@@ -651,7 +651,7 @@ TEST_F(Operations, WaitGivesUpAfterTheCancelGrace) {
     std::stop_source stop;
     stop.request_stop();
     const auto started = std::chrono::steady_clock::now();
-    const OperationResult result = hio::device::waitForOperation(
+    const OperationResult result = hwio::device::waitForOperation(
         *session, *id, {}, stop.get_token(), std::chrono::milliseconds(200));
     EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::milliseconds(1200));
     ASSERT_FALSE(result.status);
@@ -663,15 +663,15 @@ TEST_F(Operations, WaitGivesUpAfterTheCancelGrace) {
 // Review R9: without nrfUtil the session uses the default locator options (environment, PATH,
 // install directories), so the GUI needs no special call.
 TEST(NrfUtilLocatorDefault, UsesTheEnvironmentAndThePath) {
-    qputenv("HIO_NRFUTIL", "/opt/test/nrfutil");
+    qputenv("HWIO_NRFUTIL", "/opt/test/nrfutil");
     const SessionOptions defaults;
-    const auto locator = hio::device::detail::nrfUtilLocator(defaults);
-    qunsetenv("HIO_NRFUTIL");
+    const auto locator = hwio::device::detail::nrfUtilLocator(defaults);
+    qunsetenv("HWIO_NRFUTIL");
     EXPECT_EQ(locator.environment.value_or(fs::path()), fs::path("/opt/test/nrfutil"));
     EXPECT_FALSE(locator.installDirs.empty());
     SessionOptions explicitOptions;
-    explicitOptions.nrfUtil = hio::nrfutil::LocatorOptions{};
-    EXPECT_TRUE(hio::device::detail::nrfUtilLocator(explicitOptions).installDirs.empty());
+    explicitOptions.nrfUtil = hwio::nrfutil::LocatorOptions{};
+    EXPECT_TRUE(hwio::device::detail::nrfUtilLocator(explicitOptions).installDirs.empty());
 }
 
 // Review R13: a waiter that gave up does not hide the real result: close() takes it from the
@@ -684,7 +684,7 @@ TEST_F(Operations, CloseKeepsTheRealResultAfterTheWaitGaveUp) {
     ASSERT_TRUE(id);
     std::stop_source stop;
     stop.request_stop();
-    const OperationResult waited = hio::device::waitForOperation(
+    const OperationResult waited = hwio::device::waitForOperation(
         *session, *id, {}, stop.get_token(), std::chrono::milliseconds(100));
     ASSERT_FALSE(waited.status);
     EXPECT_EQ(waited.status.error().code, ErrorCode::Cancelled);

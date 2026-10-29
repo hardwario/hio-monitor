@@ -1,18 +1,18 @@
 // Discovery tools (plan/features/0013 C1, ADR-0098): list_devices, connect, disconnect, status.
 
-#include "hio/core/error.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_session.h"
-#include "hio/device/session_events.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
-#include "hio/mcp/tools/device_provider.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/error.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/session_events.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
+#include "hwio/mcp/tools/device_provider.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "tool_support.h"
 #include "tools/tools.h"
 
@@ -30,12 +30,12 @@
 #include <string>
 #include <utility>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 namespace {
 
-using hio::mcp::Required;
-using hio::mcp::Schema;
+using hwio::mcp::Required;
+using hwio::mcp::Schema;
 
 constexpr const char* listDevicesDescription =
     "List the devices this server can use: connected (open) devices and the J-Link probes found "
@@ -70,11 +70,11 @@ constexpr const char* statusDescription =
 // Review V1: without refresh, while the provider's first (start-up) enumeration runs, it waits for
 // that one (refresh() joins it) and then lists the cache even when the enumeration failed, like a
 // plain list_devices (`reportErrors` false).
-class RefreshDevicesCall final : public hio::mcp::ToolCall {
+class RefreshDevicesCall final : public hwio::mcp::ToolCall {
 public:
     RefreshDevicesCall(IDeviceProvider& provider, bool reportErrors) : m_provider(&provider) {
         const QPointer<RefreshDevicesCall> self(this);
-        provider.refresh([self, reportErrors](const hio::Status& refreshed) {
+        provider.refresh([self, reportErrors](const hwio::Status& refreshed) {
             if (self.isNull() || self->isFinished()) {
                 return; // cancelled meanwhile
             }
@@ -82,7 +82,7 @@ public:
                 self->finish(std::unexpected(refreshed.error()));
                 return;
             }
-            self->finish(hio::mcp::toolResult(devicesJson(*self->m_provider)));
+            self->finish(hwio::mcp::toolResult(devicesJson(*self->m_provider)));
         });
     }
 
@@ -92,14 +92,14 @@ private:
 
 // connect: open (after consent) and wait for the outcome of the first attempt (waitForFirstAttempt
 // semantics on connectionChanged, ADR-0097: no nested loop).
-class ConnectCall final : public hio::mcp::ToolCall {
+class ConnectCall final : public hwio::mcp::ToolCall {
 public:
-    ConnectCall(ToolsContext& tools, const hio::mcp::RequestContext& context,
-                hio::mcp::ToolEnv& env, OpenRequest request)
+    ConnectCall(ToolsContext& tools, const hwio::mcp::RequestContext& context,
+                hwio::mcp::ToolEnv& env, OpenRequest request)
         : m_tools(&tools), m_request(std::move(request)) {
         setDeviceId(m_request.id);
         m_timeout.setSingleShot(true);
-        m_timeout.setInterval(hio::device::connectTimeoutForSpeed(m_request.speedKhz));
+        m_timeout.setInterval(hwio::device::connectTimeoutForSpeed(m_request.speedKhz));
         connect(&m_timeout, &QTimer::timeout, this,
                 [this] { fail(makeError(ErrorCode::Timeout, "no connection attempt finished")); });
         if (auto ref = tools.provider().find(m_request.id); ref && ref->alive()) {
@@ -107,7 +107,7 @@ public:
             result.insert(QStringLiteral("device"), qs(m_request.id));
             result.insert(QStringLiteral("already_open"), true);
             result.insert(QStringLiteral("connection"), connectionJson(ref->console->connection()));
-            finish(hio::mcp::toolResult(result));
+            finish(hwio::mcp::toolResult(result));
             return;
         }
         QJsonObject details;
@@ -119,9 +119,9 @@ public:
             details.insert(QStringLiteral("target"), qs(m_request.targetId));
         }
         requestConsent(env.consentBroker(),
-                       hio::mcp::makeConsentRequest(context, hio::mcp::ConsentCategory::Connect,
-                                                    m_request.id, details),
-                       [this](const hio::mcp::ConsentDecision& decision) {
+                       hwio::mcp::makeConsentRequest(context, hwio::mcp::ConsentCategory::Connect,
+                                                     m_request.id, details),
+                       [this](const hwio::mcp::ConsentDecision& decision) {
                            if (!decision) {
                                finish(std::unexpected(decision.error()));
                                return;
@@ -143,7 +143,7 @@ protected:
 private:
     void open() {
         const QPointer<ConnectCall> self(this);
-        m_tools->provider().open(m_request, [self](hio::Result<DeviceRef> ref) {
+        m_tools->provider().open(m_request, [self](hwio::Result<DeviceRef> ref) {
             if (self.isNull() || self->isFinished()) {
                 return;
             }
@@ -164,39 +164,39 @@ private:
         }
         connect(m_ref.console.data(), &QObject::destroyed, this,
                 [this] { fail(deviceNotOpen(m_request.id)); });
-        connect(m_ref.console.data(), &hio::device::ConsoleSession::connectionChanged, this,
-                [this](const hio::device::ConnectionEvent& event) { evaluate(event); });
+        connect(m_ref.console.data(), &hwio::device::ConsoleSession::connectionChanged, this,
+                [this](const hwio::device::ConnectionEvent& event) { evaluate(event); });
         m_timeout.start();
         evaluate(m_ref.console->connection());
     }
 
-    void evaluate(const hio::device::ConnectionEvent& event) {
+    void evaluate(const hwio::device::ConnectionEvent& event) {
         if (isFinished()) {
             return;
         }
         switch (event.state) {
-        case hio::device::ConnectionState::Connecting:
-        case hio::device::ConnectionState::ProbeOpen:
+        case hwio::device::ConnectionState::Connecting:
+        case hwio::device::ConnectionState::ProbeOpen:
             return;
-        case hio::device::ConnectionState::Connected:
-        case hio::device::ConnectionState::Disconnected: {
+        case hwio::device::ConnectionState::Connected:
+        case hwio::device::ConnectionState::Disconnected: {
             // The first attempt is over; a Disconnected session keeps retrying (auto-reconnect).
             m_timeout.stop();
             QJsonObject result;
             result.insert(QStringLiteral("device"), qs(m_request.id));
             result.insert(QStringLiteral("already_open"), false);
             result.insert(QStringLiteral("connection"), connectionJson(event));
-            finish(hio::mcp::toolResult(result));
+            finish(hwio::mcp::toolResult(result));
             return;
         }
-        case hio::device::ConnectionState::Stopped:
+        case hwio::device::ConnectionState::Stopped:
             fail(event.error ? *event.error : makeError(ErrorCode::Cancelled));
             return;
         }
     }
 
     // Closes the session this call opened and finishes with `error`.
-    void fail(hio::Error error) {
+    void fail(hwio::Error error) {
         if (isFinished()) {
             return;
         }
@@ -213,8 +213,8 @@ private:
     void closeLater() {
         ToolsContext* tools = m_tools;
         QTimer::singleShot(0, tools, [tools, id = m_request.id, context = m_request.context] {
-            if (const hio::Status closed = tools->provider().close(id, context); !closed) {
-                qCWarning(hio::log::lcMcp).noquote()
+            if (const hwio::Status closed = tools->provider().close(id, context); !closed) {
+                qCWarning(hwio::log::lcMcp).noquote()
                     << "MCP connect: closing" << qs(id) << "failed:" << qs(closed.error().message);
             }
         });
@@ -227,10 +227,10 @@ private:
     bool m_opened = false;
 };
 
-hio::Status addListDevices(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addListDevices(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "list_devices",
             .title = "List devices",
             .description = listDevicesDescription,
@@ -246,8 +246,8 @@ hio::Status addListDevices(hio::mcp::Registry& registry, ToolsContext& context) 
             .annotations = readOnly,
             .consent = {},
             .marker = false,
-            .start = [&context](const hio::mcp::RequestContext&, const QJsonObject& args,
-                                hio::mcp::ToolEnv&) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext&, const QJsonObject& args,
+                                hwio::mcp::ToolEnv&) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 if (args.value(QStringLiteral("refresh")).toBool()) {
                     return std::make_unique<RefreshDevicesCall>(context.provider(), true);
                 }
@@ -259,10 +259,10 @@ hio::Status addListDevices(hio::mcp::Registry& registry, ToolsContext& context) 
             .validate = {}});
 }
 
-hio::Status addConnect(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addConnect(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "connect",
             .title = "Connect a device",
             .description = connectDescription,
@@ -291,8 +291,8 @@ hio::Status addConnect(hio::mcp::Registry& registry, ToolsContext& context) {
                         QStringLiteral("speed_khz"),
                         Schema::integer(QStringLiteral("J-Link speed in kHz (default: automatic or "
                                                        "the server's setting)."))
-                            .minimum(hio::device::minSpeedKhz)
-                            .maximum(hio::device::maxSpeedKhz))
+                            .minimum(hwio::device::minSpeedKhz)
+                            .maximum(hwio::device::maxSpeedKhz))
                     .property(QStringLiteral("auto_reconnect"),
                               Schema::boolean(QStringLiteral(
                                   "Keep reconnecting after the link fails (default: the "
@@ -303,14 +303,14 @@ hio::Status addConnect(hio::mcp::Registry& registry, ToolsContext& context) {
                                       {"connection", connectionSchema()}},
                                      {QStringLiteral("device"), QStringLiteral("already_open"),
                                       QStringLiteral("connection")}),
-            .annotations = hio::mcp::ToolAnnotations{.readOnlyHint = false,
-                                                     .destructiveHint = false,
-                                                     .idempotentHint = true,
-                                                     .openWorldHint = false},
-            .consent = hio::mcp::ConsentCategory::Connect,
+            .annotations = hwio::mcp::ToolAnnotations{.readOnlyHint = false,
+                                                      .destructiveHint = false,
+                                                      .idempotentHint = true,
+                                                      .openWorldHint = false},
+            .consent = hwio::mcp::ConsentCategory::Connect,
             .marker = false,
-            .start = [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                hio::mcp::ToolEnv& env) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                                hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 OpenRequest request;
                 request.id = args.value(QStringLiteral("device")).toString().toStdString();
                 request.profileId = args.value(QStringLiteral("profile")).toString().toStdString();
@@ -327,10 +327,10 @@ hio::Status addConnect(hio::mcp::Registry& registry, ToolsContext& context) {
             .validate = {}});
 }
 
-hio::Status addDisconnect(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addDisconnect(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "disconnect",
             .title = "Disconnect a device",
             .description = disconnectDescription,
@@ -338,15 +338,15 @@ hio::Status addDisconnect(hio::mcp::Registry& registry, ToolsContext& context) {
                 Schema::object().property(QStringLiteral("device"), deviceArgument()).json(),
             .outputSchema = objectOf({{"device", typed("string")}, {"closed", typed("boolean")}},
                                      {QStringLiteral("device"), QStringLiteral("closed")}),
-            .annotations = hio::mcp::ToolAnnotations{.readOnlyHint = false,
-                                                     .destructiveHint = false,
-                                                     .idempotentHint = true,
-                                                     .openWorldHint = false},
+            .annotations = hwio::mcp::ToolAnnotations{.readOnlyHint = false,
+                                                      .destructiveHint = false,
+                                                      .idempotentHint = true,
+                                                      .openWorldHint = false},
             .consent = {},
             .marker = false,
             .start =
-                [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                           hio::mcp::ToolEnv&) {
+                [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                           hwio::mcp::ToolEnv&) {
                     auto device = resolveDevice(context.provider(), args);
                     if (!device) {
                         return failed(std::move(device).error());
@@ -362,10 +362,10 @@ hio::Status addDisconnect(hio::mcp::Registry& registry, ToolsContext& context) {
             .validate = {}});
 }
 
-hio::Status addStatus(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addStatus(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "status",
             .title = "Device status",
             .description = statusDescription,
@@ -383,8 +383,8 @@ hio::Status addStatus(hio::mcp::Registry& registry, ToolsContext& context) {
             .consent = {},
             .marker = false,
             .start =
-                [&context](const hio::mcp::RequestContext&, const QJsonObject& args,
-                           hio::mcp::ToolEnv&) {
+                [&context](const hwio::mcp::RequestContext&, const QJsonObject& args,
+                           hwio::mcp::ToolEnv&) {
                     QJsonArray devices;
                     if (args.contains(QStringLiteral("device"))) {
                         auto device = resolveDevice(context.provider(), args);
@@ -412,7 +412,7 @@ hio::Status addStatus(hio::mcp::Registry& registry, ToolsContext& context) {
 
 } // namespace
 
-hio::Status registerDiscoveryTools(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status registerDiscoveryTools(hwio::mcp::Registry& registry, ToolsContext& context) {
     for (const auto& add : {&addListDevices, &addConnect, &addDisconnect, &addStatus}) {
         if (auto added = add(registry, context); !added) {
             return added;
@@ -421,4 +421,4 @@ hio::Status registerDiscoveryTools(hio::mcp::Registry& registry, ToolsContext& c
     return {};
 }
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

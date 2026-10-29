@@ -3,24 +3,24 @@
 // Internals of DeviceSession shared by the facade (device_session.cpp), the worker
 // (session_worker.cpp) and the unit tests (which inject an IJLinkApi factory and short timings).
 
-#include "hio/core/bounded_queue.h"
-#include "hio/core/result.h"
-#include "hio/device/console_file_sink.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/lte_input.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/jlink_probe.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/rtt_channel.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_file_sink.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/lte_input.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/jlink_probe.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/rtt_channel.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 
 #include <atomic>
 #include <chrono>
@@ -37,7 +37,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 class SessionRegistry;
 
@@ -114,7 +114,7 @@ struct DiagnoseStepEvent {
     DiagnoseStep step;
 };
 
-// M6 (ADR-0104): hio::device::PromptSeen, the RTT shell prompt after output.
+// M6 (ADR-0104): hwio::device::PromptSeen, the RTT shell prompt after output.
 using WorkerEvent =
     std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified, ConsoleFileChanged,
                  OperationProgressEvent, OperationFinishedEvent, DiagnoseStepEvent, PromptSeen>;
@@ -247,4 +247,4 @@ void runWorker(const std::stop_token& stop, WorkerConfig config, ApiFactory apiF
 
 } // namespace detail
 
-} // namespace hio::device
+} // namespace hwio::device

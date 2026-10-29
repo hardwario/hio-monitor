@@ -1,8 +1,8 @@
 #include "viewmodels/recent_sources_model.h"
 
 #include "gui_log.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 #include "pages/firmware_services.h"
 #include "settings_store.h"
 
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 RecentSourcesModel::RecentSourcesModel(SettingsStore* settings, QObject* parent)
     : QAbstractListModel(parent), m_settings(settings) {
@@ -188,4 +188,4 @@ void RecentSourcesModel::reload() {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

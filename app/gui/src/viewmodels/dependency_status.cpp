@@ -1,12 +1,12 @@
 #include "viewmodels/dependency_status.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "settings_store.h"
 #include "viewmodels/error_info.h"
 #include "workers/firmware_loader.h"
@@ -21,7 +21,7 @@
 #include <optional>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -195,4 +195,4 @@ void DependencyStatus::onNrfUtilChecked(quint64 generation, const NrfUtilStatus&
     nrfUtilChanged(); // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

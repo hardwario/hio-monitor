@@ -9,11 +9,11 @@
 //
 // Thread safety: owner thread of the session. The session must outlive this object.
 
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/command_tree_learner.h"
-#include "hio/device/console_session.h"
-#include "hio/device/session_events.h"
-#include "hio/device/shell_query.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/command_tree_learner.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/shell_query.h"
 
 #include <QObject>
 
@@ -21,7 +21,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 class ConsoleLearning {
 public:
@@ -51,4 +51,4 @@ private:
     device::CommandTreeLearner m_learner{m_queries, &m_cache};
 };
 
-} // namespace hio::cli
+} // namespace hwio::cli

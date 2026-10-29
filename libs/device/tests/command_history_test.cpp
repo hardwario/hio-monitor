@@ -1,4 +1,4 @@
-#include "hio/device/command_history.h"
+#include "hwio/device/command_history.h"
 
 #include <QFile>
 #include <QIODevice>
@@ -19,7 +19,7 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::device::CommandHistory;
+using hwio::device::CommandHistory;
 
 class History : public ::testing::Test {
 protected:

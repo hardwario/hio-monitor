@@ -2,15 +2,15 @@
 
 // UpdateService - when and how the GUI checks for updates (plan/features/0016 C1, ADR-0116).
 //
-// Owns one hio::update::UpdateCheck and uses a QNetworkAccessManager owned by the caller
+// Owns one hwio::update::UpdateCheck and uses a QNetworkAccessManager owned by the caller
 // (AppViewModel). start() schedules the automatic check: `startDelay` (10 s) after the start, if
-// update/autoCheck is on, the build is not a development build (HIO_PACKAGE_KIND "dev") and the
+// update/autoCheck is on, the build is not a development build (HWIO_PACKAGE_KIND "dev") and the
 // last check is at least `interval` (24 h) ago (or never happened). checkNow() is the manual check
 // (Settings > About). One check at a time: a check requested while one runs is ignored.
 //
 // After a successful check update/lastCheck (UTC, ISO 8601) and update/lastResult (the newest
 // applicable version, "" when there is none) are stored. Failed automatic checks are only logged
-// (hio.update, warning); the view model shows failures of manual checks only.
+// (hwio.update, warning); the view model shows failures of manual checks only.
 //
 // Setting keys (ADR-0025, registerKeys()): update/autoCheck (bool, true), update/includePrerelease
 // (bool, false; true when the running version is itself a pre-release), update/skippedVersion
@@ -18,10 +18,10 @@
 //
 // The clock is injected (Options::now) for the tests. GUI thread only.
 
-#include "hio/core/result.h"
-#include "hio/update/releases.h"
-#include "hio/update/semver.h"
-#include "hio/update/update_check.h"
+#include "hwio/core/result.h"
+#include "hwio/update/releases.h"
+#include "hwio/update/semver.h"
+#include "hwio/update/update_check.h"
 #include "settings_store.h"
 
 #include <QDateTime>
@@ -36,7 +36,7 @@
 
 class QNetworkAccessManager;
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class UpdateService : public QObject {
     Q_OBJECT
@@ -46,7 +46,7 @@ public:
         std::function<QDateTime()> now;              // UTC; empty: the system clock
         std::chrono::milliseconds startDelay{10000}; // ADR-0116 / plan 0016: 10 s
         std::chrono::hours interval{24};
-        QUrl url;                              // empty: hio::update::releasesUrl()
+        QUrl url;                              // empty: hwio::update::releasesUrl()
         QString packageKind;                   // empty: the build's (BuildInfo::packageKind)
         std::optional<update::SemVer> current; // empty: the build's version
     };
@@ -74,7 +74,7 @@ public:
 
 signals:
     void checkStarted(bool automatic);
-    void checkFinished(bool automatic, const hio::Result<hio::update::CheckResult>& result);
+    void checkFinished(bool automatic, const hwio::Result<hwio::update::CheckResult>& result);
 
 private:
     void runCheck(bool automatic);
@@ -89,4 +89,4 @@ private:
     bool m_automatic = false; // trigger of the running check
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

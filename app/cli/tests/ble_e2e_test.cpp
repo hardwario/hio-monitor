@@ -1,5 +1,5 @@
-// End-to-end tests of `hio ble scan|console|command|pair` (plan/features/0011 C3) with the fake
-// BLE backend (ADR-0087, ADR-0127: HIO_FAKE_BLE_SCENARIO, builds with HIO_TEST_OVERRIDES only)
+// End-to-end tests of `hwio ble scan|console|command|pair` (plan/features/0011 C3) with the fake
+// BLE backend (ADR-0087, ADR-0127: HWIO_FAKE_BLE_SCENARIO, builds with HWIO_TEST_OVERRIDES only)
 // and the shared scenarios in tests/ble_scenarios.
 
 #include "cli_process.h"
@@ -29,8 +29,8 @@
 
 namespace {
 
-using hio::cli::test::CliProcess;
-using hio::cli::test::RunResult;
+using hwio::cli::test::CliProcess;
+using hwio::cli::test::RunResult;
 using namespace std::chrono_literals;
 
 const QString device = QStringLiteral("F1:22:33:44:55:66");
@@ -65,19 +65,19 @@ class FakeBleCli : public CliProcess {
 protected:
     [[nodiscard]] QProcessEnvironment scenario(const char* name) const {
         QProcessEnvironment env = environment();
-        env.insert(QStringLiteral("HIO_FAKE_BLE_SCENARIO"), QStringLiteral(HIO_BLE_SCENARIOS_DIR) +
-                                                                QStringLiteral("/") +
-                                                                QString::fromLatin1(name));
+        env.insert(QStringLiteral("HWIO_FAKE_BLE_SCENARIO"),
+                   QStringLiteral(HWIO_BLE_SCENARIOS_DIR) + QStringLiteral("/") +
+                       QString::fromLatin1(name));
         return env;
     }
-    [[nodiscard]] RunResult hio(const char* name, const QStringList& args,
-                                const QByteArray& input = {}) const {
+    [[nodiscard]] RunResult hwio(const char* name, const QStringList& args,
+                                 const QByteArray& input = {}) const {
         return run(args, scenario(name), input);
     }
 };
 
 TEST_F(FakeBleCli, ScanListsProfileDevicesByRssi) {
-    const RunResult result = hio(
+    const RunResult result = hwio(
         "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
                          QStringLiteral("--timeout"), QStringLiteral("1")});
     ASSERT_EQ(result.exitCode, 0) << result.err;
@@ -94,9 +94,9 @@ TEST_F(FakeBleCli, ScanListsProfileDevicesByRssi) {
     EXPECT_EQ(first.value(QStringLiteral("profile")).toString(), QStringLiteral("chester"));
     EXPECT_TRUE(first.value(QStringLiteral("inUseBy")).isNull());
 
-    const RunResult all = hio("chester.json", {QStringLiteral("--json"), QStringLiteral("ble"),
-                                               QStringLiteral("scan"), QStringLiteral("--timeout"),
-                                               QStringLiteral("1"), QStringLiteral("--all")});
+    const RunResult all = hwio("chester.json", {QStringLiteral("--json"), QStringLiteral("ble"),
+                                                QStringLiteral("scan"), QStringLiteral("--timeout"),
+                                                QStringLiteral("1"), QStringLiteral("--all")});
     const QJsonArray every =
         data(envelopes(all.out).at(0)).value(QStringLiteral("devices")).toArray();
     ASSERT_EQ(every.size(), 4);
@@ -107,16 +107,17 @@ TEST_F(FakeBleCli, ScanListsProfileDevicesByRssi) {
     EXPECT_TRUE(ruuvi.value(QStringLiteral("nusAdvertised")).toBool());
     EXPECT_TRUE(ruuvi.value(QStringLiteral("profile")).isNull());
 
-    const RunResult human = hio("chester.json", {QStringLiteral("ble"), QStringLiteral("scan"),
-                                                 QStringLiteral("--timeout"), QStringLiteral("1")});
+    const RunResult human =
+        hwio("chester.json", {QStringLiteral("ble"), QStringLiteral("scan"),
+                              QStringLiteral("--timeout"), QStringLiteral("1")});
     EXPECT_NE(human.out.find("CHESTER-ABC123"), std::string::npos) << human.out;
     EXPECT_NE(human.out.find("2 devices (1 s scan). Use --all"), std::string::npos) << human.out;
 }
 
 TEST_F(FakeBleCli, ScanWithoutDevicesIsAnEmptyList) {
     const RunResult result =
-        hio("empty.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
-                           QStringLiteral("--timeout"), QStringLiteral("1")});
+        hwio("empty.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
+                            QStringLiteral("--timeout"), QStringLiteral("1")});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_TRUE(
         data(envelopes(result.out).at(0)).value(QStringLiteral("devices")).toArray().isEmpty());
@@ -124,8 +125,8 @@ TEST_F(FakeBleCli, ScanWithoutDevicesIsAnEmptyList) {
 
 TEST_F(FakeBleCli, ScanListIsBoundedAt256) {
     const RunResult result =
-        hio("many.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
-                          QStringLiteral("--timeout"), QStringLiteral("1")});
+        hwio("many.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
+                           QStringLiteral("--timeout"), QStringLiteral("1")});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_EQ(data(envelopes(result.out).at(0)).value(QStringLiteral("devices")).toArray().size(),
               256);
@@ -138,7 +139,7 @@ TEST_F(FakeBleCli, AdapterProblemsAreDependencyErrors) {
           std::pair{"no_adapter.json", "ble.adapter_not_found"},
           std::pair{"stack_unavailable.json", "ble.stack_unavailable"}}) {
         const RunResult result =
-            hio(file, {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan")});
+            hwio(file, {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan")});
         EXPECT_EQ(result.exitCode, 4) << file;
         EXPECT_EQ(errorCode(result), QString::fromLatin1(code)) << file;
     }
@@ -146,7 +147,7 @@ TEST_F(FakeBleCli, AdapterProblemsAreDependencyErrors) {
 
 TEST_F(FakeBleCli, CommandAnswersAndEndsAtThePrompt) {
     const auto started = std::chrono::steady_clock::now();
-    const RunResult result = hio(
+    const RunResult result = hwio(
         "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
                          QStringLiteral("version"), QStringLiteral("-a"), device,
                          QStringLiteral("-t"), QStringLiteral("20")});
@@ -163,9 +164,9 @@ TEST_F(FakeBleCli, CommandAnswersAndEndsAtThePrompt) {
 TEST_F(FakeBleCli, CommandWithoutPromptEndsByTheTimeout) {
     const auto started = std::chrono::steady_clock::now();
     const RunResult result =
-        hio("no_prompt.json",
-            {QStringLiteral("ble"), QStringLiteral("command"), QStringLiteral("version"),
-             QStringLiteral("-a"), device, QStringLiteral("-t"), QStringLiteral("1")});
+        hwio("no_prompt.json",
+             {QStringLiteral("ble"), QStringLiteral("command"), QStringLiteral("version"),
+              QStringLiteral("-a"), device, QStringLiteral("-t"), QStringLiteral("1")});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_EQ(result.out, "Firmware version: v3.1.0\n");
     EXPECT_GE(std::chrono::steady_clock::now() - started, 1s);
@@ -173,9 +174,9 @@ TEST_F(FakeBleCli, CommandWithoutPromptEndsByTheTimeout) {
 
 TEST_F(FakeBleCli, CommandByNameAndSmallMtu) {
     const RunResult result =
-        hio("small_mtu.json",
-            {QStringLiteral("ble"), QStringLiteral("command"), QStringLiteral("version"),
-             QStringLiteral("--name"), QStringLiteral("abc123")});
+        hwio("small_mtu.json",
+             {QStringLiteral("ble"), QStringLiteral("command"), QStringLiteral("version"),
+              QStringLiteral("--name"), QStringLiteral("abc123")});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     // The device echoes (with-response chunks of 20 bytes, write-without-response here).
     EXPECT_NE(result.out.find("Firmware version: v3.1.0"), std::string::npos) << result.out;
@@ -183,9 +184,9 @@ TEST_F(FakeBleCli, CommandByNameAndSmallMtu) {
 
 TEST_F(FakeBleCli, AmbiguousNameIsAUsageError) {
     const RunResult result =
-        hio("chester.json",
-            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
-             QStringLiteral("version"), QStringLiteral("--name"), QStringLiteral("chester")});
+        hwio("chester.json",
+             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
+              QStringLiteral("version"), QStringLiteral("--name"), QStringLiteral("chester")});
     EXPECT_EQ(result.exitCode, 2);
     EXPECT_EQ(errorCode(result), QStringLiteral("usage.invalid_argument"));
     EXPECT_NE(result.out.find("F1:22:33:44:55:66"), std::string::npos);
@@ -193,7 +194,7 @@ TEST_F(FakeBleCli, AmbiguousNameIsAUsageError) {
 }
 
 TEST_F(FakeBleCli, UnknownNameIsDeviceNotFound) {
-    const RunResult result = hio(
+    const RunResult result = hwio(
         "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("console"),
                          QStringLiteral("--name"), QStringLiteral("nothing")});
     EXPECT_EQ(result.exitCode, 6);
@@ -202,26 +203,26 @@ TEST_F(FakeBleCli, UnknownNameIsDeviceNotFound) {
 
 TEST_F(FakeBleCli, NotPairedIsATargetError) {
     const RunResult result =
-        hio("not_paired.json",
-            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
-             QStringLiteral("version"), QStringLiteral("-a"), device});
+        hwio("not_paired.json",
+             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
+              QStringLiteral("version"), QStringLiteral("-a"), device});
     EXPECT_EQ(result.exitCode, 6);
     EXPECT_EQ(errorCode(result), QStringLiteral("ble.not_paired"));
 }
 
 TEST_F(FakeBleCli, StalledWriteIsAWriteTimeout) {
     const RunResult result =
-        hio("write_stall.json",
-            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
-             QStringLiteral("version"), QStringLiteral("-a"), device});
+        hwio("write_stall.json",
+             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
+              QStringLiteral("version"), QStringLiteral("-a"), device});
     EXPECT_EQ(result.exitCode, 6);
     EXPECT_EQ(errorCode(result), QStringLiteral("ble.write_timeout"));
 }
 
 TEST_F(FakeBleCli, PairingPromptIsShown) {
     const RunResult result =
-        hio("pairing_prompt.json", {QStringLiteral("ble"), QStringLiteral("command"),
-                                    QStringLiteral("version"), QStringLiteral("-a"), device});
+        hwio("pairing_prompt.json", {QStringLiteral("ble"), QStringLiteral("command"),
+                                     QStringLiteral("version"), QStringLiteral("-a"), device});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_NE(result.err.find("Pairing: enter the passkey in the system dialog. The passkey is "
                               "123456 unless it was changed when the device was configured."),
@@ -254,9 +255,9 @@ TEST_F(FakeBleCli, ConsoleJsonWithPipedInputAndAutoReconnect) {
 
 TEST_F(FakeBleCli, ConsoleWritesTheDefaultConsoleFile) {
     const RunResult result =
-        hio("chester.json",
-            {QStringLiteral("ble"), QStringLiteral("console"), QStringLiteral("-a"), device},
-            QByteArray("version\n"));
+        hwio("chester.json",
+             {QStringLiteral("ble"), QStringLiteral("console"), QStringLiteral("-a"), device},
+             QByteArray("version\n"));
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_NE(result.out.find("Firmware version: v3.1.0"), std::string::npos) << result.out;
     const QDir console(home() + QStringLiteral("/data/HARDWARIO/Monitor/console"));
@@ -267,24 +268,24 @@ TEST_F(FakeBleCli, ConsoleWritesTheDefaultConsoleFile) {
 
 TEST_F(FakeBleCli, PairOutcomes) {
     const RunResult paired =
-        hio("unpaired.json", {QStringLiteral("--json"), QStringLiteral("ble"),
-                              QStringLiteral("pair"), QStringLiteral("-a"), device});
+        hwio("unpaired.json", {QStringLiteral("--json"), QStringLiteral("ble"),
+                               QStringLiteral("pair"), QStringLiteral("-a"), device});
     ASSERT_EQ(paired.exitCode, 0) << paired.err;
     const QJsonObject payload = data(envelopes(paired.out).at(0));
     EXPECT_EQ(payload.value(QStringLiteral("id")).toString(), device);
     EXPECT_TRUE(payload.value(QStringLiteral("paired")).toBool());
-    const RunResult human = hio("chester.json", {QStringLiteral("ble"), QStringLiteral("pair"),
-                                                 QStringLiteral("-a"), device});
+    const RunResult human = hwio("chester.json", {QStringLiteral("ble"), QStringLiteral("pair"),
+                                                  QStringLiteral("-a"), device});
     EXPECT_EQ(human.out, "Already paired.\n");
-    const RunResult failed = hio("unpaired.json", {QStringLiteral("--json"), QStringLiteral("ble"),
-                                                   QStringLiteral("pair"), QStringLiteral("-a"),
-                                                   QStringLiteral("C0:11:22:33:44:55")});
+    const RunResult failed = hwio("unpaired.json", {QStringLiteral("--json"), QStringLiteral("ble"),
+                                                    QStringLiteral("pair"), QStringLiteral("-a"),
+                                                    QStringLiteral("C0:11:22:33:44:55")});
     EXPECT_EQ(failed.exitCode, 6);
     EXPECT_EQ(errorCode(failed), QStringLiteral("ble.pairing_failed"));
     const RunResult macos =
-        hio("macos.json",
-            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("pair"),
-             QStringLiteral("-a"), QStringLiteral("6A0B3F1C-1D2E-4F50-8A9B-0C1D2E3F4A5B")});
+        hwio("macos.json",
+             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("pair"),
+              QStringLiteral("-a"), QStringLiteral("6A0B3F1C-1D2E-4F50-8A9B-0C1D2E3F4A5B")});
     EXPECT_EQ(macos.exitCode, 2);
     EXPECT_EQ(errorCode(macos), QStringLiteral("ble.pairing_not_supported"));
 }
@@ -296,9 +297,9 @@ TEST_F(FakeBleCli, CommandWithManyLinesWritesThemAll) {
         many += QStringLiteral("version\n");
     }
     const RunResult result =
-        hio("chester.json",
-            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"), many,
-             QStringLiteral("-a"), device, QStringLiteral("-t"), QStringLiteral("5")});
+        hwio("chester.json",
+             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"), many,
+              QStringLiteral("-a"), device, QStringLiteral("-t"), QStringLiteral("5")});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     const QJsonArray output =
         data(envelopes(result.out).at(0)).value(QStringLiteral("output")).toArray();
@@ -307,14 +308,15 @@ TEST_F(FakeBleCli, CommandWithManyLinesWritesThemAll) {
 
 // Review B6: another spelling of the address is the same device.
 TEST_F(FakeBleCli, LowerCaseAddressIsTheSameDevice) {
-    const RunResult command = hio("chester.json", {QStringLiteral("ble"), QStringLiteral("command"),
-                                                   QStringLiteral("version"), QStringLiteral("-a"),
-                                                   QStringLiteral("f1:22:33:44:55:66")});
+    const RunResult command =
+        hwio("chester.json",
+             {QStringLiteral("ble"), QStringLiteral("command"), QStringLiteral("version"),
+              QStringLiteral("-a"), QStringLiteral("f1:22:33:44:55:66")});
     ASSERT_EQ(command.exitCode, 0) << command.err;
     EXPECT_EQ(command.out, "Firmware version: v3.1.0\n");
-    const RunResult pair = hio("unpaired.json", {QStringLiteral("--json"), QStringLiteral("ble"),
-                                                 QStringLiteral("pair"), QStringLiteral("-a"),
-                                                 QStringLiteral("f1:22:33:44:55:66")});
+    const RunResult pair = hwio("unpaired.json", {QStringLiteral("--json"), QStringLiteral("ble"),
+                                                  QStringLiteral("pair"), QStringLiteral("-a"),
+                                                  QStringLiteral("f1:22:33:44:55:66")});
     ASSERT_EQ(pair.exitCode, 0) << pair.err;
     EXPECT_EQ(data(envelopes(pair.out).at(0)).value(QStringLiteral("id")).toString(), device);
 }
@@ -323,18 +325,18 @@ TEST_F(FakeBleCli, LowerCaseAddressIsTheSameDevice) {
 // at once) and the scan runs.
 TEST_F(FakeBleCli, UndecidedPermissionIsAskedForFirst) {
     const RunResult result =
-        hio("permission_undetermined.json",
-            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
-             QStringLiteral("--timeout"), QStringLiteral("1")});
+        hwio("permission_undetermined.json",
+             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
+              QStringLiteral("--timeout"), QStringLiteral("1")});
     EXPECT_EQ(result.exitCode, 0) << result.out << result.err;
 }
 
 // Review N6: after the permission was granted the adapter is read again (here it is off).
 TEST_F(FakeBleCli, AdapterIsReadAgainAfterThePermission) {
     const RunResult result =
-        hio("permission_then_off.json",
-            {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
-             QStringLiteral("--timeout"), QStringLiteral("1")});
+        hwio("permission_then_off.json",
+             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
+              QStringLiteral("--timeout"), QStringLiteral("1")});
     EXPECT_EQ(result.exitCode, 4) << result.out;
     EXPECT_EQ(errorCode(result), QStringLiteral("ble.adapter_off"));
 }
@@ -342,15 +344,15 @@ TEST_F(FakeBleCli, AdapterIsReadAgainAfterThePermission) {
 // HIL H1: no pairing agent is a dependency problem (exit 4) with its own code.
 TEST_F(FakeBleCli, PairWithoutAgent) {
     const RunResult result =
-        hio("no_agent.json", {QStringLiteral("--json"), QStringLiteral("ble"),
-                              QStringLiteral("pair"), QStringLiteral("-a"), device});
+        hwio("no_agent.json", {QStringLiteral("--json"), QStringLiteral("ble"),
+                               QStringLiteral("pair"), QStringLiteral("-a"), device});
     EXPECT_EQ(result.exitCode, 4) << result.out;
     EXPECT_EQ(errorCode(result), QStringLiteral("ble.no_pairing_agent"));
 }
 
 // HIL H5: no empty first output line (the shell's new line after Enter).
 TEST_F(FakeBleCli, CommandOutputHasNoLeadingEmptyLine) {
-    const RunResult result = hio(
+    const RunResult result = hwio(
         "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
                          QStringLiteral("status"), QStringLiteral("-a"), device});
     ASSERT_EQ(result.exitCode, 0) << result.err;
@@ -360,7 +362,7 @@ TEST_F(FakeBleCli, CommandOutputHasNoLeadingEmptyLine) {
 
 // HIL H5: only the first empty line is the shell's; an empty output line later is kept.
 TEST_F(FakeBleCli, EmptyLineInsideCommandOutputIsKept) {
-    const RunResult result = hio(
+    const RunResult result = hwio(
         "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
                          QStringLiteral("lines"), QStringLiteral("-a"), device});
     ASSERT_EQ(result.exitCode, 0) << result.err;
@@ -385,7 +387,7 @@ TEST_F(FakeBleCli, InteractiveQuitEndsThePromptLine) {
         env.insert(QStringLiteral("TERM"), QStringLiteral("xterm"));
         process.setProcessEnvironment(env);
         const QString command = QStringLiteral("'%1' ble console -a %2")
-                                    .arg(QStringLiteral(HIO_CLI_EXECUTABLE), device);
+                                    .arg(QStringLiteral(HWIO_CLI_EXECUTABLE), device);
         process.start(script, {QStringLiteral("-qfec"), command, QStringLiteral("/dev/null")});
         ASSERT_TRUE(process.waitForStarted(10000));
         QByteArray out;
@@ -407,8 +409,8 @@ TEST_F(FakeBleCli, InteractiveQuitEndsThePromptLine) {
 }
 
 TEST_F(FakeBleCli, DeviceIsRequired) {
-    const RunResult result = hio("chester.json", {QStringLiteral("ble"), QStringLiteral("command"),
-                                                  QStringLiteral("version")});
+    const RunResult result = hwio("chester.json", {QStringLiteral("ble"), QStringLiteral("command"),
+                                                   QStringLiteral("version")});
     EXPECT_EQ(result.exitCode, 2);
 }
 
@@ -418,7 +420,7 @@ class RunningBleConsole {
 public:
     RunningBleConsole(const QProcessEnvironment& env, const QStringList& args) {
         m_process.setProcessEnvironment(env);
-        m_process.start(QStringLiteral(HIO_CLI_EXECUTABLE), args);
+        m_process.start(QStringLiteral(HWIO_CLI_EXECUTABLE), args);
     }
     RunningBleConsole(const RunningBleConsole&) = delete;
     RunningBleConsole& operator=(const RunningBleConsole&) = delete;
@@ -456,7 +458,7 @@ TEST_F(FakeBleCli, CtrlCEndsTheConsoleWith130) {
     ASSERT_TRUE(console.waitFor("-- connected (Bluetooth, MTU 247) --"))
         << console.err().toStdString();
     ASSERT_EQ(::kill(static_cast<int>(console.process().processId()), SIGINT), 0);
-    ASSERT_TRUE(console.process().waitForFinished(10000)) << "hio did not stop after Ctrl+C";
+    ASSERT_TRUE(console.process().waitForFinished(10000)) << "hwio did not stop after Ctrl+C";
     EXPECT_EQ(console.process().exitStatus(), QProcess::NormalExit);
     EXPECT_EQ(console.process().exitCode(), 130);
 }
@@ -466,15 +468,15 @@ TEST_F(FakeBleCli, SecondProcessOnTheSameDeviceIsRefused) {
                             {QStringLiteral("ble"), QStringLiteral("console"), QStringLiteral("-a"),
                              device, QStringLiteral("--console-file"), QString()});
     ASSERT_TRUE(first.waitFor("-- connected")) << first.err().toStdString();
-    const RunResult second = hio(
+    const RunResult second = hwio(
         "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
                          QStringLiteral("version"), QStringLiteral("-a"), device});
     EXPECT_EQ(second.exitCode, 5);
     EXPECT_EQ(errorCode(second), QStringLiteral("ble.in_use_by_other_process"));
     // The scan names the owner.
-    const RunResult scan = hio("chester.json", {QStringLiteral("--json"), QStringLiteral("ble"),
-                                                QStringLiteral("scan"), QStringLiteral("--timeout"),
-                                                QStringLiteral("1")});
+    const RunResult scan = hwio("chester.json", {QStringLiteral("--json"), QStringLiteral("ble"),
+                                                 QStringLiteral("scan"),
+                                                 QStringLiteral("--timeout"), QStringLiteral("1")});
     const QJsonObject owner = data(envelopes(scan.out).at(0))
                                   .value(QStringLiteral("devices"))
                                   .toArray()
@@ -484,8 +486,8 @@ TEST_F(FakeBleCli, SecondProcessOnTheSameDeviceIsRefused) {
                                   .toObject();
     EXPECT_EQ(owner.value(QStringLiteral("pid")).toInteger(), first.process().processId());
     const RunResult pair =
-        hio("chester.json", {QStringLiteral("--json"), QStringLiteral("ble"),
-                             QStringLiteral("pair"), QStringLiteral("-a"), device});
+        hwio("chester.json", {QStringLiteral("--json"), QStringLiteral("ble"),
+                              QStringLiteral("pair"), QStringLiteral("-a"), device});
     EXPECT_EQ(pair.exitCode, 5);
 }
 #endif

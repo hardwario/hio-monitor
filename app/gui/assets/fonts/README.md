@@ -1,7 +1,7 @@
 # Bundled fonts (ADR-0048)
 
 The GUI bundles its fonts so that it renders the same on every OS (design system § 2). The `.ttf` files are stored
-with **Git LFS** (`*.ttf` in `.gitattributes`); they are compiled into `hio-monitor` as Qt resources (`:/fonts/…`)
+with **Git LFS** (`*.ttf` in `.gitattributes`); they are compiled into `hwio-monitor` as Qt resources (`:/fonts/…`)
 and registered by `app/gui/src/fonts.cpp`. Both families are licensed under the **SIL Open Font License 1.1**; the
 licence texts are next to the fonts and are listed under Settings → About → Licences.
 

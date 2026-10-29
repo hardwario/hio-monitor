@@ -1,9 +1,9 @@
 #include "console_events.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/device/console_line.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/session_events.h"
 
 #include <QDateTime>
 #include <QJsonObject>
@@ -18,7 +18,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -124,4 +124,4 @@ std::string humanWarning(const Error& error) {
     return text;
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

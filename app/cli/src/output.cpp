@@ -1,7 +1,7 @@
 #include "output.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
 
 #include <QJsonValue>
 #include <QtEnvironmentVariables>
@@ -24,7 +24,7 @@
 #include <unistd.h>
 #endif
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -169,4 +169,4 @@ std::string formatTable(const std::vector<std::string>& header,
     return text;
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

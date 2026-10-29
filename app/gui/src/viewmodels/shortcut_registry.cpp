@@ -1,8 +1,8 @@
 #include "viewmodels/shortcut_registry.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 
 #include <QCoreApplication>
 #include <QKeySequence>
@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -181,4 +181,4 @@ void ShortcutRegistry::retranslate() {
     changed(); // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

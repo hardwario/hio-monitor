@@ -1,10 +1,10 @@
 // Intel HEX parser and FirmwareImage (plan/features/0003, phase A1).
 
 #include "hex_builder.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/intel_hex.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/intel_hex.h"
 
 #include <QDir>
 #include <QDirIterator>
@@ -29,19 +29,19 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::firmware::AddressRange;
-using hio::firmware::FirmwareImage;
-using hio::firmware::parseIntelHex;
-using hio::firmware::Segment;
-using hio::firmware::test::bytesOf;
-using hio::firmware::test::eofRecord;
-using hio::firmware::test::filled;
-using hio::firmware::test::hexRecord;
-using hio::firmware::test::linearAddress;
-using hio::firmware::test::toHex;
+using hwio::ErrorCode;
+using hwio::firmware::AddressRange;
+using hwio::firmware::FirmwareImage;
+using hwio::firmware::parseIntelHex;
+using hwio::firmware::Segment;
+using hwio::firmware::test::bytesOf;
+using hwio::firmware::test::eofRecord;
+using hwio::firmware::test::filled;
+using hwio::firmware::test::hexRecord;
+using hwio::firmware::test::linearAddress;
+using hwio::firmware::test::toHex;
 
-hio::Result<FirmwareImage> parse(const std::string& text) {
+hwio::Result<FirmwareImage> parse(const std::string& text) {
     return parseIntelHex(bytesOf(text), "test.hex");
 }
 
@@ -165,7 +165,7 @@ TEST(IntelHex, DataLimit) {
     std::string text;
     const std::vector<std::uint8_t> chunk(255, 0xAA);
     std::uint32_t lastUpper = 0xFFFFFFFFU;
-    for (std::uint64_t written = 0; written <= hio::firmware::maxImageDataBytes; written += 255) {
+    for (std::uint64_t written = 0; written <= hwio::firmware::maxImageDataBytes; written += 255) {
         const auto address = static_cast<std::uint32_t>(written);
         if ((address >> 16U) != lastUpper) {
             lastUpper = address >> 16U;
@@ -181,7 +181,7 @@ TEST(IntelHex, DataLimit) {
 
 TEST(IntelHex, LineLimit) {
     std::string text;
-    for (std::uint64_t i = 0; i <= hio::firmware::maxHexLines; ++i) {
+    for (std::uint64_t i = 0; i <= hwio::firmware::maxHexLines; ++i) {
         text += "\n";
     }
     const auto image = parse(text + eofRecord());
@@ -219,14 +219,14 @@ TEST(IntelHex, StopTokenCancelsTheParse) {
     file.write(text.data(), static_cast<qint64>(text.size()));
     file.close();
     const std::filesystem::path path(file.fileName().toStdU16String());
-    const auto read = hio::firmware::readIntelHexFile(path, source.get_token());
+    const auto read = hwio::firmware::readIntelHexFile(path, source.get_token());
     ASSERT_FALSE(read);
     EXPECT_EQ(read.error().code, ErrorCode::Cancelled);
-    EXPECT_TRUE(hio::firmware::readIntelHexFile(path));
+    EXPECT_TRUE(hwio::firmware::readIntelHexFile(path));
 }
 
 TEST(IntelHex, ReadFileErrors) {
-    const auto missing = hio::firmware::readIntelHexFile("/nonexistent/dir/file.hex");
+    const auto missing = hwio::firmware::readIntelHexFile("/nonexistent/dir/file.hex");
     ASSERT_FALSE(missing);
     EXPECT_EQ(missing.error().code, ErrorCode::IoFileNotFound);
     QTemporaryDir dir;
@@ -235,26 +235,26 @@ TEST(IntelHex, ReadFileErrors) {
     ASSERT_TRUE(file.open(QIODevice::WriteOnly));
     file.write("not hex\n");
     file.close();
-    const auto bad = hio::firmware::readIntelHexFile(std::filesystem::path(path.toStdU16String()));
+    const auto bad = hwio::firmware::readIntelHexFile(std::filesystem::path(path.toStdU16String()));
     ASSERT_FALSE(bad);
     EXPECT_EQ(bad.error().code, ErrorCode::FirmwareHexParseError);
     EXPECT_NE(bad.error().detail.find("a.hex"), std::string::npos);
 }
 
-// Real build outputs (opt-in: HIO_TEST_HEX_CORPUS=<directory with .hex files>; CHESTER builds
+// Real build outputs (opt-in: HWIO_TEST_HEX_CORPUS=<directory with .hex files>; CHESTER builds
 // are not committed). Every file must parse, lie in the nRF52840 / nRF91 flash or UICR and
 // round-trip through the builder with the same SHA-256.
 TEST(IntelHex, Corpus) {
-    const QString directory = qEnvironmentVariable("HIO_TEST_HEX_CORPUS");
+    const QString directory = qEnvironmentVariable("HWIO_TEST_HEX_CORPUS");
     if (directory.isEmpty()) {
-        GTEST_SKIP() << "HIO_TEST_HEX_CORPUS not set";
+        GTEST_SKIP() << "HWIO_TEST_HEX_CORPUS not set";
     }
     int parsed = 0;
     QDirIterator it(directory, {QStringLiteral("*.hex")}, QDir::Files);
     while (it.hasNext()) {
         const QString path = it.next();
         const auto image =
-            hio::firmware::readIntelHexFile(std::filesystem::path(path.toStdU16String()));
+            hwio::firmware::readIntelHexFile(std::filesystem::path(path.toStdU16String()));
         ASSERT_TRUE(image) << path.toStdString() << ": " << image.error().detail;
         for (const Segment& segment : image->segments()) {
             const AddressRange range = segment.range();

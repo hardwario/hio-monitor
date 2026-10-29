@@ -1,7 +1,7 @@
 #include "viewmodels/find_filter_engine.h"
 
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
 
 #include <QObject>
 #include <QRegularExpression>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 std::expected<TextMatcher, QString> TextMatcher::compile(const TextQuery& query) {
     TextMatcher matcher;
@@ -214,4 +214,4 @@ void LineScan::runSlice(std::uint64_t generation) {
     schedule();
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

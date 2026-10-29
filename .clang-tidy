@@ -56,7 +56,7 @@ CheckOptions:
   readability-identifier-naming.ConstexprVariableCase: camelBack
   readability-identifier-naming.GlobalConstantCase: camelBack
   readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
-  readability-identifier-naming.MacroDefinitionPrefix: HIO_
+  readability-identifier-naming.MacroDefinitionPrefix: HWIO_
   # GoogleTest assertion macros expand to branches; count only the code written in the function.
   readability-function-cognitive-complexity.IgnoreMacros: true
   # POSIX declares sigaction() & co. in <signal.h>; we include <csignal>

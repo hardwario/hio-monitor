@@ -29,7 +29,7 @@ race:QObject::moveToThread
 # edges and reports allocation vs. deletion, or two invokeMethod() calls of different threads. Seen
 # with DeviceSession::wakeUp() (libs/device, ADR-0031), which does nothing but this call. Only
 # reports with one access inside Qt's invokeMethod() are matched; our own cross-thread data goes
-# through hio::BoundedQueue (std::mutex, instrumented) and stays checked.
+# through hwio::BoundedQueue (std::mutex, instrumented) and stays checked.
 race:QMetaObject::invokeMethod
 
 # Not a suppression: the tests that use QNetworkAccessManager (firmware catalog) are not run under

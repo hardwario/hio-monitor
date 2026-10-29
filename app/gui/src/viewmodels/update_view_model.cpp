@@ -1,11 +1,11 @@
 #include "viewmodels/update_view_model.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/update/releases.h"
-#include "hio/update/semver.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/update/releases.h"
+#include "hwio/update/semver.h"
 #include "settings_store.h"
 #include "update_service.h"
 
@@ -25,7 +25,7 @@
 #include <functional>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -186,4 +186,4 @@ void UpdateViewModel::setState(State state) {
     emit changed();
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -1,8 +1,8 @@
-#include "hio/diag/usb_access.h"
+#include "hwio/diag/usb_access.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 
 #include <QString>
 #include <QtSystemDetection>
@@ -26,7 +26,7 @@
 #include <unistd.h>
 #endif
 
-namespace hio::diag {
+namespace hwio::diag {
 
 namespace {
 
@@ -139,4 +139,4 @@ std::optional<Error> usbAccessDeniedError(std::span<const UsbDeviceAccess> devic
     return makeError(ErrorCode::UsbAccessDenied, detail);
 }
 
-} // namespace hio::diag
+} // namespace hwio::diag

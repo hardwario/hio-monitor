@@ -27,12 +27,12 @@
 // Ownership: Qt parent = the tab; the models, the batch runner and the timers are children.
 // GUI thread only.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/command_tree.h"
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/command_tree_learner.h"
-#include "hio/device/operation.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_tree.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/command_tree_learner.h"
+#include "hwio/device/operation.h"
 #include "viewmodels/console_line_model.h"
 #include "viewmodels/console_settings.h"
 #include "viewmodels/error_info.h"
@@ -57,14 +57,14 @@
 #include <optional>
 #include <string>
 
-namespace hio::device {
+namespace hwio::device {
 class ConsoleLog;
 class DeviceSession;
 struct ConnectionEvent;
 struct OperationResult;
-} // namespace hio::device
+} // namespace hwio::device
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class AppViewModel;
 class BatchRunner;
@@ -83,9 +83,9 @@ class ConsoleViewModel : public QObject {
     QML_ELEMENT
     QML_UNCREATABLE("Created by the console page registration")
 
-    Q_PROPERTY(hio::gui::ConsoleLineModel* shell READ shell CONSTANT)
-    Q_PROPERTY(hio::gui::ConsoleLineModel* log READ log CONSTANT)
-    Q_PROPERTY(hio::gui::ConsoleSettings* settings READ settings CONSTANT)
+    Q_PROPERTY(hwio::gui::ConsoleLineModel* shell READ shell CONSTANT)
+    Q_PROPERTY(hwio::gui::ConsoleLineModel* log READ log CONSTANT)
+    Q_PROPERTY(hwio::gui::ConsoleSettings* settings READ settings CONSTANT)
     Q_PROPERTY(bool inputEnabled READ inputEnabled NOTIFY stateChanged)
     Q_PROPERTY(QString inputDisabledReason READ inputDisabledReason NOTIFY stateChanged)
     // Connected or connecting: the views say "Waiting for data from the device…" while empty.
@@ -96,7 +96,7 @@ class ConsoleViewModel : public QObject {
     Q_PROPERTY(bool canReconnect READ canReconnect NOTIFY stateChanged)
     Q_PROPERTY(bool canRunBatch READ canRunBatch NOTIFY stateChanged)
     Q_PROPERTY(quint64 droppedLines READ droppedLines NOTIFY droppedLinesChanged)
-    Q_PROPERTY(hio::gui::ErrorInfo error READ error NOTIFY errorChanged) // invalid when none
+    Q_PROPERTY(hwio::gui::ErrorInfo error READ error NOTIFY errorChanged) // invalid when none
     Q_PROPERTY(bool batchRunning READ batchRunning NOTIFY batchChanged)
     Q_PROPERTY(int batchDone READ batchDone NOTIFY batchChanged)
     Q_PROPERTY(int batchTotal READ batchTotal NOTIFY batchChanged)
@@ -268,4 +268,4 @@ private:
     int m_pageWidth = 1280;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

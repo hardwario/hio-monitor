@@ -2,7 +2,7 @@
 
 // Builds Intel HEX text for tests (records with correct checksums unless told otherwise).
 
-#include "hio/firmware/firmware_image.h"
+#include "hwio/firmware/firmware_image.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -13,7 +13,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::firmware::test {
+namespace hwio::firmware::test {
 
 inline std::string hexRecord(std::uint8_t type, std::uint16_t address,
                              const std::vector<std::uint8_t>& data, int checksumDelta = 0) {
@@ -75,4 +75,4 @@ inline std::vector<std::byte> filled(std::size_t size, std::uint8_t value) {
     return std::vector<std::byte>(size, static_cast<std::byte>(value));
 }
 
-} // namespace hio::firmware::test
+} // namespace hwio::firmware::test

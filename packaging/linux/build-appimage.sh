@@ -1,33 +1,33 @@
 #!/bin/bash
-# Builds the AppImage from a build tree configured with HIO_PACKAGE_KIND=appimage (plan/features/0015
+# Builds the AppImage from a build tree configured with HWIO_PACKAGE_KIND=appimage (plan/features/0015
 # C3, ADR-0118, ADR-0121). Runs in the Ubuntu 22.04 build container (packaging/linux/Containerfile),
 # which provides linuxdeploy, appimagetool and the type-2 runtime (pinned, SHA-256 checked).
 #
 #   packaging/linux/build-appimage.sh <build-dir> <output-dir>
 #
 # 1. AppDir from the install tree: `cmake --install` with prefix AppDir (AppDir/usr/{bin,lib,plugins,
-#    qml,translations,licenses,share}; Qt is deployed by cmake/HioDeploy.cmake.in).
+#    qml,translations,licenses,share}; Qt is deployed by cmake/HWioDeploy.cmake.in).
 # 2. The build's libstdc++ / libgcc_s into usr/optional (checkrt in AppRun).
 # 3. linuxdeploy without its Qt plugin: bundles the remaining non-Qt libraries of the executables,
 #    Qt libraries, plugins and QML modules (e.g. libxcb-cursor0, libxkbcommon-x11, libdbus-1 - it
-#    must stay bundled, `hio` needs it on a clean Ubuntu 22.04). Libraries every desktop has, or
+#    must stay bundled, `hwio` needs it on a clean Ubuntu 22.04). Libraries every desktop has, or
 #    that must match the host (systemd, Kerberos, GnuTLS, ...), are excluded.
-# 4. Our AppRun (dispatch GUI / hio, checkrt), then appimagetool with the static type-2 runtime.
+# 4. Our AppRun (dispatch GUI / hwio, checkrt), then appimagetool with the static type-2 runtime.
 #    No update information (ADR-0116: no zsync).
 set -euo pipefail
 
 build="$(cd "$1" && pwd)"
 out="$(mkdir -p "$2" && cd "$2" && pwd)"
 here="$(cd "$(dirname "$0")" && pwd)"
-runtime="${HIO_APPIMAGE_RUNTIME:?HIO_APPIMAGE_RUNTIME (the type-2 runtime) is not set}"
+runtime="${HWIO_APPIMAGE_RUNTIME:?HWIO_APPIMAGE_RUNTIME (the type-2 runtime) is not set}"
 
-kind="$(sed -n 's/^HIO_PACKAGE_KIND:STRING=//p' "$build/CMakeCache.txt")"
+kind="$(sed -n 's/^HWIO_PACKAGE_KIND:STRING=//p' "$build/CMakeCache.txt")"
 if [ "$kind" != "appimage" ]; then
-    echo "build-appimage.sh: $build is configured with HIO_PACKAGE_KIND=$kind, not appimage" >&2
+    echo "build-appimage.sh: $build is configured with HWIO_PACKAGE_KIND=$kind, not appimage" >&2
     exit 1
 fi
-version="$("$build/app/cli/hio" --version --json | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["data"]["version"])')"
-name="hio-monitor-${version//+/.}-x86_64.AppImage"
+version="$("$build/app/cli/hwio" --version --json | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["data"]["version"])')"
+name="hwio-monitor-${version//+/.}-x86_64.AppImage"
 
 appdir="$build/AppDir"
 rm -rf "$appdir"
@@ -35,7 +35,7 @@ cmake --install "$build" --prefix "$appdir"
 
 # Our executables without symbols (the release keeps them in the symbol archive, ADR-0123);
 # linuxdeploy's own strip is not used (NO_STRIP: too old for the toolchain's ELF files).
-strip --strip-unneeded "$appdir/usr/bin/hio-monitor" "$appdir/usr/bin/hio"
+strip --strip-unneeded "$appdir/usr/bin/hwio-monitor" "$appdir/usr/bin/hwio"
 
 # checkrt: the build's C++ runtime.
 stdcxx="$(readlink -f /usr/lib/x86_64-linux-gnu/libstdc++.so.6)"
@@ -49,7 +49,7 @@ while IFS= read -r -d '' so; do deps+=(--deploy-deps-only "$so"); done \
     < <(find "$appdir/usr/lib" "$appdir/usr/plugins" "$appdir/usr/qml" -name '*.so*' -type f -print0)
 export APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=1
 LD_LIBRARY_PATH="$appdir/usr/lib" linuxdeploy --appdir "$appdir" \
-    --executable "$appdir/usr/bin/hio-monitor" --executable "$appdir/usr/bin/hio" \
+    --executable "$appdir/usr/bin/hwio-monitor" --executable "$appdir/usr/bin/hwio" \
     "${deps[@]}" \
     --exclude-library 'libsystemd.so*' --exclude-library 'libgnutls.so*' \
     --exclude-library 'libgssapi_krb5.so*' --exclude-library 'libkrb5*.so*' \

@@ -16,10 +16,10 @@
 // it uses and destroyed before it; QML reads it through a property (C++ ownership). GUI thread
 // only.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "viewmodels/error_info.h"
 #include "workers/firmware_loader.h"
 
@@ -33,7 +33,7 @@
 #include <functional>
 #include <optional>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class SettingsStore;
 
@@ -45,13 +45,13 @@ class DependencyStatus : public QObject {
     Q_PROPERTY(int jlinkState READ jlinkState NOTIFY jlinkChanged)
     Q_PROPERTY(QString jlinkPath READ jlinkPath NOTIFY jlinkChanged)
     Q_PROPERTY(QString jlinkVersion READ jlinkVersion NOTIFY jlinkChanged)
-    // "Detected automatically", "Custom path", "Set by HIO_JLINK_LIBRARY" (translated).
+    // "Detected automatically", "Custom path", "Set by HWIO_JLINK_LIBRARY" (translated).
     Q_PROPERTY(QString jlinkSourceText READ jlinkSourceText NOTIFY jlinkChanged)
-    Q_PROPERTY(hio::gui::ErrorInfo jlinkError READ jlinkError NOTIFY jlinkChanged)
+    Q_PROPERTY(hwio::gui::ErrorInfo jlinkError READ jlinkError NOTIFY jlinkChanged)
     Q_PROPERTY(int nrfUtilState READ nrfUtilState NOTIFY nrfUtilChanged)
     Q_PROPERTY(QString nrfUtilPath READ nrfUtilPath NOTIFY nrfUtilChanged)
     Q_PROPERTY(QString nrfUtilVersion READ nrfUtilVersion NOTIFY nrfUtilChanged)
-    Q_PROPERTY(hio::gui::ErrorInfo nrfUtilError READ nrfUtilError NOTIFY nrfUtilChanged)
+    Q_PROPERTY(hwio::gui::ErrorInfo nrfUtilError READ nrfUtilError NOTIFY nrfUtilChanged)
 
 public:
     // Unscoped: QML compares DependencyStatus.Found etc. with the int properties.
@@ -104,8 +104,9 @@ public:
 signals:
     void jlinkChanged();
     void nrfUtilChanged();
-    void jlinkCandidateChecked(quint64 generation, const hio::Result<hio::gui::JLinkFound>& result);
-    void nrfUtilCandidateChecked(quint64 generation, const hio::gui::NrfUtilStatus& status);
+    void jlinkCandidateChecked(quint64 generation,
+                               const hwio::Result<hwio::gui::JLinkFound>& result);
+    void nrfUtilCandidateChecked(quint64 generation, const hwio::gui::NrfUtilStatus& status);
 
 private:
     void checkJLink();
@@ -132,4 +133,4 @@ private:
     const int m_candidateTag = 0;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

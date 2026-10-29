@@ -1,9 +1,9 @@
 // pickLatest on a trimmed GitHub release list (plan/features/0016 A1).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/update/releases.h"
-#include "hio/update/semver.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/update/releases.h"
+#include "hwio/update/semver.h"
 
 #include <QByteArray>
 #include <QDateTime>
@@ -22,12 +22,12 @@
 
 namespace {
 
-using hio::update::pickLatest;
-using hio::update::ReleaseInfo;
-using hio::update::SemVer;
+using hwio::update::pickLatest;
+using hwio::update::ReleaseInfo;
+using hwio::update::SemVer;
 
 QByteArray fixture() {
-    QFile file(QStringLiteral(HIO_UPDATE_TEST_DATA "/releases.json"));
+    QFile file(QStringLiteral(HWIO_UPDATE_TEST_DATA "/releases.json"));
     EXPECT_TRUE(file.open(QIODevice::ReadOnly));
     return file.readAll();
 }
@@ -35,7 +35,7 @@ QByteArray fixture() {
 SemVer v(const char* text) { return SemVer::parse(text).value_or(SemVer{}); }
 
 // The release of a pickLatest() result (an empty ReleaseInfo when there is none).
-hio::update::ReleaseInfo releaseOf(const hio::Result<std::optional<ReleaseInfo>>& result) {
+hwio::update::ReleaseInfo releaseOf(const hwio::Result<std::optional<ReleaseInfo>>& result) {
     return result.value_or(std::nullopt).value_or(ReleaseInfo{});
 }
 
@@ -96,25 +96,25 @@ TEST(PickLatest, MalformedJsonIsABadResponse) {
     for (const char* json : {"", "{", R"({"message":"Not Found"})", "[1,2]", "null"}) {
         const auto latest = pickLatest(QByteArray(json), false);
         ASSERT_FALSE(latest.has_value()) << json;
-        EXPECT_EQ(latest.error().code, hio::ErrorCode::UpdateBadResponse) << json;
+        EXPECT_EQ(latest.error().code, hwio::ErrorCode::UpdateBadResponse) << json;
         EXPECT_FALSE(latest.error().detail.empty());
     }
 }
 
 TEST(PickLatest, SizeBound) {
     QByteArray json = "[";
-    json += QByteArray(static_cast<qsizetype>(hio::update::maxResponseBytes), ' ');
+    json += QByteArray(static_cast<qsizetype>(hwio::update::maxResponseBytes), ' ');
     json += "]";
     const auto latest = pickLatest(json, false);
     ASSERT_FALSE(latest.has_value());
-    EXPECT_EQ(latest.error().code, hio::ErrorCode::UpdateTooLarge);
+    EXPECT_EQ(latest.error().code, hwio::ErrorCode::UpdateTooLarge);
     // The bad_response texts (plan 0016).
     EXPECT_EQ(latest.error().message, "The update information from GitHub could not be read.");
 }
 
 TEST(PickLatest, AtMostThirtyReleasesAreRead) {
     QByteArray json = "[";
-    for (std::size_t i = 0; i < hio::update::maxReleases; ++i) {
+    for (std::size_t i = 0; i < hwio::update::maxReleases; ++i) {
         json += R"({"tag_name":"v2.0.)" + QByteArray::number(static_cast<qulonglong>(i)) +
                 R"(","draft":false,"prerelease":false},)";
     }
@@ -127,19 +127,19 @@ TEST(PickLatest, AtMostThirtyReleasesAreRead) {
 TEST(CheckResult, NewerOnlyWhenHigher) {
     const auto latest = pickLatest(fixture(), false);
     ASSERT_TRUE(latest.has_value());
-    const auto older = hio::update::makeCheckResult(v("2.0.3"), *latest);
+    const auto older = hwio::update::makeCheckResult(v("2.0.3"), *latest);
     ASSERT_TRUE(older.newer.has_value());
     EXPECT_EQ(older.newer.value_or(ReleaseInfo{}).version, v("2.1.0"));
-    const auto same = hio::update::makeCheckResult(v("2.1.0"), *latest);
+    const auto same = hwio::update::makeCheckResult(v("2.1.0"), *latest);
     EXPECT_FALSE(same.newer.has_value());
     ASSERT_TRUE(same.latest.has_value());
     // A development build after 2.1.0 (2.1.1-dev.3) is not offered 2.1.0; one before (2.1.0-dev.3,
     // numeric part 2.1.0) is not offered it either.
-    EXPECT_FALSE(hio::update::makeCheckResult(v("2.1.1-dev.3+abc"), *latest).newer.has_value());
-    EXPECT_FALSE(hio::update::makeCheckResult(v("2.1.0-dev.3+abc"), *latest).newer.has_value());
+    EXPECT_FALSE(hwio::update::makeCheckResult(v("2.1.1-dev.3+abc"), *latest).newer.has_value());
+    EXPECT_FALSE(hwio::update::makeCheckResult(v("2.1.0-dev.3+abc"), *latest).newer.has_value());
     // A release candidate of 2.1.0 is offered 2.1.0.
-    EXPECT_TRUE(hio::update::makeCheckResult(v("2.1.0-rc.2"), *latest).newer.has_value());
-    EXPECT_FALSE(hio::update::makeCheckResult(v("2.0.0"), std::nullopt).newer.has_value());
+    EXPECT_TRUE(hwio::update::makeCheckResult(v("2.1.0-rc.2"), *latest).newer.has_value());
+    EXPECT_FALSE(hwio::update::makeCheckResult(v("2.0.0"), std::nullopt).newer.has_value());
 }
 
 } // namespace

@@ -1,15 +1,15 @@
 // The environment checks against the fake J-Link library and the fake nRF Util
 // (plan/features/0007, A2-A4).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/probe_lock.h"
-#include "hio/diag/check.h"
-#include "hio/diag/environment.h"
-#include "hio/diag/process_scan.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/diag/check.h"
+#include "hwio/diag/environment.h"
+#include "hwio/diag/process_scan.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QFile>
 #include <QIODevice>
@@ -40,17 +40,17 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::diag::CheckResult;
-using hio::diag::CheckRunner;
-using hio::diag::CheckStatus;
-using hio::diag::IProcessSource;
+using hwio::ErrorCode;
+using hwio::diag::CheckResult;
+using hwio::diag::CheckRunner;
+using hwio::diag::CheckStatus;
+using hwio::diag::IProcessSource;
 
 class ListSource final : public IProcessSource {
 public:
     explicit ListSource(std::vector<Process> processes) : m_processes(std::move(processes)) {}
-    hio::Result<std::vector<Process>> list(std::size_t /*maxCount*/,
-                                           const std::stop_token& /*stop*/) override {
+    hwio::Result<std::vector<Process>> list(std::size_t /*maxCount*/,
+                                            const std::stop_token& /*stop*/) override {
         return m_processes;
     }
 
@@ -59,36 +59,36 @@ private:
 };
 
 // An adapter in a fixed state (the `bluetooth` check reads only IBleApi::adapter()).
-class StubBleApi final : public hio::ble::IBleApi {
+class StubBleApi final : public hwio::ble::IBleApi {
 public:
-    explicit StubBleApi(hio::ble::AdapterInfo adapter) : m_adapter(std::move(adapter)) {}
-    void setListener(hio::ble::IBleListener* /*listener*/) override {}
-    hio::ble::AdapterInfo adapter() override { return m_adapter; }
-    hio::Status startScan(std::chrono::milliseconds /*duration*/) override {
+    explicit StubBleApi(hwio::ble::AdapterInfo adapter) : m_adapter(std::move(adapter)) {}
+    void setListener(hwio::ble::IBleListener* /*listener*/) override {}
+    hwio::ble::AdapterInfo adapter() override { return m_adapter; }
+    hwio::Status startScan(std::chrono::milliseconds /*duration*/) override {
         ADD_FAILURE() << "the bluetooth check must not scan (macOS prompt, ADR-0088)";
         return {};
     }
     void stopScan() override {}
-    hio::Result<hio::ble::LinkId> connect(const hio::ble::BleDeviceId& /*device*/,
-                                          const hio::ble::NusUuids& /*uuids*/) override {
-        return hio::fail(ErrorCode::BleConnectFailed);
+    hwio::Result<hwio::ble::LinkId> connect(const hwio::ble::BleDeviceId& /*device*/,
+                                            const hwio::ble::NusUuids& /*uuids*/) override {
+        return hwio::fail(ErrorCode::BleConnectFailed);
     }
-    hio::Status write(hio::ble::LinkId /*link*/, std::span<const std::byte> /*chunk*/,
-                      hio::ble::WriteMode /*mode*/, std::uint64_t /*token*/) override {
-        return hio::fail(ErrorCode::BleWriteFailed);
+    hwio::Status write(hwio::ble::LinkId /*link*/, std::span<const std::byte> /*chunk*/,
+                       hwio::ble::WriteMode /*mode*/, std::uint64_t /*token*/) override {
+        return hwio::fail(ErrorCode::BleWriteFailed);
     }
-    void disconnect(hio::ble::LinkId /*link*/) override {}
-    hio::Status requestPairing(const hio::ble::BleDeviceId& /*device*/) override { return {}; }
-    bool isPaired(const hio::ble::BleDeviceId& /*device*/) override { return false; }
+    void disconnect(hwio::ble::LinkId /*link*/) override {}
+    hwio::Status requestPairing(const hwio::ble::BleDeviceId& /*device*/) override { return {}; }
+    bool isPaired(const hwio::ble::BleDeviceId& /*device*/) override { return false; }
 
 private:
-    hio::ble::AdapterInfo m_adapter;
+    hwio::ble::AdapterInfo m_adapter;
 };
 
-std::shared_ptr<hio::ble::BleHost> bleHost(hio::ble::AdapterState state) {
-    return std::make_shared<hio::ble::BleHost>([state]() -> std::unique_ptr<hio::ble::IBleApi> {
+std::shared_ptr<hwio::ble::BleHost> bleHost(hwio::ble::AdapterState state) {
+    return std::make_shared<hwio::ble::BleHost>([state]() -> std::unique_ptr<hwio::ble::IBleApi> {
         return std::make_unique<StubBleApi>(
-            hio::ble::AdapterInfo{.state = state, .name = "hci0", .address = "00:11:22:33:44:55"});
+            hwio::ble::AdapterInfo{.state = state, .name = "hci0", .address = "00:11:22:33:44:55"});
     });
 }
 
@@ -100,8 +100,8 @@ class Environment : public ::testing::Test {
 protected:
     void SetUp() override { scenario(oneProbe); }
     void TearDown() override {
-        qunsetenv("HIO_FAKE_JLINK_SCENARIO");
-        qunsetenv("HIO_FAKE_NRFUTIL_MODE");
+        qunsetenv("HWIO_FAKE_JLINK_SCENARIO");
+        qunsetenv("HWIO_FAKE_NRFUTIL_MODE");
     }
 
     void scenario(const char* json) const {
@@ -110,15 +110,15 @@ protected:
         ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
         file.write(json);
         file.close();
-        qputenv("HIO_FAKE_JLINK_SCENARIO", path.toUtf8());
+        qputenv("HWIO_FAKE_JLINK_SCENARIO", path.toUtf8());
     }
 
     [[nodiscard]] fs::path root() const { return {m_dir.path().toStdString()}; }
 
-    [[nodiscard]] hio::diag::EnvironmentContext context() const {
-        hio::diag::EnvironmentContext context;
-        context.jlink.option = fs::path(HIO_FAKE_JLINK_LIBRARY);
-        context.nrfutil.option = fs::path(HIO_FAKE_NRFUTIL);
+    [[nodiscard]] hwio::diag::EnvironmentContext context() const {
+        hwio::diag::EnvironmentContext context;
+        context.jlink.option = fs::path(HWIO_FAKE_JLINK_LIBRARY);
+        context.nrfutil.option = fs::path(HWIO_FAKE_NRFUTIL);
         context.settingsDir = root() / "settings";
         context.logDir = root() / "logs";
         context.processes = std::make_shared<ListSource>(std::vector<IProcessSource::Process>{});
@@ -126,14 +126,14 @@ protected:
         context.lockDirectory = root() / "locks";
         context.usbSysfsRoot = root() / "sys"; // empty: no SEGGER device
         context.usbDevRoot = root() / "dev";
-        context.facts = std::make_shared<hio::diag::EnvironmentFacts>();
-        context.ble = bleHost(hio::ble::AdapterState::Ready);
+        context.facts = std::make_shared<hwio::diag::EnvironmentFacts>();
+        context.ble = bleHost(hwio::ble::AdapterState::Ready);
         return context;
     }
 
     [[nodiscard]] static std::vector<CheckResult>
-    run(const hio::diag::EnvironmentContext& context) {
-        return CheckRunner::run(hio::diag::environmentChecks(context), {});
+    run(const hwio::diag::EnvironmentContext& context) {
+        return CheckRunner::run(hwio::diag::environmentChecks(context), {});
     }
 
     [[nodiscard]] static const CheckResult& find(const std::vector<CheckResult>& results,
@@ -162,7 +162,7 @@ TEST_F(Environment, AllGood) {
     for (const auto& result : results) {
         ids.push_back(result.id);
     }
-    EXPECT_EQ(ids, hio::diag::environmentCheckIds());
+    EXPECT_EQ(ids, hwio::diag::environmentCheckIds());
     EXPECT_EQ(find(results, "jlink-software").status, CheckStatus::Ok);
     EXPECT_TRUE(find(results, "jlink-software").result.starts_with("8.10 · "));
     EXPECT_EQ(find(results, "nrfutil").status, CheckStatus::Ok);
@@ -196,13 +196,13 @@ TEST_F(Environment, AllGood) {
 // M5 (ADR-0088): Bluetooth problems are warnings only; an undecided macOS permission is Ok.
 TEST_F(Environment, BluetoothStates) {
     for (const auto& [state, status, code] :
-         {std::tuple{hio::ble::AdapterState::NotFound, CheckStatus::Warning,
+         {std::tuple{hwio::ble::AdapterState::NotFound, CheckStatus::Warning,
                      ErrorCode::BleAdapterNotFound},
-          std::tuple{hio::ble::AdapterState::PoweredOff, CheckStatus::Warning,
+          std::tuple{hwio::ble::AdapterState::PoweredOff, CheckStatus::Warning,
                      ErrorCode::BleAdapterOff},
-          std::tuple{hio::ble::AdapterState::PermissionDenied, CheckStatus::Warning,
+          std::tuple{hwio::ble::AdapterState::PermissionDenied, CheckStatus::Warning,
                      ErrorCode::BlePermissionDenied},
-          std::tuple{hio::ble::AdapterState::StackUnavailable, CheckStatus::Warning,
+          std::tuple{hwio::ble::AdapterState::StackUnavailable, CheckStatus::Warning,
                      ErrorCode::BleStackUnavailable}}) {
         auto context = this->context();
         context.ble = bleHost(state);
@@ -210,10 +210,10 @@ TEST_F(Environment, BluetoothStates) {
         const auto& bluetooth = find(results, "bluetooth");
         EXPECT_EQ(bluetooth.status, status);
         ASSERT_TRUE(bluetooth.error.has_value());
-        EXPECT_EQ(bluetooth.error.value_or(hio::Error{}).code, code);
+        EXPECT_EQ(bluetooth.error.value_or(hwio::Error{}).code, code);
     }
     auto context = this->context();
-    context.ble = bleHost(hio::ble::AdapterState::PermissionUndetermined);
+    context.ble = bleHost(hwio::ble::AdapterState::PermissionUndetermined);
     const auto results = run(context);
     EXPECT_EQ(find(results, "bluetooth").status, CheckStatus::Ok);
     EXPECT_EQ(find(results, "bluetooth").result, "Permission will be asked on first use");
@@ -226,7 +226,7 @@ TEST_F(Environment, MissingJLinkFailsAndSkipsTheProbeChecks) {
     const auto& jlink = find(results, "jlink-software");
     EXPECT_EQ(jlink.status, CheckStatus::Failed);
     ASSERT_TRUE(jlink.error.has_value());
-    EXPECT_EQ(jlink.error.value_or(hio::Error{}).code, ErrorCode::DependencyJLinkNotFound);
+    EXPECT_EQ(jlink.error.value_or(hwio::Error{}).code, ErrorCode::DependencyJLinkNotFound);
     EXPECT_EQ(find(results, "probes").status, CheckStatus::Skipped);
     EXPECT_EQ(find(results, "probe-firmware").status, CheckStatus::Skipped);
 }
@@ -237,7 +237,7 @@ TEST_F(Environment, TooOldJLinkFails) {
     const auto& jlink = find(results, "jlink-software");
     EXPECT_EQ(jlink.status, CheckStatus::Failed);
     ASSERT_TRUE(jlink.error.has_value());
-    EXPECT_EQ(jlink.error.value_or(hio::Error{}).code, ErrorCode::DependencyJLinkTooOld);
+    EXPECT_EQ(jlink.error.value_or(hwio::Error{}).code, ErrorCode::DependencyJLinkTooOld);
 }
 
 TEST_F(Environment, LoadFailureFails) {
@@ -253,7 +253,7 @@ TEST_F(Environment, LoadFailureFails) {
     const auto& jlink = find(results, "jlink-software");
     EXPECT_EQ(jlink.status, CheckStatus::Failed);
     ASSERT_TRUE(jlink.error.has_value());
-    EXPECT_EQ(jlink.error.value_or(hio::Error{}).code, ErrorCode::DependencyJLinkLoadFailed);
+    EXPECT_EQ(jlink.error.value_or(hwio::Error{}).code, ErrorCode::DependencyJLinkLoadFailed);
 }
 
 TEST_F(Environment, NoProbeIsAWarning) {
@@ -262,7 +262,7 @@ TEST_F(Environment, NoProbeIsAWarning) {
     const auto& probes = find(results, "probes");
     EXPECT_EQ(probes.status, CheckStatus::Warning);
     ASSERT_TRUE(probes.error.has_value());
-    EXPECT_EQ(probes.error.value_or(hio::Error{}).code, ErrorCode::ProbeNotFound);
+    EXPECT_EQ(probes.error.value_or(hwio::Error{}).code, ErrorCode::ProbeNotFound);
     EXPECT_EQ(find(results, "probe-firmware").status, CheckStatus::Skipped);
 }
 
@@ -275,7 +275,7 @@ TEST_F(Environment, OutdatedFirmwareIsAWarning) {
     const auto& firmware = find(results, "probe-firmware");
     EXPECT_EQ(firmware.status, CheckStatus::Warning);
     ASSERT_TRUE(firmware.error.has_value());
-    EXPECT_EQ(firmware.error.value_or(hio::Error{}).code, ErrorCode::ProbeFirmwareOutdated);
+    EXPECT_EQ(firmware.error.value_or(hwio::Error{}).code, ErrorCode::ProbeFirmwareOutdated);
 }
 
 // Review V8: a probe that nothing holds but that cannot be opened is not "in use": the check says
@@ -290,7 +290,7 @@ TEST_F(Environment, ProbeThatCannotBeOpenedIsNotInUse) {
     const auto& firmware = find(results, "probe-firmware");
     EXPECT_EQ(firmware.status, CheckStatus::Warning);
     ASSERT_TRUE(firmware.error.has_value());
-    const hio::Error error = firmware.error.value_or(hio::Error{});
+    const hwio::Error error = firmware.error.value_or(hwio::Error{});
     EXPECT_NE(error.code, ErrorCode::ProbeInUseByOtherProcess);
     EXPECT_TRUE(firmware.result.starts_with("Could not be checked: ")) << firmware.result;
     EXPECT_NE(firmware.result.find(error.message), std::string::npos);
@@ -299,7 +299,7 @@ TEST_F(Environment, ProbeThatCannotBeOpenedIsNotInUse) {
 
 TEST_F(Environment, LockedProbeIsNotOpened) {
     const auto context = this->context();
-    auto lock = hio::device::ProbeLock::acquire(801000001, context.lockDirectory);
+    auto lock = hwio::device::ProbeLock::acquire(801000001, context.lockDirectory);
     ASSERT_TRUE(lock.has_value());
     const auto results = run(context);
     EXPECT_EQ(find(results, "probes").status, CheckStatus::Ok);
@@ -313,21 +313,21 @@ TEST_F(Environment, NrfUtilMissingTooOldOrWithoutDeviceIsAWarning) {
     context.nrfutil.option = root() / "no-nrfutil";
     auto results = run(context);
     EXPECT_EQ(find(results, "nrfutil").status, CheckStatus::Warning);
-    EXPECT_EQ(find(results, "nrfutil").error.value_or(hio::Error{}).code,
+    EXPECT_EQ(find(results, "nrfutil").error.value_or(hwio::Error{}).code,
               ErrorCode::DependencyNrfUtilNotFound);
     EXPECT_EQ(find(results, "nrfutil").result, "Not found — needed only for LTE modem firmware");
 
-    context.nrfutil.option = fs::path(HIO_FAKE_NRFUTIL);
-    qputenv("HIO_FAKE_NRFUTIL_MODE", "old");
+    context.nrfutil.option = fs::path(HWIO_FAKE_NRFUTIL);
+    qputenv("HWIO_FAKE_NRFUTIL_MODE", "old");
     results = run(context);
     EXPECT_EQ(find(results, "nrfutil").status, CheckStatus::Warning);
-    EXPECT_EQ(find(results, "nrfutil").error.value_or(hio::Error{}).code,
+    EXPECT_EQ(find(results, "nrfutil").error.value_or(hwio::Error{}).code,
               ErrorCode::DependencyNrfUtilTooOld);
 
-    qputenv("HIO_FAKE_NRFUTIL_MODE", "nodevice");
+    qputenv("HWIO_FAKE_NRFUTIL_MODE", "nodevice");
     results = run(context);
     EXPECT_EQ(find(results, "nrfutil").status, CheckStatus::Warning);
-    EXPECT_EQ(find(results, "nrfutil").error.value_or(hio::Error{}).code,
+    EXPECT_EQ(find(results, "nrfutil").error.value_or(hwio::Error{}).code,
               ErrorCode::DependencyNrfUtilDeviceMissing);
 }
 
@@ -340,10 +340,10 @@ TEST_F(Environment, ProbeHolderIsAWarning) {
     EXPECT_EQ(holders.status, CheckStatus::Warning);
     EXPECT_EQ(holders.result, "J-Link Commander (PID 4242) is running");
     ASSERT_TRUE(holders.error.has_value());
-    EXPECT_EQ(holders.error.value_or(hio::Error{}).code, ErrorCode::ProbeHeldByProgram);
-    EXPECT_EQ(holders.error.value_or(hio::Error{}).message,
+    EXPECT_EQ(holders.error.value_or(hwio::Error{}).code, ErrorCode::ProbeHeldByProgram);
+    EXPECT_EQ(holders.error.value_or(hwio::Error{}).message,
               "J-Link Commander (PID 4242) is running and may be using the J-Link.");
-    EXPECT_EQ(holders.error.value_or(hio::Error{}).suggestion,
+    EXPECT_EQ(holders.error.value_or(hwio::Error{}).suggestion,
               "Close J-Link Commander and try again.");
 }
 
@@ -360,7 +360,7 @@ TEST_F(Environment, UnwritableFolderFails) {
     const auto& dirs = find(results, "app-dirs");
     EXPECT_EQ(dirs.status, CheckStatus::Failed);
     ASSERT_TRUE(dirs.error.has_value());
-    EXPECT_EQ(dirs.error.value_or(hio::Error{}).code, ErrorCode::IoWriteFailed);
+    EXPECT_EQ(dirs.error.value_or(hwio::Error{}).code, ErrorCode::IoWriteFailed);
     fs::permissions(root() / "ro", fs::perms::owner_all);
 }
 #endif

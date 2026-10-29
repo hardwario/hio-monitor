@@ -3,8 +3,8 @@
 // during a scan, slice time).
 
 #include "gui_test_support.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
 #include "viewmodels/find_filter_engine.h"
 
 #include <QString>
@@ -26,18 +26,18 @@
 
 namespace {
 
-using hio::device::Channel;
-using hio::device::ConsoleLine;
-using hio::device::ConsoleLog;
-using hio::device::Direction;
-using hio::device::LogLevel;
-using hio::gui::LineFilter;
-using hio::gui::LineScan;
-using hio::gui::MatchRange;
-using hio::gui::TextMatcher;
-using hio::gui::TextQuery;
-using hio::gui::test::waitFor;
-namespace level_bits = hio::gui::level_bits;
+using hwio::device::Channel;
+using hwio::device::ConsoleLine;
+using hwio::device::ConsoleLog;
+using hwio::device::Direction;
+using hwio::device::LogLevel;
+using hwio::gui::LineFilter;
+using hwio::gui::LineScan;
+using hwio::gui::MatchRange;
+using hwio::gui::TextMatcher;
+using hwio::gui::TextQuery;
+using hwio::gui::test::waitFor;
+namespace level_bits = hwio::gui::level_bits;
 
 ConsoleLine line(std::string text, LogLevel level = LogLevel::None,
                  Direction dir = Direction::Out) {
@@ -121,9 +121,9 @@ TEST(LineFilter, LevelChipsMarkersAndUntaggedLines) {
     const ConsoleLine marker = line("— connected —", LogLevel::None, Direction::Marker);
     EXPECT_TRUE(filter.passes(marker, u"— connected —"));
     EXPECT_FALSE(
-        hio::gui::findMatches(compile(QStringLiteral("connected")), marker, u"— connected —"));
-    EXPECT_TRUE(hio::gui::findMatches(compile(QStringLiteral("x")), line("x"), u"x"));
-    EXPECT_FALSE(hio::gui::findMatches(TextMatcher(), line("x"), u"x")); // empty search: no match
+        hwio::gui::findMatches(compile(QStringLiteral("connected")), marker, u"— connected —"));
+    EXPECT_TRUE(hwio::gui::findMatches(compile(QStringLiteral("x")), line("x"), u"x"));
+    EXPECT_FALSE(hwio::gui::findMatches(TextMatcher(), line("x"), u"x")); // empty search: no match
 }
 
 class LineScanTest : public ::testing::Test {
@@ -196,10 +196,10 @@ TEST_F(LineScanTest, FilterAndSearchSlicesAreFast) {
         [&](std::span<const ConsoleLine> lines) {
             const auto start = std::chrono::steady_clock::now();
             for (const ConsoleLine& l : lines) {
-                const QString text = hio::gui::lineText(l);
+                const QString text = hwio::gui::lineText(l);
                 if (filter.passes(l, text)) {
                     ++shown;
-                    matches += hio::gui::findMatches(find, l, text) ? 1 : 0;
+                    matches += hwio::gui::findMatches(find, l, text) ? 1 : 0;
                 }
             }
             times.push_back(std::chrono::steady_clock::now() - start);
@@ -242,7 +242,7 @@ TEST_F(LineScanTest, ANewStartCancelsTheOldScan) {
         0, [this] { return log()->lastSeq(); }, [](std::span<const ConsoleLine>) {},
         [&] { cancelledDone = true; });
     scan.cancel();
-    hio::gui::test::spin(std::chrono::milliseconds(50));
+    hwio::gui::test::spin(std::chrono::milliseconds(50));
     EXPECT_FALSE(cancelledDone);
     EXPECT_FALSE(scan.running());
 }

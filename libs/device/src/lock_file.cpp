@@ -1,10 +1,10 @@
 #include "lock_file.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/probe_lock.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/probe_lock.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -53,7 +53,7 @@
 #endif
 #endif
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 namespace {
 
@@ -121,7 +121,7 @@ QString machineName() {
 // Empty = unknown (no comparison).
 QString processNameByPid(qint64 pid) {
 #ifdef _WIN32
-    // qlockfile_win.cpp:97-116: the module file name without directory and extension ("hio").
+    // qlockfile_win.cpp:97-116: the module file name without directory and extension ("hwio").
     HANDLE process =
         OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, static_cast<DWORD>(pid));
     if (process == nullptr) {
@@ -442,4 +442,4 @@ void releaseLockFile(std::unique_ptr<QLockFile>& lock, const std::string& key) {
     }
 }
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

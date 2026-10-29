@@ -13,7 +13,7 @@
 //
 // Calling convention: the JLINKARM_* functions are __cdecl; the JLINK_RTTERMINAL_* functions are
 // __stdcall on 32-bit Windows ([pylink] library.py, Library._standard_calls_). On 64-bit Windows,
-// Linux and macOS there is a single calling convention, so HIO_JLINK_STDCALL expands to nothing
+// Linux and macOS there is a single calling convention, so HWIO_JLINK_STDCALL expands to nothing
 // there (clang warns about an ignored __stdcall on x64, which -Werror would turn into an error).
 //
 // JLINKARM_ReadMemEx(U32 Addr, U32 NumBytes, void* pData, U32 AccessWidth): AccessWidth 0 = any
@@ -31,12 +31,12 @@
 #include <cstdint>
 
 #if defined(_WIN32) && defined(_M_IX86)
-#define HIO_JLINK_STDCALL __stdcall
+#define HWIO_JLINK_STDCALL __stdcall
 #else
-#define HIO_JLINK_STDCALL
+#define HWIO_JLINK_STDCALL
 #endif
 
-namespace hio::jlink::abi {
+namespace hwio::jlink::abi {
 
 // ---- constants --------------------------------------------------------------------------------
 
@@ -157,9 +157,9 @@ using HaltFn = char (*)();                           // JLINKARM_Halt (0 = halte
 using GoFn = void (*)();                             // JLINKARM_Go
 using SetOutHandlerFn =
     void (*)(LogHandler); // JLINKARM_EnableLog, JLINKARM_Set{Warn,Error}OutHandler
-using RttControlFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, void*); // JLINK_RTTERMINAL_Control
-using RttReadFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, char*, std::uint32_t);        // ..._Read
-using RttWriteFn = int(HIO_JLINK_STDCALL*)(std::uint32_t, const char*, std::uint32_t); // ..._Write
+using RttControlFn = int(HWIO_JLINK_STDCALL*)(std::uint32_t, void*); // JLINK_RTTERMINAL_Control
+using RttReadFn = int(HWIO_JLINK_STDCALL*)(std::uint32_t, char*, std::uint32_t);        // ..._Read
+using RttWriteFn = int(HWIO_JLINK_STDCALL*)(std::uint32_t, const char*, std::uint32_t); // ..._Write
 
 // M2 flashing (plan/features/0003, ADR-0035, ADR-0039). Signatures from [UM08002], cross-checked
 // with [pylink] jlink.py flash(), flash_write(), memory_read(), memory_read32(), erase(),
@@ -176,7 +176,7 @@ using EndDownloadFn = int (*)();                                       // JLINKA
 using ReadMemExFn = int (*)(std::uint32_t, std::uint32_t, void*, std::uint32_t); // ..._ReadMemEx
 using ReadMemU32Fn = int (*)(std::uint32_t, std::uint32_t, std::uint32_t*,
                              std::uint8_t*);                // JLINKARM_ReadMemU32
-using EraseChipFn = int(HIO_JLINK_STDCALL*)();              // JLINK_EraseChip
+using EraseChipFn = int(HWIO_JLINK_STDCALL*)();             // JLINK_EraseChip
 using SetFlashProgressFn = void (*)(FlashProgressCallback); // JLINK_SetFlashProgProgressCallback
 
 // The "unsecure (erase) the device?" dialog hook (review R1): int (*)(const char* sTitle,
@@ -188,7 +188,7 @@ inline constexpr int dlgButtonYes = 1 << 0; // [pylink enums.JLinkFlags.DLG_BUTT
 inline constexpr int dlgButtonNo = 1 << 1;  // [pylink enums.JLinkFlags.DLG_BUTTON_NO]
 using UnsecureDialogHook = int (*)(const char*, const char*, std::uint32_t);
 using SetHookUnsecureDialogFn =
-    int(HIO_JLINK_STDCALL*)(UnsecureDialogHook);   // JLINK_SetHookUnsecureDialog
+    int(HWIO_JLINK_STDCALL*)(UnsecureDialogHook);  // JLINK_SetHookUnsecureDialog
 using CoresightConfigureFn = int (*)(const char*); // JLINKARM_CORESIGHT_Configure
 using CoresightReadFn = int (*)(std::uint8_t, std::uint8_t,
                                 std::uint32_t*); // JLINKARM_CORESIGHT_ReadAPDPReg
@@ -239,7 +239,7 @@ static_assert(sizeof(MemZoneInfo) == (sizeof(void*) == 8 ? 40 : 32),
 // JLINK_GetMemZones(JLINK_MEM_ZONE_INFO* paZoneInfo, int MaxNumZones): the number of zones (with
 // a null buffer and 0: the count), < 0 error; __stdcall on 32-bit Windows [pylink library.py
 // _standard_calls_; num_memory_zones(), memory_zones()].
-using GetMemZonesFn = int(HIO_JLINK_STDCALL*)(MemZoneInfo*, int); // JLINK_GetMemZones
+using GetMemZonesFn = int(HWIO_JLINK_STDCALL*)(MemZoneInfo*, int); // JLINK_GetMemZones
 
 // The resolved function table of one loaded library copy.
 struct Functions {
@@ -292,4 +292,4 @@ struct Functions {
     GetMemZonesFn getMemZones = nullptr;
 };
 
-} // namespace hio::jlink::abi
+} // namespace hwio::jlink::abi

@@ -9,7 +9,7 @@
 #include <QString>
 #include <QUrl>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class AppViewModel;
 class DeviceTabViewModel;
@@ -55,4 +55,4 @@ private:
 void registerTestPage(AppViewModel& app, const QUrl& qml);
 
 } // namespace test
-} // namespace hio::gui
+} // namespace hwio::gui

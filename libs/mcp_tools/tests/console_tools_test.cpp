@@ -4,11 +4,11 @@
 // invalid regex), wait_for_connection, device resolution with 0/1/2 sessions, the device closed
 // mid-call.
 
-#include "hio/core/error.h"
-#include "hio/device/console_line.h"
-#include "hio/device/session_events.h"
-#include "hio/device/shell_query.h"
-#include "hio/mcp/limits.h"
+#include "hwio/core/error.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/shell_query.h"
+#include "hwio/mcp/limits.h"
 #include "tools_test_support.h"
 
 #include <QJsonArray>
@@ -22,13 +22,13 @@
 #include <string>
 #include <vector>
 
-namespace hio::mcp::tools::test {
+namespace hwio::mcp::tools::test {
 namespace {
 
 using namespace std::chrono_literals;
-using hio::device::Channel;
-using hio::device::ConnectionState;
-using hio::device::Direction;
+using hwio::device::Channel;
+using hwio::device::ConnectionState;
+using hwio::device::Direction;
 
 std::vector<std::string> outputTexts(const PendingCall& call) {
     std::vector<std::string> texts;
@@ -40,8 +40,8 @@ std::vector<std::string> outputTexts(const PendingCall& call) {
 
 class ConsoleTools : public ::testing::Test {
 protected:
-    static hio::mcp::Limits limits() {
-        hio::mcp::Limits shrunk;
+    static hwio::mcp::Limits limits() {
+        hwio::mcp::Limits shrunk;
         shrunk.tools.sendCommandSilence = 100ms;
         return shrunk;
     }
@@ -189,7 +189,7 @@ TEST_F(ConsoleTools, SendCommandReportsInterleavedCommands) {
 TEST_F(ConsoleTools, SendCommandHeldByAShellQueryStartsItsTimeoutAtRelease) {
     Harness harness(provider(), limits());
     auto& session = provider().add("jlink:1");
-    auto query = hio::device::ShellQuery::start(session, "info show");
+    auto query = hwio::device::ShellQuery::start(session, "info show");
     ASSERT_TRUE(query) << query.error().detail;
     auto call = harness.start(QStringLiteral("send_command"),
                               args({{"command", "version"}, {"timeout", 0.3}}));
@@ -207,7 +207,7 @@ TEST_F(ConsoleTools, SendCommandHeldByAShellQueryStartsItsTimeoutAtRelease) {
 }
 
 TEST_F(ConsoleTools, SendCommandOutputIsCapped) {
-    hio::mcp::Limits shrunk = limits();
+    hwio::mcp::Limits shrunk = limits();
     shrunk.tools.sendCommandMaxLines = 3;
     shrunk.tools.sendCommandMaxBytes = 1024;
     Harness harness(provider(), shrunk);
@@ -307,7 +307,7 @@ TEST_F(ConsoleTools, ReadLogCursorAcrossEviction) {
 }
 
 TEST_F(ConsoleTools, ReadLogPatternAndBounds) {
-    hio::mcp::Limits shrunk;
+    hwio::mcp::Limits shrunk;
     shrunk.tools.readMaxLines = 3;
     Harness harness(provider(), shrunk);
     auto& session = provider().add("jlink:1");
@@ -335,7 +335,7 @@ TEST_F(ConsoleTools, ReadLogPatternAndBounds) {
 // Review R10: a pattern scans at most readScanMaxLines lines per call; with after_cursor the call
 // ends early with a continuation cursor, without it only the newest lines are searched.
 TEST_F(ConsoleTools, ReadLogPatternScanIsCapped) {
-    hio::mcp::Limits shrunk;
+    hwio::mcp::Limits shrunk;
     shrunk.tools.readScanMaxLines = 100;
     Harness harness(provider(), shrunk);
     auto& session = provider().add("jlink:1");
@@ -388,7 +388,7 @@ TEST_F(ConsoleTools, ReadLogPatternScanIsCapped) {
 
 // Review R10: only the first regexMaxLineBytes bytes of a line are matched.
 TEST_F(ConsoleTools, PatternMatchesTheStartOfLongLinesOnly) {
-    hio::mcp::Limits shrunk;
+    hwio::mcp::Limits shrunk;
     shrunk.tools.regexMaxLineBytes = 16;
     Harness harness(provider(), shrunk);
     auto& session = provider().add("jlink:1");
@@ -425,7 +425,7 @@ TEST_F(ConsoleTools, WaitForStateTimeoutScansTheBacklog) {
                                  args({{"pattern", "ready"}, {"timeout", 1}}));
     // 20 000 lines reach the log without linesReceived (no scan was requested for them).
     for (int i = 0; i < 20000; ++i) {
-        hio::device::ConsoleLine line;
+        hwio::device::ConsoleLine line;
         line.channel = Channel::Log;
         line.dir = Direction::Out;
         line.time = std::chrono::system_clock::now();
@@ -441,7 +441,7 @@ TEST_F(ConsoleTools, WaitForStateTimeoutScansTheBacklog) {
     auto timedOut = harness.start(QStringLiteral("wait_for_state"),
                                   args({{"pattern", "never"}, {"timeout", 1}}));
     for (int i = 0; i < 5000; ++i) {
-        hio::device::ConsoleLine line;
+        hwio::device::ConsoleLine line;
         line.channel = Channel::Log;
         line.dir = Direction::Out;
         line.time = std::chrono::system_clock::now();
@@ -580,4 +580,4 @@ TEST_F(ConsoleTools, JLinkToolsNeedAJLinkSession) {
 }
 
 } // namespace
-} // namespace hio::mcp::tools::test
+} // namespace hwio::mcp::tools::test

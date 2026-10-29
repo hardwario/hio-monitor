@@ -24,7 +24,7 @@ output, exit codes. Write "none" if the feature has no CLI surface.
 ## Design
 
 Modules touched, public interfaces (C++ signatures), data flow, threading, error cases
-(each with its `hio::Error` code, user message and suggested fix), limits/bounds.
+(each with its `hwio::Error` code, user message and suggested fix), limits/bounds.
 
 ## Decisions requiring user confirmation
 

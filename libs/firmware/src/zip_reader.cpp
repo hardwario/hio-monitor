@@ -1,10 +1,10 @@
 // ZipReader on miniz (ADR-0041). The only file that calls the miniz C API.
 
-#include "hio/firmware/zip_reader.h"
+#include "hwio/firmware/zip_reader.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 
 #include <QByteArrayView>
 #include <QFile>
@@ -30,7 +30,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 namespace {
 
@@ -275,4 +275,4 @@ Result<fs::path> ZipReader::extractTo(std::string_view name, const fs::path& dir
     return target;
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

@@ -1,12 +1,12 @@
-#include "hio/hw/ble/nus_link.h"
+#include "hwio/hw/ble/nus_link.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/link_handler.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/link_handler.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QLoggingCategory>
 #include <QObject>
@@ -24,7 +24,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 NusLink::NusLink(IBleApi& api, BleDeviceId device, NusUuids uuids,
                  std::unique_ptr<ILinkHandler> handler, LinkTiming timing)
@@ -349,4 +349,4 @@ void NusLink::pairingFinished(Status status, bool alreadyPaired) {
     m_handler->onPairingFinished(std::move(status), alreadyPaired);
 }
 
-} // namespace hio::ble
+} // namespace hwio::ble

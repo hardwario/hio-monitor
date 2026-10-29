@@ -4,8 +4,8 @@
 // locks, the J-Link library copies and console files; the fake J-Link library with a scenario; an
 // AppViewModel factory.
 
-#include "hio/core/settings.h"
-#include "hio/device/session_registry.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/session_registry.h"
 #include "pages/builtin_pages.h"
 #include "support/fake_jlink_scenario.h"
 #include "support/test_page_view_model.h"
@@ -28,7 +28,7 @@
 #include <optional>
 #include <utility>
 
-namespace hio::gui::test {
+namespace hwio::gui::test {
 
 // Runs the event loop, including deferred deletes (deleteLater), until `done` or `timeout`.
 inline bool waitFor(const std::function<bool()>& done,
@@ -52,8 +52,8 @@ class GuiTest : public ::testing::Test {
 protected:
     void SetUp() override { ASSERT_TRUE(useFakeJLink(m_dir.path(), twoProbesScenario)); }
     void TearDown() override {
-        qunsetenv("HIO_FAKE_JLINK_SCENARIO");
-        qunsetenv("HIO_JLINK_LIBRARY");
+        qunsetenv("HWIO_FAKE_JLINK_SCENARIO");
+        qunsetenv("HWIO_JLINK_LIBRARY");
     }
 
     void useScenario(const char* json) const { ASSERT_TRUE(useFakeJLink(m_dir.path(), json)); }
@@ -93,4 +93,4 @@ private:
     QTemporaryDir m_dir;
 };
 
-} // namespace hio::gui::test
+} // namespace hwio::gui::test

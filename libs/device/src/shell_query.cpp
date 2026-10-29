@@ -1,14 +1,14 @@
-#include "hio/device/shell_query.h"
+#include "hwio/device/shell_query.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/command_capture.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_session.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_capture.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/session_events.h"
 
 #include <QEventLoop>
 #include <QLoggingCategory>
@@ -27,7 +27,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::device {
+namespace hwio::device {
 
 Result<std::unique_ptr<ShellQuery>> ShellQuery::start(ConsoleSession& session, std::string command,
                                                       const ShellQueryOptions& options) {
@@ -261,4 +261,4 @@ std::optional<ShellQueryResult> runAndWait(ShellQueryQueue& queue, std::string c
     return answer;
 }
 
-} // namespace hio::device
+} // namespace hwio::device

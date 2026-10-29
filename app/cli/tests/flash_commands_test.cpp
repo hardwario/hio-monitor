@@ -4,8 +4,8 @@
 #include "cli_app.h"
 #include "confirm.h"
 #include "flash_commands.h"
-#include "hio/core/error.h"
-#include "hio/device/operation.h"
+#include "hwio/core/error.h"
+#include "hwio/device/operation.h"
 #include "output.h"
 #include "progress_ui.h"
 
@@ -23,10 +23,10 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::cli::Context;
-using hio::cli::OutputMode;
-using hio::cli::ProgressUi;
+using hwio::ErrorCode;
+using hwio::cli::Context;
+using hwio::cli::OutputMode;
+using hwio::cli::ProgressUi;
 
 TEST(ProgressUiTest, BarLine) {
     EXPECT_EQ(ProgressUi::barLine("Programming", 50, 100, 1, 1),
@@ -68,18 +68,18 @@ TEST(ProgressUiTest, BarsOnATerminal) {
 TEST(ProgressUiTest, JsonEvents) {
     std::ostringstream out;
     std::ostringstream err;
-    hio::cli::Output output(OutputMode::Json, out, err, false);
+    hwio::cli::Output output(OutputMode::Json, out, err, false);
     const Context context{.mode = OutputMode::Json, .stop = {}, .output = &output, .logFile = {}};
     ProgressUi ui(context, err, true);
-    hio::device::OperationProgress progress;
-    progress.phase = hio::device::ProgramPhase::Programming;
+    hwio::device::OperationProgress progress;
+    progress.phase = hwio::device::ProgramPhase::Programming;
     progress.done = 204800;
     progress.total = 421888;
     progress.step = 1;
     progress.steps = 2;
     ui.progress(progress);
     ui.progress(progress); // identical: skipped
-    ui.warning(hio::makeError(ErrorCode::IoWriteFailed, "cache"));
+    ui.warning(hwio::makeError(ErrorCode::IoWriteFailed, "cache"));
     ui.info("not in JSON");
     EXPECT_EQ(
         out.str(),
@@ -94,14 +94,14 @@ TEST(Confirm, Rules) {
     const Context human{.mode = OutputMode::Human, .stop = {}, .output = nullptr, .logFile = {}};
     const Context json{.mode = OutputMode::Json, .stop = {}, .output = nullptr, .logFile = {}};
     const std::string question = "This erases all flash.\nContinue? [y/N] ";
-    EXPECT_TRUE(hio::cli::confirmDestructive(human, true, question));
-    const auto refused = hio::cli::confirmDestructive(human, false, question, {}, false);
+    EXPECT_TRUE(hwio::cli::confirmDestructive(human, true, question));
+    const auto refused = hwio::cli::confirmDestructive(human, false, question, {}, false);
     ASSERT_FALSE(refused);
     EXPECT_EQ(refused.error().code, ErrorCode::UsageConfirmationRequired);
     EXPECT_EQ(refused.error().detail, "This erases all flash.");
-    EXPECT_FALSE(hio::cli::confirmDestructive(json, false, question));
+    EXPECT_FALSE(hwio::cli::confirmDestructive(json, false, question));
     std::string asked;
-    EXPECT_TRUE(hio::cli::confirmDestructive(
+    EXPECT_TRUE(hwio::cli::confirmDestructive(
         human, false, question,
         [&asked](const std::string& q) {
             asked = q;
@@ -109,7 +109,7 @@ TEST(Confirm, Rules) {
         },
         true));
     EXPECT_EQ(asked, question);
-    const auto no = hio::cli::confirmDestructive(
+    const auto no = hwio::cli::confirmDestructive(
         human, false, question, [](const std::string&) { return false; }, true);
     ASSERT_FALSE(no);
     EXPECT_EQ(no.error().code, ErrorCode::Cancelled);
@@ -119,13 +119,13 @@ TEST(FlashInput, ArgumentRules) {
     QTemporaryDir dir;
     const fs::path root(dir.path().toStdString());
     std::ofstream(root / "app.hex") << ":00000001FF\n";
-    const auto file = hio::cli::resolveFlashInput((root / "app.hex").string(), root);
+    const auto file = hwio::cli::resolveFlashInput((root / "app.hex").string(), root);
     ASSERT_TRUE(file);
-    EXPECT_TRUE(std::holds_alternative<hio::cli::FlashFile>(*file));
-    const auto id = hio::cli::resolveFlashInput("0123456789ABCDEF0123456789abcdef", root);
+    EXPECT_TRUE(std::holds_alternative<hwio::cli::FlashFile>(*file));
+    const auto id = hwio::cli::resolveFlashInput("0123456789ABCDEF0123456789abcdef", root);
     ASSERT_TRUE(id);
-    EXPECT_TRUE(std::holds_alternative<hio::cli::FlashCatalogId>(*id));
-    const auto missing = hio::cli::resolveFlashInput((root / "nope.hex").string(), root);
+    EXPECT_TRUE(std::holds_alternative<hwio::cli::FlashCatalogId>(*id));
+    const auto missing = hwio::cli::resolveFlashInput((root / "nope.hex").string(), root);
     ASSERT_FALSE(missing);
     EXPECT_EQ(missing.error().code, ErrorCode::UsageInvalidArgument);
 }
@@ -133,7 +133,7 @@ TEST(FlashInput, ArgumentRules) {
 TEST(FlashInput, BuildOutputSearch) {
     QTemporaryDir dir;
     const fs::path root(dir.path().toStdString());
-    const auto none = hio::cli::resolveFlashInput("", root);
+    const auto none = hwio::cli::resolveFlashInput("", root);
     ASSERT_FALSE(none);
     EXPECT_NE(none.error().detail.find("merged_chester_nrf52840.hex"), std::string::npos);
     fs::create_directories(root / "build" / "zephyr");
@@ -141,11 +141,12 @@ TEST(FlashInput, BuildOutputSearch) {
         const std::ofstream empty(root / "build" / "merged.hex"); // empty: skipped
     }
     std::ofstream(root / "build" / "zephyr" / "zephyr.hex") << ":00000001FF\n";
-    const auto found = hio::cli::resolveFlashInput("", root);
+    const auto found = hwio::cli::resolveFlashInput("", root);
     ASSERT_TRUE(found);
-    EXPECT_EQ(std::get<hio::cli::FlashFile>(*found).path, root / "build" / "zephyr" / "zephyr.hex");
+    EXPECT_EQ(std::get<hwio::cli::FlashFile>(*found).path,
+              root / "build" / "zephyr" / "zephyr.hex");
     std::ofstream(root / "build" / "zephyr.hex") << ":00000001FF\n"; // build/ comes first
-    EXPECT_EQ(std::get<hio::cli::FlashFile>(*hio::cli::resolveFlashInput("", root)).path,
+    EXPECT_EQ(std::get<hwio::cli::FlashFile>(*hwio::cli::resolveFlashInput("", root)).path,
               root / "build" / "zephyr.hex");
 }
 

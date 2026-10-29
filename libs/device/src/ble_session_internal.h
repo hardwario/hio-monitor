@@ -3,21 +3,21 @@
 // Internals of BleSession shared by the facade, the link handler (BLE thread) and the unit tests
 // (plan/features/0011, ADR-0128, ADR-0129).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/ble_lock.h"
-#include "hio/device/ble_session.h"
-#include "hio/device/console_file_sink.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/line_assembler.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/event_channel.h"
-#include "hio/hw/ble/link_handler.h"
-#include "hio/hw/ble/nus_link.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/ble_lock.h"
+#include "hwio/device/ble_session.h"
+#include "hwio/device/console_file_sink.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/line_assembler.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/event_channel.h"
+#include "hwio/hw/ble/link_handler.h"
+#include "hwio/hw/ble/nus_link.h"
+#include "hwio/hw/ble/types.h"
 
 #include <chrono>
 #include <cstddef>
@@ -29,7 +29,7 @@
 #include <string>
 #include <variant>
 
-namespace hio::device {
+namespace hwio::device {
 
 class SessionRegistry;
 
@@ -128,7 +128,7 @@ private:
 // Errors that end a BLE session for good, also with autoReconnect (plan 0011 Q9).
 [[nodiscard]] bool isFatalBleError(ErrorCode code) noexcept;
 
-// isPrompt() is public in hio/device/line_assembler.h (M6, plan/features/0013).
+// isPrompt() is public in hwio/device/line_assembler.h (M6, plan/features/0013).
 
 // ---- facade state
 // ---------------------------------------------------------------------------------
@@ -166,4 +166,4 @@ struct BleSessionInternals {
 
 } // namespace detail
 
-} // namespace hio::device
+} // namespace hwio::device

@@ -1,12 +1,12 @@
 #include "session_worker_target.h"
 
 #include "flash_workflows.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/hw/jlink/programmer.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/hw/jlink/programmer.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 namespace {
 
@@ -122,4 +122,4 @@ Result<jlink::ChipInfo> runWriteFlash(WorkflowContext& context,
     return runFlash(context, image, FlashOptions{.halt = false, .allowUicr = allowUicr});
 }
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

@@ -13,7 +13,7 @@
 //
 // Ownership: owned by AppViewModel (Qt parent). Thread safety: GUI thread only.
 
-#include "hio/core/result.h"
+#include "hwio/core/result.h"
 
 #include <QKeySequence>
 #include <QObject>
@@ -24,7 +24,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class ShortcutRegistry : public QObject {
     Q_OBJECT
@@ -87,4 +87,4 @@ private:
     std::vector<ScopeTitle> m_scopeTitles;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

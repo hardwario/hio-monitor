@@ -16,7 +16,7 @@
 #include <cstddef>
 #include <memory>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 DeviceTabListModel::DeviceTabListModel(QObject* parent) : QAbstractListModel(parent) {}
 
@@ -152,4 +152,4 @@ void DeviceTabListModel::watch(DeviceTabViewModel* tab) {
     });
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

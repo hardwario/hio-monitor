@@ -1,9 +1,9 @@
-# app/cli - the `hio` command-line interface (ADR-0017, ADR-0018). English only (ADR-0027).
+# app/cli - the `hwio` command-line interface (ADR-0017, ADR-0018). English only (ADR-0027).
 #
-# hio_cli_impl holds everything except main() so that the unit tests can link it.
+# hwio_cli_impl holds everything except main() so that the unit tests can link it.
 # QtCore only; no translations are embedded. The interactive console uses replxx (ADR-0033).
 
-add_library(hio_cli_impl STATIC
+add_library(hwio_cli_impl STATIC
     src/chester_commands.cpp
     src/chester_commands.h
     src/ble_commands.cpp
@@ -58,40 +58,40 @@ add_library(hio_cli_impl STATIC
     src/terminal.h
     src/update_commands.cpp
     src/update_commands.h)
-hio_apply_target_defaults(hio_cli_impl)
-target_include_directories(hio_cli_impl PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(hio_cli_impl PUBLIC
-    hio::core hio::device hio::diag hio::mcp hio::mcp_tools hio::update Qt6::Core CLI11::CLI11)
+hwio_apply_target_defaults(hwio_cli_impl)
+target_include_directories(hwio_cli_impl PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(hwio_cli_impl PUBLIC
+    hwio::core hwio::device hwio::diag hwio::mcp hwio::mcp_tools hwio::update Qt6::Core CLI11::CLI11)
 # replxx (ADR-0033) only for the interactive console; the backend never links it.
-target_link_libraries(hio_cli_impl PRIVATE replxx::replxx)
+target_link_libraries(hwio_cli_impl PRIVATE replxx::replxx)
 if(WIN32)
-    target_compile_definitions(hio_cli_impl PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_definitions(hwio_cli_impl PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
 
-qt_add_executable(hio src/main.cpp)
+qt_add_executable(hwio src/main.cpp)
 # Plan 0015 A3: icon and VERSIONINFO on Windows.
 if(WIN32)
-    set(HIO_RC_FILE_DESCRIPTION "HARDWARIO Monitor command-line interface")
-    set(HIO_RC_INTERNAL_NAME "hio")
-    set(HIO_RC_ORIGINAL_FILENAME "hio.exe")
+    set(HWIO_RC_FILE_DESCRIPTION "HARDWARIO Monitor command-line interface")
+    set(HWIO_RC_INTERNAL_NAME "hwio")
+    set(HWIO_RC_ORIGINAL_FILENAME "hwio.exe")
     configure_file("${PROJECT_SOURCE_DIR}/packaging/windows/version.rc.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/hio.rc" @ONLY)
-    target_sources(hio PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/hio.rc")
+        "${CMAKE_CURRENT_BINARY_DIR}/hwio.rc" @ONLY)
+    target_sources(hwio PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/hwio.rc")
 endif()
-hio_apply_target_defaults(hio)
-target_link_libraries(hio PRIVATE hio_cli_impl)
+hwio_apply_target_defaults(hwio)
+target_link_libraries(hwio PRIVATE hwio_cli_impl)
 # A console application on every OS (no WIN32_EXECUTABLE, no MACOSX_BUNDLE).
-set_target_properties(hio PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+set_target_properties(hwio PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
 # ADR-0086: macOS needs NSBluetoothAlwaysUsageDescription before CoreBluetooth may be used; the
 # bare executable carries its Info.plist as the __TEXT,__info_plist section.
 if(APPLE)
-    set(HIO_CLI_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
-    configure_file(macos/Info.plist.in "${HIO_CLI_INFO_PLIST}" @ONLY)
-    target_link_options(hio PRIVATE
-        "LINKER:-sectcreate,__TEXT,__info_plist,${HIO_CLI_INFO_PLIST}")
-    set_property(TARGET hio APPEND PROPERTY LINK_DEPENDS "${HIO_CLI_INFO_PLIST}")
+    set(HWIO_CLI_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
+    configure_file(macos/Info.plist.in "${HWIO_CLI_INFO_PLIST}" @ONLY)
+    target_link_options(hwio PRIVATE
+        "LINKER:-sectcreate,__TEXT,__info_plist,${HWIO_CLI_INFO_PLIST}")
+    set_property(TARGET hwio APPEND PROPERTY LINK_DEPENDS "${HWIO_CLI_INFO_PLIST}")
 endif()
 
-if(HIO_BUILD_TESTS)
+if(HWIO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()

@@ -1,6 +1,6 @@
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
 #include "settings_internal.h"
 
 #include <QSettings>
@@ -21,8 +21,8 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::SettingKey;
-using hio::Settings;
+using hwio::SettingKey;
+using hwio::Settings;
 
 constexpr SettingKey<bool> flagKey{.path = "test/flag", .defaultValue = true};
 constexpr SettingKey<int> countKey{.path = "test/count", .defaultValue = 7};
@@ -50,7 +50,7 @@ TEST(Settings, NewFileGetsCurrentSchemaAndDefaults) {
     auto settings = Settings::openFile(file);
     ASSERT_TRUE(settings.has_value());
     EXPECT_FALSE(settings->isReadOnly());
-    EXPECT_EQ(settings->schemaVersion(), hio::currentSettingsSchema);
+    EXPECT_EQ(settings->schemaVersion(), hwio::currentSettingsSchema);
     EXPECT_TRUE(settings->get(flagKey));
     EXPECT_EQ(settings->get(countKey), 7);
     EXPECT_EQ(settings->get(nameKey), "default");
@@ -107,9 +107,9 @@ TEST(Settings, NewerSchemaIsReadOnlyAndNeverWritten) {
         EXPECT_TRUE(settings->isReadOnly());
         EXPECT_EQ(settings->schemaVersion(), 99);
         EXPECT_EQ(settings->get(countKey), 5);
-        const hio::Status status = settings->set(countKey, 6);
+        const hwio::Status status = settings->set(countKey, 6);
         ASSERT_FALSE(status.has_value());
-        EXPECT_EQ(status.error().code, hio::ErrorCode::SettingsNewerSchema);
+        EXPECT_EQ(status.error().code, hwio::ErrorCode::SettingsNewerSchema);
         EXPECT_TRUE(settings->sync());
     }
     EXPECT_EQ(readFile(file), before);
@@ -128,8 +128,8 @@ TEST(Settings, RemoveDeletesAGroupAndItsKeys) {
         ASSERT_TRUE(settings->set(countKey, 3));
         EXPECT_TRUE(settings->remove("devices/801234567"));
         EXPECT_TRUE(settings->remove("devices/missing")); // no error
-        EXPECT_EQ(settings->remove("").error().code, hio::ErrorCode::UsageInvalidArgument);
-        EXPECT_EQ(settings->remove("meta").error().code, hio::ErrorCode::UsageInvalidArgument);
+        EXPECT_EQ(settings->remove("").error().code, hwio::ErrorCode::UsageInvalidArgument);
+        EXPECT_EQ(settings->remove("meta").error().code, hwio::ErrorCode::UsageInvalidArgument);
         EXPECT_TRUE(settings->sync());
     }
     const std::string text = readFile(file);
@@ -150,9 +150,9 @@ TEST(Settings, RemoveIsRefusedWhenReadOnly) {
     {
         auto settings = Settings::openFile(file);
         ASSERT_TRUE(settings.has_value());
-        const hio::Status status = settings->remove("devices");
+        const hwio::Status status = settings->remove("devices");
         ASSERT_FALSE(status.has_value());
-        EXPECT_EQ(status.error().code, hio::ErrorCode::SettingsNewerSchema);
+        EXPECT_EQ(status.error().code, hwio::ErrorCode::SettingsNewerSchema);
     }
     EXPECT_EQ(readFile(file), before);
 }
@@ -166,24 +166,24 @@ std::vector<int>& appliedMigrations() {
     return applied;
 }
 
-hio::Status migrateTo2(QSettings& raw) {
+hwio::Status migrateTo2(QSettings& raw) {
     appliedMigrations().push_back(2);
     raw.setValue(QStringLiteral("test/count"), raw.value(QStringLiteral("old/count")));
     raw.remove(QStringLiteral("old/count"));
     return {};
 }
 
-hio::Status migrateTo3(QSettings& raw) {
+hwio::Status migrateTo3(QSettings& raw) {
     appliedMigrations().push_back(3);
     raw.setValue(QStringLiteral("test/name"), QStringLiteral("migrated"));
     return {};
 }
 
-hio::Status failingMigration(QSettings& /*raw*/) {
-    return hio::fail(hio::ErrorCode::IoWriteFailed);
+hwio::Status failingMigration(QSettings& /*raw*/) {
+    return hwio::fail(hwio::ErrorCode::IoWriteFailed);
 }
 
-constexpr std::array<hio::detail::SettingsMigration, 2> testMigrations{{
+constexpr std::array<hwio::detail::SettingsMigration, 2> testMigrations{{
     {.toVersion = 2, .apply = migrateTo2},
     {.toVersion = 3, .apply = migrateTo3},
 }};
@@ -195,7 +195,7 @@ TEST(SettingsMigration, RunsPendingMigrationsInOrder) {
     writeRaw(file, QStringLiteral("old/count"), 11);
     appliedMigrations().clear();
 
-    auto settings = hio::detail::openSettingsFile(file, 3, testMigrations);
+    auto settings = hwio::detail::openSettingsFile(file, 3, testMigrations);
     ASSERT_TRUE(settings.has_value());
     EXPECT_EQ(appliedMigrations(), (std::vector<int>{2, 3}));
     EXPECT_EQ(settings->schemaVersion(), 3);
@@ -209,7 +209,7 @@ TEST(SettingsMigration, SkipsMigrationsAlreadyApplied) {
     const fs::path file = settingsFile(dir);
     writeRaw(file, QStringLiteral("meta/schemaVersion"), 2);
     appliedMigrations().clear();
-    auto settings = hio::detail::openSettingsFile(file, 3, testMigrations);
+    auto settings = hwio::detail::openSettingsFile(file, 3, testMigrations);
     ASSERT_TRUE(settings.has_value());
     EXPECT_EQ(appliedMigrations(), (std::vector<int>{3}));
 }
@@ -217,7 +217,7 @@ TEST(SettingsMigration, SkipsMigrationsAlreadyApplied) {
 TEST(SettingsMigration, NewFileRunsNoMigrations) {
     const QTemporaryDir dir;
     appliedMigrations().clear();
-    auto settings = hio::detail::openSettingsFile(settingsFile(dir), 3, testMigrations);
+    auto settings = hwio::detail::openSettingsFile(settingsFile(dir), 3, testMigrations);
     ASSERT_TRUE(settings.has_value());
     EXPECT_TRUE(appliedMigrations().empty());
     EXPECT_EQ(settings->schemaVersion(), 3);
@@ -227,12 +227,12 @@ TEST(SettingsMigration, FailureIsReported) {
     const QTemporaryDir dir;
     const fs::path file = settingsFile(dir);
     writeRaw(file, QStringLiteral("meta/schemaVersion"), 1);
-    const std::array<hio::detail::SettingsMigration, 1> migrations{{
+    const std::array<hwio::detail::SettingsMigration, 1> migrations{{
         {.toVersion = 2, .apply = failingMigration},
     }};
-    auto settings = hio::detail::openSettingsFile(file, 2, migrations);
+    auto settings = hwio::detail::openSettingsFile(file, 2, migrations);
     ASSERT_FALSE(settings.has_value());
-    EXPECT_EQ(settings.error().code, hio::ErrorCode::IoWriteFailed);
+    EXPECT_EQ(settings.error().code, hwio::ErrorCode::IoWriteFailed);
 }
 
 TEST(SettingsMigration, FailureLeavesTheFileUnchanged) {
@@ -241,12 +241,12 @@ TEST(SettingsMigration, FailureLeavesTheFileUnchanged) {
     writeRaw(file, QStringLiteral("meta/schemaVersion"), 1);
     writeRaw(file, QStringLiteral("old/count"), 11);
     // migrateTo2 succeeds and changes keys, then the step to 3 fails.
-    const std::array<hio::detail::SettingsMigration, 2> migrations{{
+    const std::array<hwio::detail::SettingsMigration, 2> migrations{{
         {.toVersion = 2, .apply = migrateTo2},
         {.toVersion = 3, .apply = failingMigration},
     }};
     {
-        auto settings = hio::detail::openSettingsFile(file, 3, migrations);
+        auto settings = hwio::detail::openSettingsFile(file, 3, migrations);
         ASSERT_FALSE(settings.has_value());
     }
     const QSettings raw(QString::fromStdU16String(file.u16string()), QSettings::IniFormat);
@@ -259,13 +259,13 @@ TEST(SettingsMigration, MissingStepIsRejected) {
     const QTemporaryDir dir;
     const fs::path file = settingsFile(dir);
     writeRaw(file, QStringLiteral("meta/schemaVersion"), 1);
-    const std::array<hio::detail::SettingsMigration, 1> migrations{{
+    const std::array<hwio::detail::SettingsMigration, 1> migrations{{
         {.toVersion = 3, .apply = migrateTo3},
     }};
     appliedMigrations().clear();
-    auto settings = hio::detail::openSettingsFile(file, 3, migrations);
+    auto settings = hwio::detail::openSettingsFile(file, 3, migrations);
     ASSERT_FALSE(settings.has_value());
-    EXPECT_EQ(settings.error().code, hio::ErrorCode::InternalUnexpected);
+    EXPECT_EQ(settings.error().code, hwio::ErrorCode::InternalUnexpected);
     EXPECT_TRUE(appliedMigrations().empty());
     const QSettings raw(QString::fromStdU16String(file.u16string()), QSettings::IniFormat);
     EXPECT_EQ(raw.value(QStringLiteral("meta/schemaVersion")).toInt(), 1);

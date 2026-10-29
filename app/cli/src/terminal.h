@@ -2,7 +2,7 @@
 
 // Small terminal helpers of the CLI (TTY detection, a yes/no question, non-blocking stdin lines).
 
-#include "hio/core/bounded_queue.h"
+#include "hwio/core/bounded_queue.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -16,7 +16,7 @@
 #include <string>
 #include <thread>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 [[nodiscard]] bool stdinIsTerminal();
 [[nodiscard]] bool stdoutIsTerminal();
@@ -30,7 +30,7 @@ namespace hio::cli {
 // What StdinLineReader does with a line longer than StdinReaderOptions::maxLineBytes (ADR-0154).
 enum class OverlongLinePolicy : std::uint8_t {
     Truncate,      // the line is cut at maxLineBytes, the rest of it is dropped (the console)
-    DropAndReport, // the whole line is dropped and an Overlong item is delivered instead (hio mcp)
+    DropAndReport, // the whole line is dropped and an Overlong item is delivered instead (hwio mcp)
 };
 
 // StdinLineReader parameters (ADR-0154). The defaults are the console's values.
@@ -47,7 +47,7 @@ struct StdinReaderOptions {
     OverlongLinePolicy overlong = OverlongLinePolicy::Truncate;
     // Optional; called on the reader thread after each queued item (also the Overlong marker and
     // the end of input). It must be thread-safe, return quickly and must not touch the reader
-    // (hio mcp posts a queued wake-up to its owner thread). An exception from it ends the input.
+    // (hwio mcp posts a queued wake-up to its owner thread). An exception from it ends the input.
     std::function<void()> notify;
 };
 
@@ -121,4 +121,4 @@ private:
     std::jthread m_thread;               // declared last: stopped and joined first
 };
 
-} // namespace hio::cli
+} // namespace hwio::cli

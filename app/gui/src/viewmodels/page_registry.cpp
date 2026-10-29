@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 void PageRegistry::add(PageDescriptor page) {
     if (find(page.id) != nullptr) {
@@ -52,4 +52,4 @@ QString PageRegistry::title(const SettingsSectionDescriptor& section) {
     return QCoreApplication::translate("Pages", section.titleSourceText);
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

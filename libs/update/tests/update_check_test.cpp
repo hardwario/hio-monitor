@@ -1,12 +1,12 @@
 // UpdateCheck against the local HTTP fixture (plan/features/0016 A2): success, rate limit,
 // timeout, oversize, redirect to another origin, cancel. Left out under TSan (CMakeLists.txt).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/update/releases.h"
-#include "hio/update/semver.h"
-#include "hio/update/update_check.h"
 #include "http_fixture.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/update/releases.h"
+#include "hwio/update/semver.h"
+#include "hwio/update/update_check.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -25,15 +25,15 @@
 
 namespace {
 
-using hio::firmware::test::HttpFixture;
-using hio::update::ReleaseInfo;
-using hio::update::SemVer;
-using hio::update::UpdateCheck;
+using hwio::firmware::test::HttpFixture;
+using hwio::update::ReleaseInfo;
+using hwio::update::SemVer;
+using hwio::update::UpdateCheck;
 
 const QString releasesPath = QStringLiteral("/repos/hardwario/hio-monitor/releases");
 
 QByteArray fixture() {
-    QFile file(QStringLiteral(HIO_UPDATE_TEST_DATA "/releases.json"));
+    QFile file(QStringLiteral(HWIO_UPDATE_TEST_DATA "/releases.json"));
     EXPECT_TRUE(file.open(QIODevice::ReadOnly));
     return file.readAll();
 }
@@ -42,11 +42,11 @@ SemVer v(const char* text) { return SemVer::parse(text).value_or(SemVer{}); }
 
 QUrl url(const HttpFixture& server) { return {server.origin() + releasesPath}; }
 
-hio::Result<hio::update::CheckResult> run(UpdateCheck& check, QNetworkAccessManager& network,
-                                          const QUrl& target, const char* current,
-                                          bool prerelease = false) {
+hwio::Result<hwio::update::CheckResult> run(UpdateCheck& check, QNetworkAccessManager& network,
+                                            const QUrl& target, const char* current,
+                                            bool prerelease = false) {
     check.start(network, target, v(current), prerelease);
-    return hio::update::waitForCheck(check);
+    return hwio::update::waitForCheck(check);
 }
 
 TEST(UpdateCheck, FindsANewerRelease) {
@@ -93,7 +93,7 @@ TEST(UpdateCheck, RateLimited) {
     UpdateCheck check;
     const auto result = run(check, network, url(server), "2.0.0");
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::UpdateRateLimited);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::UpdateRateLimited);
     EXPECT_NE(result.error().detail.find("2027-01-01T00:00:00Z"), std::string::npos)
         << result.error().detail;
 }
@@ -106,7 +106,7 @@ TEST(UpdateCheck, OtherHttpErrorsAreBadResponses) {
         UpdateCheck check;
         const auto result = run(check, network, url(server), "2.0.0");
         ASSERT_FALSE(result.has_value()) << status;
-        EXPECT_EQ(result.error().code, hio::ErrorCode::UpdateBadResponse) << status;
+        EXPECT_EQ(result.error().code, hwio::ErrorCode::UpdateBadResponse) << status;
     }
 }
 
@@ -117,7 +117,7 @@ TEST(UpdateCheck, MalformedBody) {
     UpdateCheck check;
     const auto result = run(check, network, url(server), "2.0.0");
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::UpdateBadResponse);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::UpdateBadResponse);
 }
 
 TEST(UpdateCheck, Timeout) {
@@ -128,19 +128,19 @@ TEST(UpdateCheck, Timeout) {
     check.setTransferTimeout(std::chrono::milliseconds(300));
     const auto result = run(check, network, url(server), "2.0.0");
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::UpdateNetwork);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::UpdateNetwork);
     EXPECT_NE(result.error().detail.find("timeout"), std::string::npos) << result.error().detail;
 }
 
 TEST(UpdateCheck, Oversize) {
     HttpFixture server;
     server.set(releasesPath, HttpFixture::Response::ok(QByteArray(
-                                 static_cast<qsizetype>(hio::update::maxResponseBytes) + 1, ' ')));
+                                 static_cast<qsizetype>(hwio::update::maxResponseBytes) + 1, ' ')));
     QNetworkAccessManager network;
     UpdateCheck check;
     const auto result = run(check, network, url(server), "2.0.0");
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::UpdateTooLarge);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::UpdateTooLarge);
 }
 
 TEST(UpdateCheck, RedirectToAnotherOriginIsRefused) {
@@ -153,7 +153,7 @@ TEST(UpdateCheck, RedirectToAnotherOriginIsRefused) {
     UpdateCheck check;
     const auto result = run(check, network, url(server), "2.0.0");
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::UpdateNetwork);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::UpdateNetwork);
     EXPECT_EQ(other.requests(releasesPath), 0);
 }
 
@@ -178,9 +178,9 @@ TEST(UpdateCheck, Cancel) {
     QObject::connect(&check, &UpdateCheck::finished, [&emitted] { ++emitted; });
     check.start(network, url(server), v("2.0.0"), false);
     QTimer::singleShot(100, &check, [&check] { check.cancel(); });
-    const auto result = hio::update::waitForCheck(check);
+    const auto result = hwio::update::waitForCheck(check);
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::Cancelled);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::Cancelled);
     EXPECT_EQ(emitted, 1);
     check.cancel(); // no-op when nothing runs
     EXPECT_EQ(emitted, 1);
@@ -197,7 +197,7 @@ TEST(UpdateCheck, NoServer) {
     }
     const auto result = run(check, network, target, "2.0.0");
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::UpdateNetwork);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::UpdateNetwork);
 }
 
 } // namespace

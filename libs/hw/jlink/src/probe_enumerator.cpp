@@ -1,11 +1,11 @@
-#include "hio/hw/jlink/probe_enumerator.h"
+#include "hwio/hw/jlink/probe_enumerator.h"
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/jlink_library.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/jlink_library.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <cstdint>
 #include <expected>
@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 Result<ProbeEnumerator> ProbeEnumerator::load(const LibraryLocation& location,
                                               const std::filesystem::path& instanceRoot) {
@@ -77,4 +77,4 @@ Result<std::vector<ProbeInfo>> listProbes(const LibraryLocation& location) {
     return std::move(enumeration->probes);
 }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

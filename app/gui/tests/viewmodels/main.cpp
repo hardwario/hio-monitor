@@ -1,4 +1,4 @@
-#include "hio/core/app_identity.h"
+#include "hwio/core/app_identity.h"
 #include "single_instance_helper.h"
 
 #include <QCoreApplication>
@@ -18,7 +18,7 @@
 
 namespace {
 
-// Helper mode for lock_holder.h (libs/device/tests): with HIO_TEST_HOLD_LOCK_FILE=<path> this
+// Helper mode for lock_holder.h (libs/device/tests): with HWIO_TEST_HOLD_LOCK_FILE=<path> this
 // binary takes a real QLockFile at <path> (as ProbeLock::acquire() does), prints "locked" and holds
 // the lock until its stdin ends.
 int holdLockFile(int argc, char** argv, const QString& path) {
@@ -39,12 +39,12 @@ int holdLockFile(int argc, char** argv, const QString& path) {
 } // namespace
 
 int main(int argc, char** argv) {
-    if (const QString lockFile = qEnvironmentVariable("HIO_TEST_HOLD_LOCK_FILE");
+    if (const QString lockFile = qEnvironmentVariable("HWIO_TEST_HOLD_LOCK_FILE");
         !lockFile.isEmpty()) {
         return holdLockFile(argc, argv, lockFile);
     }
-    if (const QString spec = qEnvironmentVariable("HIO_TEST_SINGLE_INSTANCE"); !spec.isEmpty()) {
-        return hio::gui::test::runSingleInstanceHelper(argc, argv, spec);
+    if (const QString spec = qEnvironmentVariable("HWIO_TEST_SINGLE_INSTANCE"); !spec.isEmpty()) {
+        return hwio::gui::test::runSingleInstanceHelper(argc, argv, spec);
     }
     ::testing::InitGoogleMock(&argc, argv);
     // Death tests (debug assertions of the registries) re-run this binary instead of forking a
@@ -67,6 +67,6 @@ int main(int argc, char** argv) {
     const QGuiApplication app(argc, argv);
     // Numbers in texts ("3.30 V") do not depend on the machine's language.
     QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
-    hio::initApplicationIdentity();
+    hwio::initApplicationIdentity();
     return RUN_ALL_TESTS();
 }

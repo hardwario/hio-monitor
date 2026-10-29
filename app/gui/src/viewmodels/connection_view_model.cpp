@@ -1,12 +1,12 @@
 #include "viewmodels/connection_view_model.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
 #include "settings_store.h"
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/error_info.h"
@@ -31,7 +31,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -488,4 +488,4 @@ QString ConnectionViewModel::shortCause(const Error& error) {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

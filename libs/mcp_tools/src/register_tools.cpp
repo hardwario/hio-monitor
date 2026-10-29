@@ -1,14 +1,14 @@
-#include "hio/mcp/tools/register_tools.h"
+#include "hwio/mcp/tools/register_tools.h"
 
-#include "hio/core/result.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/result.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "resources.h"
 #include "tools/tools.h"
 
-namespace hio::mcp::tools {
+namespace hwio::mcp::tools {
 
-hio::Status registerTools(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status registerTools(hwio::mcp::Registry& registry, ToolsContext& context) {
     for (const auto& add : {&detail::registerDiscoveryTools, &detail::registerConsoleTools,
                             &detail::registerSessionTools, &detail::registerTargetTools,
                             &detail::registerFirmwareTools, &detail::registerResources}) {
@@ -19,4 +19,4 @@ hio::Status registerTools(hio::mcp::Registry& registry, ToolsContext& context) {
     return detail::registerPrompts(registry);
 }
 
-} // namespace hio::mcp::tools
+} // namespace hwio::mcp::tools

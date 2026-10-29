@@ -1,9 +1,9 @@
 #include "chester_commands.h"
 #include "cli_app.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/version.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/version.h"
 #include "output.h"
 
 #include <QJsonObject>
@@ -19,9 +19,9 @@
 
 namespace {
 
-using hio::cli::CliApp;
-using hio::cli::Context;
-using hio::cli::ParseOutcome;
+using hwio::cli::CliApp;
+using hwio::cli::Context;
+using hwio::cli::ParseOutcome;
 
 TEST(CliApp, NoArgumentsShowsHelp) {
     CliApp cli;
@@ -48,11 +48,11 @@ TEST(CliApp, VersionData) {
     EXPECT_EQ(*parsed, ParseOutcome::Run);
     const auto result = cli.run(Context{});
     ASSERT_TRUE(result.has_value());
-    const std::string version(hio::buildInfo().version);
-    EXPECT_EQ(result->humanText, "hio " + version);
+    const std::string version(hwio::buildInfo().version);
+    EXPECT_EQ(result->humanText, "hwio " + version);
     const QJsonObject data = result->data.toObject();
-    EXPECT_EQ(data.value(QStringLiteral("name")).toString(), QStringLiteral("hio"));
-    EXPECT_EQ(data.value(QStringLiteral("version")).toString(), hio::toQString(version));
+    EXPECT_EQ(data.value(QStringLiteral("name")).toString(), QStringLiteral("hwio"));
+    EXPECT_EQ(data.value(QStringLiteral("version")).toString(), hwio::toQString(version));
     EXPECT_TRUE(data.contains(QStringLiteral("gitHash")));
     EXPECT_TRUE(data.contains(QStringLiteral("qt")));
     EXPECT_TRUE(data.contains(QStringLiteral("compiler")));
@@ -63,22 +63,22 @@ TEST(CliApp, GlobalOptions) {
     ASSERT_TRUE(cli.parse({"--json", "--log-level", "success", "--version"}).has_value());
     EXPECT_TRUE(cli.options().json);
     EXPECT_TRUE(cli.options().version);
-    EXPECT_EQ(cli.options().logLevel, hio::log::Level::Info);
+    EXPECT_EQ(cli.options().logLevel, hwio::log::Level::Info);
 }
 
 TEST(CliApp, DefaultLogLevelIsCritical) {
     CliApp cli;
     ASSERT_TRUE(cli.parse({"--version"}).has_value());
     EXPECT_FALSE(cli.options().json);
-    EXPECT_EQ(cli.options().logLevel, hio::log::Level::Critical);
+    EXPECT_EQ(cli.options().logLevel, hwio::log::Level::Critical);
 }
 
 TEST(CliApp, InvalidLogLevelIsUsageError) {
     CliApp cli;
     const auto parsed = cli.parse({"--log-level", "loud", "--version"});
     ASSERT_FALSE(parsed.has_value());
-    EXPECT_EQ(parsed.error().code, hio::ErrorCode::UsageInvalidArgument);
-    EXPECT_EQ(parsed.error().suggestion, "Run `hio --help`.");
+    EXPECT_EQ(parsed.error().code, hwio::ErrorCode::UsageInvalidArgument);
+    EXPECT_EQ(parsed.error().suggestion, "Run `hwio --help`.");
     EXPECT_TRUE(parsed.error().cause.empty());
 }
 
@@ -86,7 +86,7 @@ TEST(CliApp, UnknownOptionIsUsageError) {
     CliApp cli;
     const auto parsed = cli.parse({"--bogus"});
     ASSERT_FALSE(parsed.has_value());
-    EXPECT_EQ(parsed.error().code, hio::ErrorCode::UsageInvalidArgument);
+    EXPECT_EQ(parsed.error().code, hwio::ErrorCode::UsageInvalidArgument);
     EXPECT_NE(parsed.error().message.find("--bogus"), std::string::npos);
 }
 
@@ -114,33 +114,33 @@ TEST(CliApp, InvalidJLinkSpeedIsUsageError) {
         const auto parsed =
             cli.parse({"chester", "app", "command", "--jlink-speed", speed, "version"});
         ASSERT_FALSE(parsed.has_value()) << speed;
-        EXPECT_EQ(parsed.error().code, hio::ErrorCode::UsageInvalidArgument) << speed;
+        EXPECT_EQ(parsed.error().code, hwio::ErrorCode::UsageInvalidArgument) << speed;
         EXPECT_NE(parsed.error().message.find("auto or between 5 and 50000 kHz"), std::string::npos)
             << parsed.error().message;
     }
 }
 
 TEST(ParseJLinkSpeed, AutoIsNulloptAndKiloHertzIsFixed) {
-    const auto automatic = hio::cli::parseJLinkSpeed("auto");
+    const auto automatic = hwio::cli::parseJLinkSpeed("auto");
     ASSERT_TRUE(automatic.has_value());
     EXPECT_FALSE(automatic->has_value());
-    const auto fixed = hio::cli::parseJLinkSpeed("2000");
+    const auto fixed = hwio::cli::parseJLinkSpeed("2000");
     ASSERT_TRUE(fixed.has_value());
     EXPECT_EQ(fixed->value_or(0), 2000);
-    const auto fast = hio::cli::parseJLinkSpeed("fast");
+    const auto fast = hwio::cli::parseJLinkSpeed("fast");
     ASSERT_FALSE(fast.has_value());
-    EXPECT_EQ(fast.error().code, hio::ErrorCode::UsageInvalidArgument);
-    EXPECT_FALSE(hio::cli::parseJLinkSpeed("1").has_value());
+    EXPECT_EQ(fast.error().code, hwio::ErrorCode::UsageInvalidArgument);
+    EXPECT_FALSE(hwio::cli::parseJLinkSpeed("1").has_value());
 }
 
 TEST(CliApp, SelftestErrorReturnsTableError) {
-    for (const hio::ErrorInfo& info : hio::errorTable) {
+    for (const hwio::ErrorInfo& info : hwio::errorTable) {
         CliApp cli;
         ASSERT_TRUE(cli.parse({"_selftest", "error", std::string(info.id)}).has_value());
         const auto result = cli.run(Context{});
         ASSERT_FALSE(result.has_value());
         EXPECT_EQ(result.error().code, info.code);
-        EXPECT_EQ(result.error().message, hio::makeError(info.code).message);
+        EXPECT_EQ(result.error().message, hwio::makeError(info.code).message);
     }
 }
 
@@ -149,14 +149,14 @@ TEST(CliApp, SelftestUnknownIdIsUsageError) {
     ASSERT_TRUE(cli.parse({"_selftest", "error", "no.such_id"}).has_value());
     const auto result = cli.run(Context{});
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::UsageInvalidArgument);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::UsageInvalidArgument);
 }
 
 TEST(CliApp, SelftestErrorNeedsId) {
     CliApp cli;
     const auto parsed = cli.parse({"_selftest", "error"});
     ASSERT_FALSE(parsed.has_value());
-    EXPECT_EQ(parsed.error().code, hio::ErrorCode::UsageInvalidArgument);
+    EXPECT_EQ(parsed.error().code, hwio::ErrorCode::UsageInvalidArgument);
 }
 
 TEST(CliApp, SelftestWaitEndsWhenStopped) {
@@ -167,18 +167,18 @@ TEST(CliApp, SelftestWaitEndsWhenStopped) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         stop.request_stop();
     });
-    const auto result = cli.run(Context{.mode = hio::cli::OutputMode::Human,
+    const auto result = cli.run(Context{.mode = hwio::cli::OutputMode::Human,
                                         .stop = stop.get_token(),
                                         .output = nullptr,
                                         .logFile = {}});
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, hio::ErrorCode::Cancelled);
+    EXPECT_EQ(result.error().code, hwio::ErrorCode::Cancelled);
 }
 
 TEST(JsonRequested, FindsFlagBeforeSeparator) {
-    EXPECT_TRUE(hio::cli::jsonRequested({"--bogus", "--json"}));
-    EXPECT_FALSE(hio::cli::jsonRequested({"--bogus"}));
-    EXPECT_FALSE(hio::cli::jsonRequested({"--", "--json"}));
+    EXPECT_TRUE(hwio::cli::jsonRequested({"--bogus", "--json"}));
+    EXPECT_FALSE(hwio::cli::jsonRequested({"--bogus"}));
+    EXPECT_FALSE(hwio::cli::jsonRequested({"--", "--json"}));
 }
 
 } // namespace

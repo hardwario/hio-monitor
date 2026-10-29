@@ -10,21 +10,21 @@
 //                        dialect (stdio transport) and pumps the event loop.
 // Production code never runs nested loops (ADR-0097); tests pump with runUntil().
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/server.h"
-#include "hio/mcp/tools/device_provider.h"
-#include "hio/mcp/tools/register_tools.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/server.h"
+#include "hwio/mcp/tools/device_provider.h"
+#include "hwio/mcp/tools/register_tools.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "mcp_test_support.h"
 
 #include <QByteArray>
@@ -50,40 +50,40 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp::tools::test {
+namespace hwio::mcp::tools::test {
 
-using hio::mcp::test::runFor;
-using hio::mcp::test::runUntil;
+using hwio::mcp::test::runFor;
+using hwio::mcp::test::runUntil;
 
 // A CHESTER copy whose app target has an RTT shell prompt (ADR-0104; CHESTER's is empty).
-inline const hio::device::DeviceProfile& promptProfile() {
-    static const std::array<hio::device::TargetProfile, 2> targets = [] {
-        const auto* chester = hio::device::ProfileRegistry::find("chester");
-        std::array<hio::device::TargetProfile, 2> copy{chester->targets[0], chester->targets[1]};
+inline const hwio::device::DeviceProfile& promptProfile() {
+    static const std::array<hwio::device::TargetProfile, 2> targets = [] {
+        const auto* chester = hwio::device::ProfileRegistry::find("chester");
+        std::array<hwio::device::TargetProfile, 2> copy{chester->targets[0], chester->targets[1]};
         copy[0].shellPrompt = "uart:~$ ";
         return copy;
     }();
-    static const hio::device::DeviceProfile profile = [] {
-        hio::device::DeviceProfile copy = *hio::device::ProfileRegistry::find("chester");
+    static const hwio::device::DeviceProfile profile = [] {
+        hwio::device::DeviceProfile copy = *hwio::device::ProfileRegistry::find("chester");
         copy.targets = targets;
         return copy;
     }();
     return profile;
 }
 
-inline const hio::device::DeviceProfile& chesterProfile() {
-    return *hio::device::ProfileRegistry::find("chester");
+inline const hwio::device::DeviceProfile& chesterProfile() {
+    return *hwio::device::ProfileRegistry::find("chester");
 }
 
-class FakeConsoleSession final : public hio::device::ConsoleSession {
+class FakeConsoleSession final : public hwio::device::ConsoleSession {
 public:
     explicit FakeConsoleSession(
-        const hio::device::DeviceProfile& profile = chesterProfile(),
-        std::size_t logCapacity = hio::device::ConsoleLog::defaultCapacityPerChannel,
-        hio::device::Transport transport = hio::device::Transport::JLink)
-        : m_profile(&profile), m_log(std::make_shared<hio::device::ConsoleLog>(logCapacity)),
+        const hwio::device::DeviceProfile& profile = chesterProfile(),
+        std::size_t logCapacity = hwio::device::ConsoleLog::defaultCapacityPerChannel,
+        hwio::device::Transport transport = hwio::device::Transport::JLink)
+        : m_profile(&profile), m_log(std::make_shared<hwio::device::ConsoleLog>(logCapacity)),
           m_transport(transport) {
-        m_connection.state = hio::device::ConnectionState::Connected;
+        m_connection.state = hwio::device::ConnectionState::Connected;
         m_connection.transport = transport;
     }
 
@@ -91,49 +91,49 @@ public:
     [[nodiscard]] const std::vector<std::string>& sent() const { return m_sent; }
     [[nodiscard]] int reconnects() const { return m_reconnects; }
 
-    hio::Status sendLine(std::string line) override {
-        if (hio::Status held; holdLine(line, held)) {
+    hwio::Status sendLine(std::string line) override {
+        if (hwio::Status held; holdLine(line, held)) {
             return held; // plan 0021: a silent shell query runs
         }
         m_sent.push_back(line);
         lineQueued();
         if (m_echo) { // like the real sessions: the line is echoed (dir In) once written
-            emitLines({{hio::device::Channel::Shell, line}}, hio::device::Direction::In,
+            emitLines({{hwio::device::Channel::Shell, line}}, hwio::device::Direction::In,
                       sendingOrigin());
         }
         return {};
     }
-    hio::Status reconnect() override {
+    hwio::Status reconnect() override {
         ++m_reconnects;
         return {};
     }
-    [[nodiscard]] const hio::device::ConsoleLog& log() const override { return *m_log; }
-    [[nodiscard]] hio::device::ConsoleLog& mutableLog() { return *m_log; }
-    [[nodiscard]] std::shared_ptr<hio::device::ConsoleLog> sharedLog() { return m_log; }
-    [[nodiscard]] const hio::device::ConnectionEvent& connection() const override {
+    [[nodiscard]] const hwio::device::ConsoleLog& log() const override { return *m_log; }
+    [[nodiscard]] hwio::device::ConsoleLog& mutableLog() { return *m_log; }
+    [[nodiscard]] std::shared_ptr<hwio::device::ConsoleLog> sharedLog() { return m_log; }
+    [[nodiscard]] const hwio::device::ConnectionEvent& connection() const override {
         return m_connection;
     }
-    [[nodiscard]] hio::device::SessionIdentity identity() const override {
+    [[nodiscard]] hwio::device::SessionIdentity identity() const override {
         return {.transport = m_transport, .id = "1", .displayName = "Fake 1"};
     }
-    [[nodiscard]] hio::device::Capabilities capabilities() const override { return {}; }
-    [[nodiscard]] const hio::device::DeviceProfile& profile() const override { return *m_profile; }
+    [[nodiscard]] hwio::device::Capabilities capabilities() const override { return {}; }
+    [[nodiscard]] const hwio::device::DeviceProfile& profile() const override { return *m_profile; }
     [[nodiscard]] std::string_view consoleTargetId() const override { return "app"; }
     [[nodiscard]] std::filesystem::path consoleFile() const override { return {}; }
 
     // Appends lines to the log and emits them as one batch (like the real sessions).
     // A silent shell capture (plan 0021) takes its lines first, like in the real sessions.
-    void emitLines(const std::vector<std::pair<hio::device::Channel, std::string>>& lines,
-                   hio::device::Direction dir = hio::device::Direction::Out,
+    void emitLines(const std::vector<std::pair<hwio::device::Channel, std::string>>& lines,
+                   hwio::device::Direction dir = hwio::device::Direction::Out,
                    std::uint64_t origin = 0) {
-        QList<hio::device::ConsoleLine> batch;
+        QList<hwio::device::ConsoleLine> batch;
         for (const auto& [channel, text] : lines) {
-            hio::device::ConsoleLine line;
+            hwio::device::ConsoleLine line;
             line.channel = channel;
             line.dir = dir;
             line.time = std::chrono::system_clock::now();
-            line.level = channel == hio::device::Channel::Log ? hio::device::LogLevel::Info
-                                                              : hio::device::LogLevel::None;
+            line.level = channel == hwio::device::Channel::Log ? hwio::device::LogLevel::Info
+                                                               : hwio::device::LogLevel::None;
             line.text = text;
             line.origin = origin;
             if (captureLine(line)) {
@@ -146,19 +146,19 @@ public:
             emit linesReceived(batch);
         }
     }
-    void emitLine(hio::device::Channel channel, hio::device::Direction dir,
+    void emitLine(hwio::device::Channel channel, hwio::device::Direction dir,
                   const std::string& text) {
         emitLines({{channel, text}}, dir);
     }
     void shell(const std::string& text) {
-        emitLine(hio::device::Channel::Shell, hio::device::Direction::Out, text);
+        emitLine(hwio::device::Channel::Shell, hwio::device::Direction::Out, text);
     }
     void logLine(const std::string& text) {
-        emitLine(hio::device::Channel::Log, hio::device::Direction::Out, text);
+        emitLine(hwio::device::Channel::Log, hwio::device::Direction::Out, text);
     }
     void prompt() { emit promptSeen(); }
-    void setConnection(hio::device::ConnectionState state,
-                       std::optional<hio::Error> error = std::nullopt) {
+    void setConnection(hwio::device::ConnectionState state,
+                       std::optional<hwio::Error> error = std::nullopt) {
         m_connection.state = state;
         m_connection.error = std::move(error);
         emit connectionChanged(m_connection);
@@ -168,10 +168,10 @@ protected:
     void closeSession() override {}
 
 private:
-    const hio::device::DeviceProfile* m_profile;
-    std::shared_ptr<hio::device::ConsoleLog> m_log;
-    hio::device::Transport m_transport;
-    hio::device::ConnectionEvent m_connection;
+    const hwio::device::DeviceProfile* m_profile;
+    std::shared_ptr<hwio::device::ConsoleLog> m_log;
+    hwio::device::Transport m_transport;
+    hwio::device::ConnectionEvent m_connection;
     std::vector<std::string> m_sent;
     int m_reconnects = 0;
     bool m_echo = true;
@@ -180,13 +180,13 @@ private:
 class MockDeviceProvider : public IDeviceProvider {
 public:
     MOCK_METHOD(std::vector<DeviceEntry>, list, (), (override));
-    MOCK_METHOD(void, refresh, (std::function<void(hio::Status)> done), (override));
+    MOCK_METHOD(void, refresh, (std::function<void(hwio::Status)> done), (override));
     MOCK_METHOD(bool, firstScanPending, (), (const, override));
     MOCK_METHOD(void, open,
-                (const OpenRequest& request, std::function<void(hio::Result<DeviceRef>)> done),
+                (const OpenRequest& request, std::function<void(hwio::Result<DeviceRef>)> done),
                 (override));
-    MOCK_METHOD(hio::Status, close, (std::string_view id, const hio::mcp::RequestContext& context),
-                (override));
+    MOCK_METHOD(hwio::Status, close,
+                (std::string_view id, const hwio::mcp::RequestContext& context), (override));
     MOCK_METHOD(std::optional<DeviceRef>, find, (std::string_view id), (override));
     MOCK_METHOD(void, beginBusy, (std::string_view id, QString text, std::function<void()> cancel),
                 (override));
@@ -223,8 +223,8 @@ public:
     [[nodiscard]] ProviderRecord& record() { return m_record; }
 
     FakeConsoleSession&
-    add(const std::string& id, const hio::device::DeviceProfile& profile = chesterProfile(),
-        std::size_t logCapacity = hio::device::ConsoleLog::defaultCapacityPerChannel) {
+    add(const std::string& id, const hwio::device::DeviceProfile& profile = chesterProfile(),
+        std::size_t logCapacity = hwio::device::ConsoleLog::defaultCapacityPerChannel) {
         auto session = std::make_unique<FakeConsoleSession>(profile, logCapacity);
         FakeConsoleSession& ref = *session;
         m_sessions[id] = std::move(session);
@@ -251,12 +251,12 @@ public:
         }
         return entries;
     }
-    void refresh(std::function<void(hio::Status)> done) override { done(hio::Status{}); }
+    void refresh(std::function<void(hwio::Status)> done) override { done(hwio::Status{}); }
     void open(const OpenRequest& /*request*/,
-              std::function<void(hio::Result<DeviceRef>)> done) override {
+              std::function<void(hwio::Result<DeviceRef>)> done) override {
         done(std::unexpected(makeError(ErrorCode::UsageInvalidArgument)));
     }
-    hio::Status close(std::string_view id, const hio::mcp::RequestContext& /*context*/) override {
+    hwio::Status close(std::string_view id, const hwio::mcp::RequestContext& /*context*/) override {
         if (m_sessions.erase(std::string(id)) == 0) {
             return std::unexpected(makeError(ErrorCode::McpDeviceNotOpen, std::string(id)));
         }
@@ -277,7 +277,7 @@ public:
     void endBusy(std::string_view /*id*/) override { ++m_record.endBusy; }
     void marker(std::string_view id, QString text) override {
         if (auto it = m_sessions.find(std::string(id)); it != m_sessions.end()) {
-            it->second->mutableLog().appendMarker(hio::device::Channel::Shell, text.toStdString());
+            it->second->mutableLog().appendMarker(hwio::device::Channel::Shell, text.toStdString());
         }
         m_record.markers.emplace_back(id, std::move(text));
     }
@@ -316,12 +316,12 @@ inline QByteArray request(const QJsonValue& id, const QString& method, QJsonObje
     if (!id.isUndefined()) {
         message.insert(QStringLiteral("id"), id);
     }
-    return hio::mcp::serialize(message);
+    return hwio::mcp::serialize(message);
 }
 
 // One tools/call in flight.
 struct PendingCall {
-    std::shared_ptr<hio::mcp::test::RecordingReplyChannel> reply;
+    std::shared_ptr<hwio::mcp::test::RecordingReplyChannel> reply;
 
     [[nodiscard]] bool done() const { return reply->done(); }
     [[nodiscard]] const QJsonObject& response() const { return reply->response; }
@@ -363,16 +363,16 @@ struct PendingCall {
 
 class Harness {
 public:
-    explicit Harness(IDeviceProvider& provider, const hio::mcp::Limits& limits = {},
-                     hio::firmware::FirmwareCatalog* catalog = nullptr, ToolsOptions options = {})
+    explicit Harness(IDeviceProvider& provider, const hwio::mcp::Limits& limits = {},
+                     hwio::firmware::FirmwareCatalog* catalog = nullptr, ToolsOptions options = {})
         : tools(std::make_unique<ToolsContext>(provider, catalog, std::move(options))) {
-        hio::mcp::Registry registry;
+        hwio::mcp::Registry registry;
         registered = registerTools(registry, *tools);
-        hio::mcp::ServerOptions serverOptions;
+        hwio::mcp::ServerOptions serverOptions;
         serverOptions.limits = limits;
         serverOptions.version = QStringLiteral("test");
-        server = std::make_unique<hio::mcp::McpServer>(std::move(registry), consent, activity,
-                                                       std::move(serverOptions));
+        server = std::make_unique<hwio::mcp::McpServer>(std::move(registry), consent, activity,
+                                                        std::move(serverOptions));
         tools->attachServer(*server);
     }
     ~Harness() {
@@ -384,16 +384,16 @@ public:
     Harness(Harness&&) = delete;
     Harness& operator=(Harness&&) = delete;
 
-    hio::mcp::test::FakeConsentBroker consent;
-    hio::mcp::test::RecordingActivitySink activity;
+    hwio::mcp::test::FakeConsentBroker consent;
+    hwio::mcp::test::RecordingActivitySink activity;
     std::unique_ptr<ToolsContext> tools;
-    std::unique_ptr<hio::mcp::McpServer> server;
-    hio::Status registered;
+    std::unique_ptr<hwio::mcp::McpServer> server;
+    hwio::Status registered;
 
     // Sends tools/call (with a progress token when `progress`) and returns at once.
     PendingCall start(const QString& tool, const QJsonObject& arguments = {},
                       bool progress = false) {
-        PendingCall call{std::make_shared<hio::mcp::test::RecordingReplyChannel>(true, false)};
+        PendingCall call{std::make_shared<hwio::mcp::test::RecordingReplyChannel>(true, false)};
         QJsonObject meta;
         if (progress) {
             meta.insert(QStringLiteral("progressToken"), nextId);
@@ -417,7 +417,7 @@ public:
 
     // Any request; the response.
     QJsonObject rpc(const QString& method, const QJsonObject& params = {}) {
-        auto reply = std::make_shared<hio::mcp::test::RecordingReplyChannel>(true, false);
+        auto reply = std::make_shared<hwio::mcp::test::RecordingReplyChannel>(true, false);
         server->handle(request(nextId++, method, params), reply, transport());
         (void)runUntil([&reply] { return reply->done(); });
         return reply->response;
@@ -425,7 +425,7 @@ public:
 
     // Cancels request `id` (notifications/cancelled).
     void cancel(int id) const {
-        auto reply = std::make_shared<hio::mcp::test::RecordingReplyChannel>(true, false);
+        auto reply = std::make_shared<hwio::mcp::test::RecordingReplyChannel>(true, false);
         server->handle(request(QJsonValue(QJsonValue::Undefined),
                                QStringLiteral("notifications/cancelled"),
                                QJsonObject{{QStringLiteral("requestId"), id}}),
@@ -437,9 +437,9 @@ public:
     int nextId = 1; // the next JSON-RPC request id
 
 private:
-    static hio::mcp::TransportInfo transport() {
-        hio::mcp::TransportInfo info;
-        info.kind = hio::mcp::TransportKind::Stdio;
+    static hwio::mcp::TransportInfo transport() {
+        hwio::mcp::TransportInfo info;
+        info.kind = hwio::mcp::TransportKind::Stdio;
         info.connectionId = 7;
         return info;
     }
@@ -453,4 +453,4 @@ inline QJsonObject args(std::initializer_list<std::pair<const char*, QJsonValue>
     return json;
 }
 
-} // namespace hio::mcp::tools::test
+} // namespace hwio::mcp::tools::test

@@ -1,6 +1,6 @@
-#include "hio/core/json.h"
+#include "hwio/core/json.h"
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -17,7 +17,7 @@
 #include <string>
 #include <string_view>
 
-namespace hio {
+namespace hwio {
 
 namespace {
 
@@ -114,4 +114,4 @@ std::string toUtf8(const std::filesystem::path& path) {
 #endif
 }
 
-} // namespace hio
+} // namespace hwio

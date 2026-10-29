@@ -1,19 +1,19 @@
 #include "diag_commands.h"
 
 #include "cli_app.h"
-#include "hio/core/crash_handler.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_registry.h"
-#include "hio/diag/check.h"
-#include "hio/diag/environment.h"
-#include "hio/diag/report.h"
+#include "hwio/core/crash_handler.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/diag/check.h"
+#include "hwio/diag/environment.h"
+#include "hwio/diag/report.h"
 #include "jlink_commands.h"
 #include "output.h"
 #include "probe_options.h"
@@ -44,7 +44,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -147,7 +147,7 @@ Result<CommandResult> doctor(const Context& context, const GlobalOptions& global
     }
     std::string text = diag::formatCheckLines(results);
     text += failureDetails(results);
-    text += std::format("\n{}. Run `hio diag report` to create a report for HARDWARIO support.",
+    text += std::format("\n{}. Run `hwio diag report` to create a report for HARDWARIO support.",
                         countsLine(results));
     CommandResult result{.data = checksData(results),
                          .humanText = std::move(text),
@@ -328,7 +328,7 @@ void registerDiagCommands(CLI::App& app, CommandSlot& slot, const GlobalOptions&
                   "home folder and host name are replaced)");
     reportCommand
         ->add_option("-o,--output", reportOptions->output,
-                     "Report file (default: ./hio-diagnostics-YYYYMMDD-HHMMSS.zip)")
+                     "Report file (default: ./hwio-diagnostics-YYYYMMDD-HHMMSS.zip)")
         ->option_text("FILE");
     reportCommand->callback([&slot, &globals, reportOptions] {
         slot.command = [&globals, reportOptions](const Context& context) {
@@ -355,4 +355,4 @@ void registerCheckCommand(CLI::App& targetGroup, const std::shared_ptr<ProbeOpti
     });
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

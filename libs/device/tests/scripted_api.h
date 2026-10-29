@@ -4,9 +4,9 @@
 // session worker uses it (deterministic DeviceSession tests; the fake library covers the real
 // loader in the integration tests).
 
-#include "hio/core/result.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <algorithm>
 #include <atomic>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device::test {
+namespace hwio::device::test {
 
 using jlink::RttBufferInfo;
 using jlink::RttDirection;
@@ -699,4 +699,4 @@ private:
     std::shared_ptr<ScriptedTarget> m_target;
 };
 
-} // namespace hio::device::test
+} // namespace hwio::device::test

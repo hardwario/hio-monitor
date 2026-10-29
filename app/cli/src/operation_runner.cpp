@@ -2,12 +2,12 @@
 
 #include "cli_app.h"
 #include "cli_log.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "jlink_commands.h"
 #include "probe_options.h"
 #include "progress_ui.h"
@@ -23,7 +23,7 @@
 #include <string_view>
 #include <utility>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -149,4 +149,4 @@ Result<OperationOutcome> runOperation(const Context& context, const GlobalOption
     return OperationOutcome{.result = std::move(*result), .probeSerial = (*runner)->probeSerial()};
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

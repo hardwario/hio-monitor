@@ -1,9 +1,9 @@
 #include "wizard/check_list_model.h"
 
 #include "error_info.h"
-#include "hio/core/json.h"
-#include "hio/device/operation.h"
-#include "hio/diag/check.h"
+#include "hwio/core/json.h"
+#include "hwio/device/operation.h"
+#include "hwio/diag/check.h"
 
 #include <QHash>
 #include <QModelIndex>
@@ -18,7 +18,7 @@
 #include <span>
 #include <string>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 CheckListModel::CheckListModel(QObject* parent) : QAbstractListModel(parent) {}
 
@@ -136,4 +136,4 @@ const diag::CheckResult* CheckListModel::row(const QString& id) const {
     return it == m_rows.end() ? nullptr : &*it;
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

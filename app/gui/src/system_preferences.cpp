@@ -11,7 +11,7 @@
 #include <QVariant>
 #endif
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -34,7 +34,7 @@ bool osRequestsReducedMotion() {
 } // namespace
 
 bool reducedMotionRequested() {
-    return qEnvironmentVariableIntValue("HIO_REDUCED_MOTION") == 1 || osRequestsReducedMotion();
+    return qEnvironmentVariableIntValue("HWIO_REDUCED_MOTION") == 1 || osRequestsReducedMotion();
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

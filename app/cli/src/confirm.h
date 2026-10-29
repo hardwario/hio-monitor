@@ -6,13 +6,13 @@
 // changes anything else.
 
 #include "cli_app.h"
-#include "hio/core/result.h"
+#include "hwio/core/result.h"
 
 #include <functional>
 #include <optional>
 #include <string>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 // Asks `question` (it should end with "Continue? [y/N] "). Errors: usage.confirmation_required
 // (not interactive and not `yes`), cancelled (the answer was not yes).
@@ -23,4 +23,4 @@ namespace hio::cli {
                                         const std::function<bool(const std::string&)>& ask = {},
                                         std::optional<bool> interactive = std::nullopt);
 
-} // namespace hio::cli
+} // namespace hwio::cli

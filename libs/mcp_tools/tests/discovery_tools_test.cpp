@@ -2,12 +2,12 @@
 // (golden JSON), refresh, disconnect, connect (consent, already open, provider errors, the first
 // attempt's outcome).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/session_events.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/tools/device_provider.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/session_events.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/tools/device_provider.h"
 #include "tools_test_support.h"
 
 #include <QFile>
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp::tools::test {
+namespace hwio::mcp::tools::test {
 namespace {
 
 using namespace std::chrono_literals;
@@ -36,7 +36,7 @@ using ::testing::NiceMock;
 using ::testing::Return;
 
 QJsonObject golden(const char* name) {
-    QFile file(QStringLiteral(HIO_MCP_TOOLS_GOLDEN_DIR "/%1").arg(QString::fromLatin1(name)));
+    QFile file(QStringLiteral(HWIO_MCP_TOOLS_GOLDEN_DIR "/%1").arg(QString::fromLatin1(name)));
     if (!file.open(QIODevice::ReadOnly)) {
         ADD_FAILURE() << "missing golden file " << name;
         return {};
@@ -45,8 +45,8 @@ QJsonObject golden(const char* name) {
 }
 
 std::vector<DeviceEntry> sampleEntries() {
-    hio::device::ConnectionEvent connected;
-    connected.state = hio::device::ConnectionState::Connected;
+    hwio::device::ConnectionEvent connected;
+    connected.state = hwio::device::ConnectionState::Connected;
     connected.targetMillivolts = 3300;
     return {DeviceEntry{.id = "jlink:801000001",
                         .kind = "jlink",
@@ -69,9 +69,9 @@ std::vector<DeviceEntry> sampleEntries() {
                         .displayName = "J-Link 801000003",
                         .profileId = {},
                         .state = DeviceEntry::State::InUseByOtherProcess,
-                        .owner = hio::device::ProbeLockOwner{.app = "hio-monitor",
-                                                             .pid = 4242,
-                                                             .lockedAt = std::nullopt},
+                        .owner = hwio::device::ProbeLockOwner{.app = "hwio-monitor",
+                                                              .pid = 4242,
+                                                              .lockedAt = std::nullopt},
                         .connection = std::nullopt,
                         .openedByMcp = false}};
 }
@@ -102,8 +102,8 @@ TEST(DiscoveryTools, ListDevicesRefresh) {
     NiceMock<MockDeviceProvider> provider;
     std::vector<DeviceEntry> cache;
     ON_CALL(provider, list()).WillByDefault([&cache] { return cache; });
-    std::function<void(hio::Status)> pending;
-    EXPECT_CALL(provider, refresh(_)).WillOnce([&pending](std::function<void(hio::Status)> done) {
+    std::function<void(hwio::Status)> pending;
+    EXPECT_CALL(provider, refresh(_)).WillOnce([&pending](std::function<void(hwio::Status)> done) {
         pending = std::move(done);
     });
     Harness harness(provider);
@@ -112,12 +112,12 @@ TEST(DiscoveryTools, ListDevicesRefresh) {
     EXPECT_FALSE(call.done()); // still waiting for the enumeration
     ASSERT_TRUE(pending);
     cache = sampleEntries(); // the provider updates its cache before `done`
-    pending(hio::Status{});
+    pending(hwio::Status{});
     ASSERT_TRUE(runUntil([&call] { return call.done(); }));
     EXPECT_FALSE(call.isError());
     EXPECT_EQ(call.structured(), golden("list_devices.json"));
 
-    EXPECT_CALL(provider, refresh(_)).WillOnce([](const std::function<void(hio::Status)>& done) {
+    EXPECT_CALL(provider, refresh(_)).WillOnce([](const std::function<void(hwio::Status)>& done) {
         done(std::unexpected(makeError(ErrorCode::DependencyJLinkNotFound)));
     });
     auto failed = harness.call(QStringLiteral("list_devices"), args({{"refresh", true}}));
@@ -133,8 +133,8 @@ TEST(DiscoveryTools, ListDevicesWaitsForTheFirstScan) {
     ON_CALL(provider, list()).WillByDefault([&cache] { return cache; });
     bool pendingScan = true;
     ON_CALL(provider, firstScanPending()).WillByDefault([&pendingScan] { return pendingScan; });
-    std::function<void(hio::Status)> pending;
-    EXPECT_CALL(provider, refresh(_)).WillOnce([&pending](std::function<void(hio::Status)> done) {
+    std::function<void(hwio::Status)> pending;
+    EXPECT_CALL(provider, refresh(_)).WillOnce([&pending](std::function<void(hwio::Status)> done) {
         pending = std::move(done);
     });
     Harness harness(provider);
@@ -144,7 +144,7 @@ TEST(DiscoveryTools, ListDevicesWaitsForTheFirstScan) {
     ASSERT_TRUE(pending);
     cache = sampleEntries();
     pendingScan = false;
-    pending(hio::Status{});
+    pending(hwio::Status{});
     ASSERT_TRUE(runUntil([&call] { return call.done(); }));
     EXPECT_FALSE(call.isError());
     EXPECT_EQ(call.structured(), golden("list_devices.json"));
@@ -158,7 +158,7 @@ TEST(DiscoveryTools, ListDevicesWaitsForTheFirstScan) {
     // A failed first enumeration still gives the (cached) list, not an error.
     pendingScan = true;
     EXPECT_CALL(provider, refresh(_))
-        .WillOnce([&pendingScan](const std::function<void(hio::Status)>& done) {
+        .WillOnce([&pendingScan](const std::function<void(hwio::Status)>& done) {
             pendingScan = false;
             done(std::unexpected(makeError(ErrorCode::DependencyJLinkNotFound)));
         });
@@ -171,8 +171,8 @@ TEST(DiscoveryTools, ListDevicesWaitsForTheFirstScan) {
 TEST(DiscoveryTools, ListDevicesRefreshCancelled) {
     NiceMock<MockDeviceProvider> provider;
     ON_CALL(provider, list()).WillByDefault(Return(std::vector<DeviceEntry>{}));
-    std::function<void(hio::Status)> pending;
-    EXPECT_CALL(provider, refresh(_)).WillOnce([&pending](std::function<void(hio::Status)> done) {
+    std::function<void(hwio::Status)> pending;
+    EXPECT_CALL(provider, refresh(_)).WillOnce([&pending](std::function<void(hwio::Status)> done) {
         pending = std::move(done);
     });
     Harness harness(provider);
@@ -180,7 +180,7 @@ TEST(DiscoveryTools, ListDevicesRefreshCancelled) {
     harness.cancel(harness.lastId());
     runFor(std::chrono::milliseconds(50));
     ASSERT_TRUE(pending);
-    pending(hio::Status{}); // must not crash or answer twice
+    pending(hwio::Status{}); // must not crash or answer twice
     runFor(std::chrono::milliseconds(50));
 }
 
@@ -191,14 +191,14 @@ TEST(DiscoveryTools, Disconnect) {
     ON_CALL(provider, find(_))
         .WillByDefault(Return(DeviceRef{.console = &session, .jlink = nullptr}));
     EXPECT_CALL(provider, close(std::string_view("jlink:801000001"), _))
-        .WillOnce(Return(hio::Status{}));
+        .WillOnce(Return(hwio::Status{}));
     Harness harness(provider);
     auto call = harness.call(QStringLiteral("disconnect"));
     ASSERT_FALSE(call.isError()) << call.errorCode();
     EXPECT_TRUE(call.structured().value(QStringLiteral("closed")).toBool());
 
     EXPECT_CALL(provider, close(_, _))
-        .WillOnce(Return(hio::Status(std::unexpected(makeError(ErrorCode::McpToolNotAllowed)))));
+        .WillOnce(Return(hwio::Status(std::unexpected(makeError(ErrorCode::McpToolNotAllowed)))));
     auto refused =
         harness.call(QStringLiteral("disconnect"), args({{"device", "jlink:801000001"}}));
     EXPECT_EQ(refused.errorCode(), "mcp.tool_not_allowed");
@@ -207,12 +207,12 @@ TEST(DiscoveryTools, Disconnect) {
 TEST(DiscoveryTools, ConnectAsksConsentAndWaitsForTheFirstAttempt) {
     NiceMock<MockDeviceProvider> provider;
     FakeConsoleSession session;
-    session.setConnection(hio::device::ConnectionState::Connecting);
+    session.setConnection(hwio::device::ConnectionState::Connecting);
     std::optional<OpenRequest> requested;
     EXPECT_CALL(provider, find(_)).WillOnce(Return(std::nullopt));
     EXPECT_CALL(provider, open(_, _))
         .WillOnce([&](const OpenRequest& request,
-                      const std::function<void(hio::Result<DeviceRef>)>& done) {
+                      const std::function<void(hwio::Result<DeviceRef>)>& done) {
             requested = request;
             done(DeviceRef{.console = &session, .jlink = nullptr});
         });
@@ -222,7 +222,7 @@ TEST(DiscoveryTools, ConnectAsksConsentAndWaitsForTheFirstAttempt) {
         args({{"device", "jlink:801000001"}, {"speed_khz", 4000}, {"auto_reconnect", false}}));
     ASSERT_EQ(harness.consent.requests.size(), 1U);
     EXPECT_EQ(harness.consent.requests[0].categories,
-              hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::Connect));
+              hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::Connect));
     EXPECT_EQ(harness.consent.requests[0].deviceId, "jlink:801000001");
     ASSERT_TRUE(requested.has_value());
     const OpenRequest request = requested.value_or(OpenRequest{});
@@ -231,7 +231,7 @@ TEST(DiscoveryTools, ConnectAsksConsentAndWaitsForTheFirstAttempt) {
     EXPECT_EQ(request.context.client.name, "tester");
     runFor(30ms);
     EXPECT_FALSE(call.done()); // still Connecting
-    session.setConnection(hio::device::ConnectionState::Connected);
+    session.setConnection(hwio::device::ConnectionState::Connected);
     ASSERT_TRUE(runUntil([&] { return call.done(); }));
     const QJsonObject result = call.structured();
     EXPECT_FALSE(result.value(QStringLiteral("already_open")).toBool());
@@ -251,7 +251,7 @@ TEST(DiscoveryTools, ConnectAlreadyOpenAndDenied) {
     EXPECT_TRUE(harness.consent.requests.empty());
 
     EXPECT_CALL(provider, find(std::string_view("jlink:2"))).WillOnce(Return(std::nullopt));
-    harness.consent.mode = hio::mcp::test::FakeConsentBroker::Mode::Deny;
+    harness.consent.mode = hwio::mcp::test::FakeConsentBroker::Mode::Deny;
     auto denied = harness.call(QStringLiteral("connect"), args({{"device", "jlink:2"}}));
     EXPECT_EQ(denied.errorCode(), "mcp.tool_not_allowed");
 
@@ -262,16 +262,17 @@ TEST(DiscoveryTools, ConnectAlreadyOpenAndDenied) {
 TEST(DiscoveryTools, ConnectFailureClosesTheSession) {
     NiceMock<MockDeviceProvider> provider;
     FakeConsoleSession session;
-    session.setConnection(hio::device::ConnectionState::Connecting);
+    session.setConnection(hwio::device::ConnectionState::Connecting);
     EXPECT_CALL(provider, find(_)).WillOnce(Return(std::nullopt));
     EXPECT_CALL(provider, open(_, _))
-        .WillOnce([&](const OpenRequest&, const std::function<void(hio::Result<DeviceRef>)>& done) {
-            done(DeviceRef{.console = &session, .jlink = nullptr});
-        });
-    EXPECT_CALL(provider, close(std::string_view("jlink:1"), _)).WillOnce(Return(hio::Status{}));
+        .WillOnce(
+            [&](const OpenRequest&, const std::function<void(hwio::Result<DeviceRef>)>& done) {
+                done(DeviceRef{.console = &session, .jlink = nullptr});
+            });
+    EXPECT_CALL(provider, close(std::string_view("jlink:1"), _)).WillOnce(Return(hwio::Status{}));
     Harness harness(provider);
     auto call = harness.start(QStringLiteral("connect"), args({{"device", "jlink:1"}}));
-    session.setConnection(hio::device::ConnectionState::Stopped,
+    session.setConnection(hwio::device::ConnectionState::Stopped,
                           makeError(ErrorCode::ProbeNotFound));
     ASSERT_TRUE(runUntil([&] { return call.done(); }));
     EXPECT_EQ(call.errorCode(), "probe.not_found");
@@ -282,7 +283,7 @@ TEST(DiscoveryTools, ConnectProviderError) {
     NiceMock<MockDeviceProvider> provider;
     EXPECT_CALL(provider, find(_)).WillOnce(Return(std::nullopt));
     EXPECT_CALL(provider, open(_, _))
-        .WillOnce([](const OpenRequest&, const std::function<void(hio::Result<DeviceRef>)>& done) {
+        .WillOnce([](const OpenRequest&, const std::function<void(hwio::Result<DeviceRef>)>& done) {
             done(std::unexpected(makeError(ErrorCode::InternalSessionLimit)));
         });
     Harness harness(provider);
@@ -291,4 +292,4 @@ TEST(DiscoveryTools, ConnectProviderError) {
 }
 
 } // namespace
-} // namespace hio::mcp::tools::test
+} // namespace hwio::mcp::tools::test

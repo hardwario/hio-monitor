@@ -1,12 +1,12 @@
-#include "hio/core/app_identity.h"
+#include "hwio/core/app_identity.h"
 
-#include "hio/core/json.h"
-#include "hio/core/version.h"
+#include "hwio/core/json.h"
+#include "hwio/core/version.h"
 
 #include <QCoreApplication>
 #include <QString>
 
-namespace hio {
+namespace hwio {
 
 void initApplicationIdentity() {
     QCoreApplication::setOrganizationName(QStringLiteral("HARDWARIO"));
@@ -15,4 +15,4 @@ void initApplicationIdentity() {
     QCoreApplication::setApplicationVersion(toQString(buildInfo().version));
 }
 
-} // namespace hio
+} // namespace hwio

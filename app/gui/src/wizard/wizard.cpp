@@ -5,7 +5,7 @@
 #include <QVariantMap>
 #include <QtContainerFwd>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 QVariantMap WizardStep::toMap() const {
     return QVariantMap{
@@ -26,4 +26,4 @@ QVariantMap WizardStep::toMap() const {
     };
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

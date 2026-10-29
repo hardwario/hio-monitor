@@ -1,11 +1,11 @@
-#include "hio/hw/ble/ble_scanner.h"
+#include "hwio/hw/ble/ble_scanner.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QList>
 #include <QLoggingCategory>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <variant>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 namespace {
 
@@ -176,4 +176,4 @@ void BleScanner::drainEvents() {
     }
 }
 
-} // namespace hio::ble
+} // namespace hwio::ble

@@ -22,7 +22,7 @@
 #include <memory>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -64,7 +64,7 @@ QString SingleInstance::defaultServerName() {
                         ? character
                         : QLatin1Char('_'));
     }
-    return QStringLiteral("hio-monitor-") + (safe.isEmpty() ? QStringLiteral("user") : safe);
+    return QStringLiteral("hwio-monitor-") + (safe.isEmpty() ? QStringLiteral("user") : safe);
 #else
     // Next to the lock file (review S21): every session of the user that sees the lock also finds
     // the server (ssh, `su -l` and desktop sessions have different runtime directories). It is the
@@ -76,7 +76,7 @@ QString SingleInstance::defaultServerName() {
         return besideLock;
     }
     return QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) +
-           QStringLiteral("/hio-monitor.sock");
+           QStringLiteral("/hwio-monitor.sock");
 #endif
 }
 
@@ -173,4 +173,4 @@ void SingleInstance::onNewConnection() {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

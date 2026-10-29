@@ -3,16 +3,16 @@
 # Backend library: QtCore only (ADR-0004), static (ADR-0022). The only module that calls the
 # vendor library (CLAUDE.md: vendor APIs only inside libs/hw/* adapters).
 
-hio_add_backend_library(hio_hw_jlink
-    include/hio/hw/jlink/clock.h
-    include/hio/hw/jlink/jlink_api.h
-    include/hio/hw/jlink/jlink_library.h
-    include/hio/hw/jlink/jlink_probe.h
-    include/hio/hw/jlink/library_locator.h
-    include/hio/hw/jlink/probe_enumerator.h
-    include/hio/hw/jlink/programmer.h
-    include/hio/hw/jlink/rtt_channel.h
-    include/hio/hw/jlink/types.h
+hwio_add_backend_library(hwio_hw_jlink
+    include/hwio/hw/jlink/clock.h
+    include/hwio/hw/jlink/jlink_api.h
+    include/hwio/hw/jlink/jlink_library.h
+    include/hwio/hw/jlink/jlink_probe.h
+    include/hwio/hw/jlink/library_locator.h
+    include/hwio/hw/jlink/probe_enumerator.h
+    include/hwio/hw/jlink/programmer.h
+    include/hwio/hw/jlink/rtt_channel.h
+    include/hwio/hw/jlink/types.h
     src/clock.cpp
     src/jlink_abi.h
     src/jlink_library.cpp
@@ -24,11 +24,11 @@ hio_add_backend_library(hio_hw_jlink
     src/programmer.cpp
     src/rtt_channel.cpp
     src/types.cpp)
-add_library(hio::hw_jlink ALIAS hio_hw_jlink)
+add_library(hwio::hw_jlink ALIAS hwio_hw_jlink)
 
-target_include_directories(hio_hw_jlink PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(hio_hw_jlink PUBLIC hio::core hio::firmware Qt6::Core)
+target_include_directories(hwio_hw_jlink PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(hwio_hw_jlink PUBLIC hwio::core hwio::firmware Qt6::Core)
 
-if(HIO_BUILD_TESTS)
+if(HWIO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()

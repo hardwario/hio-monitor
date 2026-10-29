@@ -1,7 +1,7 @@
-#include "hio/mcp/json_rpc.h"
+#include "hwio/mcp/json_rpc.h"
 
-#include "hio/mcp/protocol.h"
-#include "hio/mcp/request_context.h"
+#include "hwio/mcp/protocol.h"
+#include "hwio/mcp/request_context.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <expected>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 namespace {
 
@@ -145,4 +145,4 @@ QByteArray serialize(const QJsonObject& message) {
     return QJsonDocument(message).toJson(QJsonDocument::Compact);
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

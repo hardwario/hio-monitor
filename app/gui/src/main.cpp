@@ -1,4 +1,4 @@
-// `hio-monitor` - HARDWARIO Monitor desktop application (ADR-0003, ADR-0018;
+// `hwio-monitor` - HARDWARIO Monitor desktop application (ADR-0003, ADR-0018;
 // plan/features/0004-m3-gui-shell.md).
 //
 // Startup: QGuiApplication -> application identity -> logging -> Material style, bundled fonts ->
@@ -15,13 +15,13 @@
 
 #include "fonts.h"
 #include "gui_log.h"
-#include "hio/core/app_identity.h"
-#include "hio/core/crash_handler.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/settings.h"
-#include "hio/core/version.h"
-#include "hio/device/session_registry.h"
+#include "hwio/core/app_identity.h"
+#include "hwio/core/crash_handler.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/settings.h"
+#include "hwio/core/version.h"
+#include "hwio/device/session_registry.h"
 #include "language_manager.h"
 #include "pages/builtin_pages.h"
 #include "platform.h"
@@ -68,7 +68,7 @@ namespace {
 QIcon applicationIcon() {
     QIcon icon;
     for (const int size : std::array{16, 32, 48, 64, 128, 256}) {
-        icon.addFile(QStringLiteral(":/appicon/hio-monitor-%1.png").arg(size));
+        icon.addFile(QStringLiteral(":/appicon/hwio-monitor-%1.png").arg(size));
     }
     return icon;
 }
@@ -79,13 +79,13 @@ bool askStartAnyway() {
     // A minimal context (review S7): the settings for the language and the theme, no
     // AppViewModel (no scanner thread, no registry); the dialog does not use the AppViewModel
     // singleton.
-    std::optional<hio::Settings> settings;
-    if (auto opened = hio::Settings::openDefault(); opened) {
+    std::optional<hwio::Settings> settings;
+    if (auto opened = hwio::Settings::openDefault(); opened) {
         settings.emplace(std::move(*opened));
     }
-    hio::gui::SettingsStore store(std::move(settings));
-    hio::gui::AppViewModel::registerShellKeys(store);
-    const hio::gui::LanguageManager language(&store);
+    hwio::gui::SettingsStore store(std::move(settings));
+    hwio::gui::AppViewModel::registerShellKeys(store);
+    const hwio::gui::LanguageManager language(&store);
     const QString theme = store.value(QStringLiteral("ui/theme")).toString();
     const bool dark = theme == QStringLiteral("dark") ||
                       (theme == QStringLiteral("system") &&
@@ -112,9 +112,9 @@ bool askStartAnyway() {
 }
 
 int run(int& argc, char** argv) {
-    hio::gui::applyPlatformIdentity(); // Windows AppUserModelID, before the first window
+    hwio::gui::applyPlatformIdentity(); // Windows AppUserModelID, before the first window
     QGuiApplication app(argc, argv);
-    hio::initApplicationIdentity();
+    hwio::initApplicationIdentity();
     QGuiApplication::setApplicationDisplayName(QStringLiteral("HARDWARIO Monitor"));
     // ADR-0018: the desktop file / Wayland app id (packaging/linux/com.hardwario.monitor.desktop).
     QGuiApplication::setDesktopFileName(QStringLiteral("com.hardwario.monitor"));
@@ -123,25 +123,25 @@ int run(int& argc, char** argv) {
     // Plan 0016: firmware downloads and the update check use the system proxy settings.
     QNetworkProxyFactory::setUseSystemConfiguration(true);
 
-    auto logging = hio::log::Logging::init(hio::log::AppKind::Gui, {});
+    auto logging = hwio::log::Logging::init(hwio::log::AppKind::Gui, {});
     if (!logging) {
-        std::cerr << "hio-monitor: " << logging.error().message << " (" << logging.error().detail
+        std::cerr << "hwio-monitor: " << logging.error().message << " (" << logging.error().detail
                   << ")\n";
         return 1;
     }
 
     // ADR-0044: Material (Dense via :/qtquickcontrols2.conf), set before any QML is loaded.
     QQuickStyle::setStyle(QStringLiteral("Material"));
-    hio::gui::loadBundledFonts();
+    hwio::gui::loadBundledFonts();
 
-    hio::gui::SingleInstance instance; // not started by the self-test
+    hwio::gui::SingleInstance instance; // not started by the self-test
     if (!selfTest) {
         switch (instance.start()) {
-        case hio::gui::SingleInstance::Result::Primary:
+        case hwio::gui::SingleInstance::Result::Primary:
             break;
-        case hio::gui::SingleInstance::Result::Activated:
+        case hwio::gui::SingleInstance::Result::Activated:
             return 0;
-        case hio::gui::SingleInstance::Result::NotResponding:
+        case hwio::gui::SingleInstance::Result::NotResponding:
             if (!askStartAnyway()) {
                 return 0;
             }
@@ -150,57 +150,57 @@ int run(int& argc, char** argv) {
         }
     }
 
-    std::optional<hio::Settings> settings;
+    std::optional<hwio::Settings> settings;
     if (selfTest) {
         // Default settings in memory: the self-test reads and writes no settings file.
-    } else if (auto opened = hio::Settings::openDefault(); opened) {
+    } else if (auto opened = hwio::Settings::openDefault(); opened) {
         settings.emplace(std::move(*opened));
     } else {
-        qCWarning(hio::gui::lcGui)
+        qCWarning(hwio::gui::lcGui)
             << "Settings could not be opened, defaults are used:"
-            << hio::toQString(opened.error().message) << hio::toQString(opened.error().detail);
+            << hwio::toQString(opened.error().message) << hwio::toQString(opened.error().detail);
     }
 
     // Ownership: stack objects. The application is AppViewModel's QObject parent only so that the
     // QML singleton factory finds it (QObject::findChild); it is destroyed before `app`, which
     // removes it from the parent's children. The language manager is destroyed first.
-    hio::gui::AppViewModel appViewModel(
-        hio::gui::AppOptions{.settings = std::move(settings),
-                             .registry = hio::device::RegistryOptions::defaults(),
-                             .scanInterval = hio::gui::ProbeScanner::defaultInterval,
-                             .registerExtensions = &hio::gui::registerBuiltInPages,
-                             // The self-test shows no crash notice (and acknowledges nothing).
-                             .crashDirectory = selfTest ? std::filesystem::path()
-                                                        : hio::crash::defaultDirectory()},
+    hwio::gui::AppViewModel appViewModel(
+        hwio::gui::AppOptions{.settings = std::move(settings),
+                              .registry = hwio::device::RegistryOptions::defaults(),
+                              .scanInterval = hwio::gui::ProbeScanner::defaultInterval,
+                              .registerExtensions = &hwio::gui::registerBuiltInPages,
+                              // The self-test shows no crash notice (and acknowledges nothing).
+                              .crashDirectory = selfTest ? std::filesystem::path()
+                                                         : hwio::crash::defaultDirectory()},
         &app);
-    hio::gui::LanguageManager languageManager(appViewModel.settingsStore());
+    hwio::gui::LanguageManager languageManager(appViewModel.settingsStore());
     appViewModel.setLanguageManager(&languageManager);
-    QObject::connect(&instance, &hio::gui::SingleInstance::activationRequested, &appViewModel,
-                     &hio::gui::AppViewModel::activateWindow);
+    QObject::connect(&instance, &hwio::gui::SingleInstance::activationRequested, &appViewModel,
+                     &hwio::gui::AppViewModel::activateWindow);
 
     QQmlApplicationEngine engine;
     languageManager.setEngine(&engine);
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
         [] {
-            qCCritical(hio::gui::lcGui) << "The main window could not be created";
+            qCCritical(hwio::gui::lcGui) << "The main window could not be created";
             QCoreApplication::exit(1);
         },
         Qt::QueuedConnection);
     engine.loadFromModule("HardwarioMonitor", "Main");
     if (engine.rootObjects().isEmpty()) {
-        qCCritical(hio::gui::lcGui) << "The main window could not be created";
+        qCCritical(hwio::gui::lcGui) << "The main window could not be created";
         return 1;
     }
     appViewModel.attachWindow(qobject_cast<QWindow*>(engine.rootObjects().constFirst()));
     if (selfTest) {
-        std::cout << "hio-monitor self-test: the main window was created\n";
+        std::cout << "hwio-monitor self-test: the main window was created\n";
         return 0;
     }
 #ifndef NDEBUG
-    // Plan 0015 manual check: HIO_TEST_CRASH=1 (debug builds only) aborts 3 s after the start, so
+    // Plan 0015 manual check: HWIO_TEST_CRASH=1 (debug builds only) aborts 3 s after the start, so
     // that the next start shows the crash notice.
-    if (qEnvironmentVariableIsSet("HIO_TEST_CRASH")) {
+    if (qEnvironmentVariableIsSet("HWIO_TEST_CRASH")) {
         QTimer::singleShot(std::chrono::seconds(3), &app, [] { std::abort(); });
     }
 #endif
@@ -214,21 +214,21 @@ int run(int& argc, char** argv) {
 int main(int argc, char** argv) {
     try {
         // ADR-0123: local crash files, first thing (the identity gives the data directory).
-        hio::initApplicationIdentity();
-        const hio::BuildInfo build = hio::buildInfo();
+        hwio::initApplicationIdentity();
+        const hwio::BuildInfo build = hwio::buildInfo();
         const std::string version = std::format("{} (git {})", build.version, build.gitHash);
-        if (auto crash = hio::crash::install({.directory = hio::crash::defaultDirectory(),
-                                              .appName = "hio-monitor",
-                                              .version = version});
+        if (auto crash = hwio::crash::install({.directory = hwio::crash::defaultDirectory(),
+                                               .appName = "hwio-monitor",
+                                               .version = version});
             !crash) {
-            std::cerr << "hio-monitor: crash handler not installed: " << crash.error().detail
+            std::cerr << "hwio-monitor: crash handler not installed: " << crash.error().detail
                       << '\n';
         }
         return run(argc, argv);
     } catch (const std::exception& exception) {
-        std::cerr << "hio-monitor: unexpected internal error: " << exception.what() << '\n';
+        std::cerr << "hwio-monitor: unexpected internal error: " << exception.what() << '\n';
     } catch (...) {
-        std::cerr << "hio-monitor: unexpected internal error\n";
+        std::cerr << "hwio-monitor: unexpected internal error\n";
     }
     return 1;
 }

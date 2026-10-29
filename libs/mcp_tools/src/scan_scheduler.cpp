@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <chrono>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 void ScanScheduler::request(LineScanner& scanner) {
     if (std::ranges::find(m_queue, &scanner) == m_queue.end()) {
@@ -52,4 +52,4 @@ void ScanScheduler::turn() {
     schedule();
 }
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

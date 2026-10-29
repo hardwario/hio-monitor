@@ -2,24 +2,24 @@
 // recover. After a successful run they write a marker and return new cursors; the ConsoleLog is
 // not cleared (the AI reads only new output with after_cursor).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/intel_hex.h"
-#include "hio/firmware/lte_input.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/offload.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/intel_hex.h"
+#include "hwio/firmware/lte_input.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/offload.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
+#include "hwio/mcp/tools/tools_context.h"
 #include "tool_support.h"
 #include "tools/tools.h"
 
@@ -38,14 +38,14 @@
 #include <utility>
 #include <variant>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 namespace {
 
 namespace fs = std::filesystem;
-using hio::device::DeviceSession;
-using hio::device::OperationResult;
-using hio::mcp::Schema;
+using hwio::device::DeviceSession;
+using hwio::device::OperationResult;
+using hwio::mcp::Schema;
 
 constexpr const char* flashDescription =
     "Flash an application firmware image (Intel HEX) into the device: either `path`, an absolute "
@@ -97,7 +97,7 @@ QJsonObject operationJson(std::string_view target, const OperationResult& result
     QJsonObject json;
     json.insert(QStringLiteral("status"), QStringLiteral("ok"));
     json.insert(QStringLiteral("target"), qs(target));
-    json.insert(QStringLiteral("operation"), qs(hio::device::operationKindId(result.kind)));
+    json.insert(QStringLiteral("operation"), qs(hwio::device::operationKindId(result.kind)));
     json.insert(QStringLiteral("duration"), seconds(result.duration));
     json.insert(QStringLiteral("chip"), result.chip && !result.chip->name.empty()
                                             ? QJsonValue(qs(result.chip->name))
@@ -115,9 +115,9 @@ constexpr OperationSettings programSettings(std::string_view tool) {
 // 64 MiB) runs on an offloaded worker thread (ADR-0162); it gets only the path.
 class FlashCall final : public OperationCall {
 public:
-    FlashCall(ToolsContext& tools, const hio::mcp::RequestContext& context,
-              const hio::mcp::ToolEnv& env, ResolvedDevice device,
-              const hio::device::TargetProfile& target, const QJsonObject& args)
+    FlashCall(ToolsContext& tools, const hwio::mcp::RequestContext& context,
+              const hwio::mcp::ToolEnv& env, ResolvedDevice device,
+              const hwio::device::TargetProfile& target, const QJsonObject& args)
         : OperationCall(tools, context, env, std::move(device), programSettings("flash")),
           m_target(&target), m_allowUicr(args.value(QStringLiteral("allow_uicr")).toBool()) {
         if (args.contains(QStringLiteral("path"))) {
@@ -128,12 +128,12 @@ public:
                 completeError(std::move(file).error());
                 return;
             }
-            using Parsed = hio::Result<hio::firmware::FirmwareImage>;
+            using Parsed = hwio::Result<hwio::firmware::FirmwareImage>;
             auto job = env.offloader().submit<Parsed>(
                 *this,
                 [path = *file](const std::stop_token& stop) -> Parsed {
                     // Review F2: a cancelled call (or a stopping server) ends the parse early.
-                    return hio::firmware::readIntelHexFile(path, stop);
+                    return hwio::firmware::readIntelHexFile(path, stop);
                 },
                 [this](Parsed image) {
                     if (!image) {
@@ -141,7 +141,7 @@ public:
                         return;
                     }
                     proceed(
-                        std::make_shared<const hio::firmware::FirmwareImage>(std::move(*image)));
+                        std::make_shared<const hwio::firmware::FirmwareImage>(std::move(*image)));
                 });
             if (!job) {
                 completeError(std::move(job).error()); // mcp.too_many_requests
@@ -151,7 +151,7 @@ public:
             return;
         }
         m_source = args.value(QStringLiteral("catalog_id")).toString();
-        auto id = hio::firmware::FirmwareId::parse(m_source.toStdString());
+        auto id = hwio::firmware::FirmwareId::parse(m_source.toStdString());
         if (!id) {
             completeError(std::move(id).error());
             return;
@@ -163,8 +163,8 @@ public:
                 id->value()));
             return;
         }
-        m_download = tools.catalog()->download(*id, hio::firmware::DownloadOptions{});
-        connect(m_download.get(), &hio::firmware::CatalogOperation::finished, this,
+        m_download = tools.catalog()->download(*id, hwio::firmware::DownloadOptions{});
+        connect(m_download.get(), &hwio::firmware::CatalogOperation::finished, this,
                 [this] { downloaded(); });
         if (m_download->isFinished()) {
             downloaded();
@@ -192,15 +192,15 @@ private:
         proceed(result->image);
     }
 
-    void proceed(std::shared_ptr<const hio::firmware::FirmwareImage> image) {
+    void proceed(std::shared_ptr<const hwio::firmware::FirmwareImage> image) {
         if (isFinished()) {
             return;
         }
         m_image = std::move(image);
-        hio::mcp::ConsentCategories consent = hio::mcp::ConsentCategory::Flash;
+        hwio::mcp::ConsentCategories consent = hwio::mcp::ConsentCategory::Flash;
         const bool uicr = m_image->intersects(m_target->uicr);
         if (uicr && m_allowUicr) {
-            consent |= hio::mcp::ConsentCategory::Uicr; // ADR-0101
+            consent |= hwio::mcp::ConsentCategory::Uicr; // ADR-0101
         }
         QJsonObject details;
         details.insert(m_fromFile ? QStringLiteral("file") : QStringLiteral("catalog_id"),
@@ -221,7 +221,7 @@ private:
             return;
         }
         const std::string target(m_target->id);
-        const hio::device::FlashOptions options{.halt = false, .allowUicr = m_allowUicr};
+        const hwio::device::FlashOptions options{.halt = false, .allowUicr = m_allowUicr};
         run([this, target,
              options](DeviceSession& session) { return session.flash(target, m_image, options); },
             [this](const OperationResult& result) {
@@ -233,22 +233,22 @@ private:
             });
     }
 
-    const hio::device::TargetProfile* m_target; // non-owning, static profile data
+    const hwio::device::TargetProfile* m_target; // non-owning, static profile data
     bool m_allowUicr;
     bool m_fromFile = false;
     QString m_source;
-    hio::mcp::Offloader::Handle m_parse; // the offloaded HEX parse (cancelled with the call)
-    std::unique_ptr<hio::firmware::CatalogOperation> m_download;
-    std::shared_ptr<const hio::firmware::FirmwareImage> m_image;
+    hwio::mcp::Offloader::Handle m_parse; // the offloaded HEX parse (cancelled with the call)
+    std::unique_ptr<hwio::firmware::CatalogOperation> m_download;
+    std::shared_ptr<const hwio::firmware::FirmwareImage> m_image;
 };
 
 // flash_lte: classifies the input on an offloaded worker thread (ADR-0162: a zip is opened and a
 // bundle extracted, a .hex parsed), asks consent (flash), then runs the matching operation.
 class FlashLteCall final : public OperationCall {
 public:
-    FlashLteCall(ToolsContext& tools, const hio::mcp::RequestContext& context,
-                 const hio::mcp::ToolEnv& env, ResolvedDevice device,
-                 const hio::device::TargetProfile& target, QString path)
+    FlashLteCall(ToolsContext& tools, const hwio::mcp::RequestContext& context,
+                 const hwio::mcp::ToolEnv& env, ResolvedDevice device,
+                 const hwio::device::TargetProfile& target, QString path)
         : OperationCall(tools, context, env, std::move(device), programSettings("flash_lte")),
           m_target(target.id), m_path(std::move(path)) {
         auto file = inputFile(m_path, limits().imageFileMaxBytes);
@@ -257,12 +257,12 @@ public:
             return;
         }
         m_name = QString::fromStdU16String(file->filename().u16string());
-        using Classified = hio::Result<hio::firmware::LteInput>;
+        using Classified = hwio::Result<hwio::firmware::LteInput>;
         auto job = env.offloader().submit<Classified>(
             *this,
             [path = *file](const std::stop_token& stop) -> Classified {
                 // Review F2: the HEX parse and the zip extraction observe the stop token.
-                return hio::firmware::classifyLteInput(path, stop);
+                return hwio::firmware::classifyLteInput(path, stop);
             },
             [this](Classified input) {
                 if (!input) {
@@ -282,26 +282,26 @@ protected:
     void cancelPending() override { m_classify.cancel(); }
 
 private:
-    void classified(hio::firmware::LteInput input) {
+    void classified(hwio::firmware::LteInput input) {
         if (isFinished()) {
             return;
         }
         const std::string id = m_target;
-        const hio::device::FlashOptions options{.halt = false, .allowUicr = false};
+        const hwio::device::FlashOptions options{.halt = false, .allowUicr = false};
         QString kind;
-        if (auto* bundle = std::get_if<hio::firmware::LteBundle>(&input)) {
+        if (auto* bundle = std::get_if<hwio::firmware::LteBundle>(&input)) {
             kind = QStringLiteral("bundle");
-            auto shared = std::make_shared<const hio::firmware::LteBundle>(std::move(*bundle));
+            auto shared = std::make_shared<const hwio::firmware::LteBundle>(std::move(*bundle));
             m_start = [id, shared, options](DeviceSession& s) {
                 return s.flashLteBundle(id, shared, options);
             };
-        } else if (const auto* modem = std::get_if<hio::firmware::ModemOnly>(&input)) {
+        } else if (const auto* modem = std::get_if<hwio::firmware::ModemOnly>(&input)) {
             kind = QStringLiteral("modem");
             m_start = [id, zip = modem->path](DeviceSession& s) { return s.updateModem(id, zip); };
         } else {
             kind = QStringLiteral("hex");
-            auto shared = std::make_shared<const hio::firmware::FirmwareImage>(
-                std::move(std::get<hio::firmware::AppHex>(input).image));
+            auto shared = std::make_shared<const hwio::firmware::FirmwareImage>(
+                std::move(std::get<hwio::firmware::AppHex>(input).image));
             m_start = [id, shared, options](DeviceSession& s) {
                 return s.flash(id, shared, options);
             };
@@ -310,7 +310,7 @@ private:
         details.insert(QStringLiteral("file"), m_path);
         details.insert(QStringLiteral("target"), qs(id));
         details.insert(QStringLiteral("kind"), kind);
-        withConsent(hio::mcp::ConsentCategory::Flash, details, [this] { program(); });
+        withConsent(hwio::mcp::ConsentCategory::Flash, details, [this] { program(); });
     }
 
     void program() {
@@ -328,13 +328,13 @@ private:
     QString m_path;
     QString m_name;
     OperationStart m_start;
-    hio::mcp::Offloader::Handle m_classify; // the offloaded classification
+    hwio::mcp::Offloader::Handle m_classify; // the offloaded classification
 };
 
-hio::Status addFlash(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addFlash(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "flash",
             .title = "Flash firmware",
             .description = flashDescription,
@@ -357,10 +357,10 @@ hio::Status addFlash(hio::mcp::Registry& registry, ToolsContext& context) {
                     .json(),
             .outputSchema = operationOutputSchema(),
             .annotations = destructive,
-            .consent = hio::mcp::ConsentCategory::Flash,
+            .consent = hwio::mcp::ConsentCategory::Flash,
             .marker = true,
-            .start = [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                hio::mcp::ToolEnv& env) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                                hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 auto device = resolveJLinkDevice(context.provider(), args);
                 if (!device) {
                     return failed(std::move(device).error());
@@ -373,7 +373,7 @@ hio::Status addFlash(hio::mcp::Registry& registry, ToolsContext& context) {
                                                    args);
             },
             .validate = [](const QJsonObject& args,
-                           const hio::mcp::Limits&) -> std::optional<hio::mcp::ValidationError> {
+                           const hwio::mcp::Limits&) -> std::optional<hwio::mcp::ValidationError> {
                 const bool path = args.contains(QStringLiteral("path"));
                 const bool id = args.contains(QStringLiteral("catalog_id"));
                 if (path == id) {
@@ -385,10 +385,10 @@ hio::Status addFlash(hio::mcp::Registry& registry, ToolsContext& context) {
             }});
 }
 
-hio::Status addFlashLte(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addFlashLte(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "flash_lte",
             .title = "Update the LTE modem",
             .description = flashLteDescription,
@@ -401,14 +401,14 @@ hio::Status addFlashLte(hio::mcp::Registry& registry, ToolsContext& context) {
                                                       "LTE bundle zip or a .hex file."))
                             .minLength(1)
                             .maxLength(1024),
-                        hio::mcp::Required::Yes)
+                        hwio::mcp::Required::Yes)
                     .json(),
             .outputSchema = operationOutputSchema(),
             .annotations = destructive,
-            .consent = hio::mcp::ConsentCategory::Flash,
+            .consent = hwio::mcp::ConsentCategory::Flash,
             .marker = true,
-            .start = [&context](const hio::mcp::RequestContext& rc, const QJsonObject& args,
-                                hio::mcp::ToolEnv& env) -> std::unique_ptr<hio::mcp::ToolCall> {
+            .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
+                                hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
                 auto device = resolveJLinkDevice(context.provider(), args);
                 if (!device) {
                     return failed(std::move(device).error());
@@ -426,10 +426,10 @@ hio::Status addFlashLte(hio::mcp::Registry& registry, ToolsContext& context) {
             .validate = {}});
 }
 
-hio::Status addErase(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addErase(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "erase",
             .title = "Erase flash",
             .description = eraseDescription,
@@ -449,30 +449,30 @@ hio::Status addErase(hio::mcp::Registry& registry, ToolsContext& context) {
                                       {"terminal_cursor_end", typed("integer")}},
                                      {QStringLiteral("scope"), QStringLiteral("duration")}),
             .annotations = destructive,
-            .consent = hio::mcp::ConsentCategory::Erase,
+            .consent = hwio::mcp::ConsentCategory::Erase,
             .marker = true,
             .start = operationStart(
                 context,
                 [](const QJsonObject& args, const ResolvedDevice&,
-                   const hio::device::TargetProfile& target,
-                   const hio::mcp::ToolLimits&) -> hio::Result<SimpleOperation> {
+                   const hwio::device::TargetProfile& target,
+                   const hwio::mcp::ToolLimits&) -> hwio::Result<SimpleOperation> {
                     const std::string id(target.id);
                     const QString requested = args.value(QStringLiteral("scope")).toString();
-                    hio::device::EraseScope scope = target.defaultErase;
+                    hwio::device::EraseScope scope = target.defaultErase;
                     if (!requested.isEmpty()) {
-                        scope = requested == QStringLiteral("all") ? hio::device::EraseScope::All
-                                                                   : hio::device::EraseScope::Code;
+                        scope = requested == QStringLiteral("all") ? hwio::device::EraseScope::All
+                                                                   : hwio::device::EraseScope::Code;
                     }
-                    const QString scopeText = scope == hio::device::EraseScope::All
+                    const QString scopeText = scope == hwio::device::EraseScope::All
                                                   ? QStringLiteral("all")
                                                   : QStringLiteral("code");
                     QJsonObject details;
                     details.insert(QStringLiteral("target"), qs(id));
                     details.insert(QStringLiteral("scope"), scopeText);
                     // ADR-0161: erasing everything also removes the PIB, which `uicr` protects.
-                    hio::mcp::ConsentCategories consent = hio::mcp::ConsentCategory::Erase;
-                    if (scope == hio::device::EraseScope::All) {
-                        consent |= hio::mcp::ConsentCategory::Uicr;
+                    hwio::mcp::ConsentCategories consent = hwio::mcp::ConsentCategory::Erase;
+                    if (scope == hwio::device::EraseScope::All) {
+                        consent |= hwio::mcp::ConsentCategory::Uicr;
                     }
                     return SimpleOperation{
                         .settings = programSettings("erase"),
@@ -481,7 +481,7 @@ hio::Status addErase(hio::mcp::Registry& registry, ToolsContext& context) {
                         .action = QStringLiteral("erase %1 (%2)").arg(qs(id), scopeText),
                         .start = [id, scope](DeviceSession& s) { return s.erase(id, scope); },
                         .result =
-                            [id, scopeText](const OperationResult& r) -> hio::Result<QJsonObject> {
+                            [id, scopeText](const OperationResult& r) -> hwio::Result<QJsonObject> {
                             QJsonObject json;
                             json.insert(QStringLiteral("scope"), scopeText);
                             json.insert(QStringLiteral("target"), qs(id));
@@ -492,10 +492,10 @@ hio::Status addErase(hio::mcp::Registry& registry, ToolsContext& context) {
             .validate = {}});
 }
 
-hio::Status addRecover(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status addRecover(hwio::mcp::Registry& registry, ToolsContext& context) {
     return addTool(
         registry,
-        hio::mcp::ToolSpec{
+        hwio::mcp::ToolSpec{
             .name = "recover",
             .title = "Recover a locked MCU",
             .description = recoverDescription,
@@ -510,25 +510,25 @@ hio::Status addRecover(hio::mcp::Registry& registry, ToolsContext& context) {
                                      {QStringLiteral("duration")}),
             .annotations = destructive,
             // ADR-0161: recover wipes the PIB too (erase + uicr).
-            .consent = hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::Erase) |
-                       hio::mcp::ConsentCategory::Uicr,
+            .consent = hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::Erase) |
+                       hwio::mcp::ConsentCategory::Uicr,
             .marker = true,
             .start = operationStart(
                 context,
                 [](const QJsonObject&, const ResolvedDevice&,
-                   const hio::device::TargetProfile& target,
-                   const hio::mcp::ToolLimits&) -> hio::Result<SimpleOperation> {
+                   const hwio::device::TargetProfile& target,
+                   const hwio::mcp::ToolLimits&) -> hwio::Result<SimpleOperation> {
                     const std::string id(target.id);
                     QJsonObject details;
                     details.insert(QStringLiteral("target"), qs(id));
                     return SimpleOperation{
                         .settings = programSettings("recover"),
-                        .consent = hio::mcp::ConsentCategories(hio::mcp::ConsentCategory::Erase) |
-                                   hio::mcp::ConsentCategory::Uicr,
+                        .consent = hwio::mcp::ConsentCategories(hwio::mcp::ConsentCategory::Erase) |
+                                   hwio::mcp::ConsentCategory::Uicr,
                         .details = details,
                         .action = QStringLiteral("recover %1").arg(qs(id)),
                         .start = [id](DeviceSession& s) { return s.recover(id); },
-                        .result = [id](const OperationResult& r) -> hio::Result<QJsonObject> {
+                        .result = [id](const OperationResult& r) -> hwio::Result<QJsonObject> {
                             QJsonObject json;
                             json.insert(QStringLiteral("target"), qs(id));
                             json.insert(QStringLiteral("duration"), seconds(r.duration));
@@ -540,7 +540,7 @@ hio::Status addRecover(hio::mcp::Registry& registry, ToolsContext& context) {
 
 } // namespace
 
-hio::Status registerFirmwareTools(hio::mcp::Registry& registry, ToolsContext& context) {
+hwio::Status registerFirmwareTools(hwio::mcp::Registry& registry, ToolsContext& context) {
     for (const auto& add : {&addFlash, &addFlashLte, &addErase, &addRecover}) {
         if (auto added = add(registry, context); !added) {
             return added;
@@ -549,4 +549,4 @@ hio::Status registerFirmwareTools(hio::mcp::Registry& registry, ToolsContext& co
     return {};
 }
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

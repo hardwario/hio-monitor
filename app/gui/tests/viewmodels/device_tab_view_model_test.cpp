@@ -3,12 +3,12 @@
 // busy API with close and quit confirmation, page view models (plan 0004, B2).
 
 #include "gui_test_support.h"
-#include "hio/core/error.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/device_session.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/session_events.h"
 #include "support/test_page_view_model.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/connection_view_model.h"
@@ -33,17 +33,17 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::device::Channel;
-using hio::device::ConnectionState;
-using hio::device::Direction;
-using hio::gui::AppViewModel;
-using hio::gui::DeviceTabViewModel;
-using hio::gui::test::spin;
-using hio::gui::test::TestPageViewModel;
-using hio::gui::test::waitFor;
+using hwio::ErrorCode;
+using hwio::device::Channel;
+using hwio::device::ConnectionState;
+using hwio::device::Direction;
+using hwio::gui::AppViewModel;
+using hwio::gui::DeviceTabViewModel;
+using hwio::gui::test::spin;
+using hwio::gui::test::TestPageViewModel;
+using hwio::gui::test::waitFor;
 
-class DeviceTabTest : public hio::gui::test::GuiTest {
+class DeviceTabTest : public hwio::gui::test::GuiTest {
 protected:
     void SetUp() override {
         GuiTest::SetUp();
@@ -61,9 +61,9 @@ protected:
         return qobject_cast<TestPageViewModel*>(m_tab->pageViewModel(TestPageViewModel::pageId));
     }
 
-    [[nodiscard]] static std::vector<std::string> markers(const hio::device::ConsoleLog& log) {
+    [[nodiscard]] static std::vector<std::string> markers(const hwio::device::ConsoleLog& log) {
         std::vector<std::string> texts;
-        for (const auto& line : log.linesSince(0, hio::device::ChannelMask::Shell)) {
+        for (const auto& line : log.linesSince(0, hwio::device::ChannelMask::Shell)) {
             if (line.dir == Direction::Marker) {
                 texts.push_back(line.text);
             }
@@ -168,13 +168,13 @@ TEST_F(DeviceTabTest, MissingProbeOffersAnotherProbe) {
 }
 
 TEST_F(DeviceTabTest, MissingLibraryIsADependencyError) {
-    qputenv("HIO_JLINK_LIBRARY", "/nonexistent/libjlinkarm.so");
+    qputenv("HWIO_JLINK_LIBRARY", "/nonexistent/libjlinkarm.so");
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
     tab().connectDevice();
     EXPECT_EQ(tab().session(), nullptr);
     ASSERT_TRUE(tab().connection()->error().valid());
     EXPECT_EQ(tab().connection()->error().code(), QStringLiteral("dependency.jlink_not_found"));
-    EXPECT_EQ(tab().connection()->error().primaryAction(), hio::gui::error_action::OpenSettings);
+    EXPECT_EQ(tab().connection()->error().primaryAction(), hwio::gui::error_action::OpenSettings);
 }
 
 TEST_F(DeviceTabTest, EnsureSessionOpensTheConsoleTarget) {
@@ -186,7 +186,7 @@ TEST_F(DeviceTabTest, EnsureSessionOpensTheConsoleTarget) {
     // Review S2: always the console target with RTT (operations carry their own target).
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
     ASSERT_TRUE(tab().ensureSession());
-    hio::device::DeviceSession* session = tab().session();
+    hwio::device::DeviceSession* session = tab().session();
     ASSERT_NE(session, nullptr);
     EXPECT_EQ(session->target().id, "app");
     ASSERT_TRUE(tab().ensureSession()); // no-op: a session exists
@@ -205,7 +205,7 @@ TEST_F(DeviceTabTest, EnsureSessionOpensTheConsoleTarget) {
 TEST_F(DeviceTabTest, EnsureSessionWithoutTargetOpensAProbeOnlySession) {
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
     ASSERT_TRUE(tab().ensureSession(false));
-    hio::device::DeviceSession* session = tab().session();
+    hwio::device::DeviceSession* session = tab().session();
     ASSERT_NE(session, nullptr);
     EXPECT_EQ(session->target().id, "app");
     ASSERT_TRUE(waitFor([&] { return session->connection().state == ConnectionState::ProbeOpen; }));
@@ -213,7 +213,7 @@ TEST_F(DeviceTabTest, EnsureSessionWithoutTargetOpensAProbeOnlySession) {
     EXPECT_EQ(session->connection().state, ConnectionState::ProbeOpen); // never connects
     EXPECT_EQ(tab().state(), DeviceTabViewModel::Disconnected);
     EXPECT_FALSE(tab().hasError());
-    EXPECT_TRUE(hio::device::ProbeLock::owner(801000001, root() / "locks").has_value());
+    EXPECT_TRUE(hwio::device::ProbeLock::owner(801000001, root() / "locks").has_value());
     ASSERT_TRUE(tab().ensureSession(false)); // no-op
     EXPECT_EQ(tab().session(), session);
     EXPECT_TRUE(markers(*tab().consoleLog()).empty()); // no "connected" marker
@@ -222,7 +222,7 @@ TEST_F(DeviceTabTest, EnsureSessionWithoutTargetOpensAProbeOnlySession) {
 TEST_F(DeviceTabTest, EnsureSessionPromotesAProbeOnlySession) {
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
     ASSERT_TRUE(tab().ensureSession(false));
-    hio::device::DeviceSession* session = tab().session();
+    hwio::device::DeviceSession* session = tab().session();
     ASSERT_NE(session, nullptr);
     ASSERT_TRUE(waitFor([&] { return session->connection().state == ConnectionState::ProbeOpen; }));
     ASSERT_TRUE(tab().ensureSession(true));
@@ -236,7 +236,7 @@ TEST_F(DeviceTabTest, EnsureSessionPromotesAProbeOnlySession) {
 TEST_F(DeviceTabTest, ConnectPromotesAProbeOnlySession) {
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001));
     ASSERT_TRUE(tab().ensureSession(false));
-    hio::device::DeviceSession* session = tab().session();
+    hwio::device::DeviceSession* session = tab().session();
     ASSERT_NE(session, nullptr);
     ASSERT_TRUE(waitFor([&] { return session->connection().state == ConnectionState::ProbeOpen; }));
     EXPECT_EQ(tab().connection()->action(), QStringLiteral("connect"));
@@ -251,7 +251,7 @@ TEST_F(DeviceTabTest, ConnectDuringDiagnoseKeepsTheProbeOnlySession) {
     useScenario(R"({"probes": [{"serialNumber": 9, "connectDelayMs": 800}]})");
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 9));
     ASSERT_TRUE(tab().ensureSession(false));
-    hio::device::DeviceSession* session = tab().session();
+    hwio::device::DeviceSession* session = tab().session();
     ASSERT_NE(session, nullptr);
     ASSERT_TRUE(waitFor([&] { return session->connection().state == ConnectionState::ProbeOpen; }));
     const auto diagnose = session->diagnose("app");
@@ -293,15 +293,15 @@ TEST_F(DeviceTabTest, AFatallyStoppedSessionIsReleased) {
 
 TEST_F(DeviceTabTest, TheProbeLockIsFreeAfterAFatalConnectError) {
     // Review S18: an unpowered target with auto-reconnect off stops the session fatally; the
-    // cross-process ProbeLock (and the registry slot) is released, so `hio` can use the probe.
+    // cross-process ProbeLock (and the registry slot) is released, so `hwio` can use the probe.
     useScenario(R"({"probes": [{"serialNumber": 801000009, "vtref": [[0, 0]]}]})");
     ASSERT_TRUE(app().settingsStore()->setValue(QStringLiteral("rtt/autoReconnect"), false));
     ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000009));
     tab().connectDevice();
     ASSERT_TRUE(waitFor([&] { return tab().connection()->error().valid(); }));
     ASSERT_TRUE(waitFor([&] { return tab().session() == nullptr; }));
-    EXPECT_FALSE(hio::device::ProbeLock::owner(801000009, root() / "locks").has_value());
-    auto lock = hio::device::ProbeLock::acquire(801000009, root() / "locks");
+    EXPECT_FALSE(hwio::device::ProbeLock::owner(801000009, root() / "locks").has_value());
+    auto lock = hwio::device::ProbeLock::acquire(801000009, root() / "locks");
     EXPECT_TRUE(lock) << (lock ? "" : lock.error().detail);
     EXPECT_EQ(app().sessionRegistry().sessionCount(), 0U);
     EXPECT_TRUE(tab().connection()->error().valid()); // still shown

@@ -1,11 +1,11 @@
 #include "fake_ble_api.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QFile>
 #include <QIODevice>
@@ -37,7 +37,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 namespace {
 
@@ -476,4 +476,4 @@ bool FakeBleApi::isPaired(const BleDeviceId& deviceId) {
     return item != nullptr && item->paired;
 }
 
-} // namespace hio::ble
+} // namespace hwio::ble

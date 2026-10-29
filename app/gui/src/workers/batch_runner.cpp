@@ -1,9 +1,9 @@
 #include "workers/batch_runner.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/command_history.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_history.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -22,7 +22,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -155,4 +155,4 @@ void BatchRunner::end(const std::optional<Error>& error) {
     finished(error); // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

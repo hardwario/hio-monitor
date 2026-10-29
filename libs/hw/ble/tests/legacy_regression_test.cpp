@@ -16,8 +16,8 @@
 //   - worker on the GUI thread                BleHost.ApiIsCreatedUsedAndDestroyedOnTheBleThread
 //   - any service error "probably unpaired"   LegacyBle.NotPairedOnlyWithAnAuthenticationDetail
 
-#include "hio/core/error.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/hw/ble/types.h"
 #include "qt_ble_api.h"
 
 #include <QBluetoothDeviceDiscoveryAgent>
@@ -35,9 +35,9 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::ble::WriteMode;
-using hio::ble::detail::writeModeFor;
+using hwio::ErrorCode;
+using hwio::ble::WriteMode;
+using hwio::ble::detail::writeModeFor;
 
 TEST(LegacyBle, WriteModeIsABitTest) {
     using Property = QLowEnergyCharacteristic::PropertyType;
@@ -56,9 +56,9 @@ TEST(LegacyBle, WriteModeIsABitTest) {
 // (Qt: AuthorizationError), for the CCCD and the RX write alike; a service error without it is no
 // "probably unpaired" (legacy bug).
 TEST(LegacyBle, NotPairedOnlyWithAnAuthenticationDetail) {
-    using hio::ble::detail::LinkPhase;
-    using hio::ble::detail::mapLinkError;
-    using hio::ble::detail::QtLinkError;
+    using hwio::ble::detail::LinkPhase;
+    using hwio::ble::detail::mapLinkError;
+    using hwio::ble::detail::QtLinkError;
     const auto service = [](QLowEnergyService::ServiceError error, LinkPhase phase) {
         return mapLinkError(
                    QtLinkError{.controller = std::nullopt, .service = error, .phase = phase})
@@ -93,19 +93,19 @@ TEST(LegacyBle, NotPairedOnlyWithAnAuthenticationDetail) {
 
 // HIL H2: a rejected CCCD write is not reported as a weak signal.
 TEST(LegacyBle, RejectedCccdWriteIsNotAWeakSignal) {
-    using hio::ble::detail::LinkPhase;
-    const hio::Error error = hio::ble::detail::mapLinkError(
-        hio::ble::detail::QtLinkError{.controller = std::nullopt,
-                                      .service = QLowEnergyService::DescriptorWriteError,
-                                      .phase = LinkPhase::PairingPending});
+    using hwio::ble::detail::LinkPhase;
+    const hwio::Error error = hwio::ble::detail::mapLinkError(
+        hwio::ble::detail::QtLinkError{.controller = std::nullopt,
+                                       .service = QLowEnergyService::DescriptorWriteError,
+                                       .phase = LinkPhase::PairingPending});
     EXPECT_EQ(error.code, ErrorCode::BleConnectFailed);
-    EXPECT_NE(error.cause, hio::makeError(ErrorCode::BleConnectFailed).cause);
+    EXPECT_NE(error.cause, hwio::makeError(ErrorCode::BleConnectFailed).cause);
     EXPECT_NE(error.cause.find("still be connected"), std::string::npos) << error.cause;
 }
 
 // HIL H1: an immediate PairingError on Linux means no pairing agent.
 TEST(LegacyBle, PairingFailureWithoutAgent) {
-    using hio::ble::detail::pairingFailure;
+    using hwio::ble::detail::pairingFailure;
     using namespace std::chrono_literals;
 #ifdef Q_OS_LINUX
     EXPECT_EQ(pairingFailure(QBluetoothLocalDevice::PairingError, 120ms).code,
@@ -122,22 +122,22 @@ TEST(LegacyBle, PairingFailureWithoutAgent) {
 // HIL H1 rework: a later failure names both causes on Linux (BlueZ may connect first without an
 // agent); elsewhere the default texts stay.
 TEST(LegacyBle, LatePairingFailureNamesBothCauses) {
-    using hio::ble::detail::pairingFailure;
+    using hwio::ble::detail::pairingFailure;
     using namespace std::chrono_literals;
-    const hio::Error error = pairingFailure(QBluetoothLocalDevice::PairingError, 24s);
+    const hwio::Error error = pairingFailure(QBluetoothLocalDevice::PairingError, 24s);
     EXPECT_EQ(error.code, ErrorCode::BlePairingFailed);
-    EXPECT_EQ(error.message, hio::makeError(ErrorCode::BlePairingFailed).message);
+    EXPECT_EQ(error.message, hwio::makeError(ErrorCode::BlePairingFailed).message);
 #ifdef Q_OS_LINUX
     EXPECT_NE(error.cause.find("No passkey dialog appeared"), std::string::npos) << error.cause;
     EXPECT_NE(error.suggestion.find("bluetoothctl"), std::string::npos) << error.suggestion;
-    EXPECT_EQ(hio::ble::detail::pairingFailed("still unpaired").cause, error.cause);
+    EXPECT_EQ(hwio::ble::detail::pairingFailed("still unpaired").cause, error.cause);
 #else
-    EXPECT_EQ(error.cause, hio::makeError(ErrorCode::BlePairingFailed).cause);
+    EXPECT_EQ(error.cause, hwio::makeError(ErrorCode::BlePairingFailed).cause);
 #endif
 }
 
 TEST(LegacyBle, DiscoveryErrors) {
-    using hio::ble::detail::mapDiscoveryError;
+    using hwio::ble::detail::mapDiscoveryError;
     EXPECT_EQ(mapDiscoveryError(QBluetoothDeviceDiscoveryAgent::PoweredOffError, {}).code,
               ErrorCode::BleAdapterOff);
     EXPECT_EQ(mapDiscoveryError(QBluetoothDeviceDiscoveryAgent::MissingPermissionsError, {}).code,
@@ -150,15 +150,15 @@ TEST(LegacyBle, DiscoveryErrors) {
 
 // Review B6: one id form per device.
 TEST(LegacyBle, DeviceIdsAreCanonical) {
-    EXPECT_EQ(hio::ble::canonicalDeviceId("f1:22:33:44:55:6a"), "F1:22:33:44:55:6A");
-    EXPECT_EQ(hio::ble::canonicalDeviceId(" F1:22:33:44:55:6A "), "F1:22:33:44:55:6A");
-    EXPECT_EQ(hio::ble::canonicalDeviceId("{6A0B3F1C-1D2E-4F50-8A9B-0C1D2E3F4A5B}"),
+    EXPECT_EQ(hwio::ble::canonicalDeviceId("f1:22:33:44:55:6a"), "F1:22:33:44:55:6A");
+    EXPECT_EQ(hwio::ble::canonicalDeviceId(" F1:22:33:44:55:6A "), "F1:22:33:44:55:6A");
+    EXPECT_EQ(hwio::ble::canonicalDeviceId("{6A0B3F1C-1D2E-4F50-8A9B-0C1D2E3F4A5B}"),
               "6a0b3f1c-1d2e-4f50-8a9b-0c1d2e3f4a5b");
-    EXPECT_EQ(hio::ble::canonicalDeviceId("6A0B3F1C-1D2E-4F50-8A9B-0C1D2E3F4A5B"),
+    EXPECT_EQ(hwio::ble::canonicalDeviceId("6A0B3F1C-1D2E-4F50-8A9B-0C1D2E3F4A5B"),
               "6a0b3f1c-1d2e-4f50-8a9b-0c1d2e3f4a5b");
-    EXPECT_EQ(hio::ble::canonicalDeviceId("not-an-id"), "not-an-id");
-    EXPECT_TRUE(hio::ble::sameDeviceId("aa:bb", "AA:BB"));
-    EXPECT_FALSE(hio::ble::sameDeviceId("aa:bb", "AA:BC"));
+    EXPECT_EQ(hwio::ble::canonicalDeviceId("not-an-id"), "not-an-id");
+    EXPECT_TRUE(hwio::ble::sameDeviceId("aa:bb", "AA:BB"));
+    EXPECT_FALSE(hwio::ble::sameDeviceId("aa:bb", "AA:BC"));
 }
 
 } // namespace

@@ -1,9 +1,9 @@
 // BleLock (plan 0011 B2, ADR-0083): held, stale, sanitised names; and the BLE profile (B3).
 
-#include "hio/core/error.h"
-#include "hio/device/ble_lock.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/profile.h"
+#include "hwio/core/error.h"
+#include "hwio/device/ble_lock.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
 #include "lock_holder.h"
 
 #include <QByteArray>
@@ -23,9 +23,9 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
-using hio::device::BleLock;
-using hio::device::sanitisedBleId;
+using hwio::ErrorCode;
+using hwio::device::BleLock;
+using hwio::device::sanitisedBleId;
 
 class BleLockTest : public ::testing::Test {
 protected:
@@ -51,7 +51,7 @@ TEST_F(BleLockTest, AcquireNamesTheFileAndReleases) {
         EXPECT_TRUE(fs::exists(dir() / "ble-F1-22-33-44-55-66.lock"));
         const auto owner = BleLock::owner("F1:22:33:44:55:66", dir());
         ASSERT_TRUE(owner.has_value());
-        EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).pid,
+        EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).pid,
                   QCoreApplication::applicationPid());
         // The retention passes the sanitised id from a file name: the same lock.
         EXPECT_TRUE(BleLock::owner("F1-22-33-44-55-66", dir()).has_value());
@@ -71,7 +71,7 @@ TEST_F(BleLockTest, SecondAcquireInTheSameProcessIsAlreadyUsed) {
 
 TEST_F(BleLockTest, HeldByAnotherProcessNamesTheOwner) {
     fs::create_directories(dir());
-    hio::device::test::LockHolder holder(
+    hwio::device::test::LockHolder holder(
         QString::fromStdString((dir() / "ble-F1-22-33-44-55-66.lock").string()));
     ASSERT_TRUE(holder.waitUntilLocked());
     const auto lock = BleLock::acquire("F1:22:33:44:55:66", dir());
@@ -81,7 +81,7 @@ TEST_F(BleLockTest, HeldByAnotherProcessNamesTheOwner) {
     EXPECT_NE(lock.error().message.find(std::to_string(holder.pid())), std::string::npos);
     const auto owner = BleLock::owner("F1:22:33:44:55:66", dir());
     ASSERT_TRUE(owner.has_value());
-    EXPECT_EQ(owner.value_or(hio::device::ProbeLockOwner{}).pid, holder.pid());
+    EXPECT_EQ(owner.value_or(hwio::device::ProbeLockOwner{}).pid, holder.pid());
     holder.release();
     EXPECT_FALSE(BleLock::owner("F1:22:33:44:55:66", dir()).has_value());
     EXPECT_TRUE(BleLock::acquire("F1:22:33:44:55:66", dir()));
@@ -108,7 +108,7 @@ TEST_F(BleLockTest, StaleLockOfThisPidNotHeldIsTakenOver) {
 }
 
 TEST_F(BleLockTest, ProbeAndBleLocksAreIndependent) {
-    auto probe = hio::device::ProbeLock::acquire(1, dir());
+    auto probe = hwio::device::ProbeLock::acquire(1, dir());
     ASSERT_TRUE(probe);
     auto ble = BleLock::acquire("1", dir());
     EXPECT_TRUE(ble);
@@ -118,18 +118,18 @@ TEST_F(BleLockTest, ProbeAndBleLocksAreIndependent) {
 // -----------------------------------------------------------------------------
 
 TEST(BleProfile, ChesterHasTheNusConsole) {
-    const auto* chester = hio::device::ProfileRegistry::find("chester");
+    const auto* chester = hwio::device::ProfileRegistry::find("chester");
     ASSERT_NE(chester, nullptr);
     ASSERT_TRUE(chester->ble.has_value());
-    const hio::device::BleProfile ble = chester->ble.value_or(hio::device::BleProfile{});
+    const hwio::device::BleProfile ble = chester->ble.value_or(hwio::device::BleProfile{});
     EXPECT_EQ(ble.namePattern, "CHESTER");
     EXPECT_EQ(ble.serviceUuid, "6e400001-b5a3-f393-e0a9-e50e24dcca9e");
     EXPECT_EQ(ble.rxUuid, "6e400002-b5a3-f393-e0a9-e50e24dcca9e");
     EXPECT_EQ(ble.txUuid, "6e400003-b5a3-f393-e0a9-e50e24dcca9e");
     EXPECT_EQ(ble.shellPrompt, "bt_nus:~$ ");
     EXPECT_EQ(ble.consoleTargetId, "app");
-    ASSERT_NE(hio::device::findTarget(*chester, ble.consoleTargetId), nullptr);
-    EXPECT_EQ(hio::device::passkeyHint(*chester).toStdString(),
+    ASSERT_NE(hwio::device::findTarget(*chester, ble.consoleTargetId), nullptr);
+    EXPECT_EQ(hwio::device::passkeyHint(*chester).toStdString(),
               "The passkey is 123456 unless it was changed when the device was configured.");
     ASSERT_EQ(ble.pairingGuide.size(), 2U);
     EXPECT_EQ(ble.pairingGuide[0].illustrationSlot, "ble-enable");
@@ -137,7 +137,7 @@ TEST(BleProfile, ChesterHasTheNusConsole) {
 }
 
 TEST(BleProfile, FindByAdvertisement) {
-    using hio::device::ProfileRegistry;
+    using hwio::device::ProfileRegistry;
     const auto* chester = ProfileRegistry::find("chester");
     const std::vector<std::string> none;
     EXPECT_EQ(ProfileRegistry::findByAdvertisement("CHESTER-ABC123", none), chester);

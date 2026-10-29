@@ -30,11 +30,11 @@
 //
 // Thread safety: the public functions are called on the GUI thread (the owner).
 
-#include "hio/core/error.h"
-#include "hio/device/probe_lock.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/probe_enumerator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/probe_enumerator.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <QMetaType>
 #include <QObject>
@@ -50,7 +50,7 @@
 #include <thread>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 struct ScannedProbe {
     jlink::ProbeInfo probe;
@@ -106,7 +106,7 @@ public:
     [[nodiscard]] const std::optional<ProbeScan>& last() const noexcept { return m_last; }
 
 signals:
-    void scanned(const hio::gui::ProbeScan& scan);
+    void scanned(const hwio::gui::ProbeScan& scan);
 
 private:
     // GUI thread: invoked (queued, by name) by the worker.
@@ -152,6 +152,6 @@ private:
     std::jthread m_worker;           // last member: started last, joined first
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui
 
-Q_DECLARE_METATYPE(hio::gui::ProbeScan)
+Q_DECLARE_METATYPE(hwio::gui::ProbeScan)

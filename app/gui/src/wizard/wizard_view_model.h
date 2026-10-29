@@ -23,7 +23,7 @@
 #include <QVariantMap>
 #include <QtQmlIntegration>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class DeviceTabViewModel;
 class WizardRegistry;
@@ -46,7 +46,7 @@ class WizardViewModel : public QObject {
     Q_PROPERTY(bool canBack READ canBack NOTIFY changed)
     Q_PROPERTY(bool canPrimary READ canPrimary NOTIFY changed)
     Q_PROPERTY(QString busyCancelText READ busyCancelText NOTIFY changed)
-    Q_PROPERTY(hio::gui::CheckListModel* checks READ checks NOTIFY changed)
+    Q_PROPERTY(hwio::gui::CheckListModel* checks READ checks NOTIFY changed)
     Q_PROPERTY(QObject* embedded READ embedded NOTIFY changed)
     Q_PROPERTY(QUrl embeddedSource READ embeddedSource NOTIFY changed)
     Q_PROPERTY(bool closing READ closing NOTIFY changed) // waiting for a cancelled operation
@@ -107,7 +107,7 @@ signals:
     void cancelConfirmationNeeded(const QString& text);
     // The open wizard should come to the front (another wizard was asked for).
     void raiseRequested();
-    void handOff(const QString& action, hio::gui::DeviceTabViewModel* tab);
+    void handOff(const QString& action, hwio::gui::DeviceTabViewModel* tab);
     void copied();
 
 private:
@@ -121,4 +121,4 @@ private:
     bool m_closing = false;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

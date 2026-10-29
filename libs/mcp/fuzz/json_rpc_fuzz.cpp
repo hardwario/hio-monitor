@@ -3,16 +3,16 @@
 // below), so the dialect detection, header checks, schema validation and the method table see
 // arbitrary JSON. Invariant: every message that is not a notification gets exactly one answer.
 
-#include "hio/core/result.h"
-#include "hio/mcp/activity.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/reply_channel.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/server.h"
-#include "hio/mcp/tool_call.h"
+#include "hwio/core/result.h"
+#include "hwio/mcp/activity.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/reply_channel.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/server.h"
+#include "hwio/mcp/tool_call.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -33,7 +33,7 @@
 
 namespace {
 
-using namespace hio::mcp;
+using namespace hwio::mcp;
 
 class AllowAll final : public IConsentBroker {
 public:
@@ -63,7 +63,7 @@ public:
     void setClosedHandler(std::function<void(CloseReason)> /*handler*/) override {}
 };
 
-void mustSucceed(const hio::Status& status) {
+void mustSucceed(const hwio::Status& status) {
     if (!status) {
         std::abort();
     }
@@ -108,12 +108,12 @@ Registry makeRegistry() {
                    .description = {},
                    .arguments = {PromptArgument{.name = "a", .description = {}, .required = true}},
                    .get = [](const RequestContext&, const std::map<QString, QString>&)
-                       -> hio::Result<PromptResult> { return PromptResult{}; }}));
+                       -> hwio::Result<PromptResult> { return PromptResult{}; }}));
     return registry;
 }
 
 struct Harness {
-    Harness() { QLoggingCategory::setFilterRules(QStringLiteral("hio.*=false")); }
+    Harness() { QLoggingCategory::setFilterRules(QStringLiteral("hwio.*=false")); }
 
     int argc = 1;
     std::array<char, 5> name{'f', 'u', 'z', 'z', '\0'};

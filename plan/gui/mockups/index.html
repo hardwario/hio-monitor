@@ -535,7 +535,7 @@ const SCREENS = {
   render:() => frame({page:'console', dev:'on', tabState:'ok', content:`${consoleToolbar()}<div class="content"><div class="split">${shellPane()}${logPane({mode:'filter', filter:true})}</div></div>`}) },
  history: { label:'Console: Ctrl+R history', note:'History popup filters as you type; Enter inserts, Esc closes. History is shared per profile/target and persisted.',
   render:() => frame({page:'console', dev:'on', tabState:'ok', content:`${consoleToolbar()}<div class="content"><div class="split">${shellPane({hist:true})}${logPane()}</div></div>`}) },
- error: { label:'Console: error panel', note:'Inline ErrorPanel from hio::Error (target.no_power): headline, cause, what to do, actions, Details. Input disabled with reason.',
+ error: { label:'Console: error panel', note:'Inline ErrorPanel from hwio::Error (target.no_power): headline, cause, what to do, actions, Details. Input disabled with reason.',
   render:() => frame({page:'console', dev:'err', tabState:'err', content:`${consoleToolbar()}<div class="errp" role="alert"><span class="ico">⛔</span><div class="grow">
    <h3>${t('errHead')}</h3><p class="muted">${t('errCause')}</p><p>${t('errTodo')}</p>
    <div class="acts"><button class="btn primary">${t('reconnect')}</button><button class="btn" disabled title="${t('soon')}">${t('helpFix')}</button><button class="btn ghost">${t('details')} ▾</button></div>

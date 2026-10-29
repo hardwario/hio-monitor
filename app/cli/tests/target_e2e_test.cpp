@@ -1,4 +1,4 @@
-// End-to-end tests of the M6 target commands (plan/features/0013 B4): the real `hio` executable
+// End-to-end tests of the M6 target commands (plan/features/0013 B4): the real `hwio` executable
 // with the fake J-Link library and its RAM / register / zone model (each run is a new process, so
 // the fake target starts running and with zeroed RAM every time).
 
@@ -24,8 +24,8 @@
 
 namespace {
 
-using hio::cli::test::CliProcess;
-using hio::cli::test::RunResult;
+using hwio::cli::test::CliProcess;
+using hwio::cli::test::RunResult;
 
 std::vector<QJsonObject> envelopes(const std::string& out) {
     std::vector<QJsonObject> result;
@@ -86,9 +86,9 @@ protected:
 
     [[nodiscard]] QProcessEnvironment fakeEnvironment(const char* library) const {
         QProcessEnvironment env = environment();
-        env.insert(QStringLiteral("HIO_FAKE_JLINK_SCENARIO"),
+        env.insert(QStringLiteral("HWIO_FAKE_JLINK_SCENARIO"),
                    path(QStringLiteral("scenario.json")));
-        env.insert(QStringLiteral("HIO_JLINK_LIBRARY"), QString::fromUtf8(library));
+        env.insert(QStringLiteral("HWIO_JLINK_LIBRARY"), QString::fromUtf8(library));
         return env;
     }
 
@@ -100,7 +100,7 @@ protected:
         }
         all << QStringLiteral("chester") << QStringLiteral("app") << QStringLiteral("-n")
             << QStringLiteral("801000001") << command;
-        return run(all, fakeEnvironment(HIO_FAKE_JLINK_LIBRARY));
+        return run(all, fakeEnvironment(HWIO_FAKE_JLINK_LIBRARY));
     }
 };
 
@@ -173,7 +173,7 @@ TEST_F(TargetCli, LteStatusAndNoZones) {
         }
         all << QStringLiteral("chester") << QStringLiteral("lte") << QStringLiteral("-n")
             << QStringLiteral("801000002") << QString::fromUtf8(command);
-        return run(all, fakeEnvironment(HIO_FAKE_JLINK_LIBRARY));
+        return run(all, fakeEnvironment(HWIO_FAKE_JLINK_LIBRARY));
     };
     const RunResult status = lte("status", true);
     ASSERT_EQ(status.exitCode, 0) << status.out << status.err;
@@ -419,7 +419,7 @@ TEST_F(TargetCli, RegsOnAHaltedCore) {
 TEST_F(TargetCli, MissingOptionalJLinkFunction) {
     const RunResult json = run(QStringList{QStringLiteral("--json"), QStringLiteral("chester"),
                                            QStringLiteral("app"), QStringLiteral("status")},
-                               fakeEnvironment(HIO_FAKE_JLINK_BASIC_LIBRARY));
+                               fakeEnvironment(HWIO_FAKE_JLINK_BASIC_LIBRARY));
     EXPECT_EQ(json.exitCode, 4) << json.out << json.err;
     EXPECT_EQ(errorCode(json), QStringLiteral("dependency.jlink_function_missing"));
 }

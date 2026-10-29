@@ -2,8 +2,8 @@
 
 #include "cli_app.h"
 #include "cli_log.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 
 #include <QJsonValue>
 #include <QLoggingCategory>
@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -62,4 +62,4 @@ void registerSelftestCommands(CLI::App& app, CommandSlot& slot) {
     wait->callback([&slot] { slot.command = selftestWait; });
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

@@ -1,11 +1,11 @@
 #pragma once
 
-// Internal to libs/core and its tests: the schema migration mechanism of hio::Settings.
+// Internal to libs/core and its tests: the schema migration mechanism of hwio::Settings.
 // Production code uses Settings::openDefault()/openFile() with the built-in migration list
 // (empty in M0); tests inject their own list and target schema here.
 
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
 
 #include <filesystem>
 #include <memory>
@@ -13,7 +13,7 @@
 
 class QSettings;
 
-namespace hio::detail {
+namespace hwio::detail {
 
 // Upgrades a file from schema (toVersion - 1) to toVersion. Must not touch "meta/schemaVersion".
 struct SettingsMigration {
@@ -34,4 +34,4 @@ struct SettingsAccess {
 [[nodiscard]] Result<Settings> openSettingsFile(const std::filesystem::path& file, int targetSchema,
                                                 std::span<const SettingsMigration> migrations);
 
-} // namespace hio::detail
+} // namespace hwio::detail

@@ -46,19 +46,19 @@
 #include <memory>
 #include <optional>
 
-namespace hio::device {
+namespace hwio::device {
 struct DeviceProfile;
 struct TargetProfile;
-} // namespace hio::device
+} // namespace hwio::device
 
-namespace hio::firmware {
+namespace hwio::firmware {
 class CatalogOperation;
 class DesignatedOperation;
 class LookupOperation;
 struct CatalogInfo;
-} // namespace hio::firmware
+} // namespace hwio::firmware
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class FirmwareServices;
 
@@ -77,7 +77,7 @@ class FirmwareSourceViewModel : public QObject {
     Q_PROPERTY(bool allowUicr READ allowUicr WRITE setAllowUicr NOTIFY allowUicrChanged)
     Q_PROPERTY(QString kindHint READ kindHint NOTIFY sourceChanged)
     Q_PROPERTY(int suggestedKind READ suggestedKind NOTIFY sourceChanged) // -1 = none
-    Q_PROPERTY(hio::gui::ErrorInfo error READ error NOTIFY sourceChanged)
+    Q_PROPERTY(hwio::gui::ErrorInfo error READ error NOTIFY sourceChanged)
     // The inline validator text of the ID field ("" = valid or empty).
     Q_PROPERTY(QString catalogIdError READ catalogIdError NOTIFY catalogIdErrorChanged)
     Q_PROPERTY(bool catalogAvailable READ catalogAvailable NOTIFY kindChanged)
@@ -91,7 +91,7 @@ class FirmwareSourceViewModel : public QObject {
     Q_PROPERTY(bool modemNoteVisible READ modemNoteVisible NOTIFY sourceChanged)
     Q_PROPERTY(QStringList nameFilters READ nameFilters NOTIFY kindChanged)
     Q_PROPERTY(QString dropText READ dropText NOTIFY kindChanged)
-    Q_PROPERTY(hio::gui::RecentSourcesModel* recent READ recent CONSTANT)
+    Q_PROPERTY(hwio::gui::RecentSourcesModel* recent READ recent CONSTANT)
     // 0021 (ADR-0165): the LTE source and the designated LTE firmware.
     Q_PROPERTY(int lteSource READ lteSource WRITE setLteSource NOTIFY lteSourceChanged)
     Q_PROPERTY(bool designatedAvailable READ designatedAvailable NOTIFY kindChanged)
@@ -101,7 +101,7 @@ class FirmwareSourceViewModel : public QObject {
     // "Ready" / "Downloading… 2.1 / 6.1 MB" / "" (idle, failed)
     Q_PROPERTY(QString designatedStatus READ designatedStatus NOTIFY designatedChanged)
     Q_PROPERTY(qreal designatedProgress READ designatedProgress NOTIFY designatedChanged)
-    Q_PROPERTY(hio::gui::ErrorInfo designatedError READ designatedError NOTIFY designatedChanged)
+    Q_PROPERTY(hwio::gui::ErrorInfo designatedError READ designatedError NOTIFY designatedChanged)
 
 public:
     // Unscoped: QML compares FirmwareSourceViewModel.AppFirmware etc. with the int properties.
@@ -276,4 +276,4 @@ private:
     std::unique_ptr<firmware::CatalogInfo> m_info; // of m_lookupId when found
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- AppStream metadata of HARDWARIO Monitor (plan/features/0015 A3). Configured by
-     cmake/HioPackaging.cmake (version and date of the build); validated with
+     cmake/HWioPackaging.cmake (version and date of the build); validated with
      `appstreamcli validate - -no-net` in CI. -->
 <component type="desktop-application">
   <id>com.hardwario.monitor</id>
@@ -16,7 +16,7 @@
       and helps to diagnose connection problems.
     </p>
     <p>
-      The command-line tool hio is included. SEGGER J-Link Software 8.00 or newer must be installed
+      The command-line tool hwio is included. SEGGER J-Link Software 8.00 or newer must be installed
       separately.
     </p>
   </description>
@@ -28,8 +28,8 @@
   <url type="help">https://github.com/hardwario/hio-monitor</url>
   <launchable type="desktop-id">com.hardwario.monitor.desktop</launchable>
   <provides>
-    <binary>hio-monitor</binary>
-    <binary>hio</binary>
+    <binary>hwio-monitor</binary>
+    <binary>hwio</binary>
   </provides>
   <categories>
     <category>Development</category>
@@ -49,6 +49,6 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="@HIO_VERSION_NUMERIC@" date="@HIO_RELEASE_DATE@"/>
+    <release version="@HWIO_VERSION_NUMERIC@" date="@HWIO_RELEASE_DATE@"/>
   </releases>
 </component>

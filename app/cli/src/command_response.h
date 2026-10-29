@@ -1,6 +1,6 @@
 #pragma once
 
-// The bounded response of `hio chester app command` (plan/features/0002-m1-jlink-rtt.md, Bounds,
+// The bounded response of `hwio chester app command` (plan/features/0002-m1-jlink-rtt.md, Bounds,
 // review R42): the shell output and log lines received after the command was sent, at most
 // maxLines lines (output + log) and maxBytes bytes of text in total. Beyond the bound the first
 // lines are kept, later lines are not collected and truncated() is set.
@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 class CommandResponse {
 public:
@@ -36,4 +36,4 @@ private:
     bool m_truncated = false;
 };
 
-} // namespace hio::cli
+} // namespace hwio::cli

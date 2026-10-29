@@ -1,6 +1,6 @@
 #include "test_page_view_model.h"
 
-#include "hio/core/result.h"
+#include "hwio/core/result.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_view_model.h"
 #include "viewmodels/page_registry.h"
@@ -13,7 +13,7 @@
 #include <QtAssert>
 #include <QtCore/qttranslation.h>
 
-namespace hio::gui::test {
+namespace hwio::gui::test {
 
 TestPageViewModel::TestPageViewModel(DeviceTabViewModel* tab) : QObject(tab), m_tab(tab) {
     connect(m_tab, &DeviceTabViewModel::sessionChanged, this, [this] {
@@ -55,10 +55,10 @@ void registerTestPage(AppViewModel& app, const QUrl& qml) {
                            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
                            return new TestPageViewModel(tab);
                        }});
-    const hio::Status added = app.shortcuts()->add(QStringLiteral("test.action"),
-                                                   QKeySequence(QStringLiteral("Ctrl+Shift+Y")),
-                                                   TestPageViewModel::pageId, "Test action");
+    const hwio::Status added = app.shortcuts()->add(QStringLiteral("test.action"),
+                                                    QKeySequence(QStringLiteral("Ctrl+Shift+Y")),
+                                                    TestPageViewModel::pageId, "Test action");
     Q_ASSERT(added);
 }
 
-} // namespace hio::gui::test
+} // namespace hwio::gui::test

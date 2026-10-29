@@ -1,4 +1,4 @@
-#include "hio/mcp/schema.h"
+#include "hwio/mcp/schema.h"
 
 #include <QByteArrayView>
 #include <QJsonArray>
@@ -20,7 +20,7 @@
 #include <optional>
 #include <utility>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 namespace {
 
@@ -465,4 +465,4 @@ std::expected<void, QString> checkSchemaSubset(const QJsonObject& schema) {
     return checkSubset(schema, QString(), 0);
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

@@ -1,10 +1,10 @@
-#include "hio/mcp/tools/tools_context.h"
+#include "hwio/mcp/tools/tools_context.h"
 
-#include "hio/device/console_line.h"
-#include "hio/device/console_session.h"
-#include "hio/device/session_events.h"
-#include "hio/mcp/server.h"
-#include "hio/mcp/tools/device_provider.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/session_events.h"
+#include "hwio/mcp/server.h"
+#include "hwio/mcp/tools/device_provider.h"
 #include "resources.h"
 #include "scan_scheduler.h"
 
@@ -19,7 +19,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::mcp::tools {
+namespace hwio::mcp::tools {
 
 namespace detail {
 
@@ -30,7 +30,7 @@ struct ResourceWatch {
 
 } // namespace detail
 
-ToolsContext::ToolsContext(IDeviceProvider& provider, hio::firmware::FirmwareCatalog* catalog,
+ToolsContext::ToolsContext(IDeviceProvider& provider, hwio::firmware::FirmwareCatalog* catalog,
                            ToolsOptions options, QObject* parent)
     : QObject(parent), m_provider(&provider), m_catalog(catalog), m_options(std::move(options)),
       m_scheduler(std::make_unique<detail::ScanScheduler>()) {
@@ -48,7 +48,7 @@ std::filesystem::path ToolsContext::memoryDumpDirectory() const {
     return std::filesystem::path(cache.toStdU16String()) / "mcp";
 }
 
-void ToolsContext::attachServer(hio::mcp::McpServer& server) {
+void ToolsContext::attachServer(hwio::mcp::McpServer& server) {
     m_server = &server;
     rewatch();
 }
@@ -84,10 +84,10 @@ void ToolsContext::rewatch() {
 
 void ToolsContext::watch(const std::string& id, const DeviceRef& ref) {
     QObject* context = m_watch->connections.get();
-    connect(ref.console.data(), &hio::device::ConsoleSession::linesReceived, context,
-            [this, id](const QList<hio::device::ConsoleLine>& lines) { linesArrived(id, lines); });
-    connect(ref.console.data(), &hio::device::ConsoleSession::connectionChanged, context,
-            [this, id](const hio::device::ConnectionEvent&) {
+    connect(ref.console.data(), &hwio::device::ConsoleSession::linesReceived, context,
+            [this, id](const QList<hwio::device::ConsoleLine>& lines) { linesArrived(id, lines); });
+    connect(ref.console.data(), &hwio::device::ConsoleSession::connectionChanged, context,
+            [this, id](const hwio::device::ConnectionEvent&) {
                 if (m_server.isNull()) {
                     return;
                 }
@@ -97,15 +97,15 @@ void ToolsContext::watch(const std::string& id, const DeviceRef& ref) {
 }
 
 void ToolsContext::linesArrived(const std::string& id,
-                                const QList<hio::device::ConsoleLine>& lines) {
+                                const QList<hwio::device::ConsoleLine>& lines) {
     if (m_server.isNull()) {
         return;
     }
-    const bool shell = std::ranges::any_of(lines, [](const hio::device::ConsoleLine& line) {
-        return line.channel == hio::device::Channel::Shell;
+    const bool shell = std::ranges::any_of(lines, [](const hwio::device::ConsoleLine& line) {
+        return line.channel == hwio::device::Channel::Shell;
     });
-    const bool log = std::ranges::any_of(lines, [](const hio::device::ConsoleLine& line) {
-        return line.channel == hio::device::Channel::Log;
+    const bool log = std::ranges::any_of(lines, [](const hwio::device::ConsoleLine& line) {
+        return line.channel == hwio::device::Channel::Log;
     });
     if (shell) {
         m_server->notifyResourceUpdated(detail::deviceUri(id, QStringLiteral("terminal")));
@@ -115,4 +115,4 @@ void ToolsContext::linesArrived(const std::string& id,
     }
 }
 
-} // namespace hio::mcp::tools
+} // namespace hwio::mcp::tools

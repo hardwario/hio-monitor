@@ -1,20 +1,20 @@
 #include "viewmodels/console_view_model.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/command_tree.h"
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/command_tree_learner.h"
-#include "hio/device/completer.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/device_info.h"
-#include "hio/device/device_session.h"
-#include "hio/device/operation.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_tree.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/command_tree_learner.h"
+#include "hwio/device/completer.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/device_info.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/connection_view_model.h"
 #include "viewmodels/console_line_model.h"
@@ -54,7 +54,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -755,4 +755,4 @@ void ConsoleViewModel::reconnect() {
 
 void ConsoleViewModel::connectDevice() { m_tab->connection()->connectDevice(); }
 
-} // namespace hio::gui
+} // namespace hwio::gui

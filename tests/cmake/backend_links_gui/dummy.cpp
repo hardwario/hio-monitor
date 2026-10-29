@@ -1,4 +1,4 @@
 // Source file for the configure-only test project; never compiled.
-namespace hio_test {
+namespace hwio_test {
 int dummy() { return 0; }
-} // namespace hio_test
+} // namespace hwio_test

@@ -15,7 +15,7 @@ Internal libraries are **static**; Qt is linked dynamically (ADR-0022).
 
 Only C++23 features available in all three std libs may be used (tracked in `cmake/` feature checks).
 
-### Allowed C++23 library features (checked by `cmake/HioCxxFeatureChecks.cmake`)
+### Allowed C++23 library features (checked by `cmake/HWioCxxFeatureChecks.cmake`)
 
 | Feature | Macro | Status |
 |---|---|---|
@@ -33,8 +33,8 @@ Qt is obtained as official binaries: Qt online installer locally, `aqtinstall` (
 ## CMake
 
 - `CMakePresets.json` with presets per OS × {Debug, Release, ASan+UBSan, TSan, clang-tidy}.
-- Shipped/packaged binaries are built with `HIO_TEST_OVERRIDES=OFF` (test-only overrides such as
-  `HIO_CATALOG_URL` are not compiled in); only the Debug presets turn it ON, and configure enforces it: a
+- Shipped/packaged binaries are built with `HWIO_TEST_OVERRIDES=OFF` (test-only overrides such as
+  `HWIO_CATALOG_URL` are not compiled in); only the Debug presets turn it ON, and configure enforces it: a
   Release-type build with it ON fails (feature 0003, review R12).
 - Third-party libs via CPM.cmake / FetchContent, each pinned to exact tag **and** hash; a CPM
   source cache for offline/CI reuse. Candidate deps (each requires user approval in a plan):
@@ -53,7 +53,7 @@ Qt is obtained as official binaries: Qt online installer locally, `aqtinstall` (
 |---|---|
 | Linux | AppImage (Ubuntu 22.04+), .deb (Ubuntu 24.04+, private Qt in `/opt`, J-Link udev rule) — ADR-0118, ADR-0121; Flatpak deferred |
 | macOS | universal signed + notarized DMG, hardened runtime (ADR-0126) |
-| Windows | signed per-machine MSI (WiX), `hio` on PATH (ADR-0117) |
+| Windows | signed per-machine MSI (WiX), `hwio` on PATH (ADR-0117) |
 
 Details, signing (ADR-0120) and the tag-triggered release workflow (ADR-0125): [features/0015](features/0015-m7-packaging-release.md).
 

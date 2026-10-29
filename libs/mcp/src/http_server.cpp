@@ -1,10 +1,10 @@
-#include "hio/mcp/http_server.h"
+#include "hwio/mcp/http_server.h"
 
-#include "hio/core/error.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/mcp/server.h"
 #include "http_connection.h"
+#include "hwio/core/error.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/mcp/server.h"
 
 #include <QAbstractSocket>
 #include <QHostAddress>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 struct HttpServer::Impl {
     HttpServer& q;
@@ -52,8 +52,8 @@ struct HttpServer::Impl {
                 return;
             }
             if (openConnections() >= shared.limits->maxHttpConnections) {
-                qCWarning(hio::log::lcMcp) << "MCP HTTP: connection limit reached ("
-                                           << shared.limits->maxHttpConnections << "); refused";
+                qCWarning(hwio::log::lcMcp) << "MCP HTTP: connection limit reached ("
+                                            << shared.limits->maxHttpConnections << "); refused";
                 socket->write("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n"
                               "Content-Length: 0\r\n\r\n");
                 QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
@@ -107,7 +107,8 @@ Status HttpServer::listen() {
                                          port + ": " + m_impl->tcp.errorString().toStdString()));
     }
     m_impl->shared.port = m_impl->tcp.serverPort();
-    qCInfo(hio::log::lcMcp).nospace() << "MCP HTTP: listening on 127.0.0.1:" << m_impl->shared.port;
+    qCInfo(hwio::log::lcMcp).nospace()
+        << "MCP HTTP: listening on 127.0.0.1:" << m_impl->shared.port;
     return {};
 }
 
@@ -132,4 +133,4 @@ std::size_t HttpServer::connectionCount() const { return m_impl->openConnections
 
 void HttpServer::setToken(std::string token) { m_impl->shared.token = std::move(token); }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

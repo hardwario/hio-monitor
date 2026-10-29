@@ -1,6 +1,6 @@
 #pragma once
 
-// A small fake tool / resource / prompt set for the hio_mcp tests (golden exchanges, server,
+// A small fake tool / resource / prompt set for the hwio_mcp tests (golden exchanges, server,
 // transports).
 //   echo          sync; {text (<= 100 chars, required), count (1..10, default 1)} -> {text, count}
 //   address       sync; {address (address pattern, required)} -> {address: "0x%08X"}
@@ -12,13 +12,13 @@
 // Resources: test://static (text), template test://item/{id}/status ("missing" -> not found,
 // "broken" -> error), prompt greet(name required, mood optional).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/mcp/consent.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/schema.h"
-#include "hio/mcp/tool_call.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/mcp/consent.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/schema.h"
+#include "hwio/mcp/tool_call.h"
 
 #include <QJsonObject>
 #include <QString>
@@ -28,7 +28,7 @@
 #include <map>
 #include <memory>
 
-namespace hio::mcp::test {
+namespace hwio::mcp::test {
 
 class SlowCall final : public ToolCall {
 public:
@@ -77,7 +77,7 @@ public:
 };
 
 // Registration of the fixed fake set cannot fail; a failure is a broken test setup.
-inline void mustSucceed(const hio::Status& status) {
+inline void mustSucceed(const hwio::Status& status) {
     if (!status) {
         std::abort();
     }
@@ -242,7 +242,7 @@ inline Registry makeFakeRegistry() {
         .arguments = {PromptArgument{.name = "name", .description = "Who.", .required = true},
                       PromptArgument{.name = "mood", .description = "How.", .required = false}},
         .get = [](const RequestContext&,
-                  const std::map<QString, QString>& arguments) -> hio::Result<PromptResult> {
+                  const std::map<QString, QString>& arguments) -> hwio::Result<PromptResult> {
             return PromptResult{
                 .description = QStringLiteral("Greeting"),
                 .messages = {PromptMessage{
@@ -252,4 +252,4 @@ inline Registry makeFakeRegistry() {
     return registry;
 }
 
-} // namespace hio::mcp::test
+} // namespace hwio::mcp::test

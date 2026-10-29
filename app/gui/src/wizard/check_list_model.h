@@ -5,8 +5,8 @@
 // title, result text and error (ErrorInfo: cause and suggestion shown when a failed row expands).
 // Bounded: at most diag::maxChecks rows. GUI thread only.
 
-#include "hio/device/operation.h"
-#include "hio/diag/check.h"
+#include "hwio/device/operation.h"
+#include "hwio/diag/check.h"
 #include "viewmodels/error_info.h"
 
 #include <QAbstractListModel>
@@ -21,7 +21,7 @@
 #include <span>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class CheckListModel : public QAbstractListModel {
     Q_OBJECT
@@ -75,4 +75,4 @@ private:
     std::vector<diag::CheckResult> m_rows; // bounded: diag::maxChecks
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

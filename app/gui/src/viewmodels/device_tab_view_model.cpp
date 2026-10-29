@@ -1,18 +1,18 @@
 #include "viewmodels/device_tab_view_model.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/device_info.h"
-#include "hio/device/device_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/shell_query.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/device_info.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/shell_query.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "settings_store.h"
 #include "viewmodels/connection_view_model.h"
 #include "viewmodels/page_registry.h"
@@ -36,7 +36,7 @@
 #include <string_view>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 DeviceTabViewModel::DeviceTabViewModel(TabContext context, QObject* parent)
     : QObject(parent), m_context(std::move(context)),
@@ -411,7 +411,7 @@ void DeviceTabViewModel::onConnectionChanged(const device::ConnectionEvent& even
     if (event.state == device::ConnectionState::Stopped && event.error) {
         // A fatally stopped session is released on the next event-loop turn (never inside its own
         // signal): the probe lock, the library copy and the registry slot are freed, so another
-        // program (hio) can use the probe. Its error stays in the ConnectionViewModel (S18).
+        // program (hwio) can use the probe. Its error stays in the ConnectionViewModel (S18).
         const QPointer<device::DeviceSession> failed(m_session.get());
         QMetaObject::invokeMethod(
             this,
@@ -590,4 +590,4 @@ void DeviceTabViewModel::updateState() {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

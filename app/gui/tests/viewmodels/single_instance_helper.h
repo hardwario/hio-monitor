@@ -1,9 +1,9 @@
 #pragma once
 
 // The helper process of single_instance_test.cpp (see main.cpp): with
-// HIO_TEST_SINGLE_INSTANCE=<lock file>|<server name> this binary runs a primary instance, prints
+// HWIO_TEST_SINGLE_INSTANCE=<lock file>|<server name> this binary runs a primary instance, prints
 // "primary", and prints "activated" and exits after the first activation request (or after 30 s).
-// With HIO_TEST_SINGLE_INSTANCE_HUNG=1 it takes the lock and listens but never runs its event
+// With HWIO_TEST_SINGLE_INSTANCE_HUNG=1 it takes the lock and listens but never runs its event
 // loop (a hung instance) until it is killed (or 30 s pass).
 
 #include "single_instance.h"
@@ -19,7 +19,7 @@
 #include <iostream>
 #include <thread>
 
-namespace hio::gui::test {
+namespace hwio::gui::test {
 
 inline int runSingleInstanceHelper(int argc, char** argv, const QString& spec) {
     const QCoreApplication app(argc, argv);
@@ -33,7 +33,7 @@ inline int runSingleInstanceHelper(int argc, char** argv, const QString& spec) {
         return 1;
     }
     std::cout << "primary\n" << std::flush;
-    if (qEnvironmentVariableIntValue("HIO_TEST_SINGLE_INSTANCE_HUNG") == 1) {
+    if (qEnvironmentVariableIntValue("HWIO_TEST_SINGLE_INSTANCE_HUNG") == 1) {
         std::this_thread::sleep_for(std::chrono::seconds(30));
         return 0;
     }
@@ -46,4 +46,4 @@ inline int runSingleInstanceHelper(int argc, char** argv, const QString& spec) {
     return QCoreApplication::exec();
 }
 
-} // namespace hio::gui::test
+} // namespace hwio::gui::test

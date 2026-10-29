@@ -27,7 +27,7 @@
 class QJSEngine;
 class QQmlEngine;
 
-namespace hio::gui {
+namespace hwio::gui {
 
 // Opens a file or folder with the desktop (QDesktopServices::openUrl); tests replace it.
 using UrlOpener = std::function<bool(const QUrl&)>;
@@ -117,4 +117,4 @@ private:
     UrlOpener m_opener;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

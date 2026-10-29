@@ -1,4 +1,4 @@
-#include "hio/core/app_identity.h"
+#include "hwio/core/app_identity.h"
 
 #include <QCoreApplication>
 #include <QLockFile>
@@ -15,7 +15,7 @@
 
 namespace {
 
-// Helper mode for the probe-lock tests (review R41): with HIO_TEST_HOLD_LOCK_FILE=<path> this
+// Helper mode for the probe-lock tests (review R41): with HWIO_TEST_HOLD_LOCK_FILE=<path> this
 // binary takes a real QLockFile at <path> (as ProbeLock::acquire() does), prints "locked" and
 // holds the lock until its stdin ends, so a test sees a lock file that Qt wrote in another process
 // (with the application and host names Qt records on this OS).
@@ -36,7 +36,7 @@ int holdLockFile(const QString& path) {
 } // namespace
 
 int main(int argc, char** argv) {
-    if (const QString lockFile = qEnvironmentVariable("HIO_TEST_HOLD_LOCK_FILE");
+    if (const QString lockFile = qEnvironmentVariable("HWIO_TEST_HOLD_LOCK_FILE");
         !lockFile.isEmpty()) {
         const QCoreApplication app(argc, argv);
         return holdLockFile(lockFile);
@@ -45,6 +45,6 @@ int main(int argc, char** argv) {
     // Tests never touch the user's real settings or data directories.
     QStandardPaths::setTestModeEnabled(true);
     const QCoreApplication app(argc, argv);
-    hio::initApplicationIdentity();
+    hwio::initApplicationIdentity();
     return RUN_ALL_TESTS();
 }

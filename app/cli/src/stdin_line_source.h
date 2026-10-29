@@ -1,7 +1,7 @@
 #pragma once
 
-// StdinLineSource - the ILineSource of `hio mcp` over the CLI's StdinLineReader (plan/features/0013
-// "stdio transport and hio mcp", ADR-0097, ADR-0154).
+// StdinLineSource - the ILineSource of `hwio mcp` over the CLI's StdinLineReader
+// (plan/features/0013 "stdio transport and hwio mcp", ADR-0097, ADR-0154).
 //
 // The reader thread queues complete lines (at most `maxQueuedLines` and `maxQueuedBytes` of text,
 // then it waits: backpressure)
@@ -14,7 +14,7 @@
 // guarded by a mutex and called with it held, so once setWakeup() returns the previous function is
 // never called again (the ILineSource contract).
 
-#include "hio/mcp/stdio_transport.h"
+#include "hwio/mcp/stdio_transport.h"
 #include "terminal.h"
 
 #include <cstddef>
@@ -23,13 +23,13 @@
 #include <mutex>
 #include <optional>
 
-namespace hio::cli {
+namespace hwio::cli {
 
-class StdinLineSource final : public hio::mcp::ILineSource {
+class StdinLineSource final : public hwio::mcp::ILineSource {
 public:
-    // Reads stdin, or `read` (tests). `maxLineBytes` and `maxQueuedLines` >= 1 (hio::mcp::Limits
-    // maxStdioLineBytes = 4 MiB and stdinQueueLines = 64 in `hio mcp`); `maxQueuedBytes` is the
-    // queue's byte budget (ADR-0163: the setting mcp/stdioBufferMiB in `hio mcp`; 0 = none).
+    // Reads stdin, or `read` (tests). `maxLineBytes` and `maxQueuedLines` >= 1 (hwio::mcp::Limits
+    // maxStdioLineBytes = 4 MiB and stdinQueueLines = 64 in `hwio mcp`); `maxQueuedBytes` is the
+    // queue's byte budget (ADR-0163: the setting mcp/stdioBufferMiB in `hwio mcp`; 0 = none).
     StdinLineSource(std::size_t maxLineBytes, std::size_t maxQueuedLines,
                     std::size_t maxQueuedBytes, StdinLineReader::ReadFunction read = {});
     ~StdinLineSource() override; // stops and joins the reader thread
@@ -52,4 +52,4 @@ private:
     std::unique_ptr<StdinLineReader> m_reader;
 };
 
-} // namespace hio::cli
+} // namespace hwio::cli

@@ -74,10 +74,10 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cpm-cache
-          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+          key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Translation catalogs are up to date
         run: |
-          cmake --preset linux-debug -DHIO_BUILD_TESTS=OFF
+          cmake --preset linux-debug -DHWIO_BUILD_TESTS=OFF
           cmake --build --preset linux-debug --target check_translations
 
   linux:
@@ -132,7 +132,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cpm-cache
-          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+          key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
         run: cmake --preset linux-${{ matrix.preset }}
       - name: Build
@@ -149,9 +149,9 @@ jobs:
           llvm-profdata-${LLVM_MAJOR} merge -sparse "${build_dir}"/profiles/*.profraw \
             -o "${build_dir}/coverage.profdata"
           objects=(
-            "${build_dir}/libs/core/tests/hio_core_tests"
-            -object "${build_dir}/app/cli/tests/hio_cli_tests"
-            -object "${build_dir}/app/cli/hio"
+            "${build_dir}/libs/core/tests/hwio_core_tests"
+            -object "${build_dir}/app/cli/tests/hwio_cli_tests"
+            -object "${build_dir}/app/cli/hwio"
             -object "${build_dir}/app/gui/tst_gui"
           )
           ignore='(\.cpm-cache|/build/|/tests/)'
@@ -203,7 +203,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cpm-cache
-          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+          key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
         run: cmake --preset linux-fuzz
       - name: Build
@@ -279,7 +279,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cpm-cache
-          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+          key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
         run: cmake --preset macos-${{ matrix.preset }}
       - name: Build
@@ -337,7 +337,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cpm-cache
-          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+          key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
         run: |
           clang-cl --version
@@ -377,7 +377,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cpm-cache
-          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+          key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       # The image is cached by the hash of its Containerfile (never published).
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: image-cache
@@ -387,19 +387,19 @@ jobs:
       - name: Build image
         if: steps.image-cache.outputs.cache-hit != 'true'
         run: |
-          docker build -t hio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
-          docker save hio-monitor-build:22.04 -o "$RUNNER_TEMP/build-image.tar"
+          docker build -t hwio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
+          docker save hwio-monitor-build:22.04 -o "$RUNNER_TEMP/build-image.tar"
       - name: Load image
         if: steps.image-cache.outputs.cache-hit == 'true'
         run: docker load -i "$RUNNER_TEMP/build-image.tar"
       - name: Build the .deb and the AppImage
         run: |
           docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" \
-            -e CPM_SOURCE_CACHE="$PWD/.cpm-cache" hio-monitor-build:22.04 \
+            -e CPM_SOURCE_CACHE="$PWD/.cpm-cache" hwio-monitor-build:22.04 \
             packaging/linux/build-packages.sh build/packages
       - name: Check the packages (glibc, lintian, desktop file, AppStream, AppImage CLI)
         run: |
-          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hio-monitor-build:22.04 \
+          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hwio-monitor-build:22.04 \
             packaging/linux/check-packages.sh build/packages
       - name: Smoke tests in clean containers
         run: packaging/linux/smoke-clean.sh build/packages
@@ -453,7 +453,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cpm-cache
-          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+          key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
         run: cmake --preset macos-package
       - name: Build
@@ -463,21 +463,21 @@ jobs:
       - name: Installed-tree self-test
         env:
           QT_QPA_PLATFORM: offscreen
-          HIO_NO_CRASH_HANDLER: "1"
+          HWIO_NO_CRASH_HANDLER: "1"
         run: |
           app="build/macos-install/HARDWARIO Monitor.app"
-          "$app/Contents/MacOS/hio" --version --json | tee version.json
+          "$app/Contents/MacOS/hwio" --version --json | tee version.json
           grep -q '"package":"macos-bundle"' version.json
-          "$app/Contents/MacOS/hio-monitor" --self-test
-          lipo -archs "$app/Contents/MacOS/hio-monitor" | grep -q "x86_64 arm64\|arm64 x86_64"
+          "$app/Contents/MacOS/hwio-monitor" --self-test
+          lipo -archs "$app/Contents/MacOS/hwio-monitor" | grep -q "x86_64 arm64\|arm64 x86_64"
       - name: Sign ad-hoc and verify
         run: packaging/macos/sign-and-notarize.sh sign "build/macos-install/HARDWARIO Monitor.app" -
       - name: DMG
         run: |
-          version="$("build/macos-install/HARDWARIO Monitor.app/Contents/MacOS/hio" --version --json \
+          version="$("build/macos-install/HARDWARIO Monitor.app/Contents/MacOS/hwio" --version --json \
             | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["data"]["version"].replace("+", "."))')"
           packaging/macos/sign-and-notarize.sh dmg "build/macos-install/HARDWARIO Monitor.app" \
-            "build/packages/hio-monitor-${version}-macos-universal.dmg" -
+            "build/packages/hwio-monitor-${version}-macos-universal.dmg" -
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-macos
@@ -537,7 +537,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cpm-cache
-          key: cpm-${{ hashFiles('cmake/HioDeps.cmake') }}
+          key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
         run: |
           cmake --version
@@ -548,19 +548,19 @@ jobs:
         shell: pwsh
         run: >-
           packaging/windows/sign.ps1 -DryRun -Files
-          build/windows-package/app/gui/hio-monitor.exe,build/windows-package/app/cli/hio.exe
+          build/windows-package/app/gui/hwio-monitor.exe,build/windows-package/app/cli/hwio.exe
       - name: Installed-tree self-test
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
-          HIO_NO_CRASH_HANDLER: "1"
+          HWIO_NO_CRASH_HANDLER: "1"
         run: |
           cmake --install build/windows-package --prefix build/windows-install
-          $json = & build/windows-install/hio.exe --version --json
+          $json = & build/windows-install/hwio.exe --version --json
           $json
           if ($json -notmatch '"package":"msi"') { throw "package kind is not msi" }
-          $gui = Start-Process -FilePath build/windows-install/hio-monitor.exe -ArgumentList "--self-test" -Wait -PassThru
-          if ($gui.ExitCode -ne 0) { throw "hio-monitor --self-test failed: $($gui.ExitCode)" }
+          $gui = Start-Process -FilePath build/windows-install/hwio-monitor.exe -ArgumentList "--self-test" -Wait -PassThru
+          if ($gui.ExitCode -ne 0) { throw "hwio-monitor --self-test failed: $($gui.ExitCode)" }
           Get-ChildItem build/windows-install -Filter "vcruntime140*.dll"
       - name: MSI
         run: cpack --preset windows-package -B build/packages

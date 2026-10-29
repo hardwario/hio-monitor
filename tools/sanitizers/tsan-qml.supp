@@ -7,7 +7,7 @@
 # and used or freed on another, synchronized by QMutex / QSemaphore inside the uninstrumented Qt
 # libraries, so TSan reports new/delete/memmove inside Qt as races. called_from_lib only ignores
 # the interceptors (malloc, free, new, delete, memcpy, memmove) called from these libraries. The
-# C++ view models and their worker thread are tested with the strict tsan.supp (hio_gui_tests).
+# C++ view models and their worker thread are tested with the strict tsan.supp (hwio_gui_tests).
 called_from_lib:libQt6Gui.so.6
 called_from_lib:libQt6Core.so.6
 # The QML type loader thread ('QQmlThread') and the Qt Quick render / pixmap reader threads.

@@ -109,7 +109,7 @@ ColumnLayout {
         objectName: "cliRow"
         Layout.fillWidth: true
         label: qsTr("Command line")
-        description: section.vm.cliOnPath ? qsTr("The hio command is on the PATH of new terminals.") : ""
+        description: section.vm.cliOnPath ? qsTr("The hwio command is on the PATH of new terminals.") : ""
 
         ColumnLayout {
             Layout.fillWidth: true

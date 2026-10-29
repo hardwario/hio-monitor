@@ -1,10 +1,10 @@
-#include "hio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/library_locator.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
 
 #include <QByteArray>
 #include <QLoggingCategory>
@@ -26,7 +26,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 namespace {
 
@@ -284,4 +284,4 @@ std::uint32_t versionFromPath(const fs::path& path) {
     return 0;
 }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

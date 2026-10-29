@@ -1,4 +1,4 @@
-// End-to-end tests of the M2 commands (plan/features/0003, phase F5): the real `hio` executable
+// End-to-end tests of the M2 commands (plan/features/0003, phase F5): the real `hwio` executable
 // with the fake J-Link library and its flash model, the fake nRF Util and a local HTTP catalog.
 
 #include "cli_process.h"
@@ -36,9 +36,9 @@
 
 namespace {
 
-using hio::cli::test::CliProcess;
-using hio::cli::test::RunResult;
-using hio::firmware::test::HttpFixture;
+using hwio::cli::test::CliProcess;
+using hwio::cli::test::RunResult;
+using hwio::firmware::test::HttpFixture;
 
 // The PIB of py-hardwario's test vector at UICR + 0x80 (0x10001080 = 268439680).
 constexpr const char* pibHex =
@@ -71,8 +71,8 @@ QString errorCode(const RunResult& result) {
 }
 
 std::string appHex() {
-    return hio::firmware::test::hexRecord(0, 0x2000, {1, 2, 3, 4, 5, 6, 7, 8}) +
-           hio::firmware::test::eofRecord();
+    return hwio::firmware::test::hexRecord(0, 0x2000, {1, 2, 3, 4, 5, 6, 7, 8}) +
+           hwio::firmware::test::eofRecord();
 }
 
 class FlashCli : public CliProcess {
@@ -91,7 +91,7 @@ protected:
     }
 
     void writeFile(const QString& name, const QByteArray& bytes) const {
-        ASSERT_TRUE(hio::firmware::test::writeFile(path(name), bytes));
+        ASSERT_TRUE(hwio::firmware::test::writeFile(path(name), bytes));
     }
     [[nodiscard]] QString path(const QString& name) const {
         return home() + QLatin1Char('/') + name;
@@ -99,16 +99,16 @@ protected:
 
     [[nodiscard]] QProcessEnvironment fakeEnvironment() const {
         QProcessEnvironment env = environment();
-        env.insert(QStringLiteral("HIO_FAKE_JLINK_SCENARIO"),
+        env.insert(QStringLiteral("HWIO_FAKE_JLINK_SCENARIO"),
                    path(QStringLiteral("scenario.json")));
-        env.insert(QStringLiteral("HIO_JLINK_LIBRARY"), QStringLiteral(HIO_FAKE_JLINK_LIBRARY));
-        env.insert(QStringLiteral("HIO_FAKE_NRFUTIL_STEP_MS"), QStringLiteral("5"));
-        env.remove(QStringLiteral("HIO_NRFUTIL"));
+        env.insert(QStringLiteral("HWIO_JLINK_LIBRARY"), QStringLiteral(HWIO_FAKE_JLINK_LIBRARY));
+        env.insert(QStringLiteral("HWIO_FAKE_NRFUTIL_STEP_MS"), QStringLiteral("5"));
+        env.remove(QStringLiteral("HWIO_NRFUTIL"));
         env.insert(QStringLiteral("PATH"), QStringLiteral("/nonexistent-path-for-tests"));
         return env;
     }
 
-    [[nodiscard]] RunResult hio(const QStringList& args) const {
+    [[nodiscard]] RunResult hwio(const QStringList& args) const {
         return run(args, fakeEnvironment());
     }
 
@@ -117,7 +117,7 @@ protected:
                                                  const QProcessEnvironment& env) {
         QProcess process;
         process.setProcessEnvironment(env);
-        process.start(QStringLiteral(HIO_CLI_EXECUTABLE), args);
+        process.start(QStringLiteral(HWIO_CLI_EXECUTABLE), args);
         RunResult result;
         if (!process.waitForStarted(10000)) {
             return result;
@@ -139,8 +139,8 @@ protected:
 
 TEST_F(FlashCli, FlashFileJsonStream) {
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("flash"), path(QStringLiteral("app.hex"))});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("flash"), path(QStringLiteral("app.hex"))});
     ASSERT_EQ(result.exitCode, 0) << result.out << result.err;
     const auto all = envelopes(result.out);
     ASSERT_GE(all.size(), 5U);
@@ -168,8 +168,8 @@ TEST_F(FlashCli, FlashFileJsonStream) {
 }
 
 TEST_F(FlashCli, FlashHumanOutput) {
-    const RunResult result = hio({QStringLiteral("chester"), QStringLiteral("app"),
-                                  QStringLiteral("flash"), path(QStringLiteral("app.hex"))});
+    const RunResult result = hwio({QStringLiteral("chester"), QStringLiteral("app"),
+                                   QStringLiteral("flash"), path(QStringLiteral("app.hex"))});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_EQ(result.out, "Successfully completed\n");
     EXPECT_NE(result.err.find("Using J-Link 801000001 (Test Probe)"), std::string::npos)
@@ -180,43 +180,43 @@ TEST_F(FlashCli, FlashHumanOutput) {
 
 TEST_F(FlashCli, SubcommandSerialNumberWinsOverTheGroup) {
     // Probe 2 has an nRF91: flashing the app there is a wrong family (exit 6).
-    const RunResult group = hio({QStringLiteral("chester"), QStringLiteral("app"),
-                                 QStringLiteral("-n"), QStringLiteral("801000002"),
-                                 QStringLiteral("flash"), path(QStringLiteral("app.hex"))});
+    const RunResult group = hwio({QStringLiteral("chester"), QStringLiteral("app"),
+                                  QStringLiteral("-n"), QStringLiteral("801000002"),
+                                  QStringLiteral("flash"), path(QStringLiteral("app.hex"))});
     EXPECT_EQ(group.exitCode, 6) << group.err;
     EXPECT_NE(group.err.find("Expected the application MCU (nRF52840) but found nRF9151."),
               std::string::npos);
     const RunResult own =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("-n"),
-             QStringLiteral("801000002"), QStringLiteral("flash"), QStringLiteral("-n"),
-             QStringLiteral("801000001"), path(QStringLiteral("app.hex"))});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("-n"),
+              QStringLiteral("801000002"), QStringLiteral("flash"), QStringLiteral("-n"),
+              QStringLiteral("801000001"), path(QStringLiteral("app.hex"))});
     EXPECT_EQ(own.exitCode, 0) << own.err;
 }
 
 TEST_F(FlashCli, InputErrors) {
     const RunResult missing =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("flash"), path(QStringLiteral("missing.hex"))});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("flash"), path(QStringLiteral("missing.hex"))});
     EXPECT_EQ(missing.exitCode, 2);
     EXPECT_EQ(errorCode(missing), QStringLiteral("usage.invalid_argument"));
 
     writeFile(QStringLiteral("bad.hex"), ":0100000001FF\n");
     const RunResult bad =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("flash"), path(QStringLiteral("bad.hex"))});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("flash"), path(QStringLiteral("bad.hex"))});
     EXPECT_EQ(bad.exitCode, 7);
     EXPECT_EQ(errorCode(bad), QStringLiteral("firmware.hex_parse_error"));
 
     // No argument and no build output in the working directory.
     const RunResult none =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("flash")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("flash")});
     EXPECT_EQ(none.exitCode, 2);
     EXPECT_NE(none.err.find("no build output was found"), std::string::npos) << none.err;
 }
 
 TEST_F(FlashCli, FlashByCatalogId) {
-#ifndef HIO_TEST_OVERRIDES
-    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_CATALOG_URL)";
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_CATALOG_URL)";
 #endif
     HttpFixture http;
     ASSERT_TRUE(http.listening());
@@ -224,7 +224,7 @@ TEST_F(FlashCli, FlashByCatalogId) {
     http.set(QStringLiteral("/chester/%1/hex").arg(id),
              HttpFixture::Response::ok(QByteArray::fromStdString(appHex())));
     QProcessEnvironment env = fakeEnvironment();
-    env.insert(QStringLiteral("HIO_CATALOG_URL"), http.baseUrl());
+    env.insert(QStringLiteral("HWIO_CATALOG_URL"), http.baseUrl());
     const QStringList args{QStringLiteral("--json"), QStringLiteral("chester"),
                            QStringLiteral("app"), QStringLiteral("flash"), id};
     const RunResult first = runWithEvents(args, env);
@@ -257,11 +257,11 @@ TEST_F(FlashCli, FlashByCatalogId) {
 }
 
 TEST_F(FlashCli, CatalogNetworkDown) {
-#ifndef HIO_TEST_OVERRIDES
-    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_CATALOG_URL)";
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_CATALOG_URL)";
 #endif
     QProcessEnvironment env = fakeEnvironment();
-    env.insert(QStringLiteral("HIO_CATALOG_URL"), QStringLiteral("http://127.0.0.1:1/chester"));
+    env.insert(QStringLiteral("HWIO_CATALOG_URL"), QStringLiteral("http://127.0.0.1:1/chester"));
     const RunResult result =
         run({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
              QStringLiteral("flash"), QStringLiteral("0123456789abcdef0123456789abcdef")},
@@ -271,24 +271,24 @@ TEST_F(FlashCli, CatalogNetworkDown) {
 }
 
 TEST_F(FlashCli, EraseAllNeedsYesWithoutATerminal) {
-    const RunResult refused = hio({QStringLiteral("chester"), QStringLiteral("app"),
-                                   QStringLiteral("erase"), QStringLiteral("--all")});
+    const RunResult refused = hwio({QStringLiteral("chester"), QStringLiteral("app"),
+                                    QStringLiteral("erase"), QStringLiteral("--all")});
     EXPECT_EQ(refused.exitCode, 2);
     EXPECT_NE(refused.err.find("This operation needs confirmation."), std::string::npos);
-    const RunResult lteRefused = hio({QStringLiteral("--json"), QStringLiteral("chester"),
-                                      QStringLiteral("lte"), QStringLiteral("erase")});
+    const RunResult lteRefused = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                       QStringLiteral("lte"), QStringLiteral("erase")});
     EXPECT_EQ(lteRefused.exitCode, 2);
     EXPECT_EQ(errorCode(lteRefused), QStringLiteral("usage.confirmation_required"));
     const RunResult recoverRefused =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("recover")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("recover")});
     EXPECT_EQ(recoverRefused.exitCode, 2);
     // Code-only erase never asks; --all with --yes runs.
     EXPECT_EQ(
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("erase")}).exitCode,
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("erase")}).exitCode,
         0);
     const RunResult all =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("erase"), QStringLiteral("--all"), QStringLiteral("--yes")});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("erase"), QStringLiteral("--all"), QStringLiteral("--yes")});
     EXPECT_EQ(all.exitCode, 0) << all.out;
     EXPECT_EQ(data(envelopes(all.out).back()).value(QStringLiteral("scope")).toString(),
               QStringLiteral("all"));
@@ -296,15 +296,15 @@ TEST_F(FlashCli, EraseAllNeedsYesWithoutATerminal) {
 
 TEST_F(FlashCli, ResetAndPibAndUicr) {
     const RunResult reset =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("reset"), QStringLiteral("--halt")});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("reset"), QStringLiteral("--halt")});
     ASSERT_EQ(reset.exitCode, 0) << reset.out;
     ASSERT_EQ(envelopes(reset.out).size(), 1U); // one result envelope
     EXPECT_TRUE(data(envelopes(reset.out).front()).value(QStringLiteral("halted")).toBool());
 
     const RunResult pib =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("pib"), QStringLiteral("read")});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("pib"), QStringLiteral("read")});
     ASSERT_EQ(pib.exitCode, 0) << pib.out << pib.err;
     ASSERT_EQ(envelopes(pib.out).size(), 1U);
     const QJsonObject fields = data(envelopes(pib.out).front());
@@ -317,55 +317,55 @@ TEST_F(FlashCli, ResetAndPibAndUicr) {
     EXPECT_EQ(fields.value(QStringLiteral("claim_token")).toString(),
               QStringLiteral("0123456789abcdef0123456789abcdef"));
 
-    const RunResult human = hio({QStringLiteral("chester"), QStringLiteral("app"),
-                                 QStringLiteral("pib"), QStringLiteral("read")});
+    const RunResult human = hwio({QStringLiteral("chester"), QStringLiteral("app"),
+                                  QStringLiteral("pib"), QStringLiteral("read")});
     EXPECT_EQ(human.out,
               "Vendor name: HARDWARIO\nProduct name: CHESTER-M\nHardware variant: CDGLS\n"
               "Hardware revision: R3.2\nSerial number: 2159018247\n"
               "Claim token: 0123456789abcdef0123456789abcdef\nBLE passkey: 123456\n");
 
     const RunResult hex =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("uicr"),
-             QStringLiteral("read"), QStringLiteral("--format"), QStringLiteral("hex"),
-             QStringLiteral("-")});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("uicr"),
+              QStringLiteral("read"), QStringLiteral("--format"), QStringLiteral("hex"),
+              QStringLiteral("-")});
     EXPECT_EQ(hex.exitCode, 0);
     EXPECT_EQ(hex.out, pibHex); // lowercase hex, no newline (py-hardwario)
     const RunResult bin =
-        hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("uicr"),
-             QStringLiteral("read"), QStringLiteral("--format"), QStringLiteral("bin"),
-             path(QStringLiteral("uicr.bin"))});
+        hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("uicr"),
+              QStringLiteral("read"), QStringLiteral("--format"), QStringLiteral("bin"),
+              path(QStringLiteral("uicr.bin"))});
     EXPECT_EQ(bin.exitCode, 0);
     QFile file(path(QStringLiteral("uicr.bin")));
     ASSERT_TRUE(file.open(QIODevice::ReadOnly));
     EXPECT_EQ(file.readAll().toHex(), QByteArray(pibHex));
 
     // An erased PIB is pib.invalid (exit 6).
-    ASSERT_EQ(hio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("erase"),
-                   QStringLiteral("--all"), QStringLiteral("--yes")})
+    ASSERT_EQ(hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("erase"),
+                    QStringLiteral("--all"), QStringLiteral("--yes")})
                   .exitCode,
               0);
     // (the fake's memory is per process: a new run sees the scenario's PIB again)
     useScenario(QStringLiteral(R"({"probes": [{"serialNumber": 801000001}]})"));
     const RunResult invalid =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("pib"), QStringLiteral("read")});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("pib"), QStringLiteral("read")});
     EXPECT_EQ(invalid.exitCode, 6);
     EXPECT_EQ(errorCode(invalid), QStringLiteral("pib.invalid"));
 }
 
 TEST_F(FlashCli, LteBundleWithTheFakeNrfUtil) {
-    const QByteArray modem = hio::firmware::test::zipBytes(
+    const QByteArray modem = hwio::firmware::test::zipBytes(
         {{.name = "firmware.update.image.segments.0.hex", .data = appHex()}});
     writeFile(QStringLiteral("bundle.zip"),
-              hio::firmware::test::zipBytes({{.name = "modem.zip", .data = modem.toStdString()},
-                                             {.name = "application.hex", .data = appHex()}}));
+              hwio::firmware::test::zipBytes({{.name = "modem.zip", .data = modem.toStdString()},
+                                              {.name = "application.hex", .data = appHex()}}));
     useScenario(QStringLiteral(
         R"({"probes": [{"serialNumber": 801000002, "chip": {"family": "nrf91"}}]})"));
     QProcessEnvironment env = fakeEnvironment();
-    env.insert(QStringLiteral("HIO_FAKE_NRFUTIL_LOG"), path(QStringLiteral("nrfutil.log")));
+    env.insert(QStringLiteral("HWIO_FAKE_NRFUTIL_LOG"), path(QStringLiteral("nrfutil.log")));
     const RunResult result =
         run({QStringLiteral("--json"), QStringLiteral("--nrfutil"),
-             QStringLiteral(HIO_FAKE_NRFUTIL), QStringLiteral("chester"), QStringLiteral("lte"),
+             QStringLiteral(HWIO_FAKE_NRFUTIL), QStringLiteral("chester"), QStringLiteral("lte"),
              QStringLiteral("flash"), path(QStringLiteral("bundle.zip"))},
             env);
     ASSERT_EQ(result.exitCode, 0) << result.out << result.err;
@@ -382,7 +382,7 @@ TEST_F(FlashCli, LteBundleWithTheFakeNrfUtil) {
 
     // Plan 0021 review F10: --no-cache with a FILE is said on stderr, not an error.
     const RunResult noCache = run(
-        {QStringLiteral("--json"), QStringLiteral("--nrfutil"), QStringLiteral(HIO_FAKE_NRFUTIL),
+        {QStringLiteral("--json"), QStringLiteral("--nrfutil"), QStringLiteral(HWIO_FAKE_NRFUTIL),
          QStringLiteral("chester"), QStringLiteral("lte"), QStringLiteral("flash"),
          QStringLiteral("--no-cache"), path(QStringLiteral("bundle.zip"))},
         env);
@@ -392,7 +392,7 @@ TEST_F(FlashCli, LteBundleWithTheFakeNrfUtil) {
 
     // A zip that is neither a bundle nor modem firmware: exit 7, nothing programmed.
     writeFile(QStringLiteral("other.zip"),
-              hio::firmware::test::zipBytes({{.name = "readme.txt", .data = "x"}}));
+              hwio::firmware::test::zipBytes({{.name = "readme.txt", .data = "x"}}));
     const RunResult other =
         run({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("lte"),
              QStringLiteral("flash"), path(QStringLiteral("other.zip"))},
@@ -403,11 +403,11 @@ TEST_F(FlashCli, LteBundleWithTheFakeNrfUtil) {
 
 TEST_F(FlashCli, NrfUtilMissing) {
     writeFile(QStringLiteral("mfw.zip"),
-              hio::firmware::test::zipBytes(
+              hwio::firmware::test::zipBytes(
                   {{.name = "firmware.update.image.segments.0.hex", .data = appHex()}}));
     const RunResult result =
-        hio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("lte"),
-             QStringLiteral("flash"), path(QStringLiteral("mfw.zip"))});
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("lte"),
+              QStringLiteral("flash"), path(QStringLiteral("mfw.zip"))});
     EXPECT_EQ(result.exitCode, 4) << result.out;
     EXPECT_EQ(errorCode(result), QStringLiteral("dependency.nrfutil_not_found"));
 }
@@ -419,26 +419,27 @@ QString sha256Hex(const QByteArray& bytes) {
 }
 
 // `lte flash` without FILE: the designated LTE firmware is downloaded (HTTP fixture through the
-// test-only HIO_DESIGNATED_URL / HIO_DESIGNATED_SHA256), verified, cached and flashed as a bundle.
+// test-only HWIO_DESIGNATED_URL / HWIO_DESIGNATED_SHA256), verified, cached and flashed as a
+// bundle.
 TEST_F(FlashCli, LteFlashDesignatedFirmware) {
-#ifndef HIO_TEST_OVERRIDES
-    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_DESIGNATED_URL)";
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_DESIGNATED_URL)";
 #endif
-    const QByteArray modem = hio::firmware::test::zipBytes(
+    const QByteArray modem = hwio::firmware::test::zipBytes(
         {{.name = "firmware.update.image.segments.0.hex", .data = appHex()}});
     const QByteArray bundle =
-        hio::firmware::test::zipBytes({{.name = "modem.zip", .data = modem.toStdString()},
-                                       {.name = "application.hex", .data = appHex()}});
+        hwio::firmware::test::zipBytes({{.name = "modem.zip", .data = modem.toStdString()},
+                                        {.name = "application.hex", .data = appHex()}});
     HttpFixture http;
     ASSERT_TRUE(http.listening());
     http.set(QStringLiteral("/chester/lte.zip"), HttpFixture::Response::ok(bundle));
     useScenario(QStringLiteral(
         R"({"probes": [{"serialNumber": 801000002, "chip": {"family": "nrf91"}}]})"));
     QProcessEnvironment env = fakeEnvironment();
-    env.insert(QStringLiteral("HIO_DESIGNATED_URL"), http.baseUrl() + QStringLiteral("/lte.zip"));
-    env.insert(QStringLiteral("HIO_DESIGNATED_SHA256"), sha256Hex(bundle));
+    env.insert(QStringLiteral("HWIO_DESIGNATED_URL"), http.baseUrl() + QStringLiteral("/lte.zip"));
+    env.insert(QStringLiteral("HWIO_DESIGNATED_SHA256"), sha256Hex(bundle));
     const QStringList args{
-        QStringLiteral("--json"),  QStringLiteral("--nrfutil"), QStringLiteral(HIO_FAKE_NRFUTIL),
+        QStringLiteral("--json"),  QStringLiteral("--nrfutil"), QStringLiteral(HWIO_FAKE_NRFUTIL),
         QStringLiteral("chester"), QStringLiteral("lte"),       QStringLiteral("flash")};
     const RunResult first = runWithEvents(args, env);
     ASSERT_EQ(first.exitCode, 0) << first.out << first.err;
@@ -456,7 +457,7 @@ TEST_F(FlashCli, LteFlashDesignatedFirmware) {
 
     // Human mode names the firmware; the second run uses the verified cache.
     const RunResult second =
-        runWithEvents({QStringLiteral("--nrfutil"), QStringLiteral(HIO_FAKE_NRFUTIL),
+        runWithEvents({QStringLiteral("--nrfutil"), QStringLiteral(HWIO_FAKE_NRFUTIL),
                        QStringLiteral("chester"), QStringLiteral("lte"), QStringLiteral("flash")},
                       env);
     ASSERT_EQ(second.exitCode, 0) << second.err;
@@ -465,15 +466,15 @@ TEST_F(FlashCli, LteFlashDesignatedFirmware) {
     EXPECT_EQ(http.requests(QStringLiteral("/chester/lte.zip")), 1);
 
     // A file with another hash: firmware.checksum_mismatch (firmware exit code 7), nothing flashed.
-    env.insert(QStringLiteral("HIO_DESIGNATED_SHA256"), sha256Hex("another file"));
+    env.insert(QStringLiteral("HWIO_DESIGNATED_SHA256"), sha256Hex("another file"));
     const RunResult mismatch = runWithEvents(args, env);
     EXPECT_EQ(mismatch.exitCode, 7) << mismatch.out;
     EXPECT_EQ(errorCode(mismatch), QStringLiteral("firmware.checksum_mismatch"));
 }
 
 TEST_F(FlashCli, CatalogInfoAndVerifiedIdFlash) {
-#ifndef HIO_TEST_OVERRIDES
-    GTEST_SKIP() << "needs HIO_TEST_OVERRIDES (HIO_CATALOG_URL)";
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_CATALOG_URL)";
 #endif
     HttpFixture http;
     ASSERT_TRUE(http.listening());
@@ -493,7 +494,7 @@ TEST_F(FlashCli, CatalogInfoAndVerifiedIdFlash) {
              HttpFixture::Response::ok(page(sha256Hex(hex))));
     http.set(QStringLiteral("/chester/%1/hex").arg(id), HttpFixture::Response::ok(hex));
     QProcessEnvironment env = fakeEnvironment();
-    env.insert(QStringLiteral("HIO_CATALOG_URL"), http.baseUrl());
+    env.insert(QStringLiteral("HWIO_CATALOG_URL"), http.baseUrl());
 
     const RunResult info =
         runWithEvents({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
@@ -552,16 +553,16 @@ TEST_F(FlashCli, CtrlCDuringProgrammingCancelsAndReleasesTheProbe) {
     std::string text;
     for (std::uint32_t address = 0; address < 64 * 1024; address += 16) {
         if (address % 0x10000 == 0) {
-            text += hio::firmware::test::linearAddress(static_cast<std::uint16_t>(address >> 16U));
+            text += hwio::firmware::test::linearAddress(static_cast<std::uint16_t>(address >> 16U));
         }
-        text += hio::firmware::test::hexRecord(0, static_cast<std::uint16_t>(address & 0xFFFFU),
-                                               std::vector<std::uint8_t>(16, 0x11));
+        text += hwio::firmware::test::hexRecord(0, static_cast<std::uint16_t>(address & 0xFFFFU),
+                                                std::vector<std::uint8_t>(16, 0x11));
     }
     writeFile(QStringLiteral("big.hex"),
-              QByteArray::fromStdString(text + hio::firmware::test::eofRecord()));
+              QByteArray::fromStdString(text + hwio::firmware::test::eofRecord()));
     QProcess process;
     process.setProcessEnvironment(fakeEnvironment());
-    process.start(QStringLiteral(HIO_CLI_EXECUTABLE),
+    process.start(QStringLiteral(HWIO_CLI_EXECUTABLE),
                   {QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
                    QStringLiteral("flash"), path(QStringLiteral("big.hex"))});
     ASSERT_TRUE(process.waitForStarted(10000));
@@ -585,7 +586,7 @@ TEST_F(FlashCli, CtrlCDuringProgrammingCancelsAndReleasesTheProbe) {
               QStringLiteral("cancelled"));
     // The probe is free again: `jlink list` shows nobody using it.
     const RunResult list =
-        hio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
+        hwio({QStringLiteral("--json"), QStringLiteral("jlink"), QStringLiteral("list")});
     ASSERT_EQ(list.exitCode, 0);
     const QJsonArray probes =
         data(envelopes(list.out).front()).value(QStringLiteral("probes")).toArray();

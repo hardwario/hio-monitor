@@ -1,15 +1,15 @@
-#include "hio/firmware/firmware_catalog.h"
+#include "hwio/firmware/firmware_catalog.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/firmware/designated_firmware.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/intel_hex.h"
-#include "hio/firmware/lte_input.h"
 #include "http_fetch.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/designated_firmware.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/intel_hex.h"
+#include "hwio/firmware/lte_input.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -46,13 +46,13 @@
 #include <variant>
 #include <vector>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 namespace {
 
 Error downloadFailed(const FirmwareId& id, std::string detail) {
     Error error = makeError(ErrorCode::NetworkDownloadFailed, std::move(detail));
-    error.message = QCoreApplication::translate("hio::firmware", "Downloading firmware %1 failed.")
+    error.message = QCoreApplication::translate("hwio::firmware", "Downloading firmware %1 failed.")
                         .arg(toQString(id.value()))
                         .toStdString();
     return error;
@@ -61,7 +61,7 @@ Error downloadFailed(const FirmwareId& id, std::string detail) {
 Error notFoundInCatalog(const FirmwareId& id, std::string detail) {
     Error error = makeError(ErrorCode::FirmwareNotFoundInCatalog, std::move(detail));
     error.message =
-        QCoreApplication::translate("hio::firmware", "Firmware %1 was not found in the catalog.")
+        QCoreApplication::translate("hwio::firmware", "Firmware %1 was not found in the catalog.")
             .arg(toQString(id.value()))
             .toStdString();
     return error;
@@ -74,9 +74,9 @@ Error checksumMismatch(std::string detail) {
 } // namespace
 
 QUrl catalogBaseUrl(std::string_view profileDefault) {
-#ifdef HIO_TEST_OVERRIDES
-    // Test builds only (CMake option HIO_TEST_OVERRIDES; review R8).
-    const QString override = qEnvironmentVariable("HIO_CATALOG_URL");
+#ifdef HWIO_TEST_OVERRIDES
+    // Test builds only (CMake option HWIO_TEST_OVERRIDES; review R8).
+    const QString override = qEnvironmentVariable("HWIO_CATALOG_URL");
     if (!override.isEmpty()) {
         return {override};
     }
@@ -85,9 +85,9 @@ QUrl catalogBaseUrl(std::string_view profileDefault) {
 }
 
 QUrl designatedUrl(const DesignatedFirmware& firmware) {
-#ifdef HIO_TEST_OVERRIDES
-    // Test builds only (CMake option HIO_TEST_OVERRIDES; like HIO_CATALOG_URL).
-    const QString override = qEnvironmentVariable("HIO_DESIGNATED_URL");
+#ifdef HWIO_TEST_OVERRIDES
+    // Test builds only (CMake option HWIO_TEST_OVERRIDES; like HWIO_CATALOG_URL).
+    const QString override = qEnvironmentVariable("HWIO_DESIGNATED_URL");
     if (!override.isEmpty()) {
         return {override};
     }
@@ -96,10 +96,10 @@ QUrl designatedUrl(const DesignatedFirmware& firmware) {
 }
 
 Sha256 designatedSha256(const DesignatedFirmware& firmware) {
-#ifdef HIO_TEST_OVERRIDES
-    // Test builds only (CMake option HIO_TEST_OVERRIDES; like HIO_CATALOG_URL).
+#ifdef HWIO_TEST_OVERRIDES
+    // Test builds only (CMake option HWIO_TEST_OVERRIDES; like HWIO_CATALOG_URL).
     if (const auto override =
-            parseSha256(qEnvironmentVariable("HIO_DESIGNATED_SHA256").toStdString())) {
+            parseSha256(qEnvironmentVariable("HWIO_DESIGNATED_SHA256").toStdString())) {
         return *override;
     }
 #endif
@@ -246,7 +246,7 @@ DesignatedOperation::load(const std::filesystem::path& file) const {
         Error error = makeError(ErrorCode::FirmwareInvalidImage,
                                 toUtf8(file) + ": not the expected kind of firmware");
         error.message =
-            QCoreApplication::translate("hio::firmware", "The downloaded file is not %1.")
+            QCoreApplication::translate("hwio::firmware", "The downloaded file is not %1.")
                 .arg(toQString(m_name))
                 .toStdString();
         return std::unexpected(std::move(error));
@@ -261,7 +261,7 @@ void DesignatedOperation::onFetched() {
     const detail::FetchOutcome& outcome = *m_fetch->outcome();
     const auto failed = [this](std::string detail) {
         Error error = makeError(ErrorCode::NetworkDownloadFailed, std::move(detail));
-        error.message = QCoreApplication::translate("hio::firmware", "Downloading %1 failed.")
+        error.message = QCoreApplication::translate("hwio::firmware", "Downloading %1 failed.")
                             .arg(toQString(m_name))
                             .toStdString();
         return error;
@@ -514,4 +514,4 @@ Result<CatalogInfo> waitForLookup(LookupOperation& operation) {
     return waitFor<LookupOperation, CatalogInfo>(operation, "lookup did not finish");
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

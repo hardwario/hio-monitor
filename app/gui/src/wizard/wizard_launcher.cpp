@@ -14,7 +14,7 @@
 #include <functional>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 WizardLauncher::WizardLauncher(const WizardRegistry& registry, WizardViewModel& wizard,
                                std::function<DeviceTabViewModel*(int)> tabAt, QObject* parent)
@@ -56,4 +56,4 @@ bool WizardLauncher::launch(const QString& wizardId, const ErrorInfo& context,
     return m_wizard.start(wizard, context, descriptor->perTab ? tab : nullptr);
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

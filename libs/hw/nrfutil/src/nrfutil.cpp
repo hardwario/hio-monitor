@@ -1,11 +1,11 @@
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/firmware/program_progress.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/firmware/program_progress.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -43,7 +43,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::nrfutil {
+namespace hwio::nrfutil {
 
 namespace {
 
@@ -195,7 +195,7 @@ SettingKey<fs::path> pathSetting() {
 LocatorOptions defaultLocatorOptions(std::optional<fs::path> option, const Settings* settings) {
     LocatorOptions options;
     options.option = nonEmpty(std::move(option));
-    const QString environment = qEnvironmentVariable("HIO_NRFUTIL");
+    const QString environment = qEnvironmentVariable("HWIO_NRFUTIL");
     if (!environment.isEmpty()) {
         options.environment = fs::path(environment.toStdU16String());
     }
@@ -224,7 +224,7 @@ Result<fs::path> locate(const LocatorOptions& options) {
         return useOverride(*options.option, "--nrfutil");
     }
     if (options.environment) {
-        return useOverride(*options.environment, "HIO_NRFUTIL");
+        return useOverride(*options.environment, "HWIO_NRFUTIL");
     }
     if (options.setting) {
         return useOverride(*options.setting, "setting nrfutil/path");
@@ -300,7 +300,7 @@ Result<NrfUtilInfo> checkVersions(const fs::path& executable, std::chrono::milli
         Error error = makeError(
             ErrorCode::DependencyNrfUtilTooOld,
             std::format("{} {}, minimum {}", what, formatVersion(found), formatVersion(minimum)));
-        error.message = QCoreApplication::translate("hio::nrfutil", "nRF Util %1 is too old.")
+        error.message = QCoreApplication::translate("hwio::nrfutil", "nRF Util %1 is too old.")
                             .arg(toQString(formatVersion(found)))
                             .toStdString();
         return error;
@@ -484,4 +484,4 @@ Status NrfUtilModemUpdater::updateModem(const fs::path& modemZip, std::uint32_t 
     return {};
 }
 
-} // namespace hio::nrfutil
+} // namespace hwio::nrfutil

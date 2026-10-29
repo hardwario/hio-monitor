@@ -2,15 +2,15 @@
 
 #include "cli_app.h"
 #include "cli_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/probe_tools.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/probe_tools.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/types.h"
 #include "output.h"
 #include "terminal.h"
 
@@ -33,7 +33,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -72,7 +72,7 @@ Result<CommandResult> listProbes(const GlobalOptions& globals) {
         probe.insert(QStringLiteral("connection"),
                      toQString(jlink::connectionId(status.probe.connection)));
         // `list` never opens a probe: the firmware is known only when the library lists it
-        // (null otherwise; `hio jlink info` shows it - decided 2026-10-09).
+        // (null otherwise; `hwio jlink info` shows it - decided 2026-10-09).
         probe.insert(QStringLiteral("firmware"),
                      status.probe.firmware.empty() ? QJsonValue(QJsonValue::Null)
                                                    : QJsonValue(toQString(status.probe.firmware)));
@@ -139,7 +139,7 @@ Result<CommandResult> probeInfo(const GlobalOptions& globals, std::optional<std:
         std::format("Firmware status:  {}{}\n", jlink::firmwareStatusId(details->firmwareStatus),
                     details->firmwareStatus == jlink::FirmwareStatus::Outdated ||
                             details->firmwareStatus == jlink::FirmwareStatus::Newer
-                        ? " (run `hio jlink update-firmware`)"
+                        ? " (run `hwio jlink update-firmware`)"
                         : "");
     text += std::format("Target voltage:   {}",
                         details->targetMillivolts ? std::format("{} mV", *details->targetMillivolts)
@@ -243,4 +243,4 @@ void registerJLinkCommands(CLI::App& app, CommandSlot& slot, const GlobalOptions
     });
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

@@ -23,7 +23,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class SettingsStore;
 
@@ -86,4 +86,4 @@ private:
     std::vector<Entry> m_rows; // entries of m_kind, in stored order
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

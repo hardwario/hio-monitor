@@ -18,7 +18,7 @@
 #include <memory>
 #include <utility>
 
-namespace hio::firmware::test {
+namespace hwio::firmware::test {
 
 class HttpFixture {
 public:
@@ -148,4 +148,4 @@ private:
     QMap<QString, int> m_requests;
 };
 
-} // namespace hio::firmware::test
+} // namespace hwio::firmware::test

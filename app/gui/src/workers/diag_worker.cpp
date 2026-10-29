@@ -1,14 +1,14 @@
 #include "workers/diag_worker.h"
 
 #include "gui_log.h"
-#include "hio/core/crash_handler.h"
-#include "hio/core/error.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/diag/check.h"
-#include "hio/diag/environment.h"
-#include "hio/diag/report.h"
+#include "hwio/core/crash_handler.h"
+#include "hwio/core/error.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/diag/check.h"
+#include "hwio/diag/environment.h"
+#include "hwio/diag/report.h"
 
 #include <QDateTime>
 #include <QJsonObject>
@@ -31,7 +31,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -237,4 +237,4 @@ void DiagWorker::deliver() {
     }
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

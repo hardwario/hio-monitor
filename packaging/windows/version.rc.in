@@ -1,8 +1,8 @@
-// Windows resources of @HIO_RC_ORIGINAL_FILENAME@ (plan/features/0015 A3): the application icon
-// (the v1 icon, packaging/common/icons/hio-monitor.ico) and VERSIONINFO. Configured by CMake.
+// Windows resources of @HWIO_RC_ORIGINAL_FILENAME@ (plan/features/0015 A3): the application icon
+// (the v1 icon, packaging/common/icons/hwio-monitor.ico) and VERSIONINFO. Configured by CMake.
 #include <winver.h>
 
-1 ICON "@PROJECT_SOURCE_DIR@/packaging/common/icons/hio-monitor.ico"
+1 ICON "@PROJECT_SOURCE_DIR@/packaging/common/icons/hwio-monitor.ico"
 
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
@@ -18,13 +18,13 @@ BEGIN
         BLOCK "040904B0"
         BEGIN
             VALUE "CompanyName", "HARDWARIO a.s."
-            VALUE "FileDescription", "@HIO_RC_FILE_DESCRIPTION@"
-            VALUE "FileVersion", "@HIO_VERSION_NUMERIC@.0"
-            VALUE "InternalName", "@HIO_RC_INTERNAL_NAME@"
+            VALUE "FileDescription", "@HWIO_RC_FILE_DESCRIPTION@"
+            VALUE "FileVersion", "@HWIO_VERSION_NUMERIC@.0"
+            VALUE "InternalName", "@HWIO_RC_INTERNAL_NAME@"
             VALUE "LegalCopyright", "Copyright (C) HARDWARIO a.s."
-            VALUE "OriginalFilename", "@HIO_RC_ORIGINAL_FILENAME@"
+            VALUE "OriginalFilename", "@HWIO_RC_ORIGINAL_FILENAME@"
             VALUE "ProductName", "HARDWARIO Monitor"
-            VALUE "ProductVersion", "@HIO_VERSION@"
+            VALUE "ProductVersion", "@HWIO_VERSION@"
         END
     END
     BLOCK "VarFileInfo"

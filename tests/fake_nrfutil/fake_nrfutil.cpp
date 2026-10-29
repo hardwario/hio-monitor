@@ -7,10 +7,10 @@
 //                                     NDJSON progress lines and a task_end result
 //
 // Behaviour from the environment:
-//   HIO_FAKE_NRFUTIL_MODE  ok (default) | fail | hang | flood | nodevice | old | slowversion
+//   HWIO_FAKE_NRFUTIL_MODE  ok (default) | fail | hang | flood | nodevice | old | slowversion
 //                          (slowversion: `--version` answers after 30 s)
-//   HIO_FAKE_NRFUTIL_LOG   a file; every invocation appends its arguments as one line
-//   HIO_FAKE_NRFUTIL_STEP_MS  delay between progress lines (default 20)
+//   HWIO_FAKE_NRFUTIL_LOG   a file; every invocation appends its arguments as one line
+//   HWIO_FAKE_NRFUTIL_STEP_MS  delay between progress lines (default 20)
 
 #include <chrono>
 #include <cstdlib>
@@ -36,7 +36,7 @@ void progressLine(int percent) {
 }
 
 int program(const std::string& mode) {
-    const std::string stepText = environment("HIO_FAKE_NRFUTIL_STEP_MS");
+    const std::string stepText = environment("HWIO_FAKE_NRFUTIL_STEP_MS");
     const auto step = std::chrono::milliseconds(stepText.empty() ? 20 : std::stoi(stepText));
     std::cout << R"json({"type":"info","data":{"message":"fake nrfutil"}})json" << '\n';
     if (mode == "flood") {
@@ -74,8 +74,8 @@ int program(const std::string& mode) {
 int main(int argc, char** argv) {
     const std::span<char*> raw(argv, static_cast<std::size_t>(argc));
     const std::vector<std::string> args(raw.begin() + 1, raw.end());
-    const std::string mode = environment("HIO_FAKE_NRFUTIL_MODE");
-    if (const std::string log = environment("HIO_FAKE_NRFUTIL_LOG"); !log.empty()) {
+    const std::string mode = environment("HWIO_FAKE_NRFUTIL_MODE");
+    if (const std::string log = environment("HWIO_FAKE_NRFUTIL_LOG"); !log.empty()) {
         std::ofstream file(log, std::ios::app);
         for (const std::string& arg : args) {
             file << arg << ' ';

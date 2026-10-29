@@ -1,13 +1,13 @@
-#include "hio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_cache.h"
 
 #include "file_io.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/firmware/designated_firmware.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/intel_hex.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/designated_firmware.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/intel_hex.h"
 
 #include <QByteArrayView>
 #include <QCoreApplication>
@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 namespace {
 
@@ -71,7 +71,7 @@ Result<FirmwareId> FirmwareId::parse(std::string_view text) {
     if (!looksLikeId(text)) {
         Error error = makeError(ErrorCode::UsageInvalidArgument, std::string(text));
         error.message = QCoreApplication::translate(
-                            "hio::firmware", "A firmware ID has exactly 32 hexadecimal digits.")
+                            "hwio::firmware", "A firmware ID has exactly 32 hexadecimal digits.")
                             .toStdString();
         return std::unexpected(std::move(error));
     }
@@ -235,4 +235,4 @@ std::size_t FirmwareCache::evictKeeping(const fs::path& kept) {
     return removed;
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

@@ -3,7 +3,7 @@
 // may take more than 20 ms. A 5 ms QTimer probe measures the dispatch latency (how late each tick
 // runs); the largest one bounds the longest task.
 
-#include "hio/device/console_line.h"
+#include "hwio/device/console_line.h"
 #include "session_provider.h"
 #include "tools_test_support.h"
 
@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace hio::mcp::tools::test {
+namespace hwio::mcp::tools::test {
 namespace {
 
 using namespace std::chrono_literals;
@@ -82,7 +82,7 @@ TEST(OwnerThread, ThirtyTwoWaitsOnAFastStreamDoNotStall) {
     ASSERT_EQ(harness.server->activeCalls(), 32U);
 
     const auto log = provider.logOf("jlink:801000001");
-    const std::uint64_t before = log->total(hio::device::Channel::Log);
+    const std::uint64_t before = log->total(hwio::device::Channel::Log);
     QElapsedTimer clock;
     clock.start();
     std::int64_t last = clock.elapsed();
@@ -98,7 +98,7 @@ TEST(OwnerThread, ThirtyTwoWaitsOnAFastStreamDoNotStall) {
     probe.start();
     runFor(3s);
     probe.stop();
-    const std::uint64_t received = log->total(hio::device::Channel::Log) - before;
+    const std::uint64_t received = log->total(hwio::device::Channel::Log) - before;
 
     RecordProperty("worst_dispatch_latency_ms", static_cast<int>(worst));
     RecordProperty("log_lines_received", static_cast<int>(received));
@@ -114,4 +114,4 @@ TEST(OwnerThread, ThirtyTwoWaitsOnAFastStreamDoNotStall) {
 }
 
 } // namespace
-} // namespace hio::mcp::tools::test
+} // namespace hwio::mcp::tools::test

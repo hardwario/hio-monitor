@@ -1,5 +1,5 @@
-#include "hio/device/console_line.h"
-#include "hio/device/line_assembler.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/line_assembler.h"
 
 #include <gtest/gtest.h>
 
@@ -11,11 +11,11 @@
 
 namespace {
 
-using hio::device::Channel;
-using hio::device::ConsoleLine;
-using hio::device::Direction;
-using hio::device::LineAssembler;
-using hio::device::LogLevel;
+using hwio::device::Channel;
+using hwio::device::ConsoleLine;
+using hwio::device::Direction;
+using hwio::device::LineAssembler;
+using hwio::device::LogLevel;
 
 std::vector<ConsoleLine> feed(LineAssembler& assembler, std::string_view bytes) {
     return assembler.feed(std::as_bytes(std::span(bytes.data(), bytes.size())),
@@ -100,9 +100,9 @@ TEST(LineAssembler, AnsiCsiSequencesAreStripped) {
     const auto lines = feed(assembler, "\x1b[1;32muart:~$ \x1b[0mversion\x1b[K\n");
     ASSERT_EQ(lines.size(), 1U);
     EXPECT_EQ(lines[0].text, "uart:~$ version");
-    EXPECT_EQ(hio::device::stripAnsiCsi("a\x1b[2"), "a"); // cut sequence at the end
-    EXPECT_EQ(hio::device::stripAnsiCsi("a\x1b"
-                                        "b"),
+    EXPECT_EQ(hwio::device::stripAnsiCsi("a\x1b[2"), "a"); // cut sequence at the end
+    EXPECT_EQ(hwio::device::stripAnsiCsi("a\x1b"
+                                         "b"),
               "a\x1b"
               "b"); // not CSI: kept
 }
@@ -153,8 +153,8 @@ TEST(LineAssembler, CarriageReturnsOverwriteLikeATerminal) {
               (std::vector<std::string>{"done"}));
     // Only trailing carriage returns: the text before them is kept.
     EXPECT_EQ(texts(feed(assembler, "text\r\r\n")), (std::vector<std::string>{"text"}));
-    EXPECT_EQ(hio::device::applyCarriageReturns("\r"), "");
-    EXPECT_EQ(hio::device::applyCarriageReturns("a\rb"), "b");
+    EXPECT_EQ(hwio::device::applyCarriageReturns("\r"), "");
+    EXPECT_EQ(hwio::device::applyCarriageReturns("a\rb"), "b");
 }
 
 TEST(LineAssembler, ResetDropsThePartialLine) {
@@ -165,12 +165,12 @@ TEST(LineAssembler, ResetDropsThePartialLine) {
 }
 
 TEST(ConsoleLineIds, Stable) {
-    EXPECT_EQ(hio::device::channelId(Channel::Shell), "shell");
-    EXPECT_EQ(hio::device::channelId(Channel::Log), "log");
-    EXPECT_EQ(hio::device::directionId(Direction::In), "in");
-    EXPECT_EQ(hio::device::directionId(Direction::Marker), "marker");
-    EXPECT_EQ(hio::device::levelId(LogLevel::Warning), "wrn");
-    EXPECT_FALSE(hio::device::levelId(LogLevel::None).has_value());
+    EXPECT_EQ(hwio::device::channelId(Channel::Shell), "shell");
+    EXPECT_EQ(hwio::device::channelId(Channel::Log), "log");
+    EXPECT_EQ(hwio::device::directionId(Direction::In), "in");
+    EXPECT_EQ(hwio::device::directionId(Direction::Marker), "marker");
+    EXPECT_EQ(hwio::device::levelId(LogLevel::Warning), "wrn");
+    EXPECT_FALSE(hwio::device::levelId(LogLevel::None).has_value());
 }
 
 } // namespace
@@ -179,7 +179,7 @@ namespace {
 
 // ADR-0082 / ADR-0104 (M6: public for the RTT prompt).
 TEST(LineAssembler, IsPrompt) {
-    using hio::device::isPrompt;
+    using hwio::device::isPrompt;
     EXPECT_TRUE(isPrompt("uart:~$ ", "uart:~$ "));
     EXPECT_TRUE(isPrompt("\x1b[1;32muart:~$ \x1b[m", "uart:~$ "));
     EXPECT_TRUE(isPrompt("junk\ruart:~$ ", "uart:~$ ")); // a redrawn line
@@ -237,7 +237,7 @@ TEST(Hexdump, HashPrefixedContinuation) {
 }
 
 TEST(Hexdump, NearMissesAreNotHexdumps) {
-    using hio::device::isHexdumpLine;
+    using hwio::device::isHexdumpLine;
     EXPECT_TRUE(isHexdumpLine("  44 |D"));
     EXPECT_TRUE(isHexdumpLine("\t44 74 |"));
     EXPECT_TRUE(
@@ -257,6 +257,6 @@ TEST(Hexdump, NearMissesAreNotHexdumps) {
     EXPECT_FALSE(isHexdumpLine("  00 01 02 03 04 05 06 07  08 09 0a 0b 0c 0d 0e 0f 10 |x"));
 }
 
-TEST(Hexdump, LevelId) { EXPECT_EQ(hio::device::levelId(LogLevel::Hexdump), "hex"); }
+TEST(Hexdump, LevelId) { EXPECT_EQ(hwio::device::levelId(LogLevel::Hexdump), "hex"); }
 
 } // namespace

@@ -4,12 +4,12 @@
 #include "cli_log.h"
 #include "command_response.h"
 #include "console_events.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_session.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/session_events.h"
 #include "output.h"
 
 #include <QEventLoop>
@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -241,4 +241,4 @@ CommandResult commandResult(const Context& context, const std::string& command,
     return CommandResult{.data = data, .humanText = text, .streamed = false};
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

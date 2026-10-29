@@ -1,4 +1,4 @@
-#include "hio/mcp/http_parser.h"
+#include "hwio/mcp/http_parser.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -9,7 +9,7 @@
 #include <optional>
 #include <utility>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 namespace {
 
@@ -303,4 +303,4 @@ void HttpParser::parseHead() {
     m_state = State::HeadersComplete;
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

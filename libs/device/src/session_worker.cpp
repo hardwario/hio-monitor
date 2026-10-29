@@ -7,31 +7,31 @@
 // the poll interval. No QTimer and no event loop; every wait takes the stop token.
 
 #include "flash_workflows.h"
-#include "hio/core/bounded_queue.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/core/version.h"
-#include "hio/device/console_file_sink.h"
-#include "hio/device/console_line.h"
-#include "hio/device/line_assembler.h"
-#include "hio/device/operation.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/session_key.h"
-#include "hio/diag/check.h"
-#include "hio/diag/usb_access.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/clock.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/jlink_probe.h"
-#include "hio/hw/jlink/programmer.h"
-#include "hio/hw/jlink/rtt_channel.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/core/version.h"
+#include "hwio/device/console_file_sink.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/line_assembler.h"
+#include "hwio/device/operation.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/session_key.h"
+#include "hwio/diag/check.h"
+#include "hwio/diag/usb_access.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/clock.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/jlink_probe.h"
+#include "hwio/hw/jlink/programmer.h"
+#include "hwio/hw/jlink/rtt_channel.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 #include "operation_reporter.h"
 #include "session_internal.h"
 #include "session_worker_target.h"
@@ -64,7 +64,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::device::detail {
+namespace hwio::device::detail {
 
 namespace {
 
@@ -241,7 +241,7 @@ private:
         }
         m_sinkOpened = true;
         const std::string header =
-            std::format("Console: {} {}, J-Link {}, hio {}", m_config.profile->displayName,
+            std::format("Console: {} {}, J-Link {}, hwio {}", m_config.profile->displayName,
                         m_config.target->id, *m_serial, buildInfo().version);
         auto sink = ConsoleFileSink::open(*m_config.consoleFile, ProbeKey{.sn = *m_serial}, header,
                                           std::chrono::system_clock::now());
@@ -337,7 +337,7 @@ private:
                 if (status == jlink::FirmwareStatus::Newer) {
                     error.message =
                         QCoreApplication::translate(
-                            "hio::device", "The J-Link firmware is newer than the J-Link library.")
+                            "hwio::device", "The J-Link firmware is newer than the J-Link library.")
                             .toStdString();
                 }
                 warn(std::move(error));
@@ -381,7 +381,7 @@ private:
         if (!layout->loggerUp && !names.logger.empty() && !m_loggerWarned) {
             m_loggerWarned = true;
             Error error = makeError(ErrorCode::TargetRttBufferNotFound, "continuing without logs");
-            error.message = QCoreApplication::translate("hio::device",
+            error.message = QCoreApplication::translate("hwio::device",
                                                         "RTT buffer \"%1\" not found; the device "
                                                         "log is not shown.")
                                 .arg(toQString(names.logger))
@@ -605,7 +605,7 @@ private:
             Error error = makeError(ErrorCode::TargetNoPower,
                                     std::format("VTref {} mV", status->targetMillivolts));
             error.message =
-                QCoreApplication::translate("hio::device", "The device has no power (%1 mV).")
+                QCoreApplication::translate("hwio::device", "The device has no power (%1 mV).")
                     .arg(status->targetMillivolts)
                     .toStdString();
             report(ConnectionState::Disconnected, std::move(error));
@@ -623,7 +623,7 @@ private:
         // default suggestion "Reconnect the console (F4)." stays.
         if (m_config.autoReconnect && !m_halted && !m_suspended && !m_fatal) {
             error.suggestion =
-                QCoreApplication::translate("hio::device", "Wait for the console to reconnect.")
+                QCoreApplication::translate("hwio::device", "Wait for the console to reconnect.")
                     .toStdString();
         }
         return error;
@@ -1207,12 +1207,12 @@ private:
         }
         if (run.cancelled) {
             finishStep(run,
-                       skippedStep(id, QCoreApplication::translate("hio::device", "Cancelled")));
+                       skippedStep(id, QCoreApplication::translate("hwio::device", "Cancelled")));
             return true;
         }
         if (run.failed) {
             finishStep(run,
-                       skippedStep(id, QCoreApplication::translate("hio::device", "Not checked")));
+                       skippedStep(id, QCoreApplication::translate("hwio::device", "Not checked")));
             return true;
         }
         if (!run.timedOut && clock().now() > run.deadline) {
@@ -1226,7 +1226,7 @@ private:
                                                                "of {} ms was used up",
                                                                run.budget.count())),
                                  QCoreApplication::translate(
-                                     "hio::device", "Not checked: the time for the checks ran out")
+                                     "hwio::device", "Not checked: the time for the checks ran out")
                                      .toStdString()));
             return true;
         }
@@ -1249,7 +1249,7 @@ private:
         Error error =
             makeError(ErrorCode::DiagCheckTimeout, std::format("{}: {}", id, std::move(detail)));
         error.message =
-            QCoreApplication::translate("hio::diag", "The check \"%1\" did not finish in time.")
+            QCoreApplication::translate("hwio::diag", "The check \"%1\" did not finish in time.")
                 .arg(toQString(stepTitle(target, id)))
                 .toStdString();
         return error;
@@ -1287,7 +1287,7 @@ private:
         if (!opened) {
             if (opened.error().code == ErrorCode::Cancelled) {
                 run.cancelled = true;
-                finishStep(run, skippedStep("probe", QCoreApplication::translate("hio::device",
+                finishStep(run, skippedStep("probe", QCoreApplication::translate("hwio::device",
                                                                                  "Cancelled")));
                 return;
             }
@@ -1310,7 +1310,7 @@ private:
             if (firmware == jlink::FirmwareStatus::Newer) {
                 error.message =
                     QCoreApplication::translate(
-                        "hio::device", "The J-Link firmware is newer than the J-Link library.")
+                        "hwio::device", "The J-Link firmware is newer than the J-Link library.")
                         .toStdString();
             }
             finishTimed(run,
@@ -1329,7 +1329,7 @@ private:
     [[nodiscard]] static Error noPowerError(int millivolts) {
         Error error = makeError(ErrorCode::TargetNoPower, std::format("VTref {} mV", millivolts));
         error.message =
-            QCoreApplication::translate("hio::device", "The device has no power (%1 mV).")
+            QCoreApplication::translate("hwio::device", "The device has no power (%1 mV).")
                 .arg(millivolts)
                 .toStdString();
         return error;
@@ -1385,16 +1385,16 @@ private:
                        Clock::TimePoint started) {
         if (connected && powerDeferred) {
             finishStep(run, okStep("power", QCoreApplication::translate(
-                                                "hio::device", "Not measured by this J-Link")));
+                                                "hwio::device", "Not measured by this J-Link")));
         }
         if (!connected && connected.error().code == ErrorCode::Cancelled) {
             run.cancelled = true;
             if (powerDeferred) {
-                finishStep(run, skippedStep("power", QCoreApplication::translate("hio::device",
+                finishStep(run, skippedStep("power", QCoreApplication::translate("hwio::device",
                                                                                  "Cancelled")));
             }
             finishStep(run, skippedStep("connect",
-                                        QCoreApplication::translate("hio::device", "Cancelled")));
+                                        QCoreApplication::translate("hwio::device", "Cancelled")));
             return;
         }
         if (!connected && powerDeferred) {
@@ -1412,7 +1412,7 @@ private:
                                        m_diagnoseIdentity->code == ErrorCode::TargetWrongFamily)) {
                 finishStep(run, problemStep("connect", diag::CheckStatus::Warning, std::move(error),
                                             QCoreApplication::translate(
-                                                "hio::device", "Only the debug port answers")
+                                                "hwio::device", "Only the debug port answers")
                                                 .toStdString()));
                 return;
             }
@@ -1422,9 +1422,9 @@ private:
         }
         const QString text =
             m_config.speedKhz
-                ? QCoreApplication::translate("hio::device", "Connected (SWD %1 kHz)")
+                ? QCoreApplication::translate("hwio::device", "Connected (SWD %1 kHz)")
                       .arg(*m_config.speedKhz)
-                : QCoreApplication::translate("hio::device", "Connected (SWD, automatic speed)");
+                : QCoreApplication::translate("hwio::device", "Connected (SWD, automatic speed)");
         finishTimed(run, okStep("connect", text), started, connectStepBudget);
     }
 
@@ -1488,7 +1488,7 @@ private:
             Error error = std::move(chip).error();
             if (error.code == ErrorCode::Cancelled) {
                 run.cancelled = true;
-                finishStep(run, skippedStep("identify", QCoreApplication::translate("hio::device",
+                finishStep(run, skippedStep("identify", QCoreApplication::translate("hwio::device",
                                                                                     "Cancelled")));
                 return false;
             }
@@ -1502,7 +1502,7 @@ private:
         run.result->chip = *chip;
         finishTimed(
             run,
-            okStep("identify", QCoreApplication::translate("hio::device", "%1, not protected")
+            okStep("identify", QCoreApplication::translate("hwio::device", "%1, not protected")
                                    .arg(toQString(chip->name))),
             started, identifyStepBudget);
         return false;
@@ -1524,11 +1524,11 @@ private:
         const TargetProfile& target = *run.target;
         if (target.rttTerminal.empty()) {
             skipRttSteps(run,
-                         QCoreApplication::translate("hio::device", "This MCU has no console"));
+                         QCoreApplication::translate("hwio::device", "This MCU has no console"));
             return;
         }
         if (isProtected) {
-            skipRttSteps(run, QCoreApplication::translate("hio::device",
+            skipRttSteps(run, QCoreApplication::translate("hwio::device",
                                                           "Not checked: the MCU is protected"));
             return;
         }
@@ -1559,7 +1559,7 @@ private:
                 Error error = std::move(attached).error();
                 if (error.code == ErrorCode::Cancelled) {
                     run.cancelled = true;
-                    finishStep(run, skippedStep("rtt", QCoreApplication::translate("hio::device",
+                    finishStep(run, skippedStep("rtt", QCoreApplication::translate("hwio::device",
                                                                                    "Cancelled")));
                     (void)skipIfDone(run, "rtt-buffers");
                     return;
@@ -1575,7 +1575,7 @@ private:
                 layout = *attached;
             }
         }
-        finishTimed(run, okStep("rtt", QCoreApplication::translate("hio::device", "Found")),
+        finishTimed(run, okStep("rtt", QCoreApplication::translate("hwio::device", "Found")),
                     started, rttBudget);
 
         if (skipIfDone(run, "rtt-buffers")) {
@@ -1594,7 +1594,7 @@ private:
                                         std::format("logger buffer \"{}\"", target.rttLogger));
                 error.message =
                     QCoreApplication::translate(
-                        "hio::device", "RTT buffer \"%1\" not found; the device log is not shown.")
+                        "hwio::device", "RTT buffer \"%1\" not found; the device log is not shown.")
                         .arg(toQString(target.rttLogger))
                         .toStdString();
                 finishStep(run,
@@ -1812,11 +1812,11 @@ private:
                     makeError(ErrorCode::ProbeInUseByOtherProcess, std::move(error.detail));
                 taken.cause =
                     QCoreApplication::translate(
-                        "hio::device", "Another program opened the J-Link after it was released.")
+                        "hwio::device", "Another program opened the J-Link after it was released.")
                         .toStdString();
                 taken.suggestion =
                     QCoreApplication::translate(
-                        "hio::device", "Close the other program, then reacquire the J-Link.")
+                        "hwio::device", "Close the other program, then reacquire the J-Link.")
                         .toStdString();
                 error = std::move(taken);
             }
@@ -1913,4 +1913,4 @@ void runWorker(const std::stop_token& stop, WorkerConfig config, ApiFactory apiF
     }
 }
 
-} // namespace hio::device::detail
+} // namespace hwio::device::detail

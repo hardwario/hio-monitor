@@ -24,10 +24,10 @@
 //
 // Ownership: child of DeviceTabListModel (Qt parent). GUI thread only.
 
-#include "hio/core/result.h"
-#include "hio/device/device_info.h"
-#include "hio/device/session_events.h"
-#include "hio/device/shell_query.h"
+#include "hwio/core/result.h"
+#include "hwio/device/device_info.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/shell_query.h"
 #include "viewmodels/connection_view_model.h"
 #include "viewmodels/probe_picker_view_model.h"
 
@@ -45,18 +45,18 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 struct LocatorOptions;
-} // namespace hio::jlink
+} // namespace hwio::jlink
 
-namespace hio::device {
+namespace hwio::device {
 class ConsoleLog;
 class DeviceSession;
 class SessionRegistry;
 struct DeviceProfile;
-} // namespace hio::device
+} // namespace hwio::device
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class PageRegistry;
 class ProbeScanner;
@@ -87,8 +87,8 @@ class DeviceTabViewModel : public QObject {
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(bool hasError READ hasError NOTIFY stateChanged)
     Q_PROPERTY(QString title READ title NOTIFY titleChanged)
-    Q_PROPERTY(hio::gui::ProbePickerViewModel* picker READ picker CONSTANT)
-    Q_PROPERTY(hio::gui::ConnectionViewModel* connection READ connection CONSTANT)
+    Q_PROPERTY(hwio::gui::ProbePickerViewModel* picker READ picker CONSTANT)
+    Q_PROPERTY(hwio::gui::ConnectionViewModel* connection READ connection CONSTANT)
     Q_PROPERTY(QObjectList pageViewModels READ pageViewModels CONSTANT) // in PageRegistry order
     Q_PROPERTY(QString currentPage READ currentPage WRITE setCurrentPage NOTIFY currentPageChanged)
     Q_PROPERTY(QString busyPage READ busyPage NOTIFY busyChanged) // "" when idle
@@ -255,4 +255,4 @@ private:
     unsigned m_attach = 0; // +1 per Connected / Disconnected / Stopped (review P3)
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

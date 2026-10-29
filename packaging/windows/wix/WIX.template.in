@@ -38,7 +38,7 @@
         <?endif?>
 
         <FeatureRef Id="ProductFeature">
-            <ComponentRef Id="HioStartMenuShortcut"/>
+            <ComponentRef Id="HWioStartMenuShortcut"/>
         </FeatureRef>
         <FeatureRef Id="AddToPath"/>
         <FeatureRef Id="DesktopShortcut"/>

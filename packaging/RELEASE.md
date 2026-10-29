@@ -27,7 +27,7 @@ it. Nothing in this repository creates tags or publishes releases by itself.
 - [ ] Manual verification matrix of plan 0015 (F4) on the release candidate: Ubuntu 22.04 AppImage, Ubuntu
       24.04 / Debian 13 .deb, Fedora AppImage, macOS 13 Intel and macOS 15 Apple silicon DMG, Windows 10 22H2 and
       Windows 11 MSI (install, upgrade, downgrade refusal, uninstall, silent install, SmartScreen, J-Link with
-      Defender), the crash notice after `HIO_TEST_CRASH=1` (debug build). Results are recorded in plan 0015.
+      Defender), the crash notice after `HWIO_TEST_CRASH=1` (debug build). Results are recorded in plan 0015.
 - [ ] Release notes draft: minimum OS versions, "Install SEGGER J-Link Software 8.00 or newer separately", the
       side-by-side period with v1 (until M8).
 
@@ -36,9 +36,9 @@ it. Nothing in this repository creates tags or publishes releases by itself.
 1. Tag the commit: `git tag -s v2.X.Y -m "HARDWARIO Monitor 2.X.Y"` (pre-releases: `v2.X.Y-rc.N`), push the tag.
 2. `release.yml` runs: gate → tests (ci.yml) → linux / macos / windows (environment `release`: approve the
    deployment) → publish (draft release with all assets, `SHA256SUMS`, attestations).
-3. Review the draft: assets (`hio-monitor-<v>-x86_64.AppImage`, `hardwario-monitor_<v>_amd64.deb`,
-   `hio-monitor-<v>-macos-universal.dmg`, `hio-monitor-<v>-windows-x64.msi`, `SHA256SUMS`,
-   `hio-monitor-<v>-symbols-{linux,macos,windows}.zip`), the generated notes, the pre-release flag
+3. Review the draft: assets (`hwio-monitor-<v>-x86_64.AppImage`, `hardwario-monitor_<v>_amd64.deb`,
+   `hwio-monitor-<v>-macos-universal.dmg`, `hwio-monitor-<v>-windows-x64.msi`, `SHA256SUMS`,
+   `hwio-monitor-<v>-symbols-{linux,macos,windows}.zip`), the generated notes, the pre-release flag
    (set automatically for tags with a `-`).
 4. Spot checks: `sha256sum -c SHA256SUMS`; `gh attestation verify <file> --repo hardwario/hio-monitor`;
    macOS `spctl -a -t open --context context:primary-signature -v <dmg>`; Windows `signtool verify /pa <msi>`.

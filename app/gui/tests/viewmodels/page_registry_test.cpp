@@ -10,9 +10,9 @@
 
 namespace {
 
-using hio::gui::PageDescriptor;
-using hio::gui::PageRegistry;
-using hio::gui::SettingsSectionDescriptor;
+using hwio::gui::PageDescriptor;
+using hwio::gui::PageRegistry;
+using hwio::gui::SettingsSectionDescriptor;
 
 PageDescriptor page(const char* id, int order, bool global = false) {
     return PageDescriptor{.id = QString::fromLatin1(id),

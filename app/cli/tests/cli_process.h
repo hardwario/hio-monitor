@@ -1,6 +1,6 @@
 #pragma once
 
-// Runs the real `hio` executable (HIO_CLI_EXECUTABLE) with QProcess in private config/data
+// Runs the real `hwio` executable (HWIO_CLI_EXECUTABLE) with QProcess in private config/data
 // directories (shared by the end-to-end tests).
 
 #include <QByteArray>
@@ -14,7 +14,7 @@
 
 #include <string>
 
-namespace hio::cli::test {
+namespace hwio::cli::test {
 
 struct RunResult {
     int exitCode = -1;
@@ -43,7 +43,7 @@ protected:
                                        const QByteArray& input = {}) {
         QProcess process;
         process.setProcessEnvironment(env);
-        process.start(QStringLiteral(HIO_CLI_EXECUTABLE), args);
+        process.start(QStringLiteral(HWIO_CLI_EXECUTABLE), args);
         RunResult result;
         if (!process.waitForStarted(10000)) {
             return result;
@@ -77,4 +77,4 @@ private:
     QTemporaryDir m_home;
 };
 
-} // namespace hio::cli::test
+} // namespace hwio::cli::test

@@ -1,6 +1,6 @@
-#include "hio/device/line_assembler.h"
+#include "hwio/device/line_assembler.h"
 
-#include "hio/device/console_line.h"
+#include "hwio/device/console_line.h"
 
 #include <QByteArrayView>
 #include <QString>
@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -214,4 +214,4 @@ bool isPrompt(std::string_view partial, std::string_view prompt) {
     return applyCarriageReturns(stripAnsiCsi(partial)) == prompt;
 }
 
-} // namespace hio::device
+} // namespace hwio::device

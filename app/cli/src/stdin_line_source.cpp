@@ -1,6 +1,6 @@
 #include "stdin_line_source.h"
 
-#include "hio/mcp/stdio_transport.h"
+#include "hwio/mcp/stdio_transport.h"
 #include "terminal.h"
 
 #include <QByteArray>
@@ -12,7 +12,7 @@
 #include <optional>
 #include <utility>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 StdinLineSource::StdinLineSource(std::size_t maxLineBytes, std::size_t maxQueuedLines,
                                  std::size_t maxQueuedBytes, StdinLineReader::ReadFunction read)
@@ -28,7 +28,7 @@ StdinLineSource::~StdinLineSource() {
     m_reader.reset(); // joins the reader thread before the wake-up state goes away
 }
 
-std::optional<hio::mcp::ILineSource::Line> StdinLineSource::takeLine() {
+std::optional<hwio::mcp::ILineSource::Line> StdinLineSource::takeLine() {
     if (m_end) {
         return std::nullopt;
     }
@@ -60,4 +60,4 @@ void StdinLineSource::wake() {
     }
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

@@ -1,7 +1,7 @@
 // Crash handler (ADR-0123, plan/features/0015 B1): a child process crashes on purpose and the
 // crash file and marker are checked; pruning and listing on prepared files.
 
-#include "hio/core/crash_handler.h"
+#include "hwio/core/crash_handler.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -37,14 +37,14 @@ struct Crash {
 Crash crashChild(const QTemporaryDir& dir, const QString& kind) {
     QProcess child;
     child.setProcessChannelMode(QProcess::MergedChannels);
-    child.start(QStringLiteral(HIO_CRASH_CHILD), {dir.path(), kind});
+    child.start(QStringLiteral(HWIO_CRASH_CHILD), {dir.path(), kind});
     EXPECT_TRUE(child.waitForFinished(30000)) << kind.toStdString();
     Crash crash;
     // The helper's own exit codes are 0 and 2-4 (crash_child.cpp).
     const int code = child.exitCode();
     crash.crashed = child.exitStatus() == QProcess::CrashExit ||
                     (code != 0 && code != 2 && code != 3 && code != 4);
-    crash.files = hio::crash::recent(toPath(dir.path()), 10);
+    crash.files = hwio::crash::recent(toPath(dir.path()), 10);
     if (!crash.files.empty()) {
         QFile file(QString::fromStdU16String(crash.files.front().u16string()));
         if (file.open(QIODevice::ReadOnly)) {
@@ -57,7 +57,7 @@ Crash crashChild(const QTemporaryDir& dir, const QString& kind) {
 class CrashHandler : public ::testing::Test {
 protected:
     void SetUp() override {
-#ifdef HIO_SANITIZER
+#ifdef HWIO_SANITIZER
         GTEST_SKIP() << "the crash handler is disabled in sanitizer builds";
 #endif
         ASSERT_TRUE(m_dir.isValid());
@@ -80,8 +80,8 @@ TEST_F(CrashHandler, AccessViolationWritesAMinidump) {
         EXPECT_EQ(crash.files.front().extension(), ".dmp");
         EXPECT_TRUE(crash.files.front().filename().string().starts_with("crash-crashtest-"));
         EXPECT_GT(fs::file_size(crash.files.front()), 0U);
-        EXPECT_LE(fs::file_size(crash.files.front()), hio::crash::maxDumpBytes);
-        EXPECT_TRUE(hio::crash::crashedLastRun(toPath(dir.path())));
+        EXPECT_LE(fs::file_size(crash.files.front()), hwio::crash::maxDumpBytes);
+        EXPECT_TRUE(hwio::crash::crashedLastRun(toPath(dir.path())));
     }
 }
 
@@ -108,8 +108,8 @@ TEST_F(CrashHandler, EverySignalWritesATextFileAndReRaises) {
         EXPECT_NE(text.find("version: 1.2.3+test"), std::string::npos) << text;
         EXPECT_NE(text.find(signal), std::string::npos) << text;
         EXPECT_NE(text.find("backtrace:\n"), std::string::npos) << text;
-        EXPECT_LE(text.size(), hio::crash::maxTextBytes);
-        EXPECT_TRUE(hio::crash::crashedLastRun(toPath(dir.path())));
+        EXPECT_LE(text.size(), hwio::crash::maxTextBytes);
+        EXPECT_TRUE(hwio::crash::crashedLastRun(toPath(dir.path())));
     }
 }
 
@@ -117,42 +117,42 @@ TEST_F(CrashHandler, EverySignalWritesATextFileAndReRaises) {
 
 TEST_F(CrashHandler, MarkerIsAcknowledged) {
     const fs::path dir = toPath(tempDir().path());
-    EXPECT_FALSE(hio::crash::crashedLastRun(dir));
-    std::ofstream(dir / hio::crash::markerFileName) << "crash-x.txt\n";
-    EXPECT_TRUE(hio::crash::crashedLastRun(dir));
-    hio::crash::acknowledge(dir);
-    EXPECT_FALSE(hio::crash::crashedLastRun(dir));
-    hio::crash::acknowledge(dir); // idempotent
+    EXPECT_FALSE(hwio::crash::crashedLastRun(dir));
+    std::ofstream(dir / hwio::crash::markerFileName) << "crash-x.txt\n";
+    EXPECT_TRUE(hwio::crash::crashedLastRun(dir));
+    hwio::crash::acknowledge(dir);
+    EXPECT_FALSE(hwio::crash::crashedLastRun(dir));
+    hwio::crash::acknowledge(dir); // idempotent
 }
 
 TEST_F(CrashHandler, PruneKeepsTheNewestFiveAndDropsOversizeFiles) {
     const fs::path dir = toPath(tempDir().path());
     const auto now = fs::file_time_type::clock::now();
     for (int i = 0; i < 7; ++i) {
-        const fs::path file = dir / ("crash-hio-2026010" + std::to_string(i) + "-000000.txt");
+        const fs::path file = dir / ("crash-hwio-2026010" + std::to_string(i) + "-000000.txt");
         std::ofstream(file) << "crash " << i << '\n';
         fs::last_write_time(file, now - std::chrono::hours(10 - i));
     }
-    const fs::path big = dir / "crash-hio-20260109-000000.txt";
-    std::ofstream(big) << std::string(hio::crash::maxTextBytes + 1, 'x');
+    const fs::path big = dir / "crash-hwio-20260109-000000.txt";
+    std::ofstream(big) << std::string(hwio::crash::maxTextBytes + 1, 'x');
     std::ofstream(dir / "unrelated.txt") << "kept\n";
 
-    hio::crash::pruneOld(dir);
-    const std::vector<fs::path> left = hio::crash::recent(dir, 10);
-    ASSERT_EQ(left.size(), hio::crash::maxCrashFiles);
-    EXPECT_EQ(left.front().filename(), "crash-hio-20260106-000000.txt"); // newest first
-    EXPECT_EQ(left.back().filename(), "crash-hio-20260102-000000.txt");
+    hwio::crash::pruneOld(dir);
+    const std::vector<fs::path> left = hwio::crash::recent(dir, 10);
+    ASSERT_EQ(left.size(), hwio::crash::maxCrashFiles);
+    EXPECT_EQ(left.front().filename(), "crash-hwio-20260106-000000.txt"); // newest first
+    EXPECT_EQ(left.back().filename(), "crash-hwio-20260102-000000.txt");
     EXPECT_FALSE(fs::exists(big));
     EXPECT_TRUE(fs::exists(dir / "unrelated.txt"));
-    EXPECT_EQ(hio::crash::recent(dir, hio::crash::reportCrashFiles).size(), 3U);
+    EXPECT_EQ(hwio::crash::recent(dir, hwio::crash::reportCrashFiles).size(), 3U);
 }
 
 TEST_F(CrashHandler, CrashFileNames) {
-    EXPECT_TRUE(hio::crash::isCrashFileName("crash-hio-monitor-20261026-101010.txt"));
-    EXPECT_TRUE(hio::crash::isCrashFileName("crash-hio-20261026-101010.dmp"));
-    EXPECT_FALSE(hio::crash::isCrashFileName("last-crash"));
-    EXPECT_FALSE(hio::crash::isCrashFileName("crash.txt"));
-    EXPECT_FALSE(hio::crash::isCrashFileName("gui-20261026.log"));
+    EXPECT_TRUE(hwio::crash::isCrashFileName("crash-hwio-monitor-20261026-101010.txt"));
+    EXPECT_TRUE(hwio::crash::isCrashFileName("crash-hwio-20261026-101010.dmp"));
+    EXPECT_FALSE(hwio::crash::isCrashFileName("last-crash"));
+    EXPECT_FALSE(hwio::crash::isCrashFileName("crash.txt"));
+    EXPECT_FALSE(hwio::crash::isCrashFileName("gui-20261026.log"));
 }
 
 } // namespace

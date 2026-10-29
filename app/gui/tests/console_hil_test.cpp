@@ -1,15 +1,15 @@
 // Console HIL with a CHESTER and a J-Link (plan/features/0005-m3-console.md, Tests: HIL). Skipped
-// unless HIO_HIL=1 and HIO_HIL_SN names the probe (the GUI tab needs a serial number). Harmless
+// unless HWIO_HIL=1 and HWIO_HIL_SN names the probe (the GUI tab needs a serial number). Harmless
 // shell commands only ("help", "app config show") and Reset (restarts the firmware); never
 // flashing or configuration changes. Settings, history and console files live in a temporary
 // directory. The two-tab streaming check needs two probes and stays manual.
 
 #include "gui_test_support.h"
-#include "hio/core/json.h"
-#include "hio/core/settings.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/session_registry.h"
+#include "hwio/core/json.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/session_registry.h"
 #include "pages/builtin_pages.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/console_line_model.h"
@@ -37,42 +37,42 @@
 
 namespace {
 
-using hio::device::Channel;
-using hio::device::Direction;
-using hio::gui::AppViewModel;
-using hio::gui::ConsoleLineModel;
-using hio::gui::ConsoleViewModel;
-using hio::gui::DeviceTabViewModel;
-using hio::gui::test::waitFor;
+using hwio::device::Channel;
+using hwio::device::Direction;
+using hwio::gui::AppViewModel;
+using hwio::gui::ConsoleLineModel;
+using hwio::gui::ConsoleViewModel;
+using hwio::gui::DeviceTabViewModel;
+using hwio::gui::test::waitFor;
 using std::chrono::seconds;
 
 class ConsoleHil : public ::testing::Test {
 protected:
     void SetUp() override {
-        if (qEnvironmentVariable("HIO_HIL") != QStringLiteral("1")) {
-            GTEST_SKIP() << "HIO_HIL=1 is not set";
+        if (qEnvironmentVariable("HWIO_HIL") != QStringLiteral("1")) {
+            GTEST_SKIP() << "HWIO_HIL=1 is not set";
         }
         bool ok = false;
-        m_serial = qEnvironmentVariable("HIO_HIL_SN").toUInt(&ok);
+        m_serial = qEnvironmentVariable("HWIO_HIL_SN").toUInt(&ok);
         if (!ok) {
-            GTEST_SKIP() << "HIO_HIL_SN is not set";
+            GTEST_SKIP() << "HWIO_HIL_SN is not set";
         }
         createApp();
     }
 
     void createApp() {
         const std::filesystem::path root(m_dir.path().toStdU16String());
-        std::optional<hio::Settings> settings;
-        if (auto opened = hio::Settings::openFile(root / "Monitor.ini"); opened) {
+        std::optional<hwio::Settings> settings;
+        if (auto opened = hwio::Settings::openFile(root / "Monitor.ini"); opened) {
             settings.emplace(std::move(*opened));
         }
-        m_app = std::make_unique<AppViewModel>(hio::gui::AppOptions{
+        m_app = std::make_unique<AppViewModel>(hwio::gui::AppOptions{
             .settings = std::move(settings),
-            .registry = hio::device::RegistryOptions{.instanceRoot = root / "instances",
-                                                     .lockDirectory = root / "locks",
-                                                     .consoleDirectory = root / "console"},
+            .registry = hwio::device::RegistryOptions{.instanceRoot = root / "instances",
+                                                      .lockDirectory = root / "locks",
+                                                      .consoleDirectory = root / "console"},
             .scanInterval = std::chrono::milliseconds(2000),
-            .registerExtensions = &hio::gui::registerBuiltInPages,
+            .registerExtensions = &hwio::gui::registerBuiltInPages,
             .crashDirectory = {}});
         m_tab = m_app->currentTabViewModel();
         ASSERT_TRUE(m_tab->configure(QStringLiteral("chester"), QStringLiteral("app"), m_serial));
@@ -92,7 +92,7 @@ protected:
     [[nodiscard]] int shellOutputSince(std::uint64_t after) const {
         int count = 0;
         for (const auto& line :
-             m_tab->consoleLog()->linesSince(after, hio::device::ChannelMask::Shell)) {
+             m_tab->consoleLog()->linesSince(after, hwio::device::ChannelMask::Shell)) {
             count += line.dir == Direction::Out ? 1 : 0;
         }
         return count;
@@ -101,7 +101,7 @@ protected:
     [[nodiscard]] int echoes(const std::string& command) const {
         int count = 0;
         for (const auto& line :
-             m_tab->consoleLog()->linesSince(0, hio::device::ChannelMask::Shell)) {
+             m_tab->consoleLog()->linesSince(0, hwio::device::ChannelMask::Shell)) {
             count += line.dir == Direction::In && line.text == command ? 1 : 0;
         }
         return count;
@@ -150,7 +150,7 @@ TEST_F(ConsoleHil, CommandsBatchHistoryAndReset) {
     }
     const int helpBefore = echoes("help");
     const auto batchStart = std::chrono::steady_clock::now();
-    console().runBatch(QUrl::fromLocalFile(hio::toQString(hio::toUtf8(batch))));
+    console().runBatch(QUrl::fromLocalFile(hwio::toQString(hwio::toUtf8(batch))));
     ASSERT_TRUE(console().batchRunning());
     ASSERT_TRUE(waitFor([&] { return !console().batchRunning(); }, seconds(30)));
     EXPECT_FALSE(console().error().valid()) << console().error().message().toStdString();

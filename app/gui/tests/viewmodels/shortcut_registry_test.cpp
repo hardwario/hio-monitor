@@ -1,8 +1,8 @@
 // ShortcutRegistry: duplicate checks, texts, overlay groups (plan 0004, B5; ADR-0051).
 
 #include "gui_test_support.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/shortcut_registry.h"
 
@@ -22,8 +22,8 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::gui::ShortcutRegistry;
+using hwio::ErrorCode;
+using hwio::gui::ShortcutRegistry;
 
 const QString global = ShortcutRegistry::globalScope;
 
@@ -49,7 +49,7 @@ TEST(ShortcutRegistry, Duplicates) {
     ASSERT_TRUE(registry.add(QStringLiteral("flash.go"),
                              QKeySequence(QStringLiteral("Ctrl+Return")), QStringLiteral("flash"),
                              "Flash"));
-    const auto expectInvalid = [](const hio::Status& status) {
+    const auto expectInvalid = [](const hwio::Status& status) {
         ASSERT_FALSE(status);
         EXPECT_EQ(status.error().code, ErrorCode::UsageInvalidArgument);
     };
@@ -110,10 +110,10 @@ TEST(ShortcutRegistry, GroupsMergeAlternatives) {
         general[0].toMap().value(QStringLiteral("keys")).toString().contains(QStringLiteral(", ")));
 }
 
-class ShellShortcuts : public hio::gui::test::GuiTest {};
+class ShellShortcuts : public hwio::gui::test::GuiTest {};
 
 TEST_F(ShellShortcuts, TheShellMapHasNoDuplicates) {
-    const std::unique_ptr<hio::gui::AppViewModel> app = makeApp();
+    const std::unique_ptr<hwio::gui::AppViewModel> app = makeApp();
     QSet<QString> seen;
     for (const QVariant& entry : app->shortcuts()->entries()) {
         const QVariantMap map = entry.toMap();

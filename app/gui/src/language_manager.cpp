@@ -1,10 +1,10 @@
 #include "language_manager.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/i18n.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
+#include "hwio/core/error.h"
+#include "hwio/core/i18n.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
 #include "settings_store.h"
 
 #include <QCoreApplication>
@@ -24,7 +24,7 @@
 #include <memory>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -112,7 +112,7 @@ void LanguageManager::installTranslators(const QString& language) {
     // project catalog for plural forms only and has no Qt catalogs.
     QLocale::setDefault(QLocale(language));
     auto project = std::make_unique<QTranslator>();
-    const QString projectFile = QStringLiteral(":/i18n/hio_%1.qm").arg(language);
+    const QString projectFile = QStringLiteral(":/i18n/hwio_%1.qm").arg(language);
     if (project->load(projectFile)) {
         QCoreApplication::installTranslator(project.get());
         m_translators.push_back(std::move(project));
@@ -143,4 +143,4 @@ void LanguageManager::removeTranslators() {
     m_translators.clear();
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

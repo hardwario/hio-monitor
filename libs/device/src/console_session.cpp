@@ -1,12 +1,12 @@
-#include "hio/device/console_session.h"
+#include "hwio/device/console_session.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/command_capture.h"
-#include "hio/device/console_line.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_capture.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/session_events.h"
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -28,7 +28,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::device {
+namespace hwio::device {
 
 using ShellClock = std::chrono::steady_clock;
 
@@ -164,7 +164,7 @@ Status waitForConnection(ConsoleSession& session, std::chrono::milliseconds time
             Error error = makeError(ErrorCode::Timeout,
                                     std::format("not connected within {} ms", timeout.count()));
             error.message =
-                QCoreApplication::translate("hio::device", "The device did not connect in time.")
+                QCoreApplication::translate("hwio::device", "The device did not connect in time.")
                     .toStdString();
             result = std::unexpected(std::move(error));
         }
@@ -224,4 +224,4 @@ Status waitForFirstAttempt(ConsoleSession& session, std::chrono::milliseconds ti
                              });
 }
 
-} // namespace hio::device
+} // namespace hwio::device

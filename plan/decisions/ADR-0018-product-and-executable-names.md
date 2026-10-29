@@ -1,6 +1,6 @@
 # ADR-0018 — Product, executable and application identifiers
 
-- **Status:** Accepted
+- **Status:** Accepted; executable names superseded by ADR-0181
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M0 planning session)
 

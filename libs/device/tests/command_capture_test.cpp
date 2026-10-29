@@ -2,18 +2,18 @@
 // timeout, echo filtering, bound) and ShellQuery (silent: not in the log, user lines held, no
 // query while busy or not connected) against an in-process ConsoleSession.
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/command_capture.h"
-#include "hio/device/command_tree.h"
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/command_tree_learner.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/console_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_events.h"
-#include "hio/device/shell_query.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_capture.h"
+#include "hwio/device/command_tree.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/command_tree_learner.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_events.h"
+#include "hwio/device/shell_query.h"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -43,26 +43,26 @@
 
 namespace {
 
-using hio::device::CaptureEnd;
-using hio::device::CaptureOptions;
-using hio::device::Channel;
-using hio::device::CommandCapture;
-using hio::device::ConsoleLine;
-using hio::device::Direction;
-using hio::device::ShellQuery;
-using hio::device::ShellQueryQueue;
-using hio::device::ShellQueryResult;
+using hwio::device::CaptureEnd;
+using hwio::device::CaptureOptions;
+using hwio::device::Channel;
+using hwio::device::CommandCapture;
+using hwio::device::ConsoleLine;
+using hwio::device::Direction;
+using hwio::device::ShellQuery;
+using hwio::device::ShellQueryQueue;
+using hwio::device::ShellQueryResult;
 
 // CHESTER with an RTT prompt on the app target (CHESTER's own is empty: the silence rule).
-const hio::device::DeviceProfile& promptProfile() {
-    static const std::array<hio::device::TargetProfile, 2> targets = [] {
-        const auto* chester = hio::device::ProfileRegistry::find("chester");
-        std::array<hio::device::TargetProfile, 2> copy{chester->targets[0], chester->targets[1]};
+const hwio::device::DeviceProfile& promptProfile() {
+    static const std::array<hwio::device::TargetProfile, 2> targets = [] {
+        const auto* chester = hwio::device::ProfileRegistry::find("chester");
+        std::array<hwio::device::TargetProfile, 2> copy{chester->targets[0], chester->targets[1]};
         copy[0].shellPrompt = "uart:~$ ";
         return copy;
     }();
-    static const hio::device::DeviceProfile profile = [] {
-        hio::device::DeviceProfile copy = *hio::device::ProfileRegistry::find("chester");
+    static const hwio::device::DeviceProfile profile = [] {
+        hwio::device::DeviceProfile copy = *hwio::device::ProfileRegistry::find("chester");
         copy.targets = targets;
         return copy;
     }();
@@ -71,16 +71,16 @@ const hio::device::DeviceProfile& promptProfile() {
 
 // Delivers lines like the real sessions: offered to a shell capture first, else appended to the
 // log and emitted; sendLine() honours the hold and echoes the written line (dir In).
-class FakeSession final : public hio::device::ConsoleSession {
+class FakeSession final : public hwio::device::ConsoleSession {
 public:
-    explicit FakeSession(
-        const hio::device::DeviceProfile& profile = *hio::device::ProfileRegistry::find("chester"))
+    explicit FakeSession(const hwio::device::DeviceProfile& profile =
+                             *hwio::device::ProfileRegistry::find("chester"))
         : m_profile(&profile) {
-        m_connection.state = hio::device::ConnectionState::Connected;
+        m_connection.state = hwio::device::ConnectionState::Connected;
     }
 
-    hio::Status sendLine(std::string line) override {
-        if (hio::Status held; holdLine(line, held)) {
+    hwio::Status sendLine(std::string line) override {
+        if (hwio::Status held; holdLine(line, held)) {
             return held;
         }
         m_written.push_back(line);
@@ -113,14 +113,14 @@ public:
             echo(line, origin);
         }
     }
-    hio::Status reconnect() override { return {}; }
-    [[nodiscard]] const hio::device::ConsoleLog& log() const override { return m_log; }
-    [[nodiscard]] const hio::device::ConnectionEvent& connection() const override {
+    hwio::Status reconnect() override { return {}; }
+    [[nodiscard]] const hwio::device::ConsoleLog& log() const override { return m_log; }
+    [[nodiscard]] const hwio::device::ConnectionEvent& connection() const override {
         return m_connection;
     }
-    [[nodiscard]] hio::device::SessionIdentity identity() const override { return {}; }
-    [[nodiscard]] hio::device::Capabilities capabilities() const override { return {}; }
-    [[nodiscard]] const hio::device::DeviceProfile& profile() const override { return *m_profile; }
+    [[nodiscard]] hwio::device::SessionIdentity identity() const override { return {}; }
+    [[nodiscard]] hwio::device::Capabilities capabilities() const override { return {}; }
+    [[nodiscard]] const hwio::device::DeviceProfile& profile() const override { return *m_profile; }
     [[nodiscard]] std::string_view consoleTargetId() const override { return "app"; }
     [[nodiscard]] std::filesystem::path consoleFile() const override { return {}; }
 
@@ -140,7 +140,7 @@ public:
     }
     void output(const std::string& text) { deliver(Channel::Shell, Direction::Out, text); }
     void prompt() { emit promptSeen(); }
-    void setState(hio::device::ConnectionState state) {
+    void setState(hwio::device::ConnectionState state) {
         m_connection.state = state;
         emit connectionChanged(m_connection);
     }
@@ -158,9 +158,9 @@ protected:
     void closeSession() override {}
 
 private:
-    const hio::device::DeviceProfile* m_profile;
-    hio::device::ConsoleLog m_log{1000};
-    hio::device::ConnectionEvent m_connection;
+    const hwio::device::DeviceProfile* m_profile;
+    hwio::device::ConsoleLog m_log{1000};
+    hwio::device::ConnectionEvent m_connection;
     std::vector<std::string> m_written;
     std::map<std::string, std::vector<std::string>> m_answers;
     bool m_echo = true;
@@ -195,8 +195,8 @@ std::vector<std::string> texts(const std::vector<ConsoleLine>& lines) {
     return result;
 }
 
-hio::device::CaptureResult resultOf(const CommandCapture& capture) {
-    return capture.result().value_or(hio::device::CaptureResult{});
+hwio::device::CaptureResult resultOf(const CommandCapture& capture) {
+    return capture.result().value_or(hwio::device::CaptureResult{});
 }
 
 ShellQueryResult resultOf(const ShellQuery& query) {
@@ -225,7 +225,7 @@ TEST(CommandCaptureTest, EndsAtThePrompt) {
     EXPECT_EQ(texts(result.lines), std::vector<std::string>{"Firmware version: v3.1.0"});
     EXPECT_FALSE(result.truncated);
     EXPECT_FALSE(result.interleaved);
-    EXPECT_EQ(hio::device::captureEndId(result.end), "prompt");
+    EXPECT_EQ(hwio::device::captureEndId(result.end), "prompt");
 }
 
 TEST(CommandCaptureTest, EndsAfterSilenceAndOutputBeforeTheEchoIsNotOurs) {
@@ -307,7 +307,7 @@ TEST(ShellQueryTest, SilentAndUserLinesWait) {
     // A second query is refused while one runs.
     const auto second = ShellQuery::start(session, "help");
     ASSERT_FALSE(second);
-    EXPECT_EQ(second.error().code, hio::ErrorCode::InternalBusy);
+    EXPECT_EQ(second.error().code, hwio::ErrorCode::InternalBusy);
     session.prompt();
     ASSERT_TRUE((*query)->isFinished());
     EXPECT_EQ(resultOf(**query).lines,
@@ -321,18 +321,18 @@ TEST(ShellQueryTest, SilentAndUserLinesWait) {
 
 TEST(ShellQueryTest, RefusedWhenNotConnectedOrBusy) {
     FakeSession session;
-    session.setState(hio::device::ConnectionState::Connecting);
+    session.setState(hwio::device::ConnectionState::Connecting);
     const auto notConnected = ShellQuery::start(session, "help");
     ASSERT_FALSE(notConnected);
-    EXPECT_EQ(notConnected.error().code, hio::ErrorCode::TargetNotConnected);
-    session.setState(hio::device::ConnectionState::Connected);
-    const auto busy =
-        ShellQuery::start(session, "help",
-                          hio::device::ShellQueryOptions{.timeout = std::chrono::milliseconds(2000),
-                                                         .maxLines = 2000,
-                                                         .busy = [] { return true; }});
+    EXPECT_EQ(notConnected.error().code, hwio::ErrorCode::TargetNotConnected);
+    session.setState(hwio::device::ConnectionState::Connected);
+    const auto busy = ShellQuery::start(
+        session, "help",
+        hwio::device::ShellQueryOptions{.timeout = std::chrono::milliseconds(2000),
+                                        .maxLines = 2000,
+                                        .busy = [] { return true; }});
     ASSERT_FALSE(busy);
-    EXPECT_EQ(busy.error().code, hio::ErrorCode::InternalBusy);
+    EXPECT_EQ(busy.error().code, hwio::ErrorCode::InternalBusy);
     EXPECT_TRUE(session.written().empty());
 }
 
@@ -340,11 +340,11 @@ TEST(ShellQueryTest, TimeoutAndCancelReleaseTheHold) {
     FakeSession session;
     auto query = ShellQuery::start(
         session, "help",
-        hio::device::ShellQueryOptions{
+        hwio::device::ShellQueryOptions{
             .timeout = std::chrono::milliseconds(100), .maxLines = 2000, .busy = {}});
     ASSERT_TRUE(query);
     ASSERT_TRUE(session.sendLine("held"));
-    const auto result = hio::device::waitForQuery(**query);
+    const auto result = hwio::device::waitForQuery(**query);
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result.value_or(ShellQueryResult{}).end, CaptureEnd::Timeout);
     EXPECT_EQ(session.written(), (std::vector<std::string>{"help", "held"}));
@@ -388,7 +388,7 @@ TEST(ShellQueryQueueTest, OneAtATimeAndRefusedOnesAnswerNullopt) {
     ASSERT_TRUE(info.has_value() && help.has_value());
     EXPECT_EQ(info.value_or(ShellQueryResult{}).lines,
               std::vector<std::string>{"fw-name: hio-chester-push-fm"});
-    EXPECT_EQ(help.value_or(ShellQueryResult{}).end, hio::device::CaptureEnd::Prompt);
+    EXPECT_EQ(help.value_or(ShellQueryResult{}).end, hwio::device::CaptureEnd::Prompt);
     EXPECT_EQ(session.log().lastSeq(), 0U); // silent
     ASSERT_TRUE(runUntil([&] { return !queue.running(); }));
 
@@ -454,7 +454,7 @@ struct LearnerRig {
     [[nodiscard]] std::vector<std::string> names(const std::vector<std::string>& path) const {
         std::vector<std::string> result;
         const auto tree = learner.tree();
-        const hio::device::CommandNode* node = tree ? tree->find(path) : nullptr;
+        const hwio::device::CommandNode* node = tree ? tree->find(path) : nullptr;
         if (node == nullptr) {
             return result;
         }
@@ -468,13 +468,13 @@ struct LearnerRig {
     }
 
     QTemporaryDir dir;
-    hio::device::CommandTreeCache cache{std::filesystem::path(dir.path().toStdU16String())};
+    hwio::device::CommandTreeCache cache{std::filesystem::path(dir.path().toStdU16String())};
     FakeSession session{promptProfile()};
     ShellQueryQueue queue;
-    hio::device::CommandTreeLearner learner{queue, &cache};
+    hwio::device::CommandTreeLearner learner{queue, &cache};
 };
 
-hio::device::FirmwareKey learnerKey() {
+hwio::device::FirmwareKey learnerKey() {
     return {.profileId = "chester",
             .targetId = "app",
             .fwName = "hio-chester-push-fm",
@@ -484,7 +484,7 @@ hio::device::FirmwareKey learnerKey() {
 TEST(CommandTreeLearnerTest, ReadsOnConnectThenChildrenOnceAndCaches) {
     LearnerRig rig;
     int readingChanges = 0;
-    QObject::connect(&rig.learner, &hio::device::CommandTreeLearner::readingChanged,
+    QObject::connect(&rig.learner, &hwio::device::CommandTreeLearner::readingChanged,
                      [&] { ++readingChanges; });
     rig.learner.start(learnerKey(), true);
     EXPECT_TRUE(rig.learner.reading());
@@ -499,7 +499,7 @@ TEST(CommandTreeLearnerTest, ReadsOnConnectThenChildrenOnceAndCaches) {
     EXPECT_EQ(rig.names({"lte"}), (std::vector<std::string>{"state", "test"}));
     const auto tree = rig.learner.tree();
     ASSERT_TRUE(tree);
-    const hio::device::CommandNode* info = tree->find(std::vector<std::string>{"info"});
+    const hwio::device::CommandNode* info = tree->find(std::vector<std::string>{"info"});
     ASSERT_NE(info, nullptr);
     EXPECT_TRUE(info->childrenKnown);
     rig.learner.requestChildren({"info"}); // known to have none
@@ -507,9 +507,9 @@ TEST(CommandTreeLearnerTest, ReadsOnConnectThenChildrenOnceAndCaches) {
     EXPECT_EQ(rig.sent("info -h"), 1U);
     EXPECT_EQ(rig.sent("unknown -h"), 0U);
     // Stored per firmware: a second attach of the same firmware asks nothing.
-    const hio::device::CommandTree cached =
-        rig.cache.load(learnerKey()).value_or(hio::device::CommandTree{});
-    const hio::device::CommandNode* lte = cached.find(std::vector<std::string>{"lte"});
+    const hwio::device::CommandTree cached =
+        rig.cache.load(learnerKey()).value_or(hwio::device::CommandTree{});
+    const hwio::device::CommandNode* lte = cached.find(std::vector<std::string>{"lte"});
     ASSERT_NE(lte, nullptr);
     EXPECT_EQ(lte->children.size(), 2U);
     rig.session.clearWritten();
@@ -560,7 +560,7 @@ TEST(CommandTreeLearnerTest, NoDashHWithoutTheMarker) {
     EXPECT_EQ(rig.session.written(), (std::vector<std::string>{"help"}));
     const auto cached = rig.cache.load(learnerKey());
     ASSERT_TRUE(cached.has_value());
-    EXPECT_FALSE(cached.transform(&hio::device::CommandTree::dashHSupported).value_or(true));
+    EXPECT_FALSE(cached.transform(&hwio::device::CommandTree::dashHSupported).value_or(true));
 
     // The next attach of the same firmware: the cached flag, neither `help` nor `-h`.
     rig.session.clearWritten();
@@ -579,7 +579,7 @@ TEST(CommandTreeLearnerTest, DashHWithTheMarkerAndFromTheCache) {
     ASSERT_TRUE(runUntil([&] { return !rig.learner.reading() && rig.learner.tree(); }));
     EXPECT_TRUE(rig.learner.tree()->dashHSupported());
     EXPECT_TRUE(rig.cache.load(learnerKey())
-                    .transform(&hio::device::CommandTree::dashHSupported)
+                    .transform(&hwio::device::CommandTree::dashHSupported)
                     .value_or(false));
 
     rig.session.clearWritten();
@@ -604,7 +604,7 @@ TEST(CommandTreeLearnerTest, NoCommandListLeavesNoTree) {
 
 std::vector<std::string> logTexts(const FakeSession& session) {
     std::vector<std::string> result;
-    for (const ConsoleLine& line : session.log().linesSince(0, hio::device::ChannelMask::Shell)) {
+    for (const ConsoleLine& line : session.log().linesSince(0, hwio::device::ChannelMask::Shell)) {
         result.push_back(line.text);
     }
     return result;
@@ -641,7 +641,7 @@ TEST(ShellQueryTest, StartsOnlyOnAnIdleShellWithAPrompt) {
     ASSERT_TRUE(session.sendLine("version")); // in flight: no echo yet
     auto refused = ShellQuery::start(session, "info show");
     ASSERT_FALSE(refused);
-    EXPECT_EQ(refused.error().code, hio::ErrorCode::InternalBusy);
+    EXPECT_EQ(refused.error().code, hwio::ErrorCode::InternalBusy);
     session.releaseEchoes();
     session.setDelayEcho(false);
     EXPECT_FALSE(idle(session)); // echoed, no prompt yet
@@ -658,7 +658,7 @@ TEST(ShellQueryTest, StartsOnlyOnAQuietShellWithoutAPrompt) {
     session.output("output of an earlier command");
     const auto busy = session.shellBusyFor();
     EXPECT_GT(busy, std::chrono::milliseconds(0));
-    EXPECT_LE(busy, hio::device::ConsoleSession::shellQuietTime);
+    EXPECT_LE(busy, hwio::device::ConsoleSession::shellQuietTime);
     EXPECT_FALSE(ShellQuery::start(session, "info show"));
     ASSERT_TRUE(runUntil([&] { return idle(session); }));
     EXPECT_TRUE(ShellQuery::start(session, "info show"));
@@ -713,7 +713,7 @@ TEST(ShellQueryQueueTest, ADisconnectEndsTheQueryWithoutAResult) {
         result = r;
     });
     ASSERT_TRUE(queue.running());
-    session.setState(hio::device::ConnectionState::Disconnected);
+    session.setState(hwio::device::ConnectionState::Disconnected);
     EXPECT_TRUE(answered);
     EXPECT_FALSE(result.has_value());
     EXPECT_FALSE(session.shellCaptureActive());
@@ -763,7 +763,7 @@ TEST(ShellQueryQueueTest, ASessionGoneAfterAFinishedQueryEndsTheNextOnce) {
 TEST(CommandTreeLearnerTest, IncompleteAnswersAreNotLearned) {
     LearnerRig rig;
     std::vector<std::string> many{"Available commands:"};
-    for (std::size_t i = 0; i <= hio::device::ShellQuery::defaultMaxLines; ++i) {
+    for (std::size_t i = 0; i <= hwio::device::ShellQuery::defaultMaxLines; ++i) {
         many.push_back("  c" + std::to_string(i) + "  :command");
     }
     rig.session.answer("help", many);
@@ -779,9 +779,9 @@ TEST(CommandTreeLearnerTest, IncompleteAnswersAreNotLearned) {
     again.session.setEcho(false); // the query waits for its echo
     again.learner.start(std::nullopt, true);
     ASSERT_TRUE(runUntil([&] { return again.queue.running(); }));
-    again.session.setState(hio::device::ConnectionState::Disconnected);
+    again.session.setState(hwio::device::ConnectionState::Disconnected);
     EXPECT_FALSE(again.learner.reading());
-    again.session.setState(hio::device::ConnectionState::Connected);
+    again.session.setState(hwio::device::ConnectionState::Connected);
     again.session.setEcho(true);
     again.learner.requestTopLevel();
     ASSERT_TRUE(runUntil([&] { return !again.learner.reading(); }));
@@ -800,12 +800,12 @@ TEST(CommandTreeLearnerTest, ATimedOutQueryIsNotLearned) {
     rig.learner.requestChildren(app);
     ASSERT_TRUE(rig.learner.reading());
     ASSERT_TRUE(runUntil([&] { return !rig.learner.reading(); }, std::chrono::seconds(10)));
-    const hio::device::CommandNode* node = rig.learner.tree()->find(app);
+    const hwio::device::CommandNode* node = rig.learner.tree()->find(app);
     ASSERT_NE(node, nullptr);
     EXPECT_FALSE(node->childrenKnown);
     const auto cached = rig.cache.load(learnerKey());
     ASSERT_TRUE(cached.has_value());
-    const hio::device::CommandNode* cachedNode = cached ? cached->find(app) : nullptr;
+    const hwio::device::CommandNode* cachedNode = cached ? cached->find(app) : nullptr;
     ASSERT_NE(cachedNode, nullptr);
     EXPECT_FALSE(cachedNode->childrenKnown);
     rig.learner.requestChildren(app); // backing off
@@ -820,9 +820,9 @@ TEST(ShellQueryTest, AMissingPromptExpiresAfterSilence) {
     session.output("some output");
     EXPECT_FALSE(idle(session));
     EXPECT_FALSE(ShellQuery::start(session, "info show"));
-    runFor(hio::device::ConsoleSession::promptWaitExpiry / 2);
+    runFor(hwio::device::ConsoleSession::promptWaitExpiry / 2);
     session.output("more output"); // output restarts the silence
-    runFor(hio::device::ConsoleSession::promptWaitExpiry / 2 + std::chrono::milliseconds(200));
+    runFor(hwio::device::ConsoleSession::promptWaitExpiry / 2 + std::chrono::milliseconds(200));
     EXPECT_FALSE(idle(session));
     ASSERT_TRUE(runUntil([&] { return idle(session); }, std::chrono::seconds(4)));
     EXPECT_TRUE(ShellQuery::start(session, "info show"));

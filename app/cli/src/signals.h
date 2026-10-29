@@ -16,7 +16,7 @@
 #include <stop_token>
 #include <thread>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 class SignalGuard {
 public:
@@ -32,4 +32,4 @@ private:
     std::jthread m_watcher; // POSIX only; joined in the destructor
 };
 
-} // namespace hio::cli
+} // namespace hwio::cli

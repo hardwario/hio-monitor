@@ -1,8 +1,8 @@
 // TokenStore: create, reload, regenerate, bad contents, permission fix-up, constant-time compare
 // (ADR-0102); directory rules and absolute paths (review R2).
 
-#include "hio/core/error.h"
-#include "hio/mcp/token.h"
+#include "hwio/core/error.h"
+#include "hwio/mcp/token.h"
 
 #include <QByteArray>
 #include <QDir>
@@ -17,7 +17,7 @@
 #include <ios>
 #include <string>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 namespace {
 
 namespace fs = std::filesystem;
@@ -224,4 +224,4 @@ TEST(ConstantTimeEquals, ComparesWholeStrings) {
 }
 
 } // namespace
-} // namespace hio::mcp
+} // namespace hwio::mcp

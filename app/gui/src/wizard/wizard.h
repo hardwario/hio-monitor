@@ -8,7 +8,7 @@
 // Ownership: a Wizard is created by its descriptor's factory with the WizardViewModel as Qt parent
 // and deleted (deleteLater) when the dialog closes. GUI thread only.
 
-#include "hio/core/error.h"
+#include "hwio/core/error.h"
 #include "viewmodels/error_info.h"
 
 #include <QObject>
@@ -21,7 +21,7 @@
 #include <functional>
 #include <vector>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 class CheckListModel;
 class DeviceTabViewModel;
@@ -112,4 +112,4 @@ struct WizardDescriptor {
     std::function<Wizard*(QObject* parent)> create;
 };
 
-} // namespace hio::gui
+} // namespace hwio::gui

@@ -7,20 +7,20 @@
 #include "console_ui.h"
 #include "diag_commands.h"
 #include "flash_commands.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/core/settings.h"
-#include "hio/device/command_history.h"
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/completer.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_info.h"
-#include "hio/device/device_session.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_registry.h"
-#include "hio/device/shell_query.h"
-#include "hio/hw/jlink/rtt_channel.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/command_history.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/completer.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_info.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/device/shell_query.h"
+#include "hwio/hw/jlink/rtt_channel.h"
 #include "jlink_commands.h"
 #include "output.h"
 #include "probe_options.h"
@@ -55,7 +55,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -159,7 +159,7 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
     const bool interactive =
         context.mode == OutputMode::Human && stdinIsTerminal() && stdoutIsTerminal();
     // The console's own stop request: Ctrl+C / SIGTERM (context.stop) or a closed stdout (review
-    // R32: `hio ... console --json | head` ends like Ctrl+C, the session closes normally).
+    // R32: `hwio ... console --json | head` ends like Ctrl+C, the session closes normally).
     std::stop_source consoleStop;
     const std::stop_callback forwardStop(context.stop, [&consoleStop] {
         consoleStop.request_stop(); // may run on the signal watcher thread (thread-safe)
@@ -310,7 +310,7 @@ Result<CommandResult> info(const Context& context, const GlobalOptions& globals,
         Error error = makeError(ErrorCode::Timeout, "info show: no fields in the answer");
         error.message = "The device did not answer `info show`.";
         error.cause = "The firmware has no `info show` command, or the shell is busy.";
-        error.suggestion = "Check the console with `hio chester app console`.";
+        error.suggestion = "Check the console with `hwio chester app console`.";
         return std::unexpected(std::move(error));
     }
     QJsonObject data;
@@ -446,4 +446,4 @@ void registerChesterCommands(CLI::App& app, CommandSlot& slot, const GlobalOptio
     registerLteCommands(*chester, slot, globals);
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

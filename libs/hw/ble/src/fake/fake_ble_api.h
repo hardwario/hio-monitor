@@ -1,7 +1,7 @@
 #pragma once
 
 // FakeBleApi - a scenario-driven IBleApi for tests (ADR-0087, ADR-0127). Compiled only with
-// HIO_TEST_OVERRIDES; createBleApi() returns it when HIO_FAKE_BLE_SCENARIO names a scenario file
+// HWIO_TEST_OVERRIDES; createBleApi() returns it when HWIO_FAKE_BLE_SCENARIO names a scenario file
 // (tests/ble_scenarios/*.json). Runs on the BLE thread with QTimers.
 //
 // Scenario (JSON object, every field optional):
@@ -44,10 +44,10 @@
 // Test hook: fakeBleThreadViolations() counts calls (and destruction) on another thread than the
 // one that created the fake (plan 0011: QtBluetooth objects are destroyed on the BLE thread).
 
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QObject>
 
@@ -64,7 +64,7 @@
 
 class QThread;
 
-namespace hio::ble {
+namespace hwio::ble {
 
 struct FakeOutput {
     int atMs = 0;
@@ -166,4 +166,4 @@ private:
 // Calls on (or destruction from) a thread other than the creating one, in this process.
 [[nodiscard]] int fakeBleThreadViolations() noexcept;
 
-} // namespace hio::ble
+} // namespace hwio::ble

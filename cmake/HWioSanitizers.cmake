@@ -1,0 +1,81 @@
+# Sanitizer and coverage instrumentation (plan/features/0001-m0-skeleton.md).
+#
+#   HWIO_SANITIZERS : "" (default), "address;undefined" (linux-asan, macos-asan), "thread"
+#                    (linux-tsan) or "fuzzer;address;undefined" (linux-fuzz, ADR-0152). Applied to
+#                    every target incl. third-party code, so that sanitizer runtimes see all of our
+#                    process code instrumented. "fuzzer" compiles everything with
+#                    -fsanitize=fuzzer-no-link (coverage instrumentation without libFuzzer's main);
+#                    the fuzz executables add -fsanitize=fuzzer through hwio_add_fuzzer().
+#   HWIO_BUILD_FUZZERS requires "fuzzer" in HWIO_SANITIZERS.
+#   HWIO_COVERAGE   : ON for linux-coverage (clang source-based coverage).
+#
+# Runtime options (TSAN_OPTIONS, UBSAN_OPTIONS, ...) are set by the test presets.
+include_guard(GLOBAL)
+
+set(HWIO_SANITIZERS "" CACHE STRING
+    "Sanitizers to enable: empty, 'address;undefined', 'thread' or 'fuzzer;address;undefined'")
+option(HWIO_COVERAGE "Instrument the build for clang source-based code coverage" OFF)
+
+if(HWIO_SANITIZERS)
+    if("thread" IN_LIST HWIO_SANITIZERS AND "address" IN_LIST HWIO_SANITIZERS)
+        message(FATAL_ERROR "HWIO_SANITIZERS: 'thread' cannot be combined with 'address'.")
+    endif()
+    foreach(_san IN LISTS HWIO_SANITIZERS)
+        if(NOT _san MATCHES "^(address|undefined|thread|fuzzer)$")
+            message(FATAL_ERROR "HWIO_SANITIZERS: unsupported sanitizer '${_san}'.")
+        endif()
+    endforeach()
+    if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        message(FATAL_ERROR "HWIO_SANITIZERS is supported on Linux and macOS only.")
+    endif()
+    if("fuzzer" IN_LIST HWIO_SANITIZERS AND "thread" IN_LIST HWIO_SANITIZERS)
+        message(FATAL_ERROR "HWIO_SANITIZERS: 'fuzzer' cannot be combined with 'thread'.")
+    endif()
+
+    # Compile: fuzzer -> fuzzer-no-link. Link: everything except the fuzzer (only the fuzz
+    # executables link libFuzzer, hwio_add_fuzzer()).
+    set(_hwio_san_compile ${HWIO_SANITIZERS})
+    list(TRANSFORM _hwio_san_compile REPLACE "^fuzzer$" "fuzzer-no-link")
+    set(_hwio_san_link ${HWIO_SANITIZERS})
+    list(REMOVE_ITEM _hwio_san_link fuzzer)
+    list(JOIN _hwio_san_compile "," _hwio_san_list)
+    # HWIO_SANITIZER: code that must not run under sanitizers (the crash handler, ADR-0123).
+    add_compile_definitions(HWIO_SANITIZER)
+    add_compile_options(
+        "-fsanitize=${_hwio_san_list}"
+        -fno-sanitize-recover=all
+        -fno-omit-frame-pointer
+        -g)
+    if(_hwio_san_link)
+        list(JOIN _hwio_san_link "," _hwio_san_link_list)
+        add_link_options("-fsanitize=${_hwio_san_link_list}")
+    endif()
+    message(STATUS "HARDWARIO Monitor: sanitizers enabled: ${_hwio_san_list}")
+    unset(_hwio_san_compile)
+    unset(_hwio_san_link)
+    unset(_hwio_san_list)
+    unset(_hwio_san_link_list)
+endif()
+
+if(HWIO_BUILD_FUZZERS AND NOT "fuzzer" IN_LIST HWIO_SANITIZERS)
+    message(FATAL_ERROR
+        "HWIO_BUILD_FUZZERS=ON needs HWIO_SANITIZERS to contain 'fuzzer' (use the linux-fuzz preset, "
+        "ADR-0152).")
+endif()
+
+# hwio_add_fuzzer(<name> <source>...): a libFuzzer executable (ADR-0152), linked with
+# -fsanitize=fuzzer (libFuzzer's main) in addition to the global sanitizers.
+function(hwio_add_fuzzer name)
+    add_executable(${name} ${ARGN})
+    target_compile_options(${name} PRIVATE -fsanitize=fuzzer)
+    target_link_options(${name} PRIVATE -fsanitize=fuzzer)
+endfunction()
+
+if(HWIO_COVERAGE)
+    if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        message(FATAL_ERROR "HWIO_COVERAGE is supported with the GNU-style clang driver only.")
+    endif()
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+    add_link_options(-fprofile-instr-generate)
+    message(STATUS "HARDWARIO Monitor: source-based coverage enabled")
+endif()

@@ -5,14 +5,14 @@
 #   - lintian on the .deb (errors and warnings fail; overrides only for /opt and the private Qt);
 #   - desktop-file-validate and appstreamcli validate --no-net on the shipped desktop file and
 #     AppStream metainfo;
-#   - the AppImage runs the CLI: `<AppImage> hio --version --json` reports "package": "appimage"
+#   - the AppImage runs the CLI: `<AppImage> hwio --version --json` reports "package": "appimage"
 #     (with --appimage-extract-and-run, no FUSE in containers).
 #
 #   packaging/linux/check-packages.sh <package-dir>
 set -euo pipefail
 dir="$(cd "${1:?package directory}" && pwd)"
 deb="$(ls "$dir"/hardwario-monitor_*_amd64.deb)"
-appimage="$(ls "$dir"/hio-monitor-*-x86_64.AppImage)"
+appimage="$(ls "$dir"/hwio-monitor-*-x86_64.AppImage)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -39,9 +39,9 @@ desktop-file-validate "$work/appimage/usr/share/applications/com.hardwario.monit
 appstreamcli validate --no-net "$work/deb/usr/share/metainfo/com.hardwario.monitor.metainfo.xml"
 
 echo "== AppImage CLI dispatch"
-json="$(APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" hio --version --json)"
+json="$(APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" hwio --version --json)"
 echo "$json"
 python3 -I -c 'import json,sys; d=json.loads(sys.argv[1])["data"]; sys.exit(0 if d["package"] == "appimage" else 1)' "$json"
-ln -s "$appimage" "$work/hio"
-APPIMAGE_EXTRACT_AND_RUN=1 "$work/hio" --version
+ln -s "$appimage" "$work/hwio"
+APPIMAGE_EXTRACT_AND_RUN=1 "$work/hwio" --version
 echo "All package checks passed."

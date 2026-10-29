@@ -3,18 +3,18 @@
 #include "cli_app.h"
 #include "cli_log.h"
 #include "console_events.h"
-#include "hio/core/bounded_queue.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/command_history.h"
-#include "hio/device/command_tree.h"
-#include "hio/device/command_tree_learner.h"
-#include "hio/device/completer.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_session.h"
-#include "hio/device/device_session.h"
-#include "hio/device/session_events.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_history.h"
+#include "hwio/device/command_tree.h"
+#include "hwio/device/command_tree_learner.h"
+#include "hwio/device/completer.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/device_session.h"
+#include "hwio/device/session_events.h"
 #include "output.h"
 #include "terminal.h"
 
@@ -47,7 +47,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -614,4 +614,4 @@ Status runConsole(const Context& context, device::ConsoleSession& session, Conso
     return console.run();
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

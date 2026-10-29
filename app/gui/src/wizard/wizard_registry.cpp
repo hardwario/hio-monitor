@@ -1,7 +1,7 @@
 #include "wizard/wizard_registry.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
 #include "wizard.h"
 
 #include <QString>
@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 bool WizardRegistry::add(WizardDescriptor descriptor) {
     if (has(descriptor.id) || !descriptor.create) {
@@ -49,4 +49,4 @@ QUrl WizardRegistry::embedded(const QString& name) const {
     return it == m_embedded.end() ? QUrl() : it->second;
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

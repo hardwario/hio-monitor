@@ -1,6 +1,6 @@
-#include "hio/device/operation.h"
+#include "hwio/device/operation.h"
 
-#include "hio/device/profile.h"
+#include "hwio/device/profile.h"
 
 #include <QCoreApplication>
 #include <QString>
@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -109,19 +109,20 @@ bool isLightOperation(OperationKind kind) noexcept {
 std::vector<DiagnoseStepInfo> diagnoseSteps(const TargetProfile& target) {
     return {
         {.id = "probe",
-         .title = QCoreApplication::translate("hio::device", "J-Link probe").toStdString()},
+         .title = QCoreApplication::translate("hwio::device", "J-Link probe").toStdString()},
         {.id = "power",
-         .title = QCoreApplication::translate("hio::device", "Device power").toStdString()},
+         .title = QCoreApplication::translate("hwio::device", "Device power").toStdString()},
         {.id = "connect",
-         .title = QCoreApplication::translate("hio::device", "Connection to the %1 MCU")
+         .title = QCoreApplication::translate("hwio::device", "Connection to the %1 MCU")
                       .arg(targetDisplayName(target))
                       .toStdString()},
         {.id = "identify",
-         .title = QCoreApplication::translate("hio::device", "MCU type").toStdString()},
+         .title = QCoreApplication::translate("hwio::device", "MCU type").toStdString()},
         {.id = "rtt",
-         .title = QCoreApplication::translate("hio::device", "Device console (RTT)").toStdString()},
+         .title =
+             QCoreApplication::translate("hwio::device", "Device console (RTT)").toStdString()},
         {.id = "rtt-buffers",
-         .title = QCoreApplication::translate("hio::device", "Console channels").toStdString()},
+         .title = QCoreApplication::translate("hwio::device", "Console channels").toStdString()},
     };
 }
 
@@ -163,4 +164,4 @@ std::string_view operationKindId(OperationKind kind) noexcept {
     return "flash";
 }
 
-} // namespace hio::device
+} // namespace hwio::device

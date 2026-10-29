@@ -3,8 +3,8 @@
 
 #include "platform.h"
 
-namespace hio::gui {
+namespace hwio::gui {
 
 void applyPlatformIdentity() {}
 
-} // namespace hio::gui
+} // namespace hwio::gui

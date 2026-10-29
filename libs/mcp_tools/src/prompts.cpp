@@ -2,16 +2,16 @@
 // tools of this server, CHESTER targets, device ids, consent errors and the rttt tool-name mapping.
 // English (ADR-0103); no upload endpoint (ADR-0100).
 
-#include "hio/core/result.h"
-#include "hio/mcp/registry.h"
-#include "hio/mcp/request_context.h"
+#include "hwio/core/result.h"
+#include "hwio/mcp/registry.h"
+#include "hwio/mcp/request_context.h"
 #include "tools/tools.h"
 
 #include <QString>
 
 #include <map>
 
-namespace hio::mcp::tools::detail {
+namespace hwio::mcp::tools::detail {
 
 namespace {
 
@@ -70,7 +70,7 @@ constexpr const char* debugDeviceText =
     "- flash, flash_lte, write_flash, erase, recover, write_memory (and UICR writes) need the "
     "user's permission. `erase` with scope \"all\" and `recover` also remove the Product "
     "Information Block and need both erase and uicr; erase with scope \"code\" needs erase "
-    "only. mcp.tool_not_allowed means the server was started without it (the CLI needs `hio mcp "
+    "only. mcp.tool_not_allowed means the server was started without it (the CLI needs `hwio mcp "
     "--allow flash,erase,memory-write,uicr` or `--allow all`; the error's suggestion names the "
     "items, e.g. `--allow erase,uicr`); "
     "mcp.consent_denied / mcp.consent_timeout mean the user declined or did not answer in "
@@ -95,19 +95,19 @@ constexpr const char* debugDeviceText =
 
 QString debugDevicePromptText() { return QString::fromUtf8(debugDeviceText); }
 
-hio::Status registerPrompts(hio::mcp::Registry& registry) {
-    return registry.addPrompt(hio::mcp::PromptSpec{
+hwio::Status registerPrompts(hwio::mcp::Registry& registry) {
+    return registry.addPrompt(hwio::mcp::PromptSpec{
         .name = "debug_device",
         .title = "Debug a device",
         .description = "How to debug a connected HARDWARIO device with this server's tools.",
         .arguments = {},
-        .get = [](const hio::mcp::RequestContext&,
-                  const std::map<QString, QString>&) -> hio::Result<hio::mcp::PromptResult> {
-            return hio::mcp::PromptResult{
+        .get = [](const hwio::mcp::RequestContext&,
+                  const std::map<QString, QString>&) -> hwio::Result<hwio::mcp::PromptResult> {
+            return hwio::mcp::PromptResult{
                 .description = QStringLiteral("Debug a HARDWARIO device"),
-                .messages = {hio::mcp::PromptMessage{.role = QStringLiteral("user"),
-                                                     .text = debugDevicePromptText()}}};
+                .messages = {hwio::mcp::PromptMessage{.role = QStringLiteral("user"),
+                                                      .text = debugDevicePromptText()}}};
         }});
 }
 
-} // namespace hio::mcp::tools::detail
+} // namespace hwio::mcp::tools::detail

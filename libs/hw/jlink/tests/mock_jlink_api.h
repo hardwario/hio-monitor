@@ -3,8 +3,8 @@
 // GMock of IJLinkApi (plan/features/0002-m1-jlink-rtt.md: vendor interfaces are mocked in unit
 // tests, ADR-0010). Shared with the libs/device tests.
 
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <gmock/gmock.h>
 
@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 
-namespace hio::jlink::test {
+namespace hwio::jlink::test {
 
 class MockJLinkApi : public IJLinkApi {
 public:
@@ -78,4 +78,4 @@ public:
     MOCK_METHOD(std::string, takeErrorText, (), (override));
 };
 
-} // namespace hio::jlink::test
+} // namespace hwio::jlink::test

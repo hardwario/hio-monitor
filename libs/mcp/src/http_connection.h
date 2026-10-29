@@ -7,9 +7,9 @@
 //
 // Thread safety: owner thread only.
 
-#include "hio/mcp/http_parser.h"
-#include "hio/mcp/limits.h"
-#include "hio/mcp/reply_channel.h"
+#include "hwio/mcp/http_parser.h"
+#include "hwio/mcp/limits.h"
+#include "hwio/mcp/reply_channel.h"
 
 #include <QByteArray>
 #include <QElapsedTimer>
@@ -25,11 +25,11 @@
 
 class QTcpSocket;
 
-namespace hio::mcp {
+namespace hwio::mcp {
 class McpServer;
 }
 
-namespace hio::mcp::detail {
+namespace hwio::mcp::detail {
 
 class HttpReplyChannel;
 
@@ -118,4 +118,4 @@ private:
     QTimer m_closingTimer; // Phase::Closing -> abort after Limits::closingTimeout
 };
 
-} // namespace hio::mcp::detail
+} // namespace hwio::mcp::detail

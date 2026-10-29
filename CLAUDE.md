@@ -49,7 +49,8 @@ All design documentation lives in [`plan/`](plan/README.md). Read `plan/README.m
 | Backend | May use QtCore, QtNetwork, QtBluetooth; **never QtGui / QtQuick / QtWidgets** — ADR-0004 |
 | Hardware | **SEGGER JLinkARM library only** (≥ 8.00) for RTT and programming (flash/erase/reset/recover/UICR), runtime-loaded from own declarations, one library copy per session, behind interfaces; py-hardwario / rttt 1.9.2 are the behavioural reference. Optional **nRF Util** subprocess only for nRF91 modem firmware. No nrfjprog — ADR-0015, ADR-0016, ADR-0006, ADR-0028–0030, ADR-0034 |
 | Localization | **English + Czech** via Qt Linguist (English source text), extensible; every user-visible string translatable; backend translates at creation; CLI English only — ADR-0027 |
-| Errors | `std::expected<T, hio::Error>`; no exceptions crossing module, thread or C-callback boundaries — ADR-0007 |
+| Naming | Project prefix **`hwio` / `HWio` / `HWIO_`**: namespace `hwio::`, includes `<hwio/...>`, CLI `hwio`, GUI `hwio-monitor`; product name "HARDWARIO Monitor", `com.hardwario.monitor` and the repository `hardwario/hio-monitor` unchanged — ADR-0181 |
+| Errors | `std::expected<T, hwio::Error>`; no exceptions crossing module, thread or C-callback boundaries — ADR-0007 |
 | Build | CMake + `CMakePresets.json`; third-party deps via **CPM / FetchContent pinned to exact tags + hashes** (no Conan, no vcpkg) — ADR-0010 |
 | Tests | **GoogleTest + GMock** for C++, Qt Quick Test for QML — ADR-0010 |
 
@@ -72,7 +73,7 @@ All design documentation lives in [`plan/`](plan/README.md). Read `plan/README.m
 - Compiler flags: `-Wall -Wextra -Wpedantic -Werror` (clang-cl equivalents), hardened standard
   library assertions in Debug, ASan + UBSan and TSan CI jobs, `clang-tidy`
   (bugprone, cppcoreguidelines, modernize, performance, readability subset) and `clang-format` clean.
-- Every user-visible error goes through `hio::Error`: what happened, why it probably happened,
+- Every user-visible error goes through `hwio::Error`: what happened, why it probably happened,
   what the user should do, optional wizard to launch. No raw error codes in the UI.
 
 ## Architecture rules (summary of `plan/0001-architecture.md`)
@@ -109,18 +110,18 @@ cmake --build --preset linux-debug --target check_translations    # .ts freshnes
 git ls-files -z -- '*.h' '*.cpp' | xargs -0 clang-format-21 --dry-run --Werror   # formatting
 tools/check-lfs.sh [--untracked]                # Git LFS rule (binary, generated text > 100 KB)
 tools/check-includes.sh                         # no <bits/...> includes (libc++ / MSVC STL)
-build/linux-debug/app/cli/hio --help            # CLI; GUI: build/linux-debug/app/gui/hio-monitor
-build/linux-debug/app/cli/hio ble scan          # nearby CHESTERs (--all: every device); then pick one by -a ID or --name N:
-build/linux-debug/app/cli/hio ble console -a F1:22:33:44:55:66   # also `ble command CMD`, `ble pair` (Linux/Windows)
-HIO_FAKE_BLE_SCENARIO=tests/ble_scenarios/chester.json build/linux-debug/app/cli/hio ble scan   # fake BLE (test builds)
-build/linux-debug/app/cli/hio jlink list        # probes (J-Link Software 8.x: auto-discovered, or
-                                                # --jlink-library PATH / $HIO_JLINK_LIBRARY)
-build/linux-debug/app/cli/hio chester app console   # RTT console; `chester app command version`
+build/linux-debug/app/cli/hwio --help           # CLI; GUI: build/linux-debug/app/gui/hwio-monitor
+build/linux-debug/app/cli/hwio ble scan         # nearby CHESTERs (--all: every device); then pick one by -a ID or --name N:
+build/linux-debug/app/cli/hwio ble console -a F1:22:33:44:55:66   # also `ble command CMD`, `ble pair` (Linux/Windows)
+HWIO_FAKE_BLE_SCENARIO=tests/ble_scenarios/chester.json build/linux-debug/app/cli/hwio ble scan   # fake BLE (test builds)
+build/linux-debug/app/cli/hwio jlink list       # probes (J-Link Software 8.x: auto-discovered, or
+                                                # --jlink-library PATH / $HWIO_JLINK_LIBRARY)
+build/linux-debug/app/cli/hwio chester app console   # RTT console; `chester app command version`
 # Without hardware: the test-only fake J-Link library and a JSON scenario (tests/fake_jlink/fake_jlink.cpp)
-HIO_JLINK_LIBRARY=build/linux-debug/tests/fake_jlink/libhio_fake_jlink.so \
-  HIO_FAKE_JLINK_SCENARIO=scenario.json build/linux-debug/app/cli/hio chester app console
-HIO_HIL=1 ctest --preset linux-debug -L hil --output-on-failure   # hardware-in-the-loop (CHESTER + J-Link)
+HWIO_JLINK_LIBRARY=build/linux-debug/tests/fake_jlink/libhwio_fake_jlink.so \
+  HWIO_FAKE_JLINK_SCENARIO=scenario.json build/linux-debug/app/cli/hwio chester app console
+HWIO_HIL=1 ctest --preset linux-debug -L hil --output-on-failure   # hardware-in-the-loop (CHESTER + J-Link)
 ```
 
-Translations: run `update_translations`, translate the new entries of `i18n/hio_cs.ts` (Qt Linguist), commit
+Translations: run `update_translations`, translate the new entries of `i18n/hwio_cs.ts` (Qt Linguist), commit
 both `.ts` files. CI (`.github/workflows/ci.yml`) runs all of the above on Linux plus macOS and Windows builds.

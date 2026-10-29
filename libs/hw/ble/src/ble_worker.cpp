@@ -1,14 +1,14 @@
 #include "ble_worker.h"
 
-#include "hio/core/bounded_queue.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/hw/ble/ble_api.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/nus_link.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/bounded_queue.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/hw/ble/ble_api.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/nus_link.h"
+#include "hwio/hw/ble/types.h"
 
 #include <QCoreApplication>
 #include <QEvent>
@@ -34,7 +34,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::ble {
+namespace hwio::ble {
 
 namespace {
 
@@ -224,7 +224,7 @@ void BleWorker::onAdvertisement(const Advertisement& advertisement) {
     }
 }
 
-void BleWorker::onScanFinished(std::optional<hio::Error> error) {
+void BleWorker::onScanFinished(std::optional<hwio::Error> error) {
     if (!m_scanning) {
         return;
     }
@@ -340,13 +340,13 @@ void BleWorker::onLinkData(LinkId link, std::span<const std::byte> data) {
     }
 }
 
-void BleWorker::onWriteDone(LinkId link, std::uint64_t token, std::optional<hio::Error> error) {
+void BleWorker::onWriteDone(LinkId link, std::uint64_t token, std::optional<hwio::Error> error) {
     if (NusLink* item = linkOf(link)) {
         item->onWriteDone(token, std::move(error));
     }
 }
 
-void BleWorker::onLinkLost(LinkId link, hio::Error error) {
+void BleWorker::onLinkLost(LinkId link, hwio::Error error) {
     if (NusLink* item = linkOf(link)) {
         item->onLinkLost(std::move(error));
         return;
@@ -451,4 +451,4 @@ void BleWorker::shutdown() {
     qCDebug(log::lcBle) << "BLE worker stopped";
 }
 
-} // namespace hio::ble
+} // namespace hwio::ble

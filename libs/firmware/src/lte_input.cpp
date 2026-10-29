@@ -1,11 +1,11 @@
-#include "hio/firmware/lte_input.h"
+#include "hwio/firmware/lte_input.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/firmware/intel_hex.h"
-#include "hio/firmware/zip_reader.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/intel_hex.h"
+#include "hwio/firmware/zip_reader.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -28,7 +28,7 @@
 #include <system_error>
 #include <utility>
 
-namespace hio::firmware {
+namespace hwio::firmware {
 
 namespace {
 
@@ -42,7 +42,7 @@ Error notSupported(const fs::path& path, std::string reason) {
         makeError(ErrorCode::FirmwareInvalidImage, toUtf8(path) + ": " + std::move(reason));
     error.message =
         QCoreApplication::translate(
-            "hio::firmware", "The file is not a CHESTER LTE bundle, modem firmware or HEX file.")
+            "hwio::firmware", "The file is not a CHESTER LTE bundle, modem firmware or HEX file.")
             .toStdString();
     return error;
 }
@@ -162,4 +162,4 @@ Result<LteInput> classifyLteInput(const fs::path& path, const std::stop_token& s
                                        entries.size(), names)));
 }
 
-} // namespace hio::firmware
+} // namespace hwio::firmware

@@ -5,22 +5,22 @@ How HARDWARIO Monitor v2 is installed, packaged and signed. The release procedur
 
 | Package | OS | Built by | Signed |
 |---|---|---|---|
-| `hio-monitor-<v>-x86_64.AppImage` | Ubuntu 22.04+ and other glibc ≥ 2.35 distributions | `packaging/linux/build-packages.sh` (container) | no (SHA256SUMS + provenance) |
+| `hwio-monitor-<v>-x86_64.AppImage` | Ubuntu 22.04+ and other glibc ≥ 2.35 distributions | `packaging/linux/build-packages.sh` (container) | no (SHA256SUMS + provenance) |
 | `hardwario-monitor_<v>_amd64.deb` | Ubuntu 24.04+ / Debian 13+ | same build tree, CPack DEB | no (SHA256SUMS + provenance) |
-| `hio-monitor-<v>-macos-universal.dmg` | macOS 13+ (arm64 + x86_64) | `macos-package` preset, `packaging/macos/sign-and-notarize.sh` | Developer ID, notarized, stapled |
-| `hio-monitor-<v>-windows-x64.msi` | Windows 10 22H2+ x64 | `windows-package` preset, CPack WIX (WiX ≥ 4) | Azure Trusted Signing |
+| `hwio-monitor-<v>-macos-universal.dmg` | macOS 13+ (arm64 + x86_64) | `macos-package` preset, `packaging/macos/sign-and-notarize.sh` | Developer ID, notarized, stapled |
+| `hwio-monitor-<v>-windows-x64.msi` | Windows 10 22H2+ x64 | `windows-package` preset, CPack WIX (WiX ≥ 4) | Azure Trusted Signing |
 
-`<v>` is the version from the git tag (`cmake/HioVersion.cmake`; build metadata `+` is written as `.` in file
+`<v>` is the version from the git tag (`cmake/HWioVersion.cmake`; build metadata `+` is written as `.` in file
 names). No package contains SEGGER J-Link Software, its USB driver or nRF Util (ADR-0006, ADR-0016).
 
 ## Layout
 
 ```
-cmake/HioPackaging.cmake      install rules per OS, HIO_PACKAGE_KIND, CPack, installed-tree CTest
-cmake/HioDeploy.cmake.in      Qt deployment at install time (Linux: explicit plugin / QML module lists;
+cmake/HWioPackaging.cmake      install rules per OS, HWIO_PACKAGE_KIND, CPack, installed-tree CTest
+cmake/HWioDeploy.cmake.in      Qt deployment at install time (Linux: explicit plugin / QML module lists;
                               macOS: macdeployqt; Windows: windeployqt), Czech Qt catalogs
-cmake/HioInstalledTreeTest.cmake  CTest Packaging.InstalledTreeSelfTest
-packaging/common/icons/       the v1 icon (hio-monitor.icns / .ico from branch main) + hicolor PNGs (extract.sh)
+cmake/HWioInstalledTreeTest.cmake  CTest Packaging.InstalledTreeSelfTest
+packaging/common/icons/       the v1 icon (hwio-monitor.icns / .ico from branch main) + hicolor PNGs (extract.sh)
 packaging/common/licenses/    third-party licence texts; licenses.cmake installs them + generated notices
 packaging/linux/              Containerfile, build-packages.sh, build-appimage.sh, check-packages.sh,
                               smoke-clean.sh, desktop file, AppStream metainfo, udev rule, deb/, appimage/AppRun
@@ -28,15 +28,15 @@ packaging/macos/              entitlements.plist, sign-and-notarize.sh, dmg/back
 packaging/windows/            version.rc.in (icon + VERSIONINFO), wix/ (CPack config, template, features), sign.ps1
 ```
 
-`HIO_PACKAGE_KIND` (`dev` | `appimage` | `deb` | `macos-bundle` | `msi`) is compiled into the binaries
-(`hio --version --json` → `"package"`, Settings › About, the diagnostic report). Normal builds are `dev`; the
+`HWIO_PACKAGE_KIND` (`dev` | `appimage` | `deb` | `macos-bundle` | `msi`) is compiled into the binaries
+(`hwio --version --json` → `"package"`, Settings › About, the diagnostic report). Normal builds are `dev`; the
 `*-package` presets set the kind (Release, no tests, debug info for the symbol archives).
 
 ## Installed tree and self-test
 
 `cmake --install <build> --prefix <dir>` gives a self-contained tree on every OS (Qt shared and replaceable,
 ADR-0119). The CTest `Packaging.InstalledTreeSelfTest` (all presets with tests) installs into
-`<build>/installed-tree`, then runs `hio --version --json` and `hio-monitor --self-test` (hidden option: loads
+`<build>/installed-tree`, then runs `hwio --version --json` and `hwio-monitor --self-test` (hidden option: loads
 the main QML and exits 0) with `QT_QPA_PLATFORM=offscreen` and the Qt search paths cleared.
 
 ## Linux (ADR-0118, ADR-0121)
@@ -46,10 +46,10 @@ regression check of ADR-0177, Qt 6.8.3 from aqtinstall, CMake from Kitware, linu
 runtime with SHA-256 checks). Locally (Docker or Podman):
 
 ```sh
-docker build -t hio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hio-monitor-build:22.04 \
+docker build -t hwio-monitor-build:22.04 -f packaging/linux/Containerfile packaging/linux
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hwio-monitor-build:22.04 \
     packaging/linux/build-packages.sh build/packages        # .deb, then AppImage (same build tree)
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hio-monitor-build:22.04 \
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" hwio-monitor-build:22.04 \
     packaging/linux/check-packages.sh build/packages        # glibc ceiling, lintian, desktop, AppStream
 packaging/linux/smoke-clean.sh build/packages               # clean ubuntu:22.04 / 24.04 containers
 ```
@@ -59,14 +59,14 @@ In a git worktree the main repository's `.git` directory must be mounted too (th
 cmake --build build/c2204-debug && ctest --test-dir build/c2204-debug` (with `QT_QPA_PLATFORM=offscreen`).
 
 - **.deb:** `/opt/hardwario-monitor/{bin,lib,plugins,qml,translations,licenses}` (private Qt, `$ORIGIN/../lib`),
-  links `/usr/bin/hio-monitor` and `/usr/bin/hio`, desktop file, metainfo, hicolor icons, man pages, the J-Link
+  links `/usr/bin/hwio-monitor` and `/usr/bin/hwio`, desktop file, metainfo, hicolor icons, man pages, the J-Link
   udev rule `/usr/lib/udev/rules.d/60-hardwario-jlink.rules` (postinst/postrm reload udev; errors are ignored in
   containers). Dependencies from `dpkg-shlibdeps` (incl. `libstdc++6 (>= 13.1)`, `libxcb-cursor0`) plus `bluez`.
   lintian must be clean; overrides only for `/opt` and the private Qt (`deb/lintian-overrides`).
 - **AppImage:** AppDir from the install tree, linuxdeploy without its Qt plugin for the remaining libraries
   (`libdbus-1` stays bundled), libstdc++ / libgcc_s in `usr/optional` with the checkrt in `AppRun` (used only when
-  newer than the system's), static type-2 runtime, no update information (ADR-0116). `AppRun` starts `hio` when
-  called through a link named `hio` or with `hio` as the first argument, otherwise the GUI. Without FUSE:
+  newer than the system's), static type-2 runtime, no update information (ADR-0116). `AppRun` starts `hwio` when
+  called through a link named `hwio` or with `hwio` as the first argument, otherwise the GUI. Without FUSE:
   `--appimage-extract-and-run` or `APPIMAGE_EXTRACT_AND_RUN=1`.
 
 ## macOS (ADR-0120, ADR-0126)
@@ -78,7 +78,7 @@ packaging/macos/sign-and-notarize.sh sign "build/macos-install/HARDWARIO Monitor
 packaging/macos/sign-and-notarize.sh dmg  "build/macos-install/HARDWARIO Monitor.app" out.dmg -
 ```
 
-Signing is inside-out (frameworks, plugins and QML plugins, then `Contents/MacOS/hio`, then the bundle), with the
+Signing is inside-out (frameworks, plugins and QML plugins, then `Contents/MacOS/hwio`, then the bundle), with the
 hardened runtime, `--timestamp` (not ad hoc) and `entitlements.plist` (only
 `com.apple.security.cs.disable-library-validation`, so that SEGGER's JLinkARM library and its copies load). The
 `verify` step checks the strict signature, the hardened runtime and the entitlements of both binaries and that
@@ -94,13 +94,13 @@ and WiX ≥ 4 (`dotnet tool install --global wix --version 5.0.2` and
 
 ```powershell
 cmake --preset windows-package; cmake --build --preset windows-package
-packaging/windows/sign.ps1 -DryRun -Files build/windows-package/app/gui/hio-monitor.exe,build/windows-package/app/cli/hio.exe
+packaging/windows/sign.ps1 -DryRun -Files build/windows-package/app/gui/hwio-monitor.exe,build/windows-package/app/cli/hwio.exe
 cpack --preset windows-package -B build/packages
-wix msi validate build/packages/hio-monitor-<v>-windows-x64.msi
+wix msi validate build/packages/hwio-monitor-<v>-windows-x64.msi
 ```
 
 The MSI is per-machine (`%ProgramFiles%\HARDWARIO\Monitor`), with a fixed UpgradeCode (major upgrades; a
-downgrade shows "A newer version of HARDWARIO Monitor is already installed."), the features "Add hio to PATH"
+downgrade shows "A newer version of HARDWARIO Monitor is already installed."), the features "Add hwio to PATH"
 (on) and "Desktop shortcut" (off; `msiexec /i <msi> /qn ADDDESKTOPSHORTCUT=1`) and a Start-menu shortcut with the
 AppUserModelID `com.hardwario.monitor`. The executables are signed after the build and before CPack, the MSI
 after CPack; `signtool verify /pa` checks all three.
@@ -109,7 +109,7 @@ after CPack; `signtool verify /pa` checks all three.
 
 - `ci.yml` (pull requests, `v2-dev`): `package-linux`, `package-macos`, `package-windows` build unsigned packages
   after the normal jobs, run the checks above and upload them as artifacts for 7 days.
-- `release.yml` (tags `v2.*.*`): gate (version = tag, 0 unfinished Czech translations, `HIO_TEST_OVERRIDES=OFF`,
+- `release.yml` (tags `v2.*.*`): gate (version = tag, 0 unfinished Czech translations, `HWIO_TEST_OVERRIDES=OFF`,
   the whole `ci.yml` through `workflow_call`), signed builds, symbol archives, `SHA256SUMS`, build provenance
   attestations and a **draft** release. See [RELEASE.md](RELEASE.md).
 
@@ -135,8 +135,8 @@ PR builds never see these secrets and are never signed.
 
 - **Container build fails at apt.llvm.org / the PPA:** the LLVM 21 and g++-13 packages must stay available for
   jammy (risk in plan 0015); pin a mirror or rebuild the cached image when they move.
-- **`hio-monitor --self-test` fails in the installed tree:** run it with `QT_DEBUG_PLUGINS=1` and check
-  `qml/` against `HIO_LINUX_QML_MODULES` / `HIO_LINUX_QT_PLUGINS` (cmake/HioPackaging.cmake).
+- **`hwio-monitor --self-test` fails in the installed tree:** run it with `QT_DEBUG_PLUGINS=1` and check
+  `qml/` against `HWIO_LINUX_QML_MODULES` / `HWIO_LINUX_QT_PLUGINS` (cmake/HWioPackaging.cmake).
 - **AppImage does not start without FUSE:** `--appimage-extract-and-run`.
 - **notarytool: Invalid:** `xcrun notarytool log <submission id> --key … --key-id … --issuer …` lists the files
   (usually an unsigned Mach-O or a missing hardened runtime); the job prints the log in notarytool.log.

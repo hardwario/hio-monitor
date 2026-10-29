@@ -9,15 +9,15 @@
 // Info lines (human mode only) go to stderr. Thread safety: owner thread only.
 
 #include "cli_app.h"
-#include "hio/core/error.h"
-#include "hio/device/operation.h"
+#include "hwio/core/error.h"
+#include "hwio/device/operation.h"
 
 #include <cstdint>
 #include <ostream>
 #include <string>
 #include <string_view>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 class ProgressUi {
 public:
@@ -57,4 +57,4 @@ private:
     std::string m_lastJson; // the last NDJSON event (identical ones are skipped)
 };
 
-} // namespace hio::cli
+} // namespace hwio::cli

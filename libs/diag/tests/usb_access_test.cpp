@@ -1,7 +1,7 @@
 // checkUsbAccess on a temporary sysfs / dev tree (plan/features/0007, A3; ADR-0072).
 
-#include "hio/core/error.h"
-#include "hio/diag/usb_access.h"
+#include "hwio/core/error.h"
+#include "hwio/diag/usb_access.h"
 
 #include <QTemporaryDir>
 #include <QtSystemDetection>
@@ -20,7 +20,7 @@
 namespace {
 
 namespace fs = std::filesystem;
-using hio::ErrorCode;
+using hwio::ErrorCode;
 
 class UsbAccess : public ::testing::Test {
 protected:
@@ -51,21 +51,21 @@ private:
 TEST_F(UsbAccess, NoSeggerDeviceGivesAnEmptyList) {
     addDevice("1-1", "046d", 1, 2, true);
     fs::create_directories(root() / "sys/bus/usb/devices/1-1:1.0"); // an interface entry
-    const auto devices = hio::diag::checkUsbAccess(root() / "sys", root() / "dev");
+    const auto devices = hwio::diag::checkUsbAccess(root() / "sys", root() / "dev");
     ASSERT_TRUE(devices.has_value()) << devices.error().detail;
     EXPECT_TRUE(devices->empty());
 }
 
 TEST_F(UsbAccess, AccessibleProbe) {
     addDevice("1-2", "1366", 1, 5, true);
-    const auto devices = hio::diag::checkUsbAccess(root() / "sys", root() / "dev");
+    const auto devices = hwio::diag::checkUsbAccess(root() / "sys", root() / "dev");
     ASSERT_TRUE(devices.has_value());
     ASSERT_EQ(devices->size(), 1U);
     EXPECT_EQ(devices->front().bus, 1);
     EXPECT_EQ(devices->front().device, 5);
     EXPECT_EQ(devices->front().product, "Test Probe");
     EXPECT_TRUE(devices->front().accessible);
-    EXPECT_FALSE(hio::diag::usbAccessDeniedError(*devices).has_value());
+    EXPECT_FALSE(hwio::diag::usbAccessDeniedError(*devices).has_value());
 }
 
 TEST_F(UsbAccess, InaccessibleProbeIsUsbAccessDenied) {
@@ -74,19 +74,19 @@ TEST_F(UsbAccess, InaccessibleProbeIsUsbAccessDenied) {
     }
     addDevice("3-1", "1366", 3, 12, false);
     addDevice("1-2", "1366", 1, 5, true);
-    const auto devices = hio::diag::checkUsbAccess(root() / "sys", root() / "dev");
+    const auto devices = hwio::diag::checkUsbAccess(root() / "sys", root() / "dev");
     ASSERT_TRUE(devices.has_value());
     ASSERT_EQ(devices->size(), 2U);
     EXPECT_EQ(devices->front().bus, 1); // sorted
     EXPECT_FALSE(devices->back().accessible);
-    const auto error = hio::diag::usbAccessDeniedError(*devices);
+    const auto error = hwio::diag::usbAccessDeniedError(*devices);
     ASSERT_TRUE(error.has_value());
-    EXPECT_EQ(error.value_or(hio::Error{}).code, ErrorCode::UsbAccessDenied);
-    EXPECT_NE(error.value_or(hio::Error{}).detail.find("/dev/bus/usb/003/012"), std::string::npos);
+    EXPECT_EQ(error.value_or(hwio::Error{}).code, ErrorCode::UsbAccessDenied);
+    EXPECT_NE(error.value_or(hwio::Error{}).detail.find("/dev/bus/usb/003/012"), std::string::npos);
 }
 
 TEST_F(UsbAccess, MissingSysfsIsReadError) {
-    const auto devices = hio::diag::checkUsbAccess(root() / "nothing", root() / "dev");
+    const auto devices = hwio::diag::checkUsbAccess(root() / "nothing", root() / "dev");
     ASSERT_FALSE(devices.has_value());
     EXPECT_EQ(devices.error().code, ErrorCode::IoReadFailed);
 }
@@ -94,9 +94,9 @@ TEST_F(UsbAccess, MissingSysfsIsReadError) {
 #endif
 
 TEST(UsbRule, CommandsContainTheRule) {
-    const auto commands = hio::diag::jlinkUdevCommands();
+    const auto commands = hwio::diag::jlinkUdevCommands();
     ASSERT_EQ(commands.size(), 2U);
-    EXPECT_NE(commands[0].find(hio::diag::jlinkUdevRule), std::string::npos);
+    EXPECT_NE(commands[0].find(hwio::diag::jlinkUdevRule), std::string::npos);
     EXPECT_NE(commands[0].find("/etc/udev/rules.d/99-jlink.rules"), std::string::npos);
     EXPECT_EQ(commands[1], "sudo udevadm control --reload-rules && sudo udevadm trigger");
 }

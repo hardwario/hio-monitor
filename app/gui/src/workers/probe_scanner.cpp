@@ -1,11 +1,11 @@
 #include "workers/probe_scanner.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/device/probe_lock.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/probe_enumerator.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/probe_enumerator.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <QLoggingCategory>
 #include <QMetaObject>
@@ -20,7 +20,7 @@
 #include <system_error>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 ProbeScanner::ProbeScanner(std::filesystem::path instanceRoot, std::filesystem::path lockDirectory,
                            std::chrono::milliseconds interval, QObject* parent)
@@ -183,4 +183,4 @@ void ProbeScanner::deliver() {
     scanned(*m_last); // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

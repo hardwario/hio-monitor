@@ -1,24 +1,24 @@
 // The environment checks (plan/features/0007 § Check list texts, ADR-0068, ADR-0072, ADR-0073).
 
-#include "hio/diag/environment.h"
+#include "hwio/diag/environment.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/settings.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/probe_tools.h"
-#include "hio/device/session_registry.h"
-#include "hio/diag/check.h"
-#include "hio/diag/process_scan.h"
-#include "hio/diag/usb_access.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/types.h"
-#include "hio/hw/jlink/jlink_library.h"
-#include "hio/hw/jlink/library_locator.h"
-#include "hio/hw/jlink/probe_enumerator.h"
-#include "hio/hw/jlink/types.h"
-#include "hio/hw/nrfutil/nrfutil.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/settings.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/probe_tools.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/diag/check.h"
+#include "hwio/diag/process_scan.h"
+#include "hwio/diag/usb_access.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/types.h"
+#include "hwio/hw/jlink/jlink_library.h"
+#include "hwio/hw/jlink/library_locator.h"
+#include "hwio/hw/jlink/probe_enumerator.h"
+#include "hwio/hw/jlink/types.h"
+#include "hwio/hw/nrfutil/nrfutil.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -47,25 +47,25 @@
 #include <utility>
 #include <vector>
 
-namespace hio::diag {
+namespace hwio::diag {
 
 namespace {
 
 namespace fs = std::filesystem;
 using std::chrono::milliseconds;
 
-// Titles (context "hio::diag"; plan/features/0007 § Check list texts).
-const char* const jlinkTitle = QT_TRANSLATE_NOOP("hio::diag", "J-Link Software");
-const char* const nrfUtilTitle = QT_TRANSLATE_NOOP("hio::diag", "nRF Util");
-const char* const usbTitle = QT_TRANSLATE_NOOP("hio::diag", "USB access to J-Link");
-const char* const holdersTitle = QT_TRANSLATE_NOOP("hio::diag", "Other programs using J-Link");
-const char* const probesTitle = QT_TRANSLATE_NOOP("hio::diag", "J-Link probes");
-const char* const bluetoothTitle = QT_TRANSLATE_NOOP("hio::diag", "Bluetooth");
+// Titles (context "hwio::diag"; plan/features/0007 § Check list texts).
+const char* const jlinkTitle = QT_TRANSLATE_NOOP("hwio::diag", "J-Link Software");
+const char* const nrfUtilTitle = QT_TRANSLATE_NOOP("hwio::diag", "nRF Util");
+const char* const usbTitle = QT_TRANSLATE_NOOP("hwio::diag", "USB access to J-Link");
+const char* const holdersTitle = QT_TRANSLATE_NOOP("hwio::diag", "Other programs using J-Link");
+const char* const probesTitle = QT_TRANSLATE_NOOP("hwio::diag", "J-Link probes");
+const char* const bluetoothTitle = QT_TRANSLATE_NOOP("hwio::diag", "Bluetooth");
 
 // The `bluetooth` check's wait for the BLE thread, within the check's 5 s timeout.
 constexpr milliseconds bluetoothQueryTimeout{4500};
-const char* const firmwareTitle = QT_TRANSLATE_NOOP("hio::diag", "J-Link firmware");
-const char* const dirsTitle = QT_TRANSLATE_NOOP("hio::diag", "Settings and log folders");
+const char* const firmwareTitle = QT_TRANSLATE_NOOP("hwio::diag", "J-Link firmware");
+const char* const dirsTitle = QT_TRANSLATE_NOOP("hwio::diag", "Settings and log folders");
 
 // State shared by the checks of one environmentChecks() list (one thread at a time).
 struct SharedState {
@@ -121,7 +121,7 @@ CheckResult checkJLink(const Check& check, const EnvironmentContext& context, Sh
 CheckResult checkNrfUtil(const Check& check, const EnvironmentContext& context) {
     const auto warning = [&check](Error error) {
         std::string text =
-            QCoreApplication::translate("hio::diag", "%1 — needed only for LTE modem firmware")
+            QCoreApplication::translate("hwio::diag", "%1 — needed only for LTE modem firmware")
                 .arg(QString::fromStdString(error.message))
                 .toStdString();
         return problemResult(check, CheckStatus::Warning, std::move(error), std::move(text));
@@ -131,7 +131,7 @@ CheckResult checkNrfUtil(const Check& check, const EnvironmentContext& context) 
         Error error = std::move(executable).error();
         CheckResult result = warning(error);
         result.result = QCoreApplication::translate(
-                            "hio::diag", "Not found — needed only for LTE modem firmware")
+                            "hwio::diag", "Not found — needed only for LTE modem firmware")
                             .toStdString();
         return result;
     }
@@ -144,7 +144,7 @@ CheckResult checkNrfUtil(const Check& check, const EnvironmentContext& context) 
         context.facts->nrfUtilVersion = nrfutil::formatVersion(info->core);
         context.facts->nrfUtilDeviceVersion = nrfutil::formatVersion(info->device);
     }
-    return okResult(check, QCoreApplication::translate("hio::diag", "%1, device %2")
+    return okResult(check, QCoreApplication::translate("hwio::diag", "%1, device %2")
                                .arg(toQString(nrfutil::formatVersion(info->core)),
                                     toQString(nrfutil::formatVersion(info->device)))
                                .toStdString());
@@ -156,24 +156,25 @@ CheckResult checkUsb(const Check& check, const EnvironmentContext& context) {
 #ifndef Q_OS_LINUX
     (void)context;
     return skippedResult(
-        check, QCoreApplication::translate("hio::diag", "Not needed on this system").toStdString());
+        check,
+        QCoreApplication::translate("hwio::diag", "Not needed on this system").toStdString());
 #else
     auto devices = checkUsbAccess(context.usbSysfsRoot, context.usbDevRoot);
     if (!devices) {
         qCInfo(log::lcDiag).noquote()
             << "USB access not checked:" << toQString(devices.error().detail);
         return skippedResult(
-            check, QCoreApplication::translate("hio::diag", "Could not be checked").toStdString());
+            check, QCoreApplication::translate("hwio::diag", "Could not be checked").toStdString());
     }
     if (devices->empty()) {
         return skippedResult(
-            check, QCoreApplication::translate("hio::diag", "No J-Link connected").toStdString());
+            check, QCoreApplication::translate("hwio::diag", "No J-Link connected").toStdString());
     }
     if (auto denied = usbAccessDeniedError(*devices)) {
         return problemResult(check, CheckStatus::Failed, std::move(*denied));
     }
     return okResult(check,
-                    QCoreApplication::translate("hio::diag", "Access granted").toStdString());
+                    QCoreApplication::translate("hwio::diag", "Access granted").toStdString());
 #endif
 }
 
@@ -188,24 +189,24 @@ CheckResult checkHolders(const Check& check, const EnvironmentContext& context,
         if (holders.error().code == ErrorCode::IoReadFailed) {
             return skippedResult(
                 check,
-                QCoreApplication::translate("hio::diag", "Could not be checked").toStdString());
+                QCoreApplication::translate("hwio::diag", "Could not be checked").toStdString());
         }
         Error error = makeError(ErrorCode::DiagCheckTimeout, holders.error().detail);
         error.message =
-            QCoreApplication::translate("hio::diag", "The check \"%1\" did not finish in time.")
+            QCoreApplication::translate("hwio::diag", "The check \"%1\" did not finish in time.")
                 .arg(QString::fromStdString(checkTitle(check.titleSourceText)))
                 .toStdString();
         return problemResult(check, CheckStatus::Warning, std::move(error),
-                             QCoreApplication::translate("hio::diag", "Incomplete").toStdString());
+                             QCoreApplication::translate("hwio::diag", "Incomplete").toStdString());
     }
     if (holders->empty()) {
         return okResult(check,
-                        QCoreApplication::translate("hio::diag", "None found").toStdString());
+                        QCoreApplication::translate("hwio::diag", "None found").toStdString());
     }
     QStringList running;
     std::string detail;
     for (const ProcessMatch& holder : *holders) {
-        running.push_back(QCoreApplication::translate("hio::diag", "%1 (PID %2) is running")
+        running.push_back(QCoreApplication::translate("hwio::diag", "%1 (PID %2) is running")
                               .arg(QString::fromStdString(holder.displayName))
                               .arg(holder.pid));
         detail +=
@@ -214,11 +215,11 @@ CheckResult checkHolders(const Check& check, const EnvironmentContext& context,
     const ProcessMatch& first = holders->front();
     Error error = makeError(ErrorCode::ProbeHeldByProgram, detail);
     error.message = QCoreApplication::translate(
-                        "hio::diag", "%1 (PID %2) is running and may be using the J-Link.")
+                        "hwio::diag", "%1 (PID %2) is running and may be using the J-Link.")
                         .arg(QString::fromStdString(first.displayName))
                         .arg(first.pid)
                         .toStdString();
-    error.suggestion = QCoreApplication::translate("hio::diag", "Close %1 and try again.")
+    error.suggestion = QCoreApplication::translate("hwio::diag", "Close %1 and try again.")
                            .arg(QString::fromStdString(first.displayName))
                            .toStdString();
     return problemResult(check, CheckStatus::Warning, std::move(error),
@@ -234,7 +235,7 @@ std::string ownerText(const device::ProbeLockOwner& owner) {
 CheckResult checkProbes(const Check& check, const EnvironmentContext& context, SharedState& state) {
     if (!state.enumerator) {
         return skippedResult(check, QCoreApplication::translate(
-                                        "hio::diag", "Skipped: an earlier check did not pass")
+                                        "hwio::diag", "Skipped: an earlier check did not pass")
                                         .toStdString());
     }
     auto probes = state.enumerator->enumerate();
@@ -244,7 +245,7 @@ CheckResult checkProbes(const Check& check, const EnvironmentContext& context, S
     state.probes = *probes;
     if (probes->empty()) {
         return problemResult(check, CheckStatus::Warning, makeError(ErrorCode::ProbeNotFound),
-                             QCoreApplication::translate("hio::diag", "None found").toStdString());
+                             QCoreApplication::translate("hwio::diag", "None found").toStdString());
     }
     const device::RegistryOptions options = registryOptions(context);
     QStringList serials;
@@ -259,7 +260,7 @@ CheckResult checkProbes(const Check& check, const EnvironmentContext& context, S
             context.facts->probes.push_back(std::move(fact));
         }
     }
-    return okResult(check, QCoreApplication::translate("hio::diag", "%1 found: %2")
+    return okResult(check, QCoreApplication::translate("hwio::diag", "%1 found: %2")
                                .arg(probes->size())
                                .arg(serials.join(QStringLiteral(", ")))
                                .toStdString());
@@ -288,7 +289,7 @@ Error outdatedError(std::uint32_t serial, const device::ProbeDetails& details) {
                                         details.probe.firmware, details.libraryFirmware));
     if (details.firmwareStatus == jlink::FirmwareStatus::Newer) {
         error.message = QCoreApplication::translate(
-                            "hio::device", "The J-Link firmware is newer than the J-Link library.")
+                            "hwio::device", "The J-Link firmware is newer than the J-Link library.")
                             .toStdString();
     }
     return error;
@@ -299,7 +300,7 @@ CheckResult checkFirmware(const Check& check, const EnvironmentContext& context,
     state.enumerator.reset(); // the probes are listed: unload that copy (ADR-0030)
     if (!state.location) {
         return skippedResult(check, QCoreApplication::translate(
-                                        "hio::diag", "Skipped: an earlier check did not pass")
+                                        "hwio::diag", "Skipped: an earlier check did not pass")
                                         .toStdString());
     }
     std::vector<jlink::ProbeInfo> usbProbes;
@@ -310,7 +311,7 @@ CheckResult checkFirmware(const Check& check, const EnvironmentContext& context,
     }
     if (usbProbes.empty()) {
         return skippedResult(
-            check, QCoreApplication::translate("hio::diag", "No J-Link connected").toStdString());
+            check, QCoreApplication::translate("hwio::diag", "No J-Link connected").toStdString());
     }
     const device::RegistryOptions options = registryOptions(context);
     const device::SessionRegistry registry(options);
@@ -354,25 +355,26 @@ CheckResult checkFirmware(const Check& check, const EnvironmentContext& context,
     if (notInspected) {
         // Not "in use": nothing holds the probe, it could not be opened (e.g. USB access, a
         // program outside HARDWARIO Monitor, a failing probe). The error says why.
-        const QString text = QCoreApplication::translate("hio::diag", "Could not be checked: %1")
+        const QString text = QCoreApplication::translate("hwio::diag", "Could not be checked: %1")
                                  .arg(toQString(notInspected->message));
         return problemResult(check, CheckStatus::Warning, std::move(*notInspected),
                              text.toStdString());
     }
     if (checked == 0) {
         return skippedResult(
-            check, QCoreApplication::translate("hio::diag", "Not checked: the J-Link is in use")
+            check, QCoreApplication::translate("hwio::diag", "Not checked: the J-Link is in use")
                        .toStdString());
     }
     if (unknown > 0) {
-        return okResult(check, QCoreApplication::translate("hio::diag", "Not known").toStdString());
+        return okResult(check,
+                        QCoreApplication::translate("hwio::diag", "Not known").toStdString());
     }
     if (inUse > 0) {
         return okResult(check, QCoreApplication::translate(
-                                   "hio::diag", "Current (a J-Link in use was not checked)")
+                                   "hwio::diag", "Current (a J-Link in use was not checked)")
                                    .toStdString());
     }
-    return okResult(check, QCoreApplication::translate("hio::diag", "Current").toStdString());
+    return okResult(check, QCoreApplication::translate("hwio::diag", "Current").toStdString());
 }
 
 // ---- app-dirs ----------------------------------------------------------------------------------
@@ -388,7 +390,7 @@ std::optional<Error> checkWritable(const fs::path& directory) {
                          std::format("{}: {}", toUtf8(directory), error.message()));
     }
     QTemporaryFile probe(QString::fromStdU16String(directory.u16string()) +
-                         QStringLiteral("/.hio-write-check-XXXXXX"));
+                         QStringLiteral("/.hwio-write-check-XXXXXX"));
     if (!probe.open() || probe.write("x", 1) != 1) {
         return makeError(ErrorCode::IoWriteFailed, std::format("{}: {}", toUtf8(directory),
                                                                probe.errorString().toStdString()));
@@ -402,7 +404,7 @@ CheckResult checkDirs(const Check& check, const EnvironmentContext& context) {
             return problemResult(check, CheckStatus::Failed, std::move(*error));
         }
     }
-    return okResult(check, QCoreApplication::translate("hio::diag", "Writable").toStdString());
+    return okResult(check, QCoreApplication::translate("hwio::diag", "Writable").toStdString());
 }
 
 // ---- bluetooth (M5, ADR-0088)
@@ -421,15 +423,15 @@ CheckResult checkBluetooth(const Check& check, const EnvironmentContext& context
         return problemResult(check, CheckStatus::Warning, std::move(error));
     }
     if (adapter->state == ble::AdapterState::PermissionUndetermined) {
-        return okResult(
-            check, QCoreApplication::translate("hio::diag", "Permission will be asked on first use")
-                       .toStdString());
+        return okResult(check, QCoreApplication::translate("hwio::diag",
+                                                           "Permission will be asked on first use")
+                                   .toStdString());
     }
     if (auto problem = ble::adapterError(*adapter)) {
         // Never Failed: Bluetooth is optional (ADR-0088).
         return problemResult(check, CheckStatus::Warning, std::move(*problem));
     }
-    QString result = QCoreApplication::translate("hio::diag", "Adapter ready");
+    QString result = QCoreApplication::translate("hwio::diag", "Adapter ready");
     if (!adapter->name.empty() && !adapter->address.empty()) {
         result +=
             QStringLiteral(" (%1, %2)").arg(toQString(adapter->name), toQString(adapter->address));
@@ -567,4 +569,4 @@ std::vector<Check> environmentChecks(const EnvironmentContext& context) {
     return checks;
 }
 
-} // namespace hio::diag
+} // namespace hwio::diag

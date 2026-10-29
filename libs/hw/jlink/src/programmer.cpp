@@ -1,15 +1,15 @@
-#include "hio/hw/jlink/programmer.h"
+#include "hwio/hw/jlink/programmer.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/firmware/firmware_image.h"
-#include "hio/firmware/program_progress.h"
-#include "hio/hw/jlink/clock.h"
-#include "hio/hw/jlink/jlink_api.h"
-#include "hio/hw/jlink/jlink_probe.h"
-#include "hio/hw/jlink/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/firmware/firmware_image.h"
+#include "hwio/firmware/program_progress.h"
+#include "hwio/hw/jlink/clock.h"
+#include "hwio/hw/jlink/jlink_api.h"
+#include "hwio/hw/jlink/jlink_probe.h"
+#include "hwio/hw/jlink/types.h"
 
 #include <QChar>
 #include <QCoreApplication>
@@ -32,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::jlink {
+namespace hwio::jlink {
 
 namespace {
 
@@ -154,7 +154,7 @@ Result<ChipInfo> JLinkProgrammer::identify() {
     }
     Error error = makeError(ErrorCode::TargetConnectFailed, libraryDetail(tried));
     error.message =
-        QCoreApplication::translate("hio::jlink", "The MCU type could not be read (FICR).")
+        QCoreApplication::translate("hwio::jlink", "The MCU type could not be read (FICR).")
             .toStdString();
     return std::unexpected(std::move(error));
 }
@@ -170,10 +170,10 @@ Error JLinkProgrammer::abandonDownload(std::string detail) {
         makeError(ErrorCode::TargetProgramFailed, "flash download abandoned: " + std::move(detail));
     error.cause =
         QCoreApplication::translate(
-            "hio::jlink", "Programming was interrupted; the firmware may be partly written.")
+            "hwio::jlink", "Programming was interrupted; the firmware may be partly written.")
             .toStdString();
     error.suggestion =
-        QCoreApplication::translate("hio::jlink",
+        QCoreApplication::translate("hwio::jlink",
                                     "Check the cables and power, then flash the firmware again.")
             .toStdString();
     return error;
@@ -286,7 +286,7 @@ Status JLinkProgrammer::verify(const FirmwareImage& image, const ProgressFn& pro
                                                     at, static_cast<unsigned>(*mismatch.in1),
                                                     static_cast<unsigned>(*mismatch.in2)));
                 error.message =
-                    QCoreApplication::translate("hio::jlink", "Verification failed at address %1.")
+                    QCoreApplication::translate("hwio::jlink", "Verification failed at address %1.")
                         .arg(QStringLiteral("0x%1").arg(at, 8, 16, QLatin1Char('0')))
                         .toStdString();
                 return std::unexpected(std::move(error));
@@ -633,4 +633,4 @@ Result<std::vector<MemoryZone>> JLinkProgrammer::memoryZones() {
 
 Status JLinkProgrammer::reset(ResetMode mode) { return m_probe.reset(mode == ResetMode::Halt); }
 
-} // namespace hio::jlink
+} // namespace hwio::jlink

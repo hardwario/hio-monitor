@@ -1,5 +1,5 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: hio-monitor
+Upstream-Name: hwio-monitor
 Upstream-Contact: HARDWARIO a.s. <https://www.hardwario.com/>
 Source: https://github.com/hardwario/hio-monitor
 

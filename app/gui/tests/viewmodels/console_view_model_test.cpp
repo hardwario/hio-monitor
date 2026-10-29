@@ -5,14 +5,14 @@
 // layout, and the review round 1 fixes (K8 history walk, K9 send result and busy batch, K12).
 
 #include "gui_test_support.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/command_tree.h"
-#include "hio/device/command_tree_cache.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_log.h"
-#include "hio/device/device_session.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_tree.h"
+#include "hwio/device/command_tree_cache.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_log.h"
+#include "hwio/device/device_session.h"
 #include "support/test_page_view_model.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/console_line_model.h"
@@ -54,17 +54,17 @@
 
 namespace {
 
-using hio::ErrorCode;
-using hio::device::Channel;
-using hio::device::Direction;
-using hio::gui::AppViewModel;
-using hio::gui::BatchRunner;
-using hio::gui::ConsoleLineModel;
-using hio::gui::ConsoleViewModel;
-using hio::gui::DeviceTabViewModel;
-using hio::gui::test::spin;
-using hio::gui::test::TestPageViewModel;
-using hio::gui::test::waitFor;
+using hwio::ErrorCode;
+using hwio::device::Channel;
+using hwio::device::Direction;
+using hwio::gui::AppViewModel;
+using hwio::gui::BatchRunner;
+using hwio::gui::ConsoleLineModel;
+using hwio::gui::ConsoleViewModel;
+using hwio::gui::DeviceTabViewModel;
+using hwio::gui::test::spin;
+using hwio::gui::test::TestPageViewModel;
+using hwio::gui::test::waitFor;
 
 constexpr const char* consoleScenario = R"({
   "libraryVersion": 81000,
@@ -105,7 +105,7 @@ constexpr const char* zephyrShellWithoutHelpScenario = R"({
                "lte -h": "lte - LTE commands\nSubcommands:\n  state  :Get LTE state\n  test   :Test mode\n"}}}
   ]})";
 
-class ConsoleViewModelTest : public hio::gui::test::GuiTest {
+class ConsoleViewModelTest : public hwio::gui::test::GuiTest {
 protected:
     void SetUp() override {
         GuiTest::SetUp();
@@ -134,8 +134,8 @@ protected:
 
     // Removes the cached command tree of a Zephyr shell scenario's firmware.
     static void forgetCachedTree(const std::string& fwName = "hio-test-console-learning") {
-        const hio::device::CommandTreeCache cache(
-            hio::device::CommandTreeCache::defaultDirectory());
+        const hwio::device::CommandTreeCache cache(
+            hwio::device::CommandTreeCache::defaultDirectory());
         std::error_code ignored;
         std::filesystem::remove(cache.fileFor({.profileId = "chester",
                                                .targetId = "app",
@@ -158,8 +158,8 @@ protected:
     [[nodiscard]] std::size_t sentLines(const QString& text) const {
         std::size_t count = 0;
         for (const auto& line :
-             m_tab->consoleLog()->linesSince(0, hio::device::ChannelMask::Shell)) {
-            count += line.dir == Direction::In && hio::toQString(line.text) == text ? 1 : 0;
+             m_tab->consoleLog()->linesSince(0, hwio::device::ChannelMask::Shell)) {
+            count += line.dir == Direction::In && hwio::toQString(line.text) == text ? 1 : 0;
         }
         return count;
     }
@@ -180,7 +180,7 @@ protected:
     }
 
     [[nodiscard]] static QUrl url(const std::filesystem::path& path) {
-        return QUrl::fromLocalFile(hio::toQString(hio::toUtf8(path)));
+        return QUrl::fromLocalFile(hwio::toQString(hwio::toUtf8(path)));
     }
 
 private:
@@ -220,7 +220,7 @@ TEST_F(ConsoleViewModelTest, ShowsTheTabsLogAcrossSessions) {
     EXPECT_TRUE(rows(*console().shell()).contains(QStringLiteral("— connected —"))); // the shell's
 
     // Disconnect: no handlers of the console view model are left on the old session.
-    QPointer<hio::device::DeviceSession> old(tab().session());
+    QPointer<hwio::device::DeviceSession> old(tab().session());
     bool checked = false;
     const QMetaObject::Connection check =
         QObject::connect(&tab(), &DeviceTabViewModel::sessionChanged, &tab(), [&] {
@@ -308,9 +308,9 @@ TEST_F(ConsoleViewModelTest, SuggestionsAndCompletion) {
     EXPECT_FALSE(console().readingCommands());
 
     // With a command tree (learned in phase 2; set directly here).
-    hio::device::CommandTree tree;
-    const std::vector<hio::device::CommandEntry> top{{.name = "lte", .help = "LTE commands"},
-                                                     {.name = "led", .help = "LED commands"}};
+    hwio::device::CommandTree tree;
+    const std::vector<hwio::device::CommandEntry> top{{.name = "lte", .help = "LTE commands"},
+                                                      {.name = "led", .help = "LED commands"}};
     ASSERT_TRUE(tree.setChildren({}, top));
     console().setCommandTree(std::move(tree));
     rows = console().suggestions(QStringLiteral("l"));
@@ -327,7 +327,7 @@ TEST_F(ConsoleViewModelTest, SuggestionsAndCompletion) {
         (QStringList{QStringLiteral("lte"), QStringLiteral("led")}));
 
     // The settings, shared with the CLI console.
-    hio::gui::ConsoleSettings& settings = *console().settings();
+    hwio::gui::ConsoleSettings& settings = *console().settings();
     EXPECT_TRUE(settings.suggestions());
     EXPECT_TRUE(settings.readCommandsOnConnect());
     settings.setSuggestions(false);
@@ -566,18 +566,18 @@ TEST(BatchRunner, QueueFullRetriesTheSameCommand) {
     runner.setInterval(std::chrono::milliseconds(5));
     std::vector<std::string> sent;
     int calls = 0;
-    std::optional<hio::Error> result;
+    std::optional<hwio::Error> result;
     bool finished = false;
     QObject::connect(&runner, &BatchRunner::finished, &runner,
-                     [&](const std::optional<hio::Error>& error) {
+                     [&](const std::optional<hwio::Error>& error) {
                          result = error;
                          finished = true;
                      });
     runner.start(QStringList{QStringLiteral("a"), QStringLiteral("b")},
-                 [&](const std::string& command) -> hio::Status {
+                 [&](const std::string& command) -> hwio::Status {
                      ++calls;
                      if (calls == 2) { // "b" the first time
-                         return std::unexpected(hio::makeError(ErrorCode::InternalQueueFull));
+                         return std::unexpected(hwio::makeError(ErrorCode::InternalQueueFull));
                      }
                      sent.push_back(command);
                      return {};
@@ -590,12 +590,12 @@ TEST(BatchRunner, QueueFullRetriesTheSameCommand) {
     // Another error ends the batch with it.
     finished = false;
     runner.start(QStringList{QStringLiteral("x"), QStringLiteral("y")},
-                 [](const std::string&) -> hio::Status {
-                     return std::unexpected(hio::makeError(ErrorCode::Cancelled));
+                 [](const std::string&) -> hwio::Status {
+                     return std::unexpected(hwio::makeError(ErrorCode::Cancelled));
                  });
     ASSERT_TRUE(waitFor([&] { return finished; }));
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result.value_or(hio::Error{}).code, ErrorCode::Cancelled);
+    EXPECT_EQ(result.value_or(hwio::Error{}).code, ErrorCode::Cancelled);
     EXPECT_EQ(runner.done(), 0);
 }
 
@@ -647,7 +647,7 @@ TEST_F(ConsoleViewModelTest, ClearSaveAndCopy) {
     const auto saved = root() / "log.txt";
     console().saveView(1, url(saved));
     EXPECT_FALSE(console().error().valid());
-    QFile file(hio::toQString(hio::toUtf8(saved)));
+    QFile file(hwio::toQString(hwio::toUtf8(saved)));
     ASSERT_TRUE(file.open(QIODevice::ReadOnly));
     EXPECT_TRUE(file.readAll().contains("<inf> app: started"));
     console().saveView(1, url(root() / "missing-dir" / "x" / "log.txt"));

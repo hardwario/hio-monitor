@@ -1,7 +1,7 @@
-#include "hio/diag/check.h"
+#include "hwio/diag/check.h"
 
-#include "hio/core/error.h"
-#include "hio/core/log.h"
+#include "hwio/core/error.h"
+#include "hwio/core/log.h"
 
 #include <QCoreApplication>
 #include <QLoggingCategory>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::diag {
+namespace hwio::diag {
 
 namespace {
 
@@ -134,7 +134,7 @@ std::string formatCheckLines(std::span<const CheckResult> results, std::size_t t
 }
 
 std::string checkTitle(const char* titleSourceText) {
-    return QCoreApplication::translate("hio::diag", titleSourceText).toStdString();
+    return QCoreApplication::translate("hwio::diag", titleSourceText).toStdString();
 }
 
 CheckResult okResult(const Check& check, std::string result) {
@@ -186,7 +186,7 @@ std::vector<CheckResult> CheckRunner::run(std::span<const Check> checks,
         }
         if (stop.stop_requested()) {
             CheckResult skipped = skippedResult(
-                check, QCoreApplication::translate("hio::diag", "Cancelled").toStdString());
+                check, QCoreApplication::translate("hwio::diag", "Cancelled").toStdString());
             notify(skipped);
             results.push_back(std::move(skipped));
             continue;
@@ -199,7 +199,7 @@ std::vector<CheckResult> CheckRunner::run(std::span<const Check> checks,
         if (!dependenciesPassed || !check.run) {
             CheckResult skipped = skippedResult(
                 check,
-                QCoreApplication::translate("hio::diag", "Skipped: an earlier check did not pass")
+                QCoreApplication::translate("hwio::diag", "Skipped: an earlier check did not pass")
                     .toStdString());
             notify(skipped);
             results.push_back(std::move(skipped));
@@ -230,15 +230,15 @@ std::vector<CheckResult> CheckRunner::run(std::span<const Check> checks,
                 std::format("{}: {} ms > {} ms", check.id,
                             std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(),
                             timeout.count()));
-            error.message =
-                QCoreApplication::translate("hio::diag", "The check \"%1\" did not finish in time.")
-                    .arg(QString::fromStdString(result.title))
-                    .toStdString();
+            error.message = QCoreApplication::translate("hwio::diag",
+                                                        "The check \"%1\" did not finish in time.")
+                                .arg(QString::fromStdString(result.title))
+                                .toStdString();
             result = problemResult(check, CheckStatus::Warning, std::move(error));
         } else if (stop.stop_requested() && result.status != CheckStatus::Ok &&
                    result.status != CheckStatus::Warning && result.status != CheckStatus::Failed) {
             result = skippedResult(
-                check, QCoreApplication::translate("hio::diag", "Cancelled").toStdString());
+                check, QCoreApplication::translate("hwio::diag", "Cancelled").toStdString());
         }
         if (result.status == CheckStatus::Pending || result.status == CheckStatus::Running) {
             result = problemResult(
@@ -256,4 +256,4 @@ std::vector<CheckResult> CheckRunner::run(std::span<const Check> checks,
     return results;
 }
 
-} // namespace hio::diag
+} // namespace hwio::diag

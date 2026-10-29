@@ -4,20 +4,20 @@
 #include "cli_log.h"
 #include "command_collector.h"
 #include "console_ui.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/ble_lock.h"
-#include "hio/device/ble_session.h"
-#include "hio/device/command_history.h"
-#include "hio/device/console_session.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/profile.h"
-#include "hio/device/session_registry.h"
-#include "hio/hw/ble/ble_host.h"
-#include "hio/hw/ble/ble_scanner.h"
-#include "hio/hw/ble/nus_link.h"
-#include "hio/hw/ble/types.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/ble_lock.h"
+#include "hwio/device/ble_session.h"
+#include "hwio/device/command_history.h"
+#include "hwio/device/console_session.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
+#include "hwio/device/session_registry.h"
+#include "hwio/hw/ble/ble_host.h"
+#include "hwio/hw/ble/ble_scanner.h"
+#include "hwio/hw/ble/nus_link.h"
+#include "hwio/hw/ble/types.h"
 #include "output.h"
 #include "terminal.h"
 
@@ -56,7 +56,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 namespace {
 
@@ -560,7 +560,7 @@ void addDeviceOptions(CLI::App& command, DeviceOptions& options) {
     CLI::Option_group* device = command.add_option_group("device", "The device (one of them)");
     device
         ->add_option("-a,--address", options.address,
-                     "Bluetooth address (macOS: the device UUID shown by `hio ble scan`)")
+                     "Bluetooth address (macOS: the device UUID shown by `hwio ble scan`)")
         ->option_text("ID");
     device
         ->add_option("--name", options.name,
@@ -659,4 +659,4 @@ void registerBleCommands(CLI::App& app, CommandSlot& slot, const GlobalOptions& 
     });
 }
 
-} // namespace hio::cli
+} // namespace hwio::cli

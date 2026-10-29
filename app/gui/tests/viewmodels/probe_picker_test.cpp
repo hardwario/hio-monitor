@@ -3,8 +3,8 @@
 // (plan 0004, B3; ADR-0050, ADR-0058).
 
 #include "gui_test_support.h"
-#include "hio/device/probe_lock.h"
-#include "hio/hw/jlink/library_locator.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/hw/jlink/library_locator.h"
 #include "lock_holder.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_view_model.h"
@@ -30,13 +30,13 @@
 
 namespace {
 
-using hio::gui::AppViewModel;
-using hio::gui::DeviceTabViewModel;
-using hio::gui::ProbePickerViewModel;
-using hio::gui::test::spin;
-using hio::gui::test::waitFor;
+using hwio::gui::AppViewModel;
+using hwio::gui::DeviceTabViewModel;
+using hwio::gui::ProbePickerViewModel;
+using hwio::gui::test::spin;
+using hwio::gui::test::waitFor;
 
-class ProbePickerTest : public hio::gui::test::GuiTest {
+class ProbePickerTest : public hwio::gui::test::GuiTest {
 protected:
     static QVariant role(const ProbePickerViewModel& picker, int row, int role) {
         return picker.data(picker.index(row), role);
@@ -119,7 +119,7 @@ TEST_F(ProbePickerTest, ProbeUsedByAnotherTab) {
 TEST_F(ProbePickerTest, ProbeUsedByAnotherProcess) {
     const auto lockDir = root() / "locks";
     std::filesystem::create_directories(lockDir);
-    hio::device::test::LockHolder holder(
+    hwio::device::test::LockHolder holder(
         QString::fromStdU16String((lockDir / "probe-801000001.lock").u16string()));
     ASSERT_TRUE(holder.waitUntilLocked());
 
@@ -141,7 +141,7 @@ TEST_F(ProbePickerTest, ProbeUsedByAnotherProcess) {
 
 TEST_F(ProbePickerTest, OwnLockIsNotAnotherProgram) {
     // Review S8: a lock of this process (a tab that just disconnected) is not "another program".
-    auto lock = hio::device::ProbeLock::acquire(801000001, root() / "locks");
+    auto lock = hwio::device::ProbeLock::acquire(801000001, root() / "locks");
     ASSERT_TRUE(lock) << lock.error().detail;
     const auto app = makeApp();
     ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
@@ -154,7 +154,7 @@ TEST_F(ProbePickerTest, OneLibraryCopyWhileAPickerIsVisible) {
     // Review S4 / ADR-0093: one copy loaded for all scans, unloaded when no picker is visible.
     const auto app = makeApp();
     ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
-    hio::gui::ProbeScanner& scanner = app->probeScanner();
+    hwio::gui::ProbeScanner& scanner = app->probeScanner();
     picker.setActive(true);
     ASSERT_TRUE(waitForRows(picker, 2));
     for (int i = 0; i < 3; ++i) {
@@ -186,10 +186,10 @@ TEST_F(ProbePickerTest, AFailedLibraryIsNotLoadedOnEveryTick) {
     // every scan; a Refresh or a changed file retries.
     const std::filesystem::path broken = root() / "broken" / "libjlinkarm.so";
     std::filesystem::create_directories(broken.parent_path());
-    std::filesystem::copy_file(HIO_FAKE_JLINK_INCOMPLETE_LIBRARY, broken);
-    qputenv("HIO_JLINK_LIBRARY", QByteArray(broken.string().c_str()));
+    std::filesystem::copy_file(HWIO_FAKE_JLINK_INCOMPLETE_LIBRARY, broken);
+    qputenv("HWIO_JLINK_LIBRARY", QByteArray(broken.string().c_str()));
     const auto app = makeApp();
-    hio::gui::ProbeScanner& scanner = app->probeScanner();
+    hwio::gui::ProbeScanner& scanner = app->probeScanner();
     ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
     picker.setActive(true);
     ASSERT_TRUE(waitFor([&] { return picker.libraryError().valid(); }));
@@ -215,15 +215,15 @@ TEST_F(ProbePickerTest, AFailedLibraryIsNotLoadedOnEveryTick) {
 TEST_F(ProbePickerTest, AnotherLibraryLocationLoadsANewCopy) {
     // Review S22: a location change (setting, environment) replaces the kept copy.
     const auto app = makeApp();
-    hio::gui::ProbeScanner& scanner = app->probeScanner();
+    hwio::gui::ProbeScanner& scanner = app->probeScanner();
     ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
     picker.setActive(true);
     ASSERT_TRUE(waitForRows(picker, 2));
     EXPECT_EQ(scanner.libraryLoads(), 1);
     const std::filesystem::path other = root() / "other" / "libjlinkarm.so";
     std::filesystem::create_directories(other.parent_path());
-    std::filesystem::copy_file(HIO_FAKE_JLINK_LIBRARY, other);
-    hio::jlink::LocatorOptions options = app->locatorOptions();
+    std::filesystem::copy_file(HWIO_FAKE_JLINK_LIBRARY, other);
+    hwio::jlink::LocatorOptions options = app->locatorOptions();
     options.option = other;
     scanner.setLocatorOptions(options);
     ASSERT_TRUE(waitFor([&] { return scanner.libraryLoads() == 2; }));
@@ -238,7 +238,7 @@ TEST_F(ProbePickerTest, AnotherLibraryLocationLoadsANewCopy) {
 TEST_F(ProbePickerTest, ARefreshWithoutAPickerUsesAOneShotCopy) {
     // Review S22: no picker visible: the Refresh loads a copy for that scan only.
     const auto app = makeApp();
-    hio::gui::ProbeScanner& scanner = app->probeScanner();
+    hwio::gui::ProbeScanner& scanner = app->probeScanner();
     EXPECT_EQ(scanner.activeCount(), 0);
     scanner.scanNow();
     ASSERT_TRUE(waitFor([&] { return scanner.last().has_value(); }));
@@ -256,7 +256,7 @@ TEST_F(ProbePickerTest, ARefreshWithoutAPickerUsesAOneShotCopy) {
 }
 
 TEST_F(ProbePickerTest, MissingLibrary) {
-    qputenv("HIO_JLINK_LIBRARY", "/nonexistent/libjlinkarm.so");
+    qputenv("HWIO_JLINK_LIBRARY", "/nonexistent/libjlinkarm.so");
     const auto app = makeApp();
     ProbePickerViewModel& picker = *app->currentTabViewModel()->picker();
     picker.setActive(true);

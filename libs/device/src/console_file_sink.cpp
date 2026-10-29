@@ -1,13 +1,13 @@
-#include "hio/device/console_file_sink.h"
+#include "hwio/device/console_file_sink.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/ble_lock.h"
-#include "hio/device/console_line.h"
-#include "hio/device/probe_lock.h"
-#include "hio/device/session_key.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/ble_lock.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/probe_lock.h"
+#include "hwio/device/session_key.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -39,7 +39,7 @@
 #include <variant>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -431,4 +431,4 @@ void ConsoleFileSink::prune() const {
     }
 }
 
-} // namespace hio::device
+} // namespace hwio::device

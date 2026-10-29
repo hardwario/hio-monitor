@@ -1,11 +1,11 @@
-#include "hio/mcp/stdio_transport.h"
+#include "hwio/mcp/stdio_transport.h"
 
-#include "hio/core/log.h"
-#include "hio/mcp/json_rpc.h"
-#include "hio/mcp/protocol.h"
-#include "hio/mcp/reply_channel.h"
-#include "hio/mcp/request_context.h"
-#include "hio/mcp/server.h"
+#include "hwio/core/log.h"
+#include "hwio/mcp/json_rpc.h"
+#include "hwio/mcp/protocol.h"
+#include "hwio/mcp/reply_channel.h"
+#include "hwio/mcp/request_context.h"
+#include "hwio/mcp/server.h"
 
 #include <QByteArray>
 #include <QFileDevice>
@@ -27,7 +27,7 @@
 #include <optional>
 #include <utility>
 
-namespace hio::mcp {
+namespace hwio::mcp {
 
 // The one, persistent reply channel of a stdio transport.
 class StdioChannel final : public IReplyChannel {
@@ -95,13 +95,13 @@ void StdioTransport::drain() {
         if (!line) {
             if (m_input.atEnd() && !m_inputClosedEmitted) {
                 m_inputClosedEmitted = true;
-                qCInfo(hio::log::lcMcp) << "MCP stdio: end of input";
+                qCInfo(hwio::log::lcMcp) << "MCP stdio: end of input";
                 emit inputClosed();
             }
             return;
         }
         if (line->overlong) {
-            qCWarning(hio::log::lcMcp)
+            qCWarning(hwio::log::lcMcp)
                 << "MCP stdio: a line longer than" << m_server.limits().maxStdioLineBytes
                 << "bytes was dropped";
             m_channel->complete(
@@ -143,10 +143,10 @@ void StdioTransport::write(const QByteArray& message) {
     }
     if (!ok) {
         m_outputFailed = true;
-        qCWarning(hio::log::lcMcp) << "MCP stdio: writing to the output failed";
+        qCWarning(hwio::log::lcMcp) << "MCP stdio: writing to the output failed";
         m_channel->close(CloseReason::PeerClosed);
         emit outputFailed();
     }
 }
 
-} // namespace hio::mcp
+} // namespace hwio::mcp

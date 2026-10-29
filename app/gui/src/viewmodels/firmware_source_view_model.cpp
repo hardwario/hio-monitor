@@ -1,14 +1,14 @@
 #include "viewmodels/firmware_source_view_model.h"
 
 #include "gui_log.h"
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/result.h"
-#include "hio/device/profile.h"
-#include "hio/firmware/designated_firmware.h"
-#include "hio/firmware/firmware_cache.h"
-#include "hio/firmware/firmware_catalog.h"
-#include "hio/firmware/firmware_image.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/result.h"
+#include "hwio/device/profile.h"
+#include "hwio/firmware/designated_firmware.h"
+#include "hwio/firmware/firmware_cache.h"
+#include "hwio/firmware/firmware_catalog.h"
+#include "hwio/firmware/firmware_image.h"
 #include "pages/firmware_services.h"
 #include "viewmodels/error_info.h"
 #include "viewmodels/recent_sources_model.h"
@@ -35,7 +35,7 @@
 #include <string>
 #include <utility>
 
-namespace hio::gui {
+namespace hwio::gui {
 
 namespace {
 
@@ -821,4 +821,4 @@ void FirmwareSourceViewModel::retranslate() {
     designatedChanged();  // signal
 }
 
-} // namespace hio::gui
+} // namespace hwio::gui

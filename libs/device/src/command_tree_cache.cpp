@@ -1,10 +1,10 @@
-#include "hio/device/command_tree_cache.h"
+#include "hwio/device/command_tree_cache.h"
 
-#include "hio/core/error.h"
-#include "hio/core/json.h"
-#include "hio/core/log.h"
-#include "hio/core/result.h"
-#include "hio/device/command_tree.h"
+#include "hwio/core/error.h"
+#include "hwio/core/json.h"
+#include "hwio/core/log.h"
+#include "hwio/core/result.h"
+#include "hwio/device/command_tree.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-namespace hio::device {
+namespace hwio::device {
 
 namespace {
 
@@ -177,4 +177,4 @@ void CommandTreeCache::evict(const fs::path& kept) {
     }
 }
 
-} // namespace hio::device
+} // namespace hwio::device

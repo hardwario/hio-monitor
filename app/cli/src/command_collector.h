@@ -1,7 +1,7 @@
 #pragma once
 
 // Sending a command to a console session and collecting its response, shared by
-// `hio chester app command` (M1) and `hio ble command` (plan 0011 C1, ADR-0085): every line is
+// `hwio chester app command` (M1) and `hwio ble command` (plan 0011 C1, ADR-0085): every line is
 // queued in order, the response is collected from the moment the command is sent, for `collect`
 // counted from when the last line was written (its echo arrived); `"truncated"` when the
 // CommandResponse bound was reached. For BLE the shell prompt after the last echo ends the
@@ -9,10 +9,10 @@
 
 #include "cli_app.h"
 #include "command_response.h"
-#include "hio/core/error.h"
-#include "hio/core/result.h"
-#include "hio/device/console_line.h"
-#include "hio/device/console_session.h"
+#include "hwio/core/error.h"
+#include "hwio/core/result.h"
+#include "hwio/device/console_line.h"
+#include "hwio/device/console_session.h"
 
 #include <QList>
 #include <QObject>
@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-namespace hio::cli {
+namespace hwio::cli {
 
 // Collects the response from start() on.
 class ResponseCollector {
@@ -106,4 +106,4 @@ struct CommandTiming {
 [[nodiscard]] CommandResult commandResult(const Context& context, const std::string& command,
                                           const CommandResponse& response);
 
-} // namespace hio::cli
+} // namespace hwio::cli
