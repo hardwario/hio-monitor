@@ -24,6 +24,7 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include <QtContainerFwd>
+#include <QtCore/qnamespace.h>
 #include <QtCore/qtmetamacros.h>
 #include <QtTypes>
 
@@ -138,36 +139,6 @@ std::optional<std::string> headerString(const HttpRequest& request, QByteArrayVi
 
 } // namespace
 
-// ---- AuthGuard ----------------------------------------------------------------------------------
-
-AuthGuard::AuthGuard(const Limits& limits) : m_limits(&limits) { m_clock.start(); }
-
-bool AuthGuard::locked() {
-    if (m_lockedAt < 0) {
-        return false;
-    }
-    if (m_clock.elapsed() - m_lockedAt < m_limits->authLockout.count()) {
-        return true;
-    }
-    m_lockedAt = -1;
-    return false;
-}
-
-void AuthGuard::recordFailure() {
-    const qint64 now = m_clock.elapsed();
-    while (!m_failures.empty() && now - m_failures.front() >= m_limits->authFailureWindow.count()) {
-        m_failures.pop_front();
-    }
-    m_failures.push_back(now);
-    if (m_failures.size() >= m_limits->authFailureLimit) {
-        m_failures.clear();
-        m_lockedAt = now;
-        qCWarning(hwio::log::lcMcp) << "MCP HTTP:" << m_limits->authFailureLimit
-                                    << "failed authentications; every request is refused for"
-                                    << m_limits->authLockout.count() << "ms";
-    }
-}
-
 // ---- HttpReplyChannel ---------------------------------------------------------------------------
 
 class HttpReplyChannel final : public IReplyChannel {
@@ -241,6 +212,9 @@ HttpConnection::HttpConnection(QTcpSocket& socket, HttpShared& shared)
     m_idleTimer.setInterval(shared.limits->idleTimeout);
     m_closingTimer.setSingleShot(true);
     m_closingTimer.setInterval(shared.limits->closingTimeout);
+    m_authDelayTimer.setSingleShot(true);
+    m_authDelayTimer.setTimerType(Qt::PreciseTimer); // a coarse timer may fire up to 5 % early
+    m_authDelayTimer.setInterval(shared.limits->authFailureDelay);
     m_jsonTimer.setInterval(shared.limits->jsonResponseWindow);
     m_heartbeatTimer.setInterval(shared.limits->sseHeartbeat);
 
@@ -257,6 +231,9 @@ HttpConnection::HttpConnection(QTcpSocket& socket, HttpShared& shared)
     connect(&m_closingTimer, &QTimer::timeout, this, [this] {
         qCInfo(hwio::log::lcMcp) << "MCP HTTP: refused connection did not close in time; aborted";
         closeConnection(CloseReason::PeerClosed);
+    });
+    connect(&m_authDelayTimer, &QTimer::timeout, this, [this] {
+        refuse(401, "Missing or invalid bearer token", "WWW-Authenticate: Bearer\r\n");
     });
     connect(&m_jsonTimer, &QTimer::timeout, this, [this] {
         if (auto channel = m_active.lock(); channel && channel->canStream()) {
@@ -370,14 +347,7 @@ bool HttpConnection::checkRequest() {
             return false;
         }
     }
-    // 3. Lockout, then the bearer token (compared in constant time, never logged)
-    if (m_shared->auth.locked()) {
-        refuse(429, "Too many failed authentications",
-               "Retry-After: " +
-                   QByteArray::number((m_shared->limits->authLockout.count() + 999) / 1000) +
-                   "\r\n");
-        return false;
-    }
+    // 3. The bearer token (compared in constant time, never logged)
     const QByteArray authorization = request.header("authorization").value_or(QByteArray());
     const qsizetype space = authorization.indexOf(' ');
     const bool bearer =
@@ -385,12 +355,15 @@ bool HttpConnection::checkRequest() {
         request.headerCount("authorization") == 1 &&
         constantTimeEquals(authorization.mid(space + 1).trimmed().toStdString(), m_shared->token);
     if (!bearer) {
-        // Only a request that tried to authenticate counts towards the lockout (review R1): a
-        // request without Authorization is refused but cannot lock other clients out.
-        if (request.headerCount("authorization") > 0) {
-            m_shared->auth.recordFailure();
-        }
-        refuse(401, "Missing or invalid bearer token", "WWW-Authenticate: Bearer\r\n");
+        // ADR-0188: no shared state; the 401 follows after a constant delay (a timer, the owner
+        // thread is not blocked) and closes this connection. Further input is not read meanwhile
+        // (Phase::Handling).
+        m_headerTimer.stop();
+        m_bodyTimer.stop();
+        m_idleTimer.stop();
+        m_phase = Phase::Handling;
+        ++m_serial; // no earlier reply channel may write meanwhile
+        m_authDelayTimer.start();
         return false;
     }
     return checkShape();
@@ -614,7 +587,7 @@ void HttpConnection::closeConnection(CloseReason reason) {
     }
     m_phase = Phase::Closed;
     for (QTimer* timer : {&m_headerTimer, &m_bodyTimer, &m_idleTimer, &m_jsonTimer,
-                          &m_heartbeatTimer, &m_closingTimer}) {
+                          &m_heartbeatTimer, &m_closingTimer, &m_authDelayTimer}) {
         timer->stop();
     }
     if (auto channel = m_active.lock()) {

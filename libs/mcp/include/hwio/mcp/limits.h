@@ -69,9 +69,10 @@ struct Limits {
     // JSON if the call is done within this window, SSE otherwise.
     std::chrono::milliseconds jsonResponseWindow = std::chrono::milliseconds{250};
     std::chrono::milliseconds sseHeartbeat = std::chrono::seconds{15};
-    std::size_t authFailureLimit = 10;
-    std::chrono::milliseconds authFailureWindow = std::chrono::seconds{60};
-    std::chrono::milliseconds authLockout = std::chrono::seconds{10};
+    // ADR-0188: a request with a missing or wrong token gets its 401 after this constant delay
+    // (a timer; the owner thread is not blocked), then the connection is closed like after every
+    // refusal (one failure per connection). No process-global lockout.
+    std::chrono::milliseconds authFailureDelay = std::chrono::milliseconds{250};
 
     // Sessions and subscriptions (ADR-0095, ADR-0101, ADR-0107)
     std::size_t maxLegacySessions = 16;

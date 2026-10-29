@@ -6,15 +6,16 @@
 //
 // Check order per request (after the request line and headers were read; malformed -> 400,
 // HTTP/1.0 or other versions -> 505, headers over Limits::maxHeaderBytes -> 431 while reading):
-//   Host (421) -> Origin, Sec-Fetch-Site cross-site/same-site (403) -> lockout (429) / bearer
-//   token (401 + WWW-Authenticate: Bearer)
+//   Host (421) -> Origin, Sec-Fetch-Site cross-site/same-site (403) -> bearer token (401 +
+//   WWW-Authenticate: Bearer, sent after Limits::authFailureDelay)
 //   -> path (404) / method (405) -> Transfer-Encoding (411) / missing Content-Length on POST (411)
 //   -> body size (413) -> Content-Type application/json (415, POST) -> Accept (406)
 //   -> dialect headers and JSON-RPC (McpServer::handle()).
 // Every refusal closes the connection after the response (aborted when the client has not read it
-// within Limits::closingTimeout) and is logged in hwio.mcp (never the token). After
-// Limits::authFailureLimit failed tokens within Limits::authFailureWindow every request gets 429
-// for Limits::authLockout; only requests that carry an Authorization header count as failures.
+// within Limits::closingTimeout) and is logged in hwio.mcp (never the token). ADR-0188: a failed
+// token costs its connection (one failure per connection) and Limits::authFailureDelay; there is
+// no process-global lockout, so a request with the correct token is never refused for auth
+// reasons.
 //
 // Responses: application/json when the call is answered within Limits::jsonResponseWindow and
 // had no progress token; otherwise text/event-stream (chunked; "event: message" per message, a

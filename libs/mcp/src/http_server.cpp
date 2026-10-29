@@ -37,8 +37,7 @@ struct HttpServer::Impl {
         : q(server), requestedPort(options.port), shared{.server = &mcp,
                                                          .limits = &mcp.limits(),
                                                          .token = std::move(options.token),
-                                                         .port = options.port,
-                                                         .auth = detail::AuthGuard(mcp.limits())} {}
+                                                         .port = options.port} {}
 
     [[nodiscard]] std::size_t openConnections() const {
         return static_cast<std::size_t>(std::ranges::count_if(

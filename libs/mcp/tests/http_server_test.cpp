@@ -16,6 +16,7 @@
 #include <QAbstractSocket>
 #include <QByteArray>
 #include <QByteArrayView>
+#include <QElapsedTimer>
 #include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -362,7 +363,7 @@ TEST_F(HttpServerTest, CheckOrder) {
 
 TEST_F(HttpServerTest, CrossSiteBrowserRequestsAreRefusedBeforeTheToken) {
     Limits limits;
-    limits.authFailureLimit = 2;
+    limits.authFailureDelay = 10ms;
     start(limits);
     const QByteArray body = toolCallBody("echo", {{QStringLiteral("text"), QStringLiteral("x")}});
     // A no-cors GET of a web page: no Origin, Sec-Fetch-Site cross-site, no token.
@@ -379,7 +380,7 @@ TEST_F(HttpServerTest, CrossSiteBrowserRequestsAreRefusedBeforeTheToken) {
         }
         EXPECT_EQ(statusOf(request("POST", body, {{"Sec-Fetch-Site", site}})), 403);
     }
-    // No lockout: the refused requests never reached the token step.
+    // The refused requests never reached the token step.
     EXPECT_EQ(statusOf(echo()), 200);
     // Same-origin and user-initiated requests pass on to the token check.
     EXPECT_EQ(statusOf(request("POST", body, {{"Sec-Fetch-Site", "same-origin"}})), 200);
@@ -445,28 +446,50 @@ TEST_F(HttpServerTest, MalformedVersionAndSizeLimits) {
     EXPECT_EQ(statusOf(request("POST", big)), 200);
 }
 
-TEST_F(HttpServerTest, LockoutAfterRepeatedTokenFailures) {
+// ADR-0188 (review M-8): a wrong token gets 401 after a constant delay and loses its connection;
+// there is no shared lockout, so other clients with the correct token are never refused.
+TEST_F(HttpServerTest, TokenFailureIsDelayedAndClosesOnlyItsConnection) {
     Limits limits;
-    limits.authLockout = 300ms;
+    limits.authFailureDelay = 500ms; // the default is 250 ms; longer for slow sanitizer builds
     start(limits);
-    for (int i = 0; i < 9; ++i) {
+    QElapsedTimer elapsed;
+    elapsed.start();
+    Client wrong(port);
+    wrong.send(request("POST", "{}", {{"Authorization", "Bearer wrong"}}));
+    // Meanwhile a client with the correct token is served at once.
+    EXPECT_EQ(statusOf(echo()), 200);
+    EXPECT_LT(elapsed.elapsed(), 500);
+    auto unauthorized = wrong.response();
+    ASSERT_TRUE(unauthorized.received);
+    EXPECT_GE(elapsed.elapsed(), 500);
+    EXPECT_EQ(unauthorized.status, 401);
+    EXPECT_EQ(unauthorized.header("connection"), "close");
+    EXPECT_TRUE(wrong.waitClosed());
+}
+
+TEST_F(HttpServerTest, ManyTokenFailuresNeverLockTheCorrectTokenOut) {
+    Limits limits;
+    limits.authFailureDelay = 5ms;
+    start(limits);
+    for (int i = 0; i < 30; ++i) {
         EXPECT_EQ(statusOf(request("POST", "{}", {{"Authorization", "Bearer wrong"}})), 401);
     }
-    EXPECT_EQ(statusOf(echo()), 200); // 9 failures: still open
-    // Requests without Authorization are refused but never count (review R1).
-    for (int i = 0; i < 20; ++i) {
-        EXPECT_EQ(statusOf(request("POST", "{}", {{"Authorization", {}}})), 401);
-    }
+    EXPECT_EQ(statusOf(request("POST", "{}", {{"Authorization", {}}})), 401);
     EXPECT_EQ(statusOf(echo()), 200);
-    EXPECT_EQ(statusOf(request("POST", "{}", {{"Authorization", "Basic abc"}})), 401);
+}
+
+// A pipelined second request after a wrong token is never read (one failure per connection).
+TEST_F(HttpServerTest, TokenFailureEndsThePipelinedRequests) {
+    Limits limits;
+    limits.authFailureDelay = 50ms;
+    start(limits);
     Client client(port);
-    client.send(echo());
-    auto locked = client.response();
-    ASSERT_TRUE(locked.received);
-    EXPECT_EQ(locked.status, 429);
-    EXPECT_FALSE(locked.header("retry-after").isEmpty());
-    runFor(350ms);
-    EXPECT_EQ(statusOf(echo()), 200);
+    client.send(request("POST", "{}", {{"Authorization", "Bearer wrong"}}) + echo());
+    auto first = client.response();
+    ASSERT_TRUE(first.received);
+    EXPECT_EQ(first.status, 401);
+    EXPECT_TRUE(client.waitClosed());
+    EXPECT_FALSE(client.response(300ms).received);
 }
 
 TEST_F(HttpServerTest, SlowlorisAndIdleTimeouts) {

@@ -12,14 +12,12 @@
 #include "hwio/mcp/reply_channel.h"
 
 #include <QByteArray>
-#include <QElapsedTimer>
 #include <QJsonObject>
 #include <QObject>
 #include <QTimer>
 #include <QtTypes>
 
 #include <cstdint>
-#include <deque>
 #include <memory>
 #include <string>
 
@@ -33,28 +31,12 @@ namespace hwio::mcp::detail {
 
 class HttpReplyChannel;
 
-// Failed-token bookkeeping shared by all connections (ADR-0102: 10 failures in 60 s -> 429 for
-// 10 s for everybody).
-class AuthGuard {
-public:
-    explicit AuthGuard(const Limits& limits);
-    [[nodiscard]] bool locked();
-    void recordFailure();
-
-private:
-    const Limits* m_limits; // non-owning, never null (the server's limits)
-    QElapsedTimer m_clock;
-    std::deque<qint64> m_failures; // at most Limits::authFailureLimit entries
-    qint64 m_lockedAt = -1;
-};
-
 // Owned by HttpServer; the connections keep a non-owning pointer to it.
 struct HttpShared {
     McpServer* server = nullptr;    // non-owning, never null
     const Limits* limits = nullptr; // non-owning, never null (McpServer::limits())
     std::string token;
     quint16 port = 0;
-    AuthGuard auth;
 };
 
 class HttpConnection : public QObject {
@@ -115,7 +97,8 @@ private:
     QTimer m_idleTimer;
     QTimer m_jsonTimer;
     QTimer m_heartbeatTimer;
-    QTimer m_closingTimer; // Phase::Closing -> abort after Limits::closingTimeout
+    QTimer m_closingTimer;   // Phase::Closing -> abort after Limits::closingTimeout
+    QTimer m_authDelayTimer; // ADR-0188: the 401 after Limits::authFailureDelay
 };
 
 } // namespace hwio::mcp::detail
