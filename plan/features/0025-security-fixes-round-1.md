@@ -170,7 +170,7 @@ why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 3 auth f
 - [x] D. M-2 QML PlainText + `qml_plaintext_check`.
 - [ ] E. M-4 a/b/c/e (after the autocomplete refactoring has landed — see Risks), settings migration, translations.
 - [ ] F. M-3 udev + diag text; M-6 RTT cap; M-8 MCP auth.
-- [ ] G. M-5 hardening flags + `binary_hardening_check`; L-5 release.yml.
+- [x] G. M-5 hardening flags + `binary_hardening_check`; L-5 release.yml.
 - [ ] H. L-4, L-17, L-18.
 - [ ] I. `update_translations` + Czech entries; verification below.
 

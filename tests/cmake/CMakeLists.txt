@@ -69,3 +69,27 @@ set_tests_properties(qml_plaintext_check_detects PROPERTIES
     PASS_REGULAR_EXPRESSION "3 problem\\(s\\) in 1 files"
     LABELS "cmake")
 
+# ADR-0187 (plan/features/0025, M-5): the executables carry the hardening of HWioHardening.cmake
+# (builds without sanitizers; macOS is not checked).
+if(NOT HWIO_SANITIZERS AND (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR WIN32))
+    set(_hwio_hardened_binaries "$<TARGET_FILE:hwio>")
+    if(TARGET hwio-monitor)
+        list(APPEND _hwio_hardened_binaries "$<TARGET_FILE:hwio-monitor>")
+    endif()
+    if(WIN32)
+        find_program(HWIO_BINARY_READER NAMES llvm-readobj llvm-readobj-21 REQUIRED)
+    else()
+        find_program(HWIO_BINARY_READER NAMES readelf llvm-readelf llvm-readelf-21 REQUIRED)
+    endif()
+    add_test(NAME binary_hardening_check
+        COMMAND "${CMAKE_COMMAND}" "-DHWIO_OS=${CMAKE_SYSTEM_NAME}"
+            "-DHWIO_READER=${HWIO_BINARY_READER}"
+            "-DHWIO_BINARIES=${_hwio_hardened_binaries}"
+            "-DHWIO_EXPECT_FORTIFY=$<IF:$<CONFIG:Release,RelWithDebInfo>,ON,OFF>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/check_binary_hardening.cmake")
+    set_tests_properties(binary_hardening_check PROPERTIES
+        PASS_REGULAR_EXPRESSION "binary_hardening_check: [0-9]+ executables hardened"
+        FAIL_REGULAR_EXPRESSION "ADR-0187"
+        LABELS "cmake")
+    unset(_hwio_hardened_binaries)
+endif()

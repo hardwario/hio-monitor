@@ -76,7 +76,9 @@ jobs:
           arch: linux_gcc_64
           aqtversion: ${{ env.AQT_VERSION }}
           modules: qtconnectivity
-          cache: true
+          # Review L-5 (plan/features/0025): signed release artifacts never use Qt from the
+          # Actions cache (a poisoned entry would feed the signed binaries).
+          cache: false
       - name: Package configuration (version from the tag, HWIO_TEST_OVERRIDES=OFF)
         run: |
           cmake --preset linux-package | tee configure.log
@@ -157,7 +159,9 @@ jobs:
           arch: clang_64
           aqtversion: ${{ env.AQT_VERSION }}
           modules: qtconnectivity
-          cache: true
+          # Review L-5 (plan/features/0025): signed release artifacts never use Qt from the
+          # Actions cache (a poisoned entry would feed the signed binaries).
+          cache: false
       - name: Build and install
         run: |
           cmake --preset macos-package
@@ -247,7 +251,9 @@ jobs:
           arch: win64_msvc2022_64
           aqtversion: ${{ env.AQT_VERSION }}
           modules: qtconnectivity
-          cache: true
+          # Review L-5 (plan/features/0025): signed release artifacts never use Qt from the
+          # Actions cache (a poisoned entry would feed the signed binaries).
+          cache: false
       - name: Build
         run: |
           cmake --preset windows-package
