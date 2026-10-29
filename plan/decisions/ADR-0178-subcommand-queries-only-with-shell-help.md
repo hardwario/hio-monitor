@@ -1,6 +1,6 @@
 # ADR-0178 — Subcommand queries (`<command> -h`) only when the shell's `help` shows `-h` support
 
-- **Status:** Proposed (amends ADR-0170: how subcommands are learned)
+- **Status:** Accepted (amends ADR-0170: how subcommands are learned)
 - **Date:** 2026-10-26
 - **Decided by:** Matej Strnad (plan 0022)
 

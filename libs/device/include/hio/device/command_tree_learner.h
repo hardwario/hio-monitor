@@ -8,11 +8,12 @@
 // tree the top level is learned with `help` at once when readOnConnect is on, else on the first
 // requestTopLevel() (the first time a suggestion needs it). requestChildren(path) learns the
 // subcommands of a known command with `<path> -h` once (a command without a list is remembered as
-// having none). Every learned step is stored in the cache when the key is known. Queries run
-// through the ShellQueryQueue (silent, one at a time); a refused, timed-out or truncated query
-// leaves the tree as it is (review P2) and the step can be asked again - at once when the query
-// did not run, after retryInterval when it ran (so that typing does not hold the user's commands
-// again and again).
+// having none), but only when the `help` answer (or the cached tree) shows that the shell handles
+// `-h` itself (CommandTree::dashHSupported, plan 0022, ADR-0178); otherwise it sends nothing.
+// Every learned step is stored in the cache when the key is known. Queries run through the
+// ShellQueryQueue (silent, one at a time); a refused, timed-out or truncated query leaves the tree
+// as it is (review P2) and the step can be asked again - at once when the query did not run, after
+// retryInterval when it ran (so that typing does not hold the user's commands again and again).
 //
 // tree() is an immutable snapshot (a new one per change), so another thread may keep using an
 // older snapshot (the CLI console's input thread).

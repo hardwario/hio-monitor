@@ -236,6 +236,7 @@ TestCase {
                                   "info show": "vendor-name: HARDWARIO\nproduct-name: CHESTER-M\n"
                                                + "fw-name: hio-chester-push-fm\nfw-version: " + version + "\n",
                                   "help": "Please press the <Tab> button to see all available commands.\n"
+                                          + "You can try to call commands with <-h> or <--help> parameter for more information.\n"
                                           + "Available commands:\n"
                                           + "  app      :Application commands.\n"
                                           + "  config   :Configuration commands.\n"

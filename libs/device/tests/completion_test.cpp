@@ -1,5 +1,6 @@
 // Plan 0021 (ADR-0166, ADR-0170): parseInfoShow, CommandTree + parseHelp, CommandTreeCache (bounds,
-// LRU, two-process lock) and Completer.
+// LRU, two-process lock) and Completer. Plan 0022 (ADR-0178): helpSupportsDashH, the dashH flag
+// (schema 2) and bare command names.
 
 #include "hio/core/error.h"
 #include "hio/device/command_tree.h"
@@ -35,6 +36,7 @@ using hio::device::CommandTree;
 using hio::device::CommandTreeCache;
 using hio::device::Completer;
 using hio::device::FirmwareKey;
+using hio::device::helpSupportsDashH;
 using hio::device::parseHelp;
 using hio::device::parseInfoShow;
 using hio::device::Suggestion;
@@ -128,6 +130,88 @@ TEST(ParseHelp, SubcommandsAndAnsi) {
     EXPECT_TRUE(parseHelp(std::vector<std::string>{"uart:~$ help", "no list here"}).empty());
 }
 
+// Zephyr `help` without CONFIG_SHELL_HELP (ADR-0178, D3): bare names, empty help texts.
+TEST(ParseHelp, BareNamesWithoutShellHelp) {
+    const std::vector<std::string> lines{
+        "Please press the <Tab> button to see all available commands.",
+        "You can also use the <Tab> button to prompt or auto-complete all commands.",
+        "",
+        "Available commands:",
+        "  app\r",
+        "\x1b[1;32m  config\x1b[0m",
+        "  device  ",
+        "  bad name",
+        "  kernel",
+        "uart:~$ ",
+    };
+    const auto entries = parseHelp(lines);
+    ASSERT_EQ(entries.size(), 4U);
+    EXPECT_EQ(entries[0].name, "app");
+    EXPECT_EQ(entries[1].name, "config");
+    EXPECT_EQ(entries[2].name, "device");
+    EXPECT_EQ(entries[3].name, "kernel");
+    for (const CommandEntry& entry : entries) {
+        EXPECT_TRUE(entry.help.empty());
+    }
+}
+
+// With CONFIG_SHELL_HELP a command without a help text is a bare name among the others; a wrapped
+// one-word help text (deeper) stays a continuation; bare names in "Subcommands:" are not taken.
+TEST(ParseHelp, BareNamesMixedWithHelpTexts) {
+    const std::vector<std::string> lines{
+        "Available commands:",
+        "  app       :Application commands that",
+        "             wrap.",
+        "  reboot",
+        "  version   :Show firmware version.",
+        "uart:~$ ",
+        "Subcommands:",
+        "  state",
+    };
+    const auto entries = parseHelp(lines);
+    ASSERT_EQ(entries.size(), 3U);
+    EXPECT_EQ(entries[0].help, "Application commands that wrap.");
+    EXPECT_EQ(entries[1].name, "reboot");
+    EXPECT_TRUE(entries[1].help.empty());
+    EXPECT_EQ(entries[2].name, "version");
+}
+
+// ---- helpSupportsDashH (ADR-0178) ------------------------------------------------------------
+
+TEST(HelpSupportsDashH, MarkerPresent) {
+    const std::vector<std::string> lines{
+        "Please press the <Tab> button to see all available commands.",
+        "You can try to call commands with <-h> or <--help> parameter for more information.",
+        "",
+        "Available commands:",
+        "  app  :Application commands.",
+    };
+    EXPECT_TRUE(helpSupportsDashH(lines));
+}
+
+TEST(HelpSupportsDashH, MarkerAbsent) {
+    const std::vector<std::string> lines{
+        "Please press the <Tab> button to see all available commands.",
+        "Available commands:",
+        "  app",
+        "  help  :Prints the help message (-h or --help).",
+    };
+    EXPECT_FALSE(helpSupportsDashH(lines));
+    EXPECT_FALSE(helpSupportsDashH(std::vector<std::string>{}));
+}
+
+TEST(HelpSupportsDashH, AnsiAndCarriageReturn) {
+    EXPECT_TRUE(helpSupportsDashH(std::vector<std::string>{
+        "\x1b[1;32mYou can try to call commands with <-h>\x1b[0m or <--help> parameter\r\r"}));
+    EXPECT_TRUE(helpSupportsDashH(std::vector<std::string>{"<-h> or <--help>\r"}));
+}
+
+// The marker split over two lines is not a marker (the safe side: no `-h`).
+TEST(HelpSupportsDashH, SplitAcrossLines) {
+    EXPECT_FALSE(helpSupportsDashH(std::vector<std::string>{
+        "You can try to call commands with <-h> or", "<--help> parameter for more information."}));
+}
+
 // ---- CommandTree ---------------------------------------------------------------------------
 
 CommandTree sampleTree() {
@@ -164,7 +248,32 @@ TEST(CommandTreeTest, ChildrenAndJsonRoundTrip) {
     EXPECT_EQ(restored->find(lte)->children.size(), 3U);
     const std::vector<std::string> app{"app"};
     EXPECT_FALSE(restored->find(app)->childrenKnown);
+    EXPECT_FALSE(restored->dashHSupported());
     EXPECT_FALSE(CommandTree::fromJson(QJsonObject{}));
+}
+
+// ADR-0178: the dashH flag is stored (schema 2); a schema 1 tree (no flag) is rejected (D2).
+TEST(CommandTreeTest, DashHFlagAndOldSchema) {
+    CommandTree tree = sampleTree();
+    EXPECT_FALSE(tree.dashHSupported());
+    tree.setDashHSupported(true);
+    const QJsonObject json = tree.toJson();
+    EXPECT_EQ(json.value(QStringLiteral("schema")).toInt(), 2);
+    EXPECT_TRUE(json.value(QStringLiteral("dashH")).toBool());
+    const auto restored = CommandTree::fromJson(json);
+    ASSERT_TRUE(restored);
+    EXPECT_TRUE(restored->dashHSupported());
+    EXPECT_EQ(restored->nodeCount(), 6U);
+
+    QJsonObject old = json;
+    old.insert(QStringLiteral("schema"), 1);
+    old.remove(QStringLiteral("dashH"));
+    const auto rejected = CommandTree::fromJson(old);
+    ASSERT_FALSE(rejected);
+    EXPECT_EQ(rejected.error().code, hio::ErrorCode::UsageInvalidArgument);
+    QJsonObject noFlag = json;
+    noFlag.remove(QStringLiteral("dashH"));
+    EXPECT_FALSE(CommandTree::fromJson(noFlag));
 }
 
 TEST(CommandTreeTest, NodeBound) {
@@ -209,6 +318,28 @@ TEST_F(TreeCache, StoreAndLoad) {
     EXPECT_FALSE(cache.load(key("v2"))); // another firmware
     EXPECT_NE(cache.fileFor(key("v1")), cache.fileFor(key("v2")));
     EXPECT_TRUE(cache.fileFor(key("v1")).filename().string().starts_with("chester-app-"));
+}
+
+// ADR-0178 (D2): a cached tree of schema 1 is a miss (relearned with `help`); the flag survives a
+// store and load.
+TEST_F(TreeCache, OldSchemaIsAMissAndTheFlagIsKept) {
+    CommandTreeCache cache(dir());
+    CommandTree tree = sampleTree();
+    tree.setDashHSupported(true);
+    ASSERT_TRUE(cache.store(key("v1"), tree));
+    EXPECT_TRUE(cache.load(key("v1")).transform(&CommandTree::dashHSupported).value_or(false));
+    {
+        std::ofstream out(cache.fileFor(key("v1")), std::ios::trunc);
+        out << R"({"schema":1,"profile":"chester","target":"app","fwName":"hio-chester-push-fm",)"
+               R"("fwVersion":"v1","tree":{"schema":1,"root":[{"name":"app","help":""}]}})";
+    }
+    EXPECT_FALSE(cache.load(key("v1")));
+    {
+        std::ofstream out(cache.fileFor(key("v1")), std::ios::trunc);
+        out << R"({"schema":1,"profile":"chester","target":"app","fwName":"hio-chester-push-fm",)"
+               R"("fwVersion":"v1","tree":{"schema":2,"dashH":false,"root":[{"name":"app"}]}})";
+    }
+    EXPECT_TRUE(cache.load(key("v1"))); // the same file with a schema 2 tree is used
 }
 
 TEST_F(TreeCache, DamagedOrForeignFilesAreMisses) {

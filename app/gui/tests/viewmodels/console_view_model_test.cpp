@@ -78,8 +78,9 @@ constexpr const char* consoleScenario = R"({
              "responses": {"version": "Firmware version: v9.9.9\n"}}}
   ]})";
 
-// Plan 0021 phase 2: a Zephyr shell that answers `info show`, `help` and `lte -h` (the firmware
-// name is unique to these tests: the command tree cache is shared by the test processes).
+// Plan 0021 phase 2: a Zephyr shell that answers `info show`, `help` (with the CONFIG_SHELL_HELP
+// marker, ADR-0178) and `lte -h` (the firmware name is unique to these tests: the command tree
+// cache is shared by the test processes).
 constexpr const char* zephyrShellScenario = R"({
   "libraryVersion": 81000,
   "probes": [
@@ -87,7 +88,20 @@ constexpr const char* zephyrShellScenario = R"({
      "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "uart:~$ booted A\n"}],
              "responses": {
                "info show": "fw-name: hio-test-console-learning\nfw-version: v1.2.3\n",
-               "help": "Available commands:\n  app   :Application commands\n  lte   :LTE commands\n",
+               "help": "You can try to call commands with <-h> or <--help> parameter for more information.\n\nAvailable commands:\n  app   :Application commands\n  lte   :LTE commands\n",
+               "lte -h": "lte - LTE commands\nSubcommands:\n  state  :Get LTE state\n  test   :Test mode\n"}}}
+  ]})";
+
+// Plan 0022 (ADR-0178): a Zephyr shell without CONFIG_SHELL_HELP (bare names, no marker). It
+// would answer `lte -h`, so a learned `state` would prove that `-h` was sent.
+constexpr const char* zephyrShellWithoutHelpScenario = R"({
+  "libraryVersion": 81000,
+  "probes": [
+    {"serialNumber": 801000001, "product": "Test Probe",
+     "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "uart:~$ booted A\n"}],
+             "responses": {
+               "info show": "fw-name: hio-test-console-no-dash-h\nfw-version: v1.2.3\n",
+               "help": "Available commands:\n  app\n  lte\n",
                "lte -h": "lte - LTE commands\nSubcommands:\n  state  :Get LTE state\n  test   :Test mode\n"}}}
   ]})";
 
@@ -118,14 +132,14 @@ protected:
         return waitFor([&] { return tab.state() == DeviceTabViewModel::Connected; });
     }
 
-    // Removes the cached command tree of the Zephyr shell scenario's firmware.
-    static void forgetCachedTree() {
+    // Removes the cached command tree of a Zephyr shell scenario's firmware.
+    static void forgetCachedTree(const std::string& fwName = "hio-test-console-learning") {
         const hio::device::CommandTreeCache cache(
             hio::device::CommandTreeCache::defaultDirectory());
         std::error_code ignored;
         std::filesystem::remove(cache.fileFor({.profileId = "chester",
                                                .targetId = "app",
-                                               .fwName = "hio-test-console-learning",
+                                               .fwName = fwName,
                                                .fwVersion = "v1.2.3"}),
                                 ignored);
     }
@@ -369,6 +383,34 @@ TEST_F(ConsoleViewModelTest, LearnsTheCommandTreeOnConnect) {
     }));
     EXPECT_FALSE(console().readingCommands());
     forgetCachedTree();
+}
+
+// Plan 0022 (ADR-0178): without the CONFIG_SHELL_HELP marker in `help` the top-level commands
+// are learned (bare names) but `lte -h` is never sent, also not from the cached tree.
+TEST_F(ConsoleViewModelTest, NoSubcommandQueryWithoutShellHelp) {
+    const std::string fwName = "hio-test-console-no-dash-h";
+    forgetCachedTree(fwName);
+    useScenario(zephyrShellWithoutHelpScenario);
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(waitFor([&] {
+        return !console().readingCommands() &&
+               labels(console().suggestions(QStringLiteral("l"))) == QStringList{"lte"};
+    }));
+    for (int attach = 0; attach < 2; ++attach) { // learned, then from the cache
+        EXPECT_TRUE(labels(console().suggestions(QStringLiteral("lte "))).isEmpty());
+        EXPECT_FALSE(console().readingCommands());
+        spin(std::chrono::milliseconds(500));
+        EXPECT_FALSE(console().readingCommands());
+        EXPECT_TRUE(labels(console().suggestions(QStringLiteral("lte s"))).isEmpty());
+        EXPECT_EQ(console().complete(QStringLiteral("lt")).value(QStringLiteral("replacement")),
+                  QStringLiteral("lte "));
+        tab().disconnectDevice();
+        ASSERT_TRUE(connectAndWait(tab()));
+        ASSERT_TRUE(waitFor([&] {
+            return labels(console().suggestions(QStringLiteral("l"))) == QStringList{"lte"};
+        }));
+    }
+    forgetCachedTree(fwName);
 }
 
 // Review P7: a refused `info show` (the tab is busy) keeps the known device info and does not

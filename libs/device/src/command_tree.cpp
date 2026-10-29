@@ -23,7 +23,10 @@ namespace hio::device {
 
 namespace {
 
-constexpr int schemaVersion = 1;
+constexpr int schemaVersion = 2; // 2: the dashH flag (ADR-0178)
+
+// The line Zephyr's `help` prints only with CONFIG_SHELL_HELP (ADR-0178, decision D4).
+constexpr std::string_view dashHMarker = "<-h> or <--help>";
 
 bool isNameChar(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' ||
@@ -49,6 +52,25 @@ std::string cutUtf8(std::string_view text, std::size_t max) {
         --cut;
     }
     return std::string(text.substr(0, cut));
+}
+
+std::string_view withoutCr(std::string_view line) {
+    while (line.ends_with('\r')) {
+        line.remove_suffix(1);
+    }
+    return line;
+}
+
+// Continues a wrapped help text (within maxHelpBytes).
+void appendHelp(std::string& help, std::string_view text) {
+    if (help.size() >= CommandTree::maxHelpBytes) {
+        return;
+    }
+    if (!help.empty()) {
+        help += ' ';
+    }
+    help += text;
+    help = cutUtf8(help, CommandTree::maxHelpBytes);
 }
 
 std::size_t countNodes(const CommandNode& node) {
@@ -165,12 +187,14 @@ bool CommandTree::setChildren(std::span<const std::string> path,
 QJsonObject CommandTree::toJson() const {
     QJsonObject json;
     json.insert(QStringLiteral("schema"), schemaVersion);
+    json.insert(QStringLiteral("dashH"), m_dashHSupported);
     json.insert(QStringLiteral("root"), toJsonArray(m_root.children));
     return json;
 }
 
 Result<CommandTree> CommandTree::fromJson(const QJsonObject& json) {
     if (json.value(QStringLiteral("schema")).toInt() != schemaVersion ||
+        !json.value(QStringLiteral("dashH")).isBool() ||
         !json.value(QStringLiteral("root")).isArray()) {
         return std::unexpected(makeError(ErrorCode::UsageInvalidArgument, "command tree: schema"));
     }
@@ -183,22 +207,22 @@ Result<CommandTree> CommandTree::fromJson(const QJsonObject& json) {
     }
     tree.m_root.childrenKnown = true;
     tree.m_nodes = maxNodes - budget;
+    tree.m_dashHSupported = json.value(QStringLiteral("dashH")).toBool();
     return tree;
 }
 
 std::vector<CommandEntry> parseHelp(std::span<const std::string> lines) {
     std::vector<CommandEntry> entries;
     bool inList = false;
+    bool bareNames = false;      // "Available commands:" without CONFIG_SHELL_HELP (D3)
     std::size_t entryIndent = 0; // the indentation of the entry lines
     for (const std::string& raw : lines) {
         const std::string cleaned = stripAnsiCsi(raw);
-        std::string_view line = cleaned;
-        while (line.ends_with('\r')) {
-            line.remove_suffix(1);
-        }
+        const std::string_view line = withoutCr(cleaned);
         const std::string_view trimmed = trim(line);
         if (trimmed == "Available commands:" || trimmed == "Subcommands:") {
             inList = true;
+            bareNames = trimmed == "Available commands:";
             continue;
         }
         if (!inList) {
@@ -213,28 +237,33 @@ std::vector<CommandEntry> parseHelp(std::span<const std::string> lines) {
         const std::size_t nameEnd = std::min(trimmed.find_first_of(" \t:"), trimmed.size());
         const std::string_view name = trimmed.substr(0, nameEnd);
         const std::string_view rest = trim(trimmed.substr(nameEnd));
-        if (isCommandName(name) && rest.starts_with(':')) {
-            if (entries.size() >= CommandTree::maxNodes) {
-                break;
-            }
-            entries.push_back(
-                CommandEntry{.name = std::string(name),
-                             .help = cutUtf8(trim(rest.substr(1)), CommandTree::maxHelpBytes)});
-            entryIndent = indent;
+        const bool withHelp = isCommandName(name) && rest.starts_with(':');
+        // A wrapped help text is indented deeper than the entries.
+        if (!withHelp && !entries.empty() && indent > entryIndent) {
+            appendHelp(entries.back().help, trimmed);
             continue;
         }
-        // A wrapped help text is indented deeper than the entries; other lines are skipped.
-        if (!entries.empty() && indent > entryIndent &&
-            entries.back().help.size() < CommandTree::maxHelpBytes) {
-            std::string& help = entries.back().help;
-            if (!help.empty()) {
-                help += ' ';
-            }
-            help += trimmed;
-            help = cutUtf8(help, CommandTree::maxHelpBytes);
+        // A bare "<name>" (no help text) at the entries' indentation (D3); other lines are skipped.
+        if (!withHelp && !(bareNames && isCommandName(name) && rest.empty())) {
+            continue;
         }
+        if (entries.size() >= CommandTree::maxNodes) {
+            break;
+        }
+        entries.push_back(
+            CommandEntry{.name = std::string(name),
+                         .help = withHelp ? cutUtf8(trim(rest.substr(1)), CommandTree::maxHelpBytes)
+                                          : std::string()});
+        entryIndent = indent;
     }
     return entries;
+}
+
+bool helpSupportsDashH(std::span<const std::string> lines) {
+    return std::ranges::any_of(lines, [](const std::string& raw) {
+        const std::string cleaned = stripAnsiCsi(raw);
+        return withoutCr(cleaned).contains(dashHMarker);
+    });
 }
 
 } // namespace hio::device

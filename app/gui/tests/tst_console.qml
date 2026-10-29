@@ -491,16 +491,22 @@ TestCase {
         signalName: "commandTreeChanged"
     }
 
-    // The fake Zephyr shell; a new firmware version per call, so no cached tree is found.
-    function useZephyrShell() {
+    // The fake Zephyr shell; a new firmware version per call, so no cached tree is found. With
+    // withoutShellHelp `help` is the CONFIG_SHELL_HELP-less form: bare names, no -h marker
+    // (plan 0022, ADR-0178).
+    function useZephyrShell(withoutShellHelp) {
+        const help = withoutShellHelp
+            ? "Available commands:\n  app\n  lte\n"
+            : "You can try to call commands with <-h> or <--help> parameter for more information.\n\n"
+              + "Available commands:\n  app   :Application commands\n"
+              + "  lte   :LTE commands\n";
         verify(testSupport.useScenario(JSON.stringify({
             libraryVersion: 81000,
             probes: [{ serialNumber: 801000001, product: "Test Probe",
                        rtt: { output: [{ atMs: 0, buffer: 0, text: "uart:~$ booted A\n" }],
                               responses: {
                                   "info show": "fw-name: hio-test-qml-learning\nfw-version: v0.0." + Date.now() + "\n",
-                                  "help": "Available commands:\n  app   :Application commands\n"
-                                          + "  lte   :LTE commands\n",
+                                  "help": help,
                                   "lte -h": "Subcommands:\n  state  :Get LTE state\n  test   :Test mode\n" } } }]
         })));
     }
@@ -539,6 +545,35 @@ TestCase {
         // The ghost text starts after the typed text (also after a trailing space).
         compare(ghost().text, "state ");
         fuzzyCompare(ghost().x, field.positionToRectangle(field.length).x, 1);
+        field.text = "";
+        verify(testSupport.useScenario(""));
+    }
+
+    // Plan 0022 (ADR-0178): without the -h marker in `help` the top-level commands are suggested,
+    // but "lte " sends no `lte -h` (the shell would answer it: `state` would show up).
+    function test_learnedTopLevelOnlyWithoutShellHelp() {
+        useZephyrShell(true);
+        connectToZephyrShell();
+        tryVerify(() => treeSpy.count > 0 && !vm().readingCommands, 5000);
+        const input = one("shellInput");
+        const field = one("commandInput");
+        field.forceActiveFocus();
+        field.text = "";
+        const list = input.suggestionList;
+        keyClick(Qt.Key_L);
+        tryVerify(() => list.opened && list.rows.length > 0);
+        compare(list.rows[0].kind, "command");
+        compare(list.rows[0].label, "lte");
+        compare(list.rows[0].help, "");
+        const changes = treeSpy.count;
+        keyClick(Qt.Key_T);
+        keyClick(Qt.Key_E);
+        keyClick(Qt.Key_Space);
+        verify(!vm().readingCommands);
+        wait(800);
+        verify(!vm().readingCommands);
+        compare(treeSpy.count, changes);
+        verify(!list.rows.some(row => row.kind === "command"));
         field.text = "";
         verify(testSupport.useScenario(""));
     }

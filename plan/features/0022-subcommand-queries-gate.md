@@ -1,6 +1,7 @@
 # 0022 — Send `<command> -h` only to shells that handle it (console completion safety)
 
-- **Status:** Draft
+- **Status:** In progress (approved 2026-10-27 by Matej Strnad; implemented 2026-10-27, all steps except HIL; Done needs
+  the HIL below, run with the 0021 HIL)
 - **Milestone:** GUI feedback follow-up (after 0021)
 - **Author:** Matej Strnad
 - **Related ADRs:** ADR-0178 (new), ADR-0170 (amended), ADR-0175, ADR-0176, ADR-0166, ADR-0033
@@ -88,18 +89,26 @@ Unchanged (ADR-0170 bounds). The flag adds one boolean per cached firmware.
 
 ## Implementation steps
 
-- [ ] `helpSupportsDashH()` + unit tests (marker present, absent, with ANSI codes and `\r`, split across output).
-- [ ] `CommandTree` flag, JSON schema 2, schema 1 rejected; tests for round trip and old schema.
-- [ ] `parseHelp()` bare-name lines (D3) + tests with real Zephyr output with and without `CONFIG_SHELL_HELP`.
-- [ ] `CommandTreeLearner`: set the flag from `help`, gate `requestChildren()`, log line; tests with the fake
+- [x] `helpSupportsDashH()` + unit tests (marker present, absent, with ANSI codes and `\r`, split across output).
+- [x] `CommandTree` flag, JSON schema 2, schema 1 rejected; tests for round trip and old schema.
+- [x] `parseHelp()` bare-name lines (D3) + tests with real Zephyr output with and without `CONFIG_SHELL_HELP`.
+- [x] `CommandTreeLearner`: set the flag from `help`, gate `requestChildren()`, log line; tests with the fake
       `ShellQueryQueue`: no `-h` query without the marker, `-h` with it, cached flag used without `help`.
-- [ ] Fake J-Link Zephyr shell scenario: a variant without the marker; GUI (`console_view_model_test`,
+- [x] Fake J-Link Zephyr shell scenario: a variant without the marker; GUI (`console_view_model_test`,
       `tst_console.qml`) and CLI (`console_learning_test`) tests prove no `-h` is sent.
-- [ ] ADR-0170 status line: "amended by ADR-0178"; 0021 text (Design / Risks) points to ADR-0178.
+- [x] ADR-0170 status line: "amended by ADR-0178"; 0021 text (Design / Risks) points to ADR-0178.
 - [ ] HIL (with the 0021 HIL run): the CHESTER `help` answer contains the marker; `<command> -h` on a command with a
       handler (e.g. one that changes state) prints help and does not run it.
 
 ## Tests and verification
+
+Implementation notes (2026-10-27): `helpSupportsDashH` / `ParseHelp.BareNames*` / `CommandTreeTest.DashHFlagAndOldSchema` /
+`TreeCache.OldSchemaIsAMissAndTheFlagIsKept` (completion_test), `CommandTreeLearnerTest.NoDashHWithoutTheMarker` and
+`DashHWithTheMarkerAndFromTheCache` (command_capture_test; the existing learner rig answers `help` with the marker),
+`ConsoleViewModelTest.NoSubcommandQueryWithoutShellHelp`, `tst_console` `test_learnedTopLevelOnlyWithoutShellHelp`,
+`ConsoleLearningTest.SubcommandsQueriedOnlyWithTheShellHelpMarker`; the existing 0021 Zephyr scenarios carry the marker.
+`fromJson` also rejects a schema 2 tree without a boolean `dashH`. The HIL test
+(`Hil.InfoShowAndCommandTreeThroughSilentQueries`) asserts the flag before it sends `<command> -h`.
 
 - `ctest --preset linux-debug`, `-asan`, `-tsan` green; `linux-tidy` zero findings; clang-format clean.
 - New unit tests above; existing 0021 completion and learning tests stay green (scenarios with the marker).

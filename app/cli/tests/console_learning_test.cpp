@@ -1,9 +1,11 @@
 // Plan 0021 review P6: the CLI console's command tree learning follows the connection - forgotten
 // when the console leaves Connected, `info show` and then `help` again after it reconnects; a
-// query that did not get an answer is asked again.
+// query that did not get an answer is asked again. Plan 0022 (ADR-0178): `<command> -h` only when
+// `help` shows the CONFIG_SHELL_HELP marker.
 
 #include "console_learning.h"
 #include "hio/core/result.h"
+#include "hio/device/command_tree.h"
 #include "hio/device/console_line.h"
 #include "hio/device/console_log.h"
 #include "hio/device/console_session.h"
@@ -189,6 +191,34 @@ TEST(ConsoleLearningTest, NoInfoAnswerStartsNothing) {
     session.setState(ConnectionState::Connected);
     ASSERT_TRUE(runUntil([&] { return learning.learner().tree() != nullptr; }));
     EXPECT_EQ(session.sent("info show"), 2U);
+}
+
+// Plan 0022 (ADR-0178): the CLI console sends `-h` only to a shell whose `help` has the marker.
+TEST(ConsoleLearningTest, SubcommandsQueriedOnlyWithTheShellHelpMarker) {
+    for (const bool marker : {false, true}) {
+        const QTemporaryDir dir;
+        FakeSession session;
+        session.answer("info show", {"fw-name: hio-chester-push-fm", "fw-version: v4.0.1"});
+        std::vector<std::string> help{"Available commands:", "  lte"};
+        if (marker) {
+            help.insert(help.begin(), "You can try to call commands with <-h> or <--help> "
+                                      "parameter for more information.");
+        }
+        session.answer("help", help);
+        session.answer("lte -h", {"Subcommands:", "  state  :Get LTE state"});
+        hio::cli::ConsoleLearning learning(session, "chester", "app", true,
+                                           std::filesystem::path(dir.path().toStdU16String()));
+        auto& learner = learning.learner();
+        session.setState(ConnectionState::Connected);
+        ASSERT_TRUE(runUntil([&] { return learner.tree() != nullptr && !learner.reading(); }));
+        EXPECT_EQ(learner.tree()->dashHSupported(), marker);
+        learner.requestChildren({"lte"});
+        ASSERT_TRUE(runUntil([&] { return !learner.reading(); }));
+        EXPECT_EQ(session.sent("lte -h"), marker ? 1U : 0U);
+        const hio::device::CommandNode* lte = learner.tree()->find(std::vector<std::string>{"lte"});
+        ASSERT_NE(lte, nullptr);
+        EXPECT_EQ(lte->children.size(), marker ? 1U : 0U);
+    }
 }
 
 } // namespace

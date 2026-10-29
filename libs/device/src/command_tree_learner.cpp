@@ -83,6 +83,9 @@ void CommandTreeLearner::requestChildren(const std::vector<std::string>& path) {
         requestTopLevel();
         return;
     }
+    if (!m_tree->dashHSupported()) {
+        return; // ADR-0178: `-h` only when the shell handles it itself
+    }
     const CommandNode* node = m_tree->find(path);
     if (path.empty() || node == nullptr || node->childrenKnown ||
         path.size() >= CommandTree::maxDepth || m_attempted.size() >= CommandTree::maxNodes ||
@@ -122,6 +125,13 @@ void CommandTreeLearner::learned(const std::vector<std::string>& path,
     auto tree = m_tree ? std::make_shared<CommandTree>(*m_tree) : std::make_shared<CommandTree>();
     if (!tree->setChildren(path, entries)) {
         return;
+    }
+    if (path.empty()) {
+        tree->setDashHSupported(helpSupportsDashH(result->lines));
+        if (!tree->dashHSupported()) {
+            qCInfo(log::lcDevice) << "Shell has no -h support (CONFIG_SHELL_HELP marker missing): "
+                                     "subcommands are not queried";
+        }
     }
     m_tree = std::move(tree);
     store();

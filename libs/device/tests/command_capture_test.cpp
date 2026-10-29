@@ -434,11 +434,17 @@ TEST(ShellQueryQueueTest, BusyRefusesAndADeletedSessionEndsTheQuery) {
     ASSERT_TRUE(runUntil([&] { return !queue.running(); }));
 }
 
-// The learner with its queue, cache (in a temporary directory) and a fake Zephyr shell.
+// The marker line of Zephyr's `help` with CONFIG_SHELL_HELP (ADR-0178).
+constexpr const char* dashHMarkerLine =
+    "You can try to call commands with <-h> or <--help> parameter for more information.";
+
+// The learner with its queue, cache (in a temporary directory) and a fake Zephyr shell (with
+// CONFIG_SHELL_HELP: `help` shows the -h marker).
 struct LearnerRig {
     LearnerRig() {
-        session.answer("help", {"Available commands:", "  app   :Application commands",
-                                "  lte   :LTE commands", "  info  :Info commands"});
+        session.answer("help",
+                       {dashHMarkerLine, "", "Available commands:", "  app   :Application commands",
+                        "  lte   :LTE commands", "  info  :Info commands"});
         session.answer("lte -h", {"lte - LTE commands", "Subcommands:", "  state  :Get LTE state",
                                   "  test   :Test mode"});
         session.answer("info -h", {"info - Info commands"}); // no subcommands
@@ -534,6 +540,56 @@ TEST(CommandTreeLearnerTest, LazyWithoutReadOnConnectAndResetForgets) {
     EXPECT_FALSE(rig.learner.tree());
     ASSERT_TRUE(runUntil([&] { return !rig.queue.running(); }));
     EXPECT_FALSE(rig.learner.tree());
+}
+
+// ADR-0178: without the CONFIG_SHELL_HELP marker in `help` no `-h` is ever sent; the top level
+// (bare names) is learned and cached with the flag, so a cached firmware is not asked either.
+TEST(CommandTreeLearnerTest, NoDashHWithoutTheMarker) {
+    LearnerRig rig;
+    rig.session.answer("help", {"Available commands:", "  app", "  lte", "  info"});
+    rig.learner.start(learnerKey(), true);
+    ASSERT_TRUE(runUntil([&] { return !rig.learner.reading() && rig.learner.tree(); }));
+    EXPECT_EQ(rig.names({}), (std::vector<std::string>{"app", "lte", "info"}));
+    EXPECT_FALSE(rig.learner.tree()->dashHSupported());
+    rig.learner.requestChildren({"lte"});
+    rig.learner.requestChildren({"info"});
+    EXPECT_FALSE(rig.learner.reading());
+    runFor(std::chrono::milliseconds(50));
+    EXPECT_EQ(rig.sent("lte -h"), 0U);
+    EXPECT_EQ(rig.sent("info -h"), 0U);
+    EXPECT_EQ(rig.session.written(), (std::vector<std::string>{"help"}));
+    const auto cached = rig.cache.load(learnerKey());
+    ASSERT_TRUE(cached.has_value());
+    EXPECT_FALSE(cached.transform(&hio::device::CommandTree::dashHSupported).value_or(true));
+
+    // The next attach of the same firmware: the cached flag, neither `help` nor `-h`.
+    rig.session.clearWritten();
+    rig.learner.start(learnerKey(), true);
+    ASSERT_TRUE(rig.learner.tree());
+    rig.learner.requestChildren({"lte"});
+    runFor(std::chrono::milliseconds(50));
+    EXPECT_TRUE(rig.session.written().empty());
+}
+
+// ADR-0178: with the marker `-h` is sent; the flag is cached, so a cached firmware asks `-h`
+// without `help`.
+TEST(CommandTreeLearnerTest, DashHWithTheMarkerAndFromTheCache) {
+    LearnerRig rig;
+    rig.learner.start(learnerKey(), true);
+    ASSERT_TRUE(runUntil([&] { return !rig.learner.reading() && rig.learner.tree(); }));
+    EXPECT_TRUE(rig.learner.tree()->dashHSupported());
+    EXPECT_TRUE(rig.cache.load(learnerKey())
+                    .transform(&hio::device::CommandTree::dashHSupported)
+                    .value_or(false));
+
+    rig.session.clearWritten();
+    rig.learner.start(learnerKey(), true); // from the cache
+    ASSERT_TRUE(rig.learner.tree());
+    EXPECT_TRUE(rig.learner.tree()->dashHSupported());
+    rig.learner.requestChildren({"lte"});
+    ASSERT_TRUE(runUntil([&] { return !rig.learner.reading(); }));
+    EXPECT_EQ(rig.names({"lte"}), (std::vector<std::string>{"state", "test"}));
+    EXPECT_EQ(rig.session.written(), (std::vector<std::string>{"lte -h"}));
 }
 
 TEST(CommandTreeLearnerTest, NoCommandListLeavesNoTree) {

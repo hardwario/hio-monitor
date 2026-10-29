@@ -226,6 +226,8 @@ TEST_F(Hil, InfoShowAndCommandTreeThroughSilentQueries) {
     ASSERT_TRUE(tree);
     ASSERT_FALSE(tree->empty());
     std::cout << "help: " << tree->root().children.size() << " commands\n";
+    // Plan 0022 (ADR-0178): CHESTER's `help` shows the CONFIG_SHELL_HELP marker, else no `-h`.
+    ASSERT_TRUE(tree->dashHSupported()) << "no `<-h> or <--help>` line in the answer to `help`";
     const std::string first = tree->root().children.front().name;
     learner.requestChildren({first});
     ASSERT_TRUE(waitFor([&] { return !learner.reading(); }, std::chrono::seconds(10)));

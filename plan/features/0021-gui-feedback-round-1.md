@@ -6,7 +6,8 @@
 - **Milestone:** M3 follow-up (changes the implemented plans 0004, 0005, 0006 and the flash wizard 0010)
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0174, ADR-0165, ADR-0166, ADR-0167, ADR-0168, ADR-0169, ADR-0170, ADR-0171, ADR-0172,
-  ADR-0173 (N10, 2026-10-23), ADR-0175 (phase 2, 2026-10-23), ADR-0176 (phase 2 review, 2026-10-23);
+  ADR-0173 (N10, 2026-10-23), ADR-0175 (phase 2, 2026-10-23), ADR-0176 (phase 2 review, 2026-10-23),
+  ADR-0178 (subcommand queries, plan 0022, 2026-10-27);
   amended: ADR-0033, ADR-0043, ADR-0045, ADR-0046, ADR-0055; context: ADR-0037, ADR-0040, ADR-0054, ADR-0058, ADR-0104
 - **Depends on:** [0004](0004-m3-gui-shell.md), [0005](0005-m3-console.md), [0006](0006-m3-flash-settings.md),
   [0010](0010-m4-flash-wizard.md) implemented (all on `v2-dev`); 0003 (M2: catalog download, LTE operations);
@@ -171,7 +172,8 @@ tell which MCU a HEX file is for, so a HEX file fits both kinds.
     capture of `chester app command` and the ADR-0104 end rule; a user `sendLine` waits until a running query ends;
     no query while busy. Captured lines are not appended to the console log (they go to the app log at debug).
   - `DeviceInfo` — `parseInfoShow(lines)` → `{fwName, fwVersion, …}` (bounded: 64 fields, 256 B each).
-  - `CommandTree` — nodes `{name, help, children}`, `parseHelp(lines)` for Zephyr `help` / `<cmd> -h` output;
+  - `CommandTree` — nodes `{name, help, children}`, `parseHelp(lines)` for Zephyr `help` / `<cmd> -h` output
+    (`<cmd> -h` only when `help` shows the CONFIG_SHELL_HELP marker: plan 0022, ADR-0178);
     `CommandTreeCache` on disk (`AppLocalDataLocation/command-trees/`, JSON, bounds of ADR-0170, LRU, file lock like
     the history, ADR-0058); `Completer` — `suggest(input, history)` and `complete(input)` (pure, shared by GUI and CLI).
 - `app/cli`: commands of § CLI; console wires replxx `set_hint_callback` / `set_completion_callback` to `Completer`.
@@ -310,7 +312,8 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
   `app` console attaches and after a flash (cleared on disconnect); the Application card's "In the device: …" and
   the result card's "Now in the device: …" (within 10 s after the console re-attaches).
 - **Command tree learning:** `help` on connect when `console/readCommandsOnConnect` is on (else at the first
-  suggestion), `<cmd> -h` for `Completer::pathToLearn()`, the tree kept per firmware in `CommandTreeCache`
+  suggestion), `<cmd> -h` for `Completer::pathToLearn()` (only when `help` shows the CONFIG_SHELL_HELP marker,
+  plan 0022, ADR-0178), the tree kept per firmware in `CommandTreeCache`
   (key from `info show`), `ConsoleViewModel::readingCommands` while a query runs (`CommandTreeLearner`, shared by
   the GUI and the CLI console; the phase-1 `TODO(plan 0021 phase 2)` markers are removed).
 - **CLI:** `hio chester app info [--json]` (`info show`, parsed fields); the CLI console learns and loads the
@@ -363,6 +366,9 @@ reads both; `--no-suggestions` overrides for one run). The H chip is not persist
 - **Silent queries** appear in the device's own shell history and could collide with output the device prints at the
   same time; the end rule and the 2 s cap limit the impact. Firmware without `help` / `info show` → no completion
   from the device, no device info.
+- **`<cmd> -h` runs the command** on a shell that does not handle `-h` itself (Zephyr without `CONFIG_SHELL_HELP`,
+  other firmware): `-h` is sent only when `help` shows the `CONFIG_SHELL_HELP` marker (plan 0022, ADR-0178);
+  otherwise subcommands come from the history only.
 - **CHESTER prompt** for the end rule is still open question 25 (ADR-0104 silence rule meanwhile).
 - **Hexdump false positives:** only exact continuation format; tested on real output.
 - The LTE connector note of the docs ("Connect the 10-pin flat cable to the connector labeled APP") must be checked
