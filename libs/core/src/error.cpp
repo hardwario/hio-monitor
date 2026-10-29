@@ -714,7 +714,9 @@ constexpr std::array defaultTexts{
                                     "usb.access_denied cause"),
         .suggestion = QT_TRANSLATE_NOOP3(
             "hwio::core",
-            "Install the udev rule shown in the setup wizard, then reconnect the J-Link.",
+            "Install the udev rule shown in the setup wizard, then reconnect the J-Link. The rule "
+            "gives access only to the user logged in at this computer; users connected only over "
+            "SSH need their own udev rule.",
             "usb.access_denied suggestion"),
         .wizard = WizardId::FirstRunSetup,
     },

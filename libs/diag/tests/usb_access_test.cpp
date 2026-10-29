@@ -16,6 +16,7 @@
 #include <format>
 #include <fstream>
 #include <string>
+#include <string_view>
 
 namespace {
 
@@ -85,6 +86,14 @@ TEST_F(UsbAccess, InaccessibleProbeIsUsbAccessDenied) {
     EXPECT_NE(error.value_or(hwio::Error{}).detail.find("/dev/bus/usb/003/012"), std::string::npos);
 }
 
+// ADR-0185: the uaccess rule needs a local seat; the suggestion says so.
+TEST(UsbRule, AccessDeniedSuggestionMentionsTheLocalSeat) {
+    const hwio::Error error = hwio::makeError(ErrorCode::UsbAccessDenied);
+    EXPECT_NE(error.suggestion.find("users connected only over SSH need their own udev rule"),
+              std::string::npos)
+        << error.suggestion;
+}
+
 TEST_F(UsbAccess, MissingSysfsIsReadError) {
     const auto devices = hwio::diag::checkUsbAccess(root() / "nothing", root() / "dev");
     ASSERT_FALSE(devices.has_value());
@@ -95,10 +104,35 @@ TEST_F(UsbAccess, MissingSysfsIsReadError) {
 
 TEST(UsbRule, CommandsContainTheRule) {
     const auto commands = hwio::diag::jlinkUdevCommands();
-    ASSERT_EQ(commands.size(), 2U);
+    ASSERT_EQ(commands.size(), 3U);
     EXPECT_NE(commands[0].find(hwio::diag::jlinkUdevRule), std::string::npos);
-    EXPECT_NE(commands[0].find("/etc/udev/rules.d/99-jlink.rules"), std::string::npos);
-    EXPECT_EQ(commands[1], "sudo udevadm control --reload-rules && sudo udevadm trigger");
+    // ADR-0185: before 73-seat-late.rules (uaccess); an old MODE="0666" rule is removed.
+    EXPECT_NE(commands[0].find("/etc/udev/rules.d/60-hardwario-jlink.rules"), std::string::npos);
+    EXPECT_EQ(commands[1],
+              "if grep -qs 'MODE=\"0666\"' /etc/udev/rules.d/99-jlink.rules; then sudo "
+              "rm /etc/udev/rules.d/99-jlink.rules; fi");
+    EXPECT_EQ(commands[2], "sudo udevadm control --reload-rules && sudo udevadm trigger");
+}
+
+// ADR-0185 (review M-3): uaccess only, never a world-writable device node.
+TEST(UsbRule, RuleUsesUaccessOnly) {
+    EXPECT_EQ(hwio::diag::jlinkUdevRule,
+              R"(SUBSYSTEM=="usb", ATTR{idVendor}=="1366", TAG+="uaccess")");
+    EXPECT_EQ(std::string_view(hwio::diag::jlinkUdevRule).find("MODE"), std::string_view::npos);
+}
+
+// The packaged rule file has the same rule (and no MODE).
+TEST(UsbRule, PackagedRuleMatches) {
+    std::ifstream file(HWIO_PACKAGED_UDEV_RULE);
+    ASSERT_TRUE(file.is_open());
+    std::string line;
+    std::string rule;
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.front() != '#') {
+            rule = line;
+        }
+    }
+    EXPECT_EQ(rule, hwio::diag::jlinkUdevRule);
 }
 
 } // namespace

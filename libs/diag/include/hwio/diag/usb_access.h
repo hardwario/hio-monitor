@@ -30,9 +30,15 @@ inline constexpr std::string_view seggerUsbVendorId = "1366";
 inline constexpr std::size_t maxUsbEntries = 1024;
 
 // The udev rule and the commands shown by the setup wizard and the troubleshooting topic
-// (ADR-0072).
+// (ADR-0072). ADR-0185: `uaccess` only (an ACL for the user of the local seat); no MODE="0666".
 inline constexpr std::string_view jlinkUdevRule =
-    R"(SUBSYSTEM=="usb", ATTR{idVendor}=="1366", MODE="0666", TAG+="uaccess")";
+    R"(SUBSYSTEM=="usb", ATTR{idVendor}=="1366", TAG+="uaccess")";
+// ADR-0185: the same name as the packaged rule; a `99-*` file would run after
+// 73-seat-late.rules and `uaccess` would grant nothing.
+inline constexpr std::string_view jlinkUdevRuleFile = "/etc/udev/rules.d/60-hardwario-jlink.rules";
+// The rule file of older instructions and of the SEGGER installer (MODE="0666").
+inline constexpr std::string_view oldJLinkUdevRuleFile = "/etc/udev/rules.d/99-jlink.rules";
+// Install the rule, remove an old 99-jlink.rules that has MODE="0666", reload udev.
 [[nodiscard]] std::vector<std::string> jlinkUdevCommands();
 
 struct UsbDeviceAccess {

@@ -77,8 +77,12 @@ std::optional<std::string> readAttribute(const fs::path& path) {
 } // namespace
 
 std::vector<std::string> jlinkUdevCommands() {
-    return {std::format("echo '{}' | sudo tee /etc/udev/rules.d/99-jlink.rules", jlinkUdevRule),
-            "sudo udevadm control --reload-rules && sudo udevadm trigger"};
+    // ADR-0185: the rule file must sort before 73-seat-late.rules, which applies `uaccess`; an old
+    // world-writable 99-jlink.rules (MODE="0666") is removed.
+    return {
+        std::format("echo '{}' | sudo tee {}", jlinkUdevRule, jlinkUdevRuleFile),
+        std::format("if grep -qs 'MODE=\"0666\"' {0}; then sudo rm {0}; fi", oldJLinkUdevRuleFile),
+        "sudo udevadm control --reload-rules && sudo udevadm trigger"};
 }
 
 Result<std::vector<UsbDeviceAccess>> checkUsbAccess([[maybe_unused]] const fs::path& sysfsRoot,
