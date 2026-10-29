@@ -127,16 +127,18 @@ Result<RttLayout> RttChannel::attach(const RttNames& names, const std::stop_toke
         if (!counts) {
             return std::unexpected(std::move(counts).error());
         }
-        if (*counts && (!plausibleCount((*counts)->up) || !plausibleCount((*counts)->down))) {
+        if (const std::optional<BufferCounts> found = *counts; !found) {
+            // No control block before the deadline.
+        } else if (!plausibleCount(found->up) || !plausibleCount(found->down)) {
             qCInfo(log::lcJLink).noquote()
                 << QStringLiteral("RTT control block declares %1 up and %2 down buffers (at most "
                                   "%3), retrying search")
-                       .arg((*counts)->up)
-                       .arg((*counts)->down)
+                       .arg(found->up)
+                       .arg(found->down)
                        .arg(kMaxRttBuffers);
-        } else if (*counts) {
+        } else {
             state.sawControlBlock = true;
-            auto layout = resolveLayout(names, **counts, state, stopToken);
+            auto layout = resolveLayout(names, *found, state, stopToken);
             if (!layout) {
                 return std::unexpected(std::move(layout).error());
             }

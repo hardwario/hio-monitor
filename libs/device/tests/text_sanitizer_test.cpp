@@ -1,5 +1,6 @@
 // sanitizeDeviceText (ADR-0183, plan/features/0025 M-1): device text is terminal-safe.
 
+#include "hwio/device/console_line.h"
 #include "hwio/device/line_assembler.h"
 #include "hwio/device/text_sanitizer.h"
 
@@ -9,7 +10,6 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
-#include <cstddef>
 #include <span>
 #include <string>
 #include <string_view>

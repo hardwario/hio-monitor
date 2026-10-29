@@ -40,6 +40,47 @@ std::size_t skipString(std::string_view bytes, std::size_t i, bool bellEnds) {
     return i;
 }
 
+// Index after a CSI that starts at `i` (after "ESC ["): parameters, intermediates, final byte.
+std::size_t skipCsi(std::string_view bytes, std::size_t i) {
+    while (i < bytes.size() && inRange(bytes[i], 0x30, 0x3F)) {
+        ++i;
+    }
+    while (i < bytes.size() && inRange(bytes[i], 0x20, 0x2F)) {
+        ++i;
+    }
+    if (i < bytes.size() && inRange(bytes[i], 0x40, 0x7E)) {
+        ++i;
+    }
+    return i;
+}
+
+// Index after the escape sequence whose second byte `kind` is at `i - 1`.
+std::size_t skipEscape(std::string_view bytes, std::size_t i, char kind) {
+    switch (kind) {
+    case '[': // CSI
+        return skipCsi(bytes, i);
+    case ']': // OSC
+        return skipString(bytes, i, true);
+    case 'P': // DCS
+    case 'X': // SOS
+    case '^': // PM
+    case '_': // APC
+        return skipString(bytes, i, false);
+    default:
+        break;
+    }
+    // Other ESC sequences: intermediates, then one final byte (ESC c, ESC ( B, ...).
+    if (inRange(kind, 0x20, 0x2F)) {
+        while (i < bytes.size() && inRange(bytes[i], 0x20, 0x2F)) {
+            ++i;
+        }
+        if (i < bytes.size() && inRange(bytes[i], 0x30, 0x7E)) {
+            ++i;
+        }
+    }
+    return i;
+}
+
 // Step 1: every escape sequence removed (see the header).
 std::string stripEscapeSequences(std::string_view bytes) {
     std::string result;
@@ -51,45 +92,10 @@ std::string stripEscapeSequences(std::string_view bytes) {
             ++i;
             continue;
         }
-        ++i; // ESC
-        if (i >= bytes.size()) {
-            break;
+        if (i + 1 >= bytes.size()) {
+            break; // a lone ESC at the end
         }
-        const char kind = bytes[i];
-        ++i;
-        switch (kind) {
-        case '[': // CSI
-            while (i < bytes.size() && inRange(bytes[i], 0x30, 0x3F)) {
-                ++i;
-            }
-            while (i < bytes.size() && inRange(bytes[i], 0x20, 0x2F)) {
-                ++i;
-            }
-            if (i < bytes.size() && inRange(bytes[i], 0x40, 0x7E)) {
-                ++i;
-            }
-            break;
-        case ']': // OSC
-            i = skipString(bytes, i, true);
-            break;
-        case 'P': // DCS
-        case 'X': // SOS
-        case '^': // PM
-        case '_': // APC
-            i = skipString(bytes, i, false);
-            break;
-        default:
-            // Other ESC sequences: intermediates, then one final byte (ESC c, ESC ( B, ...).
-            if (inRange(kind, 0x20, 0x2F)) {
-                while (i < bytes.size() && inRange(bytes[i], 0x20, 0x2F)) {
-                    ++i;
-                }
-                if (i < bytes.size() && inRange(bytes[i], 0x30, 0x7E)) {
-                    ++i;
-                }
-            }
-            break;
-        }
+        i = skipEscape(bytes, i + 2, bytes[i + 1]);
     }
     return result;
 }
