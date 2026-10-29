@@ -1,6 +1,6 @@
 # ADR-0102 — MCP HTTP security: 127.0.0.1, port 47800, bearer token file, Origin checks, limits
 
-- **Status:** Accepted
+- **Status:** Accepted; auth-failure lockout superseded by ADR-0188
 - **Date:** 2026-10-16
 - **Decided by:** Matej Strnad (M6 planning session)
 

@@ -1,6 +1,6 @@
 # ADR-0100 — MCP flash tools take local paths or catalog ids; no upload endpoint
 
-- **Status:** Accepted
+- **Status:** Accepted; `to_file` rule superseded by ADR-0182
 - **Date:** 2026-10-16
 - **Decided by:** Matej Strnad (M6 planning session)
 

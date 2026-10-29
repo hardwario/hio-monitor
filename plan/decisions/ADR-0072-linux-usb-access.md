@@ -1,6 +1,6 @@
 # ADR-0072 — Linux USB access for J-Link: detect and show the commands
 
-- **Status:** Accepted
+- **Status:** Accepted; udev rule amended by ADR-0185 (no `MODE="0666"`)
 - **Date:** 2026-10-09
 - **Decided by:** Matej Strnad (M4 planning session)
 
