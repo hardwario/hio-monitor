@@ -78,10 +78,10 @@ constexpr const char* readMemoryDescription =
     "Flash is memory-mapped, so this also reads flash. address: \"0x20000000\" or decimal. "
     "width: access width in bits (8, 16 or 32; use 32 for peripheral registers); the address and "
     "length must be multiples of width/8. Inline results have at most 65536 bytes (hex + "
-    "hexdump). to_file writes the raw bytes (up to 16 MiB) to a file on this machine instead: an "
-    "absolute path in an existing folder, or a bare file name (no '/', '\\' or ':', not a "
-    "Windows device name such as NUL or COM1, no trailing dot or space) that goes into the "
-    "server's cache folder; existing files are never overwritten (io.file_exists). The "
+    "hexdump). to_file writes the raw bytes (up to 16 MiB) to a file in the server's dump folder "
+    "instead: a plain file name of at most 128 characters (no '/', '\\' or ':', no leading dot, "
+    "not a Windows device name such as NUL or COM1, no trailing dot or space); paths are refused "
+    "(mcp.to_file_not_allowed). Existing files are never overwritten (io.file_exists). The "
     "result then has the path, the sha256 and a preview. J-Link only.";
 
 constexpr const char* readRegistersDescription =
@@ -131,6 +131,17 @@ constexpr const char* writeFlashDescription =
     default:
         return AccessWidth::Bits8;
     }
+}
+
+// ADR-0182 (review H-1): the longest to_file name.
+constexpr qsizetype maxDumpNameLength = 128;
+
+// ADR-0182: a to_file name is one plain path component: no separators, no ':' (a Windows drive or
+// an alternate stream), no leading dot ("." / ".." / hidden files), at most maxDumpNameLength.
+[[nodiscard]] bool isPlainDumpName(const QString& name) {
+    return !name.isEmpty() && name.size() <= maxDumpNameLength &&
+           !name.contains(QLatin1Char('/')) && !name.contains(QLatin1Char('\\')) &&
+           !name.contains(QLatin1Char(':')) && !name.startsWith(QLatin1Char('.'));
 }
 
 // Review F5: on every OS, a bare to_file name must not be a Windows device name (CON, PRN, AUX,
@@ -255,14 +266,15 @@ public:
           m_path(std::move(file)), m_hash(QCryptographicHash::Sha256) {
         const QString path = QString::fromStdU16String(m_path.u16string());
         std::error_code ec;
-        // Review R15: missing folders are never created (the cache folder of a bare name is
-        // created by the tool before this call).
+        // Review R15 / ADR-0182: missing folders are never created (the default dump folder is
+        // created by the tool before this call; a --dump-dir folder never is).
         if (const fs::path parent = m_path.parent_path(); !fs::is_directory(parent, ec)) {
             hwio::Error error =
                 makeError(ErrorCode::IoWriteFailed, path.toStdString() + ": the folder " +
                                                         hwio::toUtf8(parent) + " does not exist");
             error.cause = "The folder of the file does not exist; it is not created.";
-            error.suggestion = "Create the folder first, or use another path or a bare file name.";
+            error.suggestion = "Create the dump folder again, or restart the server with another "
+                               "--dump-dir.";
             completeError(std::move(error));
             return;
         }
@@ -400,8 +412,8 @@ QJsonObject readMemoryInputSchema() {
                       Schema::integer(QStringLiteral("Access width in bits.")).defaultValue(8))
             .property(
                 QStringLiteral("to_file"),
-                Schema::string(QStringLiteral("Write the bytes to this file instead: an absolute "
-                                              "path or a bare file name (server cache folder)."))
+                Schema::string(QStringLiteral("Write the bytes to a new file of this plain name "
+                                              "in the server's dump folder instead."))
                     .minLength(1)
                     .maxLength(1024))
             .json(),
@@ -599,6 +611,18 @@ hwio::Status addReadMemory(hwio::mcp::Registry& registry, ToolsContext& context)
             .marker = false,
             .start = [&context](const hwio::mcp::RequestContext& rc, const QJsonObject& args,
                                 hwio::mcp::ToolEnv& env) -> std::unique_ptr<hwio::mcp::ToolCall> {
+                // ADR-0182: to_file is only a plain name, only in the dump folder; refused before
+                // the device is looked up.
+                const QString name = args.value(QStringLiteral("to_file")).toString();
+                const fs::path directory = context.memoryDumpDirectory();
+                if (args.contains(QStringLiteral("to_file")) && !isPlainDumpName(name)) {
+                    hwio::Error error =
+                        makeError(ErrorCode::McpToFileNotAllowed, name.toStdString());
+                    error.message = "The file name must be a plain name. Memory dumps are written "
+                                    "only to " +
+                                    hwio::toUtf8(directory) + ".";
+                    return failed(std::move(error));
+                }
                 auto device = resolveJLinkDevice(context.provider(), args);
                 if (!device) {
                     return failed(std::move(device).error());
@@ -614,19 +638,15 @@ hwio::Status addReadMemory(hwio::mcp::Registry& registry, ToolsContext& context)
                     static_cast<std::size_t>(args.value(QStringLiteral("length")).toInteger());
                 const AccessWidth width = widthOf(args);
                 if (args.contains(QStringLiteral("to_file"))) {
-                    const QString name = args.value(QStringLiteral("to_file")).toString();
-                    fs::path file(name.toStdU16String());
-                    if (!file.is_absolute()) {
-                        // A bare name (validated): the server's own cache folder, created on
-                        // first use (ADR-0100).
-                        const fs::path directory = context.memoryDumpDirectory();
+                    if (context.options().memoryDumpDirectory.empty()) {
+                        // The default cache folder is created on first use; a --dump-dir
+                        // folder never is (ADR-0182).
                         std::error_code ec;
                         fs::create_directories(directory, ec);
-                        file = directory / file;
                     }
-                    return std::make_unique<ReadMemoryFileCall>(context, rc, env,
-                                                                std::move(*device), targetId,
-                                                                address, length, width, file);
+                    return std::make_unique<ReadMemoryFileCall>(
+                        context, rc, env, std::move(*device), targetId, address, length, width,
+                        directory / fs::path(name.toStdU16String()));
                 }
                 return std::make_unique<SimpleOperationCall>(
                     context, rc, env, std::move(*device),
@@ -667,21 +687,8 @@ hwio::Status addReadMemory(hwio::mcp::Registry& registry, ToolsContext& context)
                         QStringLiteral("must be at most %1").arg(limits.tools.readMemoryFileBytes));
                 }
                 const QString name = args.value(QStringLiteral("to_file")).toString();
-                const fs::path file(name.toStdU16String());
-                if (file.is_absolute()) {
-                    return std::nullopt;
-                }
-                // Review R15: on every OS a bare name has no separators and no ':' (a Windows
-                // drive-relative name "C:foo" or an alternate stream "name:stream" would escape
-                // the cache folder).
-                const bool bare = !name.contains(QLatin1Char('/')) &&
-                                  !name.contains(QLatin1Char('\\')) &&
-                                  !name.contains(QLatin1Char(':')) && name != QStringLiteral(".") &&
-                                  name != QStringLiteral("..");
-                if (!bare) {
-                    return invalid(QStringLiteral("to_file"),
-                                   QStringLiteral("must be an absolute path or a bare file "
-                                                  "name without '/', '\\' and ':'"));
+                if (!isPlainDumpName(name)) {
+                    return std::nullopt; // mcp.to_file_not_allowed from start (ADR-0182)
                 }
                 if (isWindowsReservedName(name)) {
                     return invalid(QStringLiteral("to_file"),

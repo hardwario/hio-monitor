@@ -42,7 +42,8 @@ struct ResourceWatch;
 } // namespace detail
 
 struct ToolsOptions {
-    // read_memory `to_file` with a bare name writes into this directory (ADR-0100); empty =
+    // read_memory `to_file` (a plain file name) writes only into this directory (ADR-0182; the
+    // CLI's `hwio mcp --dump-dir`, which must exist and is never created); empty =
     // QStandardPaths::CacheLocation + "/mcp" (created on first use).
     std::filesystem::path memoryDumpDirectory;
 };

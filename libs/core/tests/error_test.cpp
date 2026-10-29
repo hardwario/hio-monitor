@@ -348,6 +348,22 @@ TEST(MakeError, UpdateCodes) {
     EXPECT_EQ(tooLarge.suggestion, badResponse.suggestion);
 }
 
+// Plan 0025: the new codes of the security fixes, with what / why / what to do.
+TEST(Error, SecurityFixCodes) {
+    EXPECT_EQ(hwio::idOf(ErrorCode::McpToFileNotAllowed), "mcp.to_file_not_allowed");
+    EXPECT_EQ(hwio::categoryOf(ErrorCode::McpToFileNotAllowed), ErrorCategory::Usage);
+    EXPECT_EQ(hwio::idOf(ErrorCode::CliFileIsSymlink), "cli.file_is_symlink");
+    EXPECT_EQ(hwio::categoryOf(ErrorCode::CliFileIsSymlink), ErrorCategory::Io);
+    for (const ErrorCode code : {ErrorCode::McpToFileNotAllowed, ErrorCode::CliFileIsSymlink}) {
+        const hwio::Error error = hwio::makeError(code);
+        EXPECT_FALSE(error.message.empty());
+        EXPECT_FALSE(error.cause.empty());
+        EXPECT_FALSE(error.suggestion.empty());
+    }
+    EXPECT_EQ(hwio::makeError(ErrorCode::CliFileIsSymlink).message,
+              "The output file is a symbolic link.");
+}
+
 TEST(MakeError, OutputClosedIsCancelledWithItsOwnMessage) {
     const hwio::Error error = hwio::outputClosedError("the standard output was closed");
     const hwio::Error cancelled = hwio::makeError(ErrorCode::Cancelled);

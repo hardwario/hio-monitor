@@ -122,6 +122,9 @@ enum class ErrorCode : std::uint8_t {
     UpdateRateLimited,
     UpdateBadResponse,
     UpdateTooLarge,
+    // Security fixes round 1 (plan/features/0025-security-fixes-round-1.md)
+    McpToFileNotAllowed, // ADR-0182
+    CliFileIsSymlink,    // review L-17
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -386,6 +389,12 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::UpdateTooLarge,
               .id = "update.too_large",
               .category = ErrorCategory::Network},
+    ErrorInfo{.code = ErrorCode::McpToFileNotAllowed,
+              .id = "mcp.to_file_not_allowed",
+              .category = ErrorCategory::Usage},
+    ErrorInfo{.code = ErrorCode::CliFileIsSymlink,
+              .id = "cli.file_is_symlink",
+              .category = ErrorCategory::Io},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every

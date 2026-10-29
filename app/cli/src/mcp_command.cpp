@@ -103,6 +103,8 @@ struct McpOptions {
     bool autoReconnect = false;
     std::string consoleFileDir;
     bool consoleFileDirGiven = false;
+    std::string dumpDir; // ADR-0182: read_memory to_file
+    bool dumpDirGiven = false;
 };
 
 fs::path toPath(const std::string& text) { return {toQString(text).toStdU16String()}; }
@@ -115,20 +117,22 @@ Error usage(std::string message, std::string detail = {}) {
 }
 
 // ADR-0156: the directory must exist and be writable before anything is served.
-Status checkConsoleFileDir(const fs::path& directory) {
+// An existing, writable directory given with `option` (`what` names it in the messages).
+Status checkGivenDir(const fs::path& directory, std::string_view what, std::string_view option) {
     std::error_code ec;
     const std::string shown = toUtf8(directory);
     if (!fs::is_directory(directory, ec)) {
         Error error = makeError(ErrorCode::IoFileNotFound, shown);
-        error.message = std::format("The console file directory {} does not exist.", shown);
-        error.suggestion = "Create the directory or choose another one with --console-file-dir.";
+        error.message = std::format("The {} {} does not exist.", what, shown);
+        error.suggestion =
+            std::format("Create the directory or choose another one with {}.", option);
         return std::unexpected(std::move(error));
     }
     if (!QFileInfo(QString::fromStdU16String(directory.u16string())).isWritable()) {
         Error error = makeError(ErrorCode::IoWriteFailed, shown);
-        error.message = std::format("The console file directory {} is not writable.", shown);
-        error.suggestion =
-            "Check the permissions of the directory or choose another one with --console-file-dir.";
+        error.message = std::format("The {} {} is not writable.", what, shown);
+        error.suggestion = std::format(
+            "Check the permissions of the directory or choose another one with {}.", option);
         return std::unexpected(std::move(error));
     }
     return {};
@@ -217,6 +221,7 @@ std::size_t stdioBufferBytes() {
 struct Prepared {
     hwio::mcp::ConsentCategories allowed;
     CliProviderOptions provider;
+    hwio::mcp::tools::ToolsOptions tools;
     std::optional<Token> token; // --http only
 };
 
@@ -241,10 +246,21 @@ Result<Prepared> prepare(const GlobalOptions& globals, const McpOptions& options
     prepared.provider.autoReconnect = options.autoReconnect;
     if (options.consoleFileDirGiven) {
         const fs::path directory = toPath(options.consoleFileDir);
-        if (const Status checked = checkConsoleFileDir(directory); !checked) {
+        if (const Status checked =
+                checkGivenDir(directory, "console file directory", "--console-file-dir");
+            !checked) {
             return std::unexpected(checked.error());
         }
         prepared.provider.consoleFileDir = directory;
+    }
+    if (options.dumpDirGiven) {
+        // ADR-0182: must exist; never created.
+        const fs::path directory = toPath(options.dumpDir);
+        if (const Status checked = checkGivenDir(directory, "dump directory", "--dump-dir");
+            !checked) {
+            return std::unexpected(checked.error());
+        }
+        prepared.tools.memoryDumpDirectory = directory;
     }
     if (!globals.nrfutil.empty()) {
         prepared.provider.nrfUtil = toPath(globals.nrfutil);
@@ -283,7 +299,7 @@ Result<CommandResult> runMcp(const Context& context, const GlobalOptions& global
                                  .transferTimeout = std::chrono::seconds(60),
                                  .maxBodyBytes = 32ULL * 1024 * 1024},
         &cache);
-    hwio::mcp::tools::ToolsContext tools(provider, &catalog);
+    hwio::mcp::tools::ToolsContext tools(provider, &catalog, std::move(prepared->tools));
     hwio::mcp::Registry registry;
     if (const Status registered = hwio::mcp::tools::registerTools(registry, tools); !registered) {
         return std::unexpected(registered.error());
@@ -472,10 +488,16 @@ void registerMcpCommand(CLI::App& app, CommandSlot& slot, const GlobalOptions& g
                         "Directory for the console files of the sessions (must exist; default: "
                         "the application data)")
             ->option_text("DIR");
-    mcp->callback([&slot, &globals, options, tokenFile, speed, consoleFileDir] {
+    CLI::Option* dumpDir =
+        mcp->add_option("--dump-dir", options->dumpDir,
+                        "Directory where read_memory to_file writes (must exist; default: the "
+                        "cache folder)")
+            ->option_text("DIR");
+    mcp->callback([&slot, &globals, options, tokenFile, speed, consoleFileDir, dumpDir] {
         options->tokenFileGiven = tokenFile->count() > 0;
         options->speedGiven = speed->count() > 0;
         options->consoleFileDirGiven = consoleFileDir->count() > 0;
+        options->dumpDirGiven = dumpDir->count() > 0;
         slot.command = [&globals, options](const Context& context) {
             return runMcp(context, globals, *options);
         };

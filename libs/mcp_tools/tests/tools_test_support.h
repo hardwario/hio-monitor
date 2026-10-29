@@ -343,6 +343,9 @@ struct PendingCall {
     [[nodiscard]] std::string errorDetail() const {
         return error().value(QStringLiteral("detail")).toString().toStdString();
     }
+    [[nodiscard]] std::string errorMessage() const {
+        return error().value(QStringLiteral("message")).toString().toStdString();
+    }
     // JSON-RPC error number (0 when the response is a result).
     [[nodiscard]] int rpcError() const {
         return reply->response.value(QStringLiteral("error"))

@@ -141,6 +141,8 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::UpdateRateLimited:
     case ErrorCode::UpdateBadResponse:
     case ErrorCode::UpdateTooLarge:
+    case ErrorCode::McpToFileNotAllowed:
+    case ErrorCode::CliFileIsSymlink:
         return true;
     }
     return false;
@@ -1174,6 +1176,33 @@ constexpr std::array defaultTexts{
                                "Try again later; if it persists, check the releases page: "
                                "https://github.com/hardwario/hio-monitor/releases",
                                "update.bad_response suggestion"),
+        .wizard = std::nullopt,
+    },
+    // Security fixes round 1 (plan/features/0025-security-fixes-round-1.md). The MCP tool replaces
+    // the message with one that names the dump folder (ADR-0182).
+    DefaultTexts{
+        .code = ErrorCode::McpToFileNotAllowed,
+        .message = QT_TRANSLATE_NOOP3("hwio::core", "The file name must be a plain name.",
+                                      "mcp.to_file_not_allowed message"),
+        .cause = QT_TRANSLATE_NOOP3("hwio::core",
+                                    "Memory dumps are written only into the server's dump folder.",
+                                    "mcp.to_file_not_allowed cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hwio::core",
+            "Use a plain file name such as flash.bin, or start the server with --dump-dir DIR.",
+            "mcp.to_file_not_allowed suggestion"),
+        .wizard = std::nullopt,
+    },
+    DefaultTexts{
+        .code = ErrorCode::CliFileIsSymlink,
+        .message = QT_TRANSLATE_NOOP3("hwio::core", "The output file is a symbolic link.",
+                                      "cli.file_is_symlink message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hwio::core", "Symbolic links are never followed or replaced, even with --force.",
+            "cli.file_is_symlink cause"),
+        .suggestion =
+            QT_TRANSLATE_NOOP3("hwio::core", "Choose another file name or remove the link first.",
+                               "cli.file_is_symlink suggestion"),
         .wizard = std::nullopt,
     },
 };

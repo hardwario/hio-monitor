@@ -25,6 +25,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLatin1Char>
 #include <QString>
 #include <QUrl>
 #include <QtTypes>
@@ -37,6 +38,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -342,6 +344,7 @@ TEST_F(JLinkTools, WriteAndReadMemory) {
 TEST_F(JLinkTools, ReadMemoryToFile) {
     ToolsOptions options;
     options.memoryDumpDirectory = provider().root() / "dumps";
+    ASSERT_TRUE(fs::create_directories(options.memoryDumpDirectory)); // --dump-dir must exist
     Harness harness(provider(), limits(), nullptr, options);
     connectDevice(harness);
     auto dump =
@@ -361,34 +364,80 @@ TEST_F(JLinkTools, ReadMemoryToFile) {
         QString::fromLatin1(QCryptographicHash::hash(content, QCryptographicHash::Sha256).toHex()));
     EXPECT_EQ(result.value(QStringLiteral("preview")).toArray().size(), 4);
 
-    auto exists = harness.call(QStringLiteral("read_memory"),
-                               args({{"address", "0x0"}, {"length", 16}, {"to_file", file}}));
+    auto exists =
+        harness.call(QStringLiteral("read_memory"),
+                     args({{"address", "0x0"}, {"length", 16}, {"to_file", "flash.bin"}}));
     EXPECT_EQ(exists.errorCode(), "io.file_exists");
     EXPECT_TRUE(QFile::exists(file)); // never overwritten, never removed
-    auto relative = harness.call(QStringLiteral("read_memory"),
-                                 args({{"address", "0x0"}, {"to_file", "sub/x.bin"}}));
-    EXPECT_EQ(relative.rpcError(), -32602);
 }
 
-// Review R15: no folder is created for an absolute path; bare names have no ':' on any OS; the
-// server's own cache folder is created for a bare name.
-TEST_F(JLinkTools, ReadMemoryToFilePathRules) {
+// ADR-0182 (review H-1): to_file is a plain name in the dump folder; absolute, nested, dot and
+// over-long names are refused with mcp.to_file_not_allowed before the device is touched (no
+// consent prompt, no file, no folder).
+TEST_F(JLinkTools, ReadMemoryToFileRefusesPaths) {
     ToolsOptions options;
-    options.memoryDumpDirectory = provider().root() / "cache" / "mcp"; // does not exist yet
+    options.memoryDumpDirectory = provider().root() / "dumps";
+    ASSERT_TRUE(fs::create_directories(options.memoryDumpDirectory));
     Harness harness(provider(), limits(), nullptr, options);
     connectDevice(harness);
-    const fs::path missing = provider().root() / "missing" / "dump.bin";
-    auto noFolder = harness.call(
+    harness.consent.mode = hwio::mcp::test::FakeConsentBroker::Mode::Deny;
+    const fs::path absolute = provider().root() / "authorized_keys";
+    const std::string longName(129, 'a');
+    for (const std::string& name :
+         {absolute.string(), std::string("sub/x.bin"), std::string("../x.bin"),
+          std::string(".bashrc"), std::string(".."), std::string("."), std::string("a\\b.bin"),
+          std::string("C:foo.bin"), std::string("dump.bin:stream"), longName}) {
+        auto refused = harness.call(
+            QStringLiteral("read_memory"),
+            args({{"address", "0x0"}, {"length", 16}, {"to_file", QString::fromStdString(name)}}));
+        EXPECT_EQ(refused.errorCode(), "mcp.to_file_not_allowed") << name;
+        EXPECT_NE(refused.errorMessage().find(options.memoryDumpDirectory.string()),
+                  std::string::npos)
+            << refused.errorMessage();
+    }
+    EXPECT_FALSE(fs::exists(absolute));
+    EXPECT_FALSE(fs::exists(provider().root() / "x.bin"));
+    EXPECT_TRUE(harness.consent.requests.empty());
+    // 128 characters is still a plain name.
+    auto longest = harness.call(
         QStringLiteral("read_memory"),
-        args({{"address", "0x0"}, {"length", 16}, {"to_file", QString::fromStdString(missing)}}));
+        args({{"address", "0x0"}, {"length", 16}, {"to_file", QString(128, QLatin1Char('b'))}}));
+    EXPECT_FALSE(longest.isError()) << longest.errorCode();
+    EXPECT_TRUE(fs::exists(options.memoryDumpDirectory / std::string(128, 'b')));
+}
+
+// ADR-0182: without --dump-dir the default cache folder is created on first use.
+TEST_F(JLinkTools, ReadMemoryToFileDefaultFolderIsCreated) {
+    Harness harness(provider(), limits());
+    connectDevice(harness);
+    const fs::path directory = harness.tools->memoryDumpDirectory();
+    std::error_code ec;
+    fs::remove_all(directory, ec);
+    auto dump =
+        harness.call(QStringLiteral("read_memory"),
+                     args({{"address", "0x0"}, {"length", 16}, {"to_file", "default.bin"}}));
+    ASSERT_FALSE(dump.isError()) << dump.errorCode() << " " << dump.errorDetail();
+    EXPECT_TRUE(fs::exists(directory / "default.bin"));
+    fs::remove_all(directory, ec);
+}
+
+// Review R15 / ADR-0182: a --dump-dir folder that does not exist is never created; Windows
+// device names are refused by the validate hook.
+TEST_F(JLinkTools, ReadMemoryToFilePathRules) {
+    ToolsOptions options;
+    options.memoryDumpDirectory = provider().root() / "cache" / "mcp"; // does not exist
+    Harness harness(provider(), limits(), nullptr, options);
+    connectDevice(harness);
+    auto noFolder = harness.call(QStringLiteral("read_memory"),
+                                 args({{"address", "0x0"}, {"length", 16}, {"to_file", "d.bin"}}));
     EXPECT_EQ(noFolder.errorCode(), "io.write_failed");
-    EXPECT_NE(noFolder.errorDetail().find(missing.string()), std::string::npos)
+    EXPECT_NE(noFolder.errorDetail().find(options.memoryDumpDirectory.string()), std::string::npos)
         << noFolder.errorDetail();
-    EXPECT_FALSE(fs::exists(missing.parent_path()));
+    EXPECT_FALSE(fs::exists(options.memoryDumpDirectory));
+    ASSERT_TRUE(fs::create_directories(options.memoryDumpDirectory));
     // Review F5: Windows device names (any case, with an extension) and trailing dots / spaces.
-    for (const char* name : {"C:foo.bin", "dump.bin:stream", "C:", "..", "a\\b.bin", "NUL", "nul",
-                             "nul.txt", "Con", "prn.bin", "AUX", "COM1.bin", "com9", "LPT1",
-                             "lpt5.dump", "nul .txt", "dump.", "dump.bin ", "dump. "}) {
+    for (const char* name : {"NUL", "nul", "nul.txt", "Con", "prn.bin", "AUX", "COM1.bin", "com9",
+                             "LPT1", "lpt5.dump", "nul .txt", "dump.", "dump.bin ", "dump. "}) {
         auto refused = harness.call(QStringLiteral("read_memory"),
                                     args({{"address", "0x0"}, {"to_file", name}}));
         EXPECT_EQ(refused.rpcError(), -32602) << name;

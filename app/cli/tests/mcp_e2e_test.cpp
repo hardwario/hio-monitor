@@ -449,6 +449,49 @@ TEST_F(McpCli, UnknownAllowItemIsAUsageError) {
     EXPECT_NE(result.err.find("Unknown --allow item \"format\""), std::string::npos) << result.err;
 }
 
+// ADR-0182: read_memory to_file writes only into --dump-dir; paths are refused.
+TEST_F(McpCli, DumpDirReceivesMemoryDumps) {
+    const QString dumpDir = path(QStringLiteral("dumps"));
+    ASSERT_TRUE(QDir().mkpath(dumpDir));
+    McpProcess mcp({QStringLiteral("--dump-dir"), dumpDir}, fakeEnvironment());
+    ASSERT_TRUE(mcp.started());
+    int id = 1;
+    connectDevice(mcp, id, true);
+    const QJsonObject dump =
+        mcp.request(toolCall(id++, QStringLiteral("read_memory"),
+                             {{QStringLiteral("address"), QStringLiteral("0x0")},
+                              {QStringLiteral("length"), 16},
+                              {QStringLiteral("to_file"), QStringLiteral("d.bin")}},
+                             true));
+    EXPECT_FALSE(isToolError(dump)) << QJsonDocument(dump).toJson().toStdString();
+    EXPECT_TRUE(QFile::exists(dumpDir + QStringLiteral("/d.bin")));
+    const QString outside = path(QStringLiteral("outside.bin"));
+    const QJsonObject refused =
+        mcp.request(toolCall(id++, QStringLiteral("read_memory"),
+                             {{QStringLiteral("address"), QStringLiteral("0x0")},
+                              {QStringLiteral("length"), 16},
+                              {QStringLiteral("to_file"), outside}},
+                             true));
+    ASSERT_TRUE(isToolError(refused)) << QJsonDocument(refused).toJson().toStdString();
+    EXPECT_EQ(toolErrorCode(refused), QStringLiteral("mcp.to_file_not_allowed"));
+    EXPECT_FALSE(QFile::exists(outside));
+    mcp.closeStdin();
+    EXPECT_EQ(mcp.finish(), 0) << mcp.err();
+    expectProbeFree();
+}
+
+TEST_F(McpCli, MissingDumpDirFailsBeforeServing) {
+    const QString missing = path(QStringLiteral("missing-dumps"));
+    const RunResult result =
+        run({QStringLiteral("mcp"), QStringLiteral("--dump-dir"), missing}, fakeEnvironment(),
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":"
+            "\"tools/list\",\"params\":{}}\n");
+    EXPECT_EQ(result.exitCode, 3);
+    EXPECT_TRUE(result.out.empty()) << result.out;
+    EXPECT_NE(result.err.find("dump directory"), std::string::npos) << result.err;
+    EXPECT_FALSE(QDir(missing).exists()); // never created
+}
+
 TEST_F(McpCli, MissingConsoleFileDirFailsBeforeServing) {
     const RunResult result = run({QStringLiteral("mcp"), QStringLiteral("--console-file-dir"),
                                   path(QStringLiteral("missing"))},
