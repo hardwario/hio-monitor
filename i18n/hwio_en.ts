@@ -23,7 +23,7 @@
 <context>
     <name>ConsoleSearchBar</name>
     <message numerus="yes">
-        <location filename="../../../app/gui/qml/console/ConsoleSearchBar.qml" line="309"/>
+        <location filename="../../../app/gui/qml/console/ConsoleSearchBar.qml" line="314"/>
         <source>%Ln matches</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -34,7 +34,7 @@
 <context>
     <name>ConsoleView</name>
     <message numerus="yes">
-        <location filename="../../../app/gui/qml/console/ConsoleView.qml" line="158"/>
+        <location filename="../../../app/gui/qml/console/ConsoleView.qml" line="160"/>
         <source>%Ln lines</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -42,7 +42,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../../app/gui/qml/console/ConsoleView.qml" line="424"/>
+        <location filename="../../../app/gui/qml/console/ConsoleView.qml" line="426"/>
         <source>▼ %Ln new lines</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -53,7 +53,7 @@
 <context>
     <name>hwio::gui::ConsoleViewModel</name>
     <message numerus="yes">
-        <location filename="../../../app/gui/src/viewmodels/console_view_model.cpp" line="692"/>
+        <location filename="../../../app/gui/src/viewmodels/console_view_model.cpp" line="694"/>
         <source>Only the first %Ln lines were copied (copy limit).</source>
         <translation type="unfinished">
             <numerusform></numerusform>
