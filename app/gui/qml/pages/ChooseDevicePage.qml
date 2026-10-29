@@ -44,6 +44,7 @@ Item {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "checkLibrary"
                 text: page.picker.libraryVersion !== ""
                       ? qsTr("J-Link Software found (%1)").arg(page.picker.libraryVersion)
@@ -267,6 +268,7 @@ Item {
                                         }
 
                                         Label {
+                                            textFormat: Text.PlainText
                                             text: row.product
                                             font: Theme.fontUiStrong
                                             color: Theme.text
@@ -275,6 +277,7 @@ Item {
                                         }
 
                                         Label {
+                                            textFormat: Text.PlainText
                                             objectName: "probeSerial"
                                             text: row.serial
                                             font: Theme.fontMono
@@ -282,6 +285,7 @@ Item {
                                         }
 
                                         Label {
+                                            textFormat: Text.PlainText
                                             visible: row.firmware !== ""
                                             text: qsTr("FW %1").arg(row.firmware)
                                             font: Theme.fontUiSmall
@@ -295,6 +299,7 @@ Item {
                                         Label {
                                             id: tag
 
+                                            textFormat: Text.PlainText
                                             objectName: "probeInUse"
                                             visible: tag.text !== ""
                                             text: row.inUseOther !== "" ? qsTr("In use by another program (%1)").arg(row.inUseOther)

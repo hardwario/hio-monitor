@@ -36,6 +36,7 @@ ColumnLayout {
                 spacing: Theme.spacingXs
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "resultText"
                     Layout.fillWidth: true
                     text: result.vm ? result.vm.resultText : ""
@@ -47,6 +48,7 @@ ColumnLayout {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "chipText"
                     Layout.fillWidth: true
                     visible: result.vm ? result.vm.chipText !== "" : false
@@ -57,6 +59,7 @@ ColumnLayout {
 
                 // 0021 (ADR-0166): what `info show` reports after the flash.
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "resultDeviceText"
                     Layout.fillWidth: true
                     visible: result.vm ? result.vm.resultDeviceText !== "" : false

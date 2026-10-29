@@ -147,12 +147,14 @@ FocusScope {
                 spacing: Theme.spacingS
 
                 Label {
+                    textFormat: Text.PlainText
                     text: view.title
                     font: Theme.fontUiStrong
                     color: Theme.text
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "lineCount"
                     Layout.fillWidth: true
                     text: qsTr("%Ln lines", "", view.model.totalLines)

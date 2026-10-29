@@ -93,6 +93,7 @@ ColumnLayout {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "consoleLogFolder"
                 Layout.fillWidth: true
                 text: ConsoleSettings.logFolder
@@ -110,6 +111,7 @@ ColumnLayout {
     }
 
     Label {
+        textFormat: Text.PlainText
         objectName: "consoleRetention"
         Layout.fillWidth: true
         text: qsTr("Keeps the last %1 files, max. %2 MB.").arg(ConsoleSettings.retentionFiles).arg(ConsoleSettings.retentionMegabytes)

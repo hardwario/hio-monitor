@@ -113,6 +113,7 @@ Rectangle {
                     }
 
                     Label {
+                        textFormat: Text.PlainText
                         objectName: "tabTitle"
                         Layout.fillWidth: true
                         text: tabButton.title

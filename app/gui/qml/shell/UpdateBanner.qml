@@ -43,6 +43,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "updateBannerText"
             Layout.fillWidth: true
             text: banner.vm.bannerText

@@ -37,6 +37,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "flashBarText"
             Layout.fillWidth: true
             text: bar.vm ? (bar.vm.canFlash ? bar.vm.flashSummary : bar.vm.cannotFlashReason) : ""
@@ -47,6 +48,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             text: AppViewModel.shortcuts.sequenceText("flash.start")
             font: Theme.fontUiSmall
             color: Theme.textMuted

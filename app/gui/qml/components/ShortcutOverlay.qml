@@ -27,6 +27,7 @@ Dialog {
     }
 
     header: Label {
+        textFormat: Text.PlainText
         text: overlay.title
         font: Theme.fontTitle
         color: Theme.text
@@ -54,6 +55,7 @@ Dialog {
                     spacing: Theme.spacingS
 
                     Label {
+                        textFormat: Text.PlainText
                         text: group.modelData.title
                         font: Theme.fontUiStrong
                         color: Theme.textMuted
@@ -71,6 +73,7 @@ Dialog {
                             spacing: Theme.spacingL
 
                             Label {
+                                textFormat: Text.PlainText
                                 objectName: "shortcutKeys"
                                 Layout.preferredWidth: 180
                                 text: item.modelData.keys
@@ -80,6 +83,7 @@ Dialog {
                             }
 
                             Label {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 text: item.modelData.description
                                 color: Theme.text

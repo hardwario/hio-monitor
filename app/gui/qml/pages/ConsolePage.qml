@@ -326,6 +326,7 @@ Item {
                                 spacing: Theme.spacingXs
 
                                 Label {
+                                    textFormat: Text.PlainText
                                     text: qsTr("Batch %1 / %2").arg(page.vm.batchDone).arg(page.vm.batchTotal)
                                     font: Theme.fontUiSmall
                                     color: Theme.text

@@ -33,6 +33,7 @@ Column {
             Label {
                 id: label
 
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 width: Math.min(implicitWidth, 560 - 2 * Theme.spacingL)
                 text: toast.modelData

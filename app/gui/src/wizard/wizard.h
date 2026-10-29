@@ -49,9 +49,12 @@ using StepKind = wizard_step::Kind;
 struct WizardStep {
     QString id; // "cable", "power", ...
     StepKind kind = StepKind::Info;
-    QString title;        // short, shown in the step list (translated)
-    QString heading;      // translated
-    QString body;         // translated; simple rich text (<b>, <br>) allowed
+    QString title;   // short, shown in the step list (translated)
+    QString heading; // translated
+    // Translated; simple rich text (<b>, <br>) allowed. WizardDialog.qml shows it as StyledText,
+    // the only rich-text label of the app (ADR-0184): `body` must be a constant translated string,
+    // never built with .arg() from error details, device names, paths or other runtime data.
+    QString body;
     QString illustration; // slot id (ADR-0076) or ""
     QString embedded;     // Embedded: "probe-picker" | "firmware-source" | "phase-progress"
     QStringList commands; // Commands
@@ -59,8 +62,8 @@ struct WizardStep {
     QString primaryText;  // the default button ("Next", "Check again", "Flash", "Finish")
     bool showInStepList = true;
     // Additions to the plan's sketch (documented in plan 0007 Implementation notes):
-    QString linkText; // Info: an optional link below the body
-    QString linkUrl;
+    QString linkText;     // Info: an optional link below the body
+    QString linkUrl;      // opened by WizardDialog: a constant URL, never runtime data (ADR-0184)
     QVariantList actions; // Done (and others): extra buttons [{id, text}] -> Wizard::action
 
     // The step for QML (keys as the members; `kind` as int).

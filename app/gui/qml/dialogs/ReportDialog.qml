@@ -34,6 +34,7 @@ Dialog {
     }
 
     header: Label {
+        textFormat: Text.PlainText
         objectName: "reportTitle"
         text: dialog.title
         font: Theme.fontTitle
@@ -74,6 +75,7 @@ Dialog {
             clip: true
 
             TextArea {
+                textFormat: TextEdit.PlainText
                 objectName: "reportSummaryText"
                 text: dialog.report.summary
                 readOnly: true
@@ -112,6 +114,7 @@ Dialog {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "reportSaved"
             Layout.fillWidth: true
             visible: dialog.report.state === "saved"

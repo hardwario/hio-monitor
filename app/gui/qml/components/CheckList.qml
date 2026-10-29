@@ -79,6 +79,7 @@ ColumnLayout {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "checkTitle"
                     Layout.preferredWidth: Math.min(implicitWidth, list.width * 0.45)
                     Layout.alignment: Qt.AlignTop
@@ -89,6 +90,7 @@ ColumnLayout {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "checkResult"
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
@@ -100,6 +102,7 @@ ColumnLayout {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "checkCause"
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.iconSize + Theme.spacingS
@@ -110,6 +113,7 @@ ColumnLayout {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "checkSuggestion"
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.iconSize + Theme.spacingS

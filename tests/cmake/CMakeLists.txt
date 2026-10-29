@@ -51,3 +51,21 @@ if(APPLE)
             -P "${CMAKE_CURRENT_SOURCE_DIR}/check_macos_plist.cmake")
     set_tests_properties(macos_cli_info_plist macos_gui_info_plist PROPERTIES LABELS "cmake")
 endif()
+
+# ADR-0184 (plan/features/0025, M-2): QML text bound to data is PlainText. The second test proves
+# that the scanner finds the three problems of its fixture.
+add_test(NAME qml_plaintext_check
+    COMMAND "${CMAKE_COMMAND}" "-DHWIO_QML_DIR=${PROJECT_SOURCE_DIR}/app/gui/qml"
+        "-DHWIO_QML_ALLOWLIST=${CMAKE_CURRENT_SOURCE_DIR}/qml_plaintext_allowlist.txt"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/check_qml_plaintext.cmake")
+set_tests_properties(qml_plaintext_check PROPERTIES
+    PASS_REGULAR_EXPRESSION "qml_plaintext_check: [0-9]+ QML files OK"
+    FAIL_REGULAR_EXPRESSION "ADR-0184"
+    LABELS "cmake")
+add_test(NAME qml_plaintext_check_detects
+    COMMAND "${CMAKE_COMMAND}" "-DHWIO_QML_DIR=${CMAKE_CURRENT_SOURCE_DIR}/qml_plaintext_fixture"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/check_qml_plaintext.cmake")
+set_tests_properties(qml_plaintext_check_detects PROPERTIES
+    PASS_REGULAR_EXPRESSION "3 problem\\(s\\) in 1 files"
+    LABELS "cmake")
+

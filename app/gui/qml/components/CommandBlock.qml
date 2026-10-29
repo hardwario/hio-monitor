@@ -41,6 +41,7 @@ Rectangle {
                 spacing: Theme.spacingS
 
                 TextEdit {
+                    textFormat: TextEdit.PlainText
                     Layout.fillWidth: true
                     text: line.modelData
                     font: Theme.fontMonoSmall

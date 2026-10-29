@@ -12,6 +12,7 @@ FlashCard {
     required property FlashViewModel vm
 
     Label {
+        textFormat: Text.PlainText
         objectName: "operationTitle"
         Layout.fillWidth: true
         text: card.vm ? card.vm.operationTitle : ""
@@ -21,6 +22,7 @@ FlashCard {
     }
 
     Label {
+        textFormat: Text.PlainText
         objectName: "stepText"
         visible: card.vm ? card.vm.stepText !== "" : false
         text: card.vm ? card.vm.stepText : ""
@@ -52,6 +54,7 @@ FlashCard {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "consoleNote"
             Layout.fillWidth: true
             text: card.vm ? card.vm.consoleNote : ""

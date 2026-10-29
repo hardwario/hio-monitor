@@ -67,6 +67,7 @@ Rectangle {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "probeLabel"
                     Layout.fillWidth: true
                     text: bar.connection.probeLabel
@@ -141,6 +142,7 @@ Rectangle {
             Label {
                 id: stateLabel
 
+                textFormat: Text.PlainText
                 objectName: "stateText"
                 Layout.fillWidth: true
                 text: bar.connection.stateText

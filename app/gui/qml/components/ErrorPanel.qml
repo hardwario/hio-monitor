@@ -72,6 +72,7 @@ Rectangle {
                 spacing: Theme.spacingS
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "errorHeadline"
                     Layout.fillWidth: true
                     text: panel.error.message
@@ -100,6 +101,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "errorCause"
                 Layout.fillWidth: true
                 visible: !panel.collapsed && panel.error.cause !== ""
@@ -109,6 +111,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "errorSuggestion"
                 Layout.fillWidth: true
                 visible: !panel.collapsed && panel.error.suggestion !== ""
@@ -171,6 +174,7 @@ Rectangle {
                     anchors.margins: Theme.spacingS
 
                     TextEdit {
+                        textFormat: TextEdit.PlainText
                         objectName: "errorDetailsText"
                         Layout.fillWidth: true
                         text: panel.error.detailsText()

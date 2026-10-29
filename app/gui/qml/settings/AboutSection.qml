@@ -22,6 +22,7 @@ ColumnLayout {
         label: qsTr("Version")
 
         TextEdit {
+            textFormat: TextEdit.PlainText
             objectName: "aboutText"
             Layout.fillWidth: true
             text: section.vm.aboutText
@@ -78,6 +79,7 @@ ColumnLayout {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "updateStatus"
                     Layout.fillWidth: true
                     text: section.update.lastChecked !== "" && section.update.state !== UpdateViewModel.Checking
@@ -119,6 +121,7 @@ ColumnLayout {
                 Layout.fillWidth: true
 
                 TextEdit {
+                    textFormat: TextEdit.PlainText
                     objectName: "cliPath"
                     Layout.fillWidth: true
                     text: section.vm.cliCommand
@@ -146,6 +149,7 @@ ColumnLayout {
                 visible: section.vm.cliSymlinkCommand !== ""
 
                 Label {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: qsTr("Create a symlink: %1").arg(section.vm.cliSymlinkCommand)
                     font: Theme.fontMonoSmall

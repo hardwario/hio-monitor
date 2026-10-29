@@ -1,0 +1,4 @@
+# Files that qml_plaintext_check (ADR-0184) does not check, relative to app/gui/qml.
+# WizardDialog shows constant translated wizard bodies as StyledText; the contract is in
+# libs/diag/include/hwio/diag/wizard.h (bodies and linkUrl are constant, never device data).
+components/WizardDialog.qml

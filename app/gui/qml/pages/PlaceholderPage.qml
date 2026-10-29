@@ -32,6 +32,7 @@ Item {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "placeholderTitle"
                 // revision: re-read after a language switch.
                 text: AppViewModel.pages.revision >= 0 ? AppViewModel.pages.title(page.pageId) : ""
@@ -40,6 +41,7 @@ Item {
             }
 
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: page.settings ? qsTr("The complete settings page comes with a later update. Until then:")
                                     : qsTr("This page comes with a later update of HARDWARIO Monitor.")
@@ -102,6 +104,7 @@ Item {
                     spacing: Theme.spacingXs
 
                     TextEdit {
+                        textFormat: TextEdit.PlainText
                         objectName: "libraryPath"
                         Layout.fillWidth: true
                         text: AppViewModel.jlinkLibraryPath !== "" ? AppViewModel.jlinkLibraryPath : qsTr("Not found")
@@ -114,6 +117,7 @@ Item {
                     }
 
                     Label {
+                        textFormat: Text.PlainText
                         visible: AppViewModel.jlinkLibraryVersion !== ""
                         text: qsTr("Version %1").arg(AppViewModel.jlinkLibraryVersion)
                         font: Theme.fontUiSmall
@@ -127,6 +131,7 @@ Item {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "buildInfo"
                     Layout.fillWidth: true
                     text: AppViewModel.buildInfo

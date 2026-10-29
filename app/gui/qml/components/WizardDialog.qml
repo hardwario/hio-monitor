@@ -73,6 +73,7 @@ Dialog {
             spacing: Theme.spacingS
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "wizardTitle"
                 Layout.fillWidth: true
                 text: dialog.wizard.title
@@ -147,6 +148,7 @@ Dialog {
                 Label {
                     id: heading
 
+                    textFormat: Text.PlainText
                     objectName: "wizardHeading"
                     Layout.fillWidth: true
                     text: dialog.step.heading !== undefined ? dialog.step.heading : ""
@@ -230,6 +232,7 @@ Dialog {
                             spacing: 2
 
                             Label {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 Layout.leftMargin: Theme.spacingM
                                 Layout.rightMargin: Theme.spacingM
@@ -240,6 +243,7 @@ Dialog {
                             }
 
                             Label {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 Layout.leftMargin: Theme.spacingM
                                 Layout.rightMargin: Theme.spacingM

@@ -84,6 +84,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 Layout.alignment: Qt.AlignHCenter
                 Layout.maximumWidth: 64
                 visible: !rail.compact

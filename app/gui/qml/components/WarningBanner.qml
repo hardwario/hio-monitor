@@ -56,6 +56,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "bannerText"
                 Layout.fillWidth: true
                 text: banner.text
@@ -91,6 +92,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "bannerCause"
             Layout.fillWidth: true
             visible: banner.detailsExpanded && banner.details.cause !== ""
@@ -100,6 +102,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "bannerSuggestion"
             Layout.fillWidth: true
             visible: banner.detailsExpanded && banner.details.suggestion !== ""

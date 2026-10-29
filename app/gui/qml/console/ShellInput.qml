@@ -141,6 +141,7 @@ Rectangle {
                     Accessible.description: input.viewModel.inputEnabled ? "" : input.viewModel.inputDisabledReason
                     // Own placeholder: Material's floats above the field.
                     Label {
+                        textFormat: Text.PlainText
                         objectName: "inputPlaceholder"
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width

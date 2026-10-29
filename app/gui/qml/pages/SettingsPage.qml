@@ -72,6 +72,7 @@ Item {
             Label {
                 id: writeErrorText
 
+                textFormat: Text.PlainText
                 anchors.fill: parent
                 anchors.margins: Theme.spacingS
                 anchors.leftMargin: Theme.spacingM
@@ -100,6 +101,7 @@ Item {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "settingsTitle"
                     text: AppViewModel.pages.revision >= 0 ? AppViewModel.pages.title("settings") : ""
                     font: Theme.fontTitle
@@ -122,6 +124,7 @@ Item {
                         spacing: Theme.spacingS
 
                         Label {
+                            textFormat: Text.PlainText
                             Layout.fillWidth: true
                             Layout.topMargin: Theme.spacingS
                             text: section.modelData.title

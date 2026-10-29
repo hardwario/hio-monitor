@@ -63,6 +63,7 @@ ColumnLayout {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "jlinkPathError"
             Layout.fillWidth: true
             visible: text !== ""
@@ -73,6 +74,7 @@ ColumnLayout {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "jlinkDetected"
             Layout.fillWidth: true
             text: section.vm.jlinkStatusText
@@ -110,6 +112,7 @@ ColumnLayout {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "defaultSpeedWarning"
             Layout.fillWidth: true
             visible: text !== ""

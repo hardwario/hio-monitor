@@ -61,6 +61,7 @@ ColumnLayout {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "nrfUtilPathError"
             Layout.fillWidth: true
             visible: text !== ""
@@ -71,6 +72,7 @@ ColumnLayout {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "nrfUtilDetected"
             Layout.fillWidth: true
             text: section.vm.nrfUtilStatusText

@@ -88,6 +88,7 @@ FlashCard {
                         spacing: 2
 
                         Label {
+                            textFormat: Text.PlainText
                             Layout.fillWidth: true
                             text: kindCard.modelData.title
                             font: Theme.fontUiStrong
@@ -96,6 +97,7 @@ FlashCard {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             Layout.fillWidth: true
                             text: kindCard.modelData.mcu
                             font: Theme.fontUiSmall
@@ -104,6 +106,7 @@ FlashCard {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             Layout.fillWidth: true
                             text: kindCard.modelData.accepts
                             font: Theme.fontMonoSmall
@@ -113,6 +116,7 @@ FlashCard {
 
                         // 0021 (ADR-0166): the firmware in the device (application MCU only).
                         Label {
+                            textFormat: Text.PlainText
                             objectName: "deviceFirmware"
                             Layout.fillWidth: true
                             visible: kindCard.modelData.kind === FirmwareSourceViewModel.AppFirmware
@@ -152,6 +156,7 @@ FlashCard {
             }
 
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: card.vm ? card.vm.prerequisiteText : ""
                 color: Theme.text
@@ -197,6 +202,7 @@ FlashCard {
             }
 
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: card.vm ? card.vm.connectorWarning : ""
                 color: Theme.text

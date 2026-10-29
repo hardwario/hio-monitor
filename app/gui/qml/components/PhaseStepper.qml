@@ -75,6 +75,7 @@ ColumnLayout {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     anchors.verticalCenter: parent.verticalCenter
                     text: phase.modelData.title
                     font: phase.modelData.state === "current" ? Theme.fontUiStrong : Theme.fontUi
@@ -98,6 +99,7 @@ ColumnLayout {
         Layout.fillWidth: true
 
         Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: stepper.detailText
             color: Theme.textMuted

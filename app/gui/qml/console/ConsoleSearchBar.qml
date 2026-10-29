@@ -58,6 +58,7 @@ Rectangle {
         contentItem: Label {
             id: segmentLabel
 
+            textFormat: Text.PlainText
             text: segment.text
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -94,6 +95,7 @@ Rectangle {
         contentItem: Label {
             id: toggleLabel
 
+            textFormat: Text.PlainText
             text: toggle.text
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -133,6 +135,7 @@ Rectangle {
         onToggled: bar.model.levelMask = bar.model.levelMask ^ chip.bit
 
         contentItem: Label {
+            textFormat: Text.PlainText
             text: chip.text
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -232,6 +235,7 @@ Rectangle {
                     Label {
                         id: placeholder
 
+                        textFormat: Text.PlainText
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
                         visible: field.text === "" && !field.preeditText
@@ -300,6 +304,7 @@ Rectangle {
             height: 30
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "matchCount"
                 anchors.verticalCenter: parent.verticalCenter
                 rightPadding: Theme.spacingXs
@@ -363,6 +368,7 @@ Rectangle {
             height: 30
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "filterCount"
                 anchors.verticalCenter: parent.verticalCenter
                 // 0021 (user decision 2026-10-23): only for a filter changed from the default
@@ -384,6 +390,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "searchError"
             height: 30
             verticalAlignment: Text.AlignVCenter

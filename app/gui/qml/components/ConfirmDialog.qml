@@ -32,6 +32,7 @@ Dialog {
     onOpened: rejectButton.forceActiveFocus()
 
     header: Label {
+        textFormat: Text.PlainText
         objectName: "dialogTitle"
         text: dialog.title
         font: Theme.fontTitle
@@ -45,6 +46,7 @@ Dialog {
         spacing: Theme.spacingS
 
         Label {
+            textFormat: Text.PlainText
             objectName: "dialogBody"
             Layout.fillWidth: true
             visible: dialog.body !== ""
@@ -57,6 +59,7 @@ Dialog {
             model: dialog.items
 
             delegate: Label {
+                textFormat: Text.PlainText
                 required property string modelData
 
                 Layout.fillWidth: true
@@ -68,6 +71,7 @@ Dialog {
         }
 
         Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: dialog.consequence !== ""
             text: dialog.consequence

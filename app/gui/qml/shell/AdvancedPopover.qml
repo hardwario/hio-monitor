@@ -68,6 +68,7 @@ Popup {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "speedWarning"
                 Layout.columnSpan: 2
                 Layout.fillWidth: true

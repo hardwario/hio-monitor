@@ -80,6 +80,7 @@ FlashCard {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     objectName: "designatedStatusText"
                     text: card.source ? card.source.designatedStatus : ""
                     color: Theme.text
@@ -156,6 +157,7 @@ FlashCard {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "dropText"
                 Layout.fillWidth: true
                 text: card.source ? card.source.dropText : ""
@@ -241,6 +243,7 @@ FlashCard {
             }
 
             Label {
+                textFormat: Text.PlainText
                 objectName: "catalogInfoText"
                 Layout.fillWidth: true
                 text: card.source ? card.source.catalogInfo.text ?? "" : ""
@@ -250,6 +253,7 @@ FlashCard {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "catalogIdError"
             Layout.fillWidth: true
             visible: card.source ? card.source.catalogIdError !== "" : false
@@ -267,6 +271,7 @@ FlashCard {
         spacing: Theme.spacingXs
 
         Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: card.source ? card.source.sourceSummary : ""
             color: Theme.text
@@ -308,6 +313,7 @@ FlashCard {
         }
 
         Label {
+            textFormat: Text.PlainText
             objectName: "summaryText"
             Layout.fillWidth: true
             text: card.source ? card.source.sourceSummary : ""
@@ -348,6 +354,7 @@ FlashCard {
             }
 
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: card.source ? card.source.sourceName + " — " + card.source.kindHint : ""
                 color: Theme.text
@@ -433,6 +440,7 @@ FlashCard {
                     spacing: Theme.spacingM
 
                     Label {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true
                         text: recentRow.name
                         font: Theme.fontMonoSmall
@@ -441,12 +449,14 @@ FlashCard {
                     }
 
                     Label {
+                        textFormat: Text.PlainText
                         text: recentRow.typeText
                         font: Theme.fontUiSmall
                         color: Theme.textMuted
                     }
 
                     Label {
+                        textFormat: Text.PlainText
                         text: recentRow.dateText
                         font: Theme.fontUiSmall
                         color: Theme.textMuted

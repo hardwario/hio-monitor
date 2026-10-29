@@ -88,6 +88,7 @@ Item {
                             spacing: Theme.spacingM
 
                             Label {
+                                textFormat: Text.PlainText
                                 objectName: "flashTitle"
                                 Layout.fillWidth: true
                                 text: AppViewModel.pages.revision >= 0 ? AppViewModel.pages.title("flash") : ""

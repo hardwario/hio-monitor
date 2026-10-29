@@ -26,6 +26,7 @@ ColumnLayout {
     }
 
     Label {
+        textFormat: Text.PlainText
         objectName: "emptyHeadline"
         Layout.alignment: Qt.AlignHCenter
         Layout.maximumWidth: 460
@@ -37,6 +38,7 @@ ColumnLayout {
     }
 
     Label {
+        textFormat: Text.PlainText
         Layout.alignment: Qt.AlignHCenter
         Layout.maximumWidth: 460
         horizontalAlignment: Text.AlignHCenter

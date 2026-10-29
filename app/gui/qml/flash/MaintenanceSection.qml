@@ -37,6 +37,7 @@ FlashCard {
                 spacing: Theme.spacingS
 
                 Label {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: card.vm ? card.vm.maintenanceTitle : ""
                     font: Theme.fontUiStrong

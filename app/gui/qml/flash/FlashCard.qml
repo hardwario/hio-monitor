@@ -36,6 +36,7 @@ Rectangle {
                 color: Theme.accentSoft
 
                 Label {
+                    textFormat: Text.PlainText
                     anchors.centerIn: parent
                     text: card.number
                     font: Theme.fontUiStrong
@@ -44,6 +45,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: card.title
                 font: Theme.fontUiStrong

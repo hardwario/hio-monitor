@@ -23,6 +23,7 @@ Item {
     Label {
         id: compactLabel
 
+        textFormat: Text.PlainText
         objectName: "wizardStepCompact"
         anchors.left: parent.left
         anchors.right: parent.right
@@ -78,6 +79,7 @@ Item {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     text: entry.modelData.title
                     font: entry.modelData.state === "current" ? Theme.fontUiStrong : Theme.fontUi
                     color: entry.modelData.state === "pending" ? Theme.textMuted : Theme.text
