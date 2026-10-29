@@ -30,19 +30,8 @@ namespace hwio::jlink {
 
 namespace {
 
-// Descriptors of the first `count` buffers in one direction; stops at the first error (the
-// firmware registers buffers one by one, so later ones may not be readable yet).
-std::vector<RttBufferInfo> describe(IJLinkApi& api, int count, RttDirection direction) {
-    std::vector<RttBufferInfo> infos;
-    for (int index = 0; index < count; ++index) {
-        auto info = api.rttBufferInfo(index, direction);
-        if (!info) {
-            break;
-        }
-        infos.push_back(std::move(*info));
-    }
-    return infos;
-}
+// Review M-6: counts read from the target's RAM; more than kMaxRttBuffers is an invalid block.
+bool plausibleCount(int count) { return count <= kMaxRttBuffers; }
 
 std::optional<int> findByName(const std::vector<RttBufferInfo>& infos, const std::string& name) {
     const auto it = std::ranges::find(infos, name, &RttBufferInfo::name);
@@ -74,6 +63,28 @@ Error bufferNotFound(const std::string& name, std::string detail) {
 
 std::string speedDetail(std::optional<int> fixedSpeedKhz) {
     return fixedSpeedKhz ? std::format("{} kHz", *fixedSpeedKhz) : std::string("auto speed");
+}
+
+std::optional<std::vector<RttBufferInfo>> RttChannel::describe(int count, RttDirection direction,
+                                                               Clock::TimePoint deadline,
+                                                               const std::stop_token& stopToken) {
+    std::vector<RttBufferInfo> infos;
+    const int bounded = std::min(count, kMaxRttBuffers);
+    const bool startedLate = m_clock.now() >= deadline;
+    for (int index = 0; index < bounded; ++index) {
+        if (stopToken.stop_requested()) {
+            return std::nullopt;
+        }
+        if (!startedLate && m_clock.now() >= deadline) {
+            break;
+        }
+        auto info = m_api.rttBufferInfo(index, direction);
+        if (!info) {
+            break;
+        }
+        infos.push_back(std::move(*info));
+    }
+    return infos;
 }
 
 RttChannel::RttChannel(IJLinkApi& api, Clock& clock, RttTiming timing, std::optional<int> speedKhz)
@@ -116,14 +127,21 @@ Result<RttLayout> RttChannel::attach(const RttNames& names, const std::stop_toke
         if (!counts) {
             return std::unexpected(std::move(counts).error());
         }
-        if (*counts) {
+        if (*counts && (!plausibleCount((*counts)->up) || !plausibleCount((*counts)->down))) {
+            qCInfo(log::lcJLink).noquote()
+                << QStringLiteral("RTT control block declares %1 up and %2 down buffers (at most "
+                                  "%3), retrying search")
+                       .arg((*counts)->up)
+                       .arg((*counts)->down)
+                       .arg(kMaxRttBuffers);
+        } else if (*counts) {
             state.sawControlBlock = true;
             auto layout = resolveLayout(names, **counts, state, stopToken);
             if (!layout) {
                 return std::unexpected(std::move(layout).error());
             }
             if (*layout) {
-                return finishAttach(names, **layout);
+                return finishAttach(names, **layout, state, stopToken);
             }
         }
 
@@ -161,8 +179,13 @@ RttChannel::pollCounts(Clock::TimePoint deadline, const std::stop_token& stopTok
 Result<std::optional<RttLayout>> RttChannel::resolveLayout(const RttNames& names,
                                                            BufferCounts counts, AttachState& state,
                                                            const std::stop_token& stopToken) {
-    while (counts.up >= 0) {
-        const std::vector<RttBufferInfo> up = describe(m_api, counts.up, RttDirection::Up);
+    while (counts.up >= 0 && plausibleCount(counts.up)) {
+        const auto described = describe(counts.up, RttDirection::Up, state.deadline, stopToken);
+        if (!described) {
+            stop();
+            return fail(ErrorCode::Cancelled);
+        }
+        const std::vector<RttBufferInfo>& up = *described;
         const auto terminal = findByName(up, names.terminal);
         if (!terminal) {
             qCInfo(log::lcJLink).noquote() << "RTT buffer" << toQString(names.terminal)
@@ -207,8 +230,18 @@ Result<std::optional<RttLayout>> RttChannel::resolveLayout(const RttNames& names
     return std::optional<RttLayout>{};
 }
 
-Result<RttLayout> RttChannel::finishAttach(const RttNames& names, RttLayout layout) {
-    const std::vector<RttBufferInfo> down = describe(m_api, layout.downCount, RttDirection::Down);
+Result<RttLayout> RttChannel::finishAttach(const RttNames& names, RttLayout layout,
+                                           const AttachState& state,
+                                           const std::stop_token& stopToken) {
+    const auto describedDown =
+        describe(layout.downCount, RttDirection::Down, state.deadline, stopToken);
+    const auto describedUp =
+        describedDown ? describe(layout.upCount, RttDirection::Up, state.deadline, stopToken)
+                      : std::nullopt;
+    if (!describedDown || !describedUp) {
+        return cancelAttach();
+    }
+    const std::vector<RttBufferInfo>& down = *describedDown;
     auto downIndex = findByName(down, names.terminal);
     if (!downIndex && std::cmp_less(layout.terminalUp.index, down.size())) {
         downIndex = layout.terminalUp.index; // rttt: the same index as the up buffer
@@ -221,7 +254,7 @@ Result<RttLayout> RttChannel::finishAttach(const RttNames& names, RttLayout layo
     }
     layout.terminalDown =
         RttBuffer{.index = *downIndex, .size = down.at(static_cast<std::size_t>(*downIndex)).size};
-    logBuffers(describe(m_api, layout.upCount, RttDirection::Up), "Up");
+    logBuffers(*describedUp, "Up");
     logBuffers(down, "Down");
     qCInfo(log::lcJLink) << "RTT started," << layout.upCount << "up buffers," << layout.downCount
                          << "down buffers";

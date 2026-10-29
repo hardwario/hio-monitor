@@ -6,7 +6,8 @@
 //   attachDeadline; it scales with a fixed low J-Link speed, rttAttachDeadline(), ADR-0110) ->
 //   resolve the buffers by name on every attach (a reflash may move them) ->
 //   require a non-zero terminal buffer size; a zero-sized (or not yet registered) terminal buffer
-//   means a stale control block: RTT stop, wait staleRetryDelay, search again. The logger buffer
+//   means a stale control block: RTT stop, wait staleRetryDelay, search again. So does a count
+//   above kMaxRttBuffers in either direction (an invalid block). The logger buffer
 //   is awaited at most loggerWait, then the channel continues without logs.
 // read(): up to the given buffer (the caller reads up to the up-buffer size per cycle).
 // write(): in chunks of the down-buffer size; a 0-byte write is retried every writeRetryInterval
@@ -27,6 +28,7 @@
 #include <span>
 #include <stop_token>
 #include <string>
+#include <vector>
 
 namespace hwio::jlink {
 
@@ -39,6 +41,10 @@ inline constexpr int rttCapSpeedKhz = 250;
 // Below this fixed speed a search of the whole RAM can take longer than the capped deadline
 // (about 64 s at 100 kHz); the CLI warns before connecting.
 inline constexpr int rttSlowSpeedKhz = 125;
+// Review M-6 (plan/features/0025): the most RTT buffers per direction that a control block may
+// declare (rttt-compatible; SEGGER's default is 3, CHESTER uses 2 up and 1 down). The counts come
+// from the target's RAM: a larger count is an invalid control block and the search goes on.
+inline constexpr int kMaxRttBuffers = 16;
 
 struct RttTiming {
     // At auto speed or a fixed speed >= rttFullSpeedKhz; a session scales it with
@@ -144,7 +150,16 @@ private:
                                                                  BufferCounts counts,
                                                                  AttachState& state,
                                                                  const std::stop_token& stopToken);
-    [[nodiscard]] Result<RttLayout> finishAttach(const RttNames& names, RttLayout layout);
+    [[nodiscard]] Result<RttLayout> finishAttach(const RttNames& names, RttLayout layout,
+                                                 const AttachState& state,
+                                                 const std::stop_token& stopToken);
+    // Descriptors of the first `count` (at most kMaxRttBuffers) buffers in one direction; stops at
+    // the first error (the firmware registers buffers one by one) and when `deadline` expires
+    // during the call (a call that starts after it, in the logger wait, reads all descriptors);
+    // nullopt on a stop request.
+    [[nodiscard]] std::optional<std::vector<RttBufferInfo>>
+    describe(int count, RttDirection direction, Clock::TimePoint deadline,
+             const std::stop_token& stopToken);
     [[nodiscard]] Error deadlineError(const RttNames& names, bool sawControlBlock);
 
     IJLinkApi& m_api;

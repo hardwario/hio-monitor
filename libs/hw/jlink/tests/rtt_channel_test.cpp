@@ -285,6 +285,68 @@ TEST_F(Rtt, AttachHonoursStopAndStopsRtt) {
     EXPECT_EQ(layout.error().code, ErrorCode::Cancelled);
 }
 
+// Review M-6: a hostile or corrupted control block declaring 0x7FFFFFFF buffers is invalid; the
+// search goes on until the deadline (target.rtt_not_found) without reading any descriptor.
+TEST_F(Rtt, HugeBufferCountIsAnInvalidControlBlock) {
+    ON_CALL(api(), rttBufferCount(_)).WillByDefault(Return(0x7FFFFFFF));
+    EXPECT_CALL(api(), rttBufferInfo(_, _)).Times(0);
+    const auto layout = rtt().attach(chesterNames, {});
+    ASSERT_FALSE(layout);
+    EXPECT_EQ(layout.error().code, ErrorCode::TargetRttNotFound);
+    EXPECT_LE(clock().slept(), std::chrono::milliseconds(15300));
+    EXPECT_FALSE(rtt().isAttached());
+}
+
+TEST_F(Rtt, HugeDownCountIsAnInvalidControlBlock) {
+    ON_CALL(api(), rttBufferCount(RttDirection::Down))
+        .WillByDefault(Return(hwio::jlink::kMaxRttBuffers + 1));
+    const auto layout = rtt().attach(chesterNames, {});
+    ASSERT_FALSE(layout);
+    EXPECT_EQ(layout.error().code, ErrorCode::TargetRttNotFound);
+}
+
+TEST_F(Rtt, AtMostMaxRttBuffersDescriptorsAreRead) {
+    target().up.assign(hwio::jlink::kMaxRttBuffers, RttBufferInfo{.name = "Other", .size = 8});
+    target().up.back() = RttBufferInfo{.name = "Terminal", .size = 1024};
+    target().down.assign(hwio::jlink::kMaxRttBuffers, RttBufferInfo{.name = "Other", .size = 8});
+    target().down.back() = RttBufferInfo{.name = "Terminal", .size = 16};
+    EXPECT_CALL(api(), rttBufferInfo(_, _)).Times(::testing::AnyNumber());
+    EXPECT_CALL(api(), rttBufferInfo(::testing::Ge(hwio::jlink::kMaxRttBuffers), _)).Times(0);
+    const auto layout = rtt().attach(RttNames{.terminal = "Terminal", .logger = ""}, {});
+    ASSERT_TRUE(layout);
+    EXPECT_EQ(layout->terminalUp.index, hwio::jlink::kMaxRttBuffers - 1);
+    EXPECT_EQ(layout->terminalDown.index, hwio::jlink::kMaxRttBuffers - 1);
+}
+
+// Review M-6: a descriptor read that runs past the attach deadline ends the description and the
+// attach fails instead of reading on.
+TEST_F(Rtt, DescribingBuffersStopsAtTheDeadline) {
+    ON_CALL(api(), rttBufferInfo(_, _))
+        .WillByDefault([&](int, RttDirection) -> std::expected<RttBufferInfo, int> {
+            clock().advance(std::chrono::milliseconds(20000));
+            return RttBufferInfo{.name = "Other", .size = 8};
+        });
+    EXPECT_CALL(api(), rttBufferInfo(_, _)).Times(1);
+    const auto layout = rtt().attach(chesterNames, {});
+    ASSERT_FALSE(layout);
+    EXPECT_EQ(layout.error().code, ErrorCode::TargetRttBufferNotFound);
+}
+
+// Review M-6: reading the descriptors honours the stop token (Disconnect does not hang).
+TEST_F(Rtt, DescribingBuffersHonoursStop) {
+    std::stop_source stop;
+    ON_CALL(api(), rttBufferInfo(_, _))
+        .WillByDefault([&](int, RttDirection) -> std::expected<RttBufferInfo, int> {
+            stop.request_stop();
+            return RttBufferInfo{.name = "Other", .size = 8};
+        });
+    EXPECT_CALL(api(), rttBufferInfo(_, _)).Times(1);
+    EXPECT_CALL(api(), rttStop()).Times(1);
+    const auto layout = rtt().attach(chesterNames, stop.get_token());
+    ASSERT_FALSE(layout);
+    EXPECT_EQ(layout.error().code, ErrorCode::Cancelled);
+}
+
 TEST_F(Rtt, ReadReturnsBytesOrReadFailed) {
     ASSERT_TRUE(rtt().attach(chesterNames, {}));
     std::array<std::byte, 64> buffer{};
