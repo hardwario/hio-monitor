@@ -377,9 +377,38 @@ std::string hexOf(std::span<const std::byte> bytes) {
     return text;
 }
 
+// Review L-17: FILE is created exclusively (NewOnly, a symlink at FILE is never followed); an
+// existing FILE is io.file_exists unless `force`, which removes a regular file first and refuses
+// a symlink (cli.file_is_symlink). Checked before the device is touched.
+Status prepareOutputFile(const std::string& file, bool force) {
+    const fs::path path = toPath(file);
+    std::error_code ec;
+    const fs::file_status status = fs::symlink_status(path, ec);
+    if (!fs::exists(status)) {
+        return {};
+    }
+    if (!force) {
+        return std::unexpected(makeError(ErrorCode::IoFileExists, file));
+    }
+    if (fs::is_symlink(status)) {
+        return std::unexpected(makeError(ErrorCode::CliFileIsSymlink, file));
+    }
+    if (!fs::is_regular_file(status) || !fs::remove(path, ec)) {
+        return std::unexpected(
+            makeError(ErrorCode::IoWriteFailed,
+                      file + ": " + (ec ? ec.message() : std::string("not a regular file"))));
+    }
+    return {};
+}
+
 Result<CommandResult> uicrRead(const Context& context, const GlobalOptions& globals,
                                const ProbeOptions& group, const ProbeOptions& own,
-                               const std::string& format, const std::string& file) {
+                               const std::string& format, const std::string& file, bool force) {
+    if (file != "-") {
+        if (const Status prepared = prepareOutputFile(file, force); !prepared) {
+            return std::unexpected(prepared.error());
+        }
+    }
     auto bytes = readPibBytes(context, globals, group, own);
     if (!bytes) {
         return std::unexpected(std::move(bytes).error());
@@ -402,11 +431,19 @@ Result<CommandResult> uicrRead(const Context& context, const GlobalOptions& glob
         }
     } else {
         QFile out(toQString(file));
-        if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate) ||
-            out.write(QByteArrayView(content.data(), static_cast<qsizetype>(content.size())).data(),
-                      static_cast<qint64>(content.size())) != static_cast<qint64>(content.size())) {
+        if (!out.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
+            // Created meanwhile (NewOnly never follows or replaces it).
             return std::unexpected(
-                makeError(ErrorCode::IoWriteFailed, file + ": " + out.errorString().toStdString()));
+                makeError(out.exists() ? ErrorCode::IoFileExists : ErrorCode::IoWriteFailed,
+                          out.exists() ? file : file + ": " + out.errorString().toStdString()));
+        }
+        if (out.write(QByteArrayView(content.data(), static_cast<qsizetype>(content.size())).data(),
+                      static_cast<qint64>(content.size())) != static_cast<qint64>(content.size())) {
+            Error error =
+                makeError(ErrorCode::IoWriteFailed, file + ": " + out.errorString().toStdString());
+            out.close();
+            out.remove(); // no partial file
+            return std::unexpected(std::move(error));
         }
     }
     return CommandResult{.data = data, .humanText = {}, .streamed = false};
@@ -714,6 +751,7 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
         ProbeOptions probe;
         std::string format;
         std::string file;
+        bool force = false;
     };
     auto uicrReadOptions = std::make_shared<UicrReadOptions>();
     CLI::App* uicrReadCommand = uicr->add_subcommand(
@@ -725,6 +763,8 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
     uicrReadCommand->add_option("file", uicrReadOptions->file, "Output file, - for stdout")
         ->required()
         ->option_text("FILE");
+    uicrReadCommand->add_flag("--force", uicrReadOptions->force,
+                              "Replace an existing FILE (a symbolic link is never replaced)");
     addProbeOptions(*uicrReadCommand, uicrReadOptions->probe);
     uicrReadCommand->callback([&slot, &globals, group, uicrOptions, uicrReadOptions] {
         slot.command = [&globals, group, uicrOptions, uicrReadOptions](const Context& context) {
@@ -733,7 +773,7 @@ void registerAppFlashCommands(CLI::App& appGroup, const std::shared_ptr<ProbeOpt
                 .speed = uicrReadOptions->probe.speed ? uicrReadOptions->probe.speed
                                                       : uicrOptions->speed};
             return uicrRead(context, globals, *group, own, uicrReadOptions->format,
-                            uicrReadOptions->file);
+                            uicrReadOptions->file, uicrReadOptions->force);
         };
     });
 }

@@ -11,6 +11,7 @@
 #include <QCryptographicHash>
 #include <QEventLoop>
 #include <QFile>
+#include <QFileInfo>
 #include <QIODevice>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -95,6 +96,10 @@ protected:
     }
     [[nodiscard]] QString path(const QString& name) const {
         return home() + QLatin1Char('/') + name;
+    }
+    [[nodiscard]] QByteArray readFile(const QString& name) const {
+        QFile file(path(name));
+        return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
     }
 
     [[nodiscard]] QProcessEnvironment fakeEnvironment() const {
@@ -338,6 +343,43 @@ TEST_F(FlashCli, ResetAndPibAndUicr) {
     QFile file(path(QStringLiteral("uicr.bin")));
     ASSERT_TRUE(file.open(QIODevice::ReadOnly));
     EXPECT_EQ(file.readAll().toHex(), QByteArray(pibHex));
+
+    // Review L-17: an existing FILE is refused unless --force; a symlink is never followed.
+    const auto uicrRead = [this](const QString& name, bool force) {
+        QStringList arguments{QStringLiteral("--json"), QStringLiteral("chester"),
+                              QStringLiteral("app"),    QStringLiteral("uicr"),
+                              QStringLiteral("read"),   QStringLiteral("--format"),
+                              QStringLiteral("bin"),    path(name)};
+        if (force) {
+            arguments.append(QStringLiteral("--force"));
+        }
+        return hwio(arguments);
+    };
+    writeFile(QStringLiteral("existing.bin"), "keep");
+    const RunResult exists = uicrRead(QStringLiteral("existing.bin"), false);
+    EXPECT_EQ(exists.exitCode, 3);
+    EXPECT_EQ(errorCode(exists), QStringLiteral("io.file_exists"));
+    EXPECT_EQ(readFile(QStringLiteral("existing.bin")), QByteArray("keep"));
+    const RunResult forced = uicrRead(QStringLiteral("existing.bin"), true);
+    EXPECT_EQ(forced.exitCode, 0) << forced.out << forced.err;
+    EXPECT_EQ(readFile(QStringLiteral("existing.bin")).toHex(), QByteArray(pibHex));
+#ifndef _WIN32
+    writeFile(QStringLiteral("victim.txt"), "secret");
+    ASSERT_TRUE(QFile::link(path(QStringLiteral("victim.txt")), path(QStringLiteral("link.bin"))));
+    const RunResult linkExists = uicrRead(QStringLiteral("link.bin"), false);
+    EXPECT_EQ(linkExists.exitCode, 3);
+    EXPECT_EQ(errorCode(linkExists), QStringLiteral("io.file_exists"));
+    const RunResult linkForced = uicrRead(QStringLiteral("link.bin"), true);
+    EXPECT_EQ(linkForced.exitCode, 3);
+    EXPECT_EQ(errorCode(linkForced), QStringLiteral("cli.file_is_symlink"));
+    EXPECT_EQ(readFile(QStringLiteral("victim.txt")), QByteArray("secret"));
+    EXPECT_TRUE(QFileInfo(path(QStringLiteral("link.bin"))).isSymLink());
+    // A dangling symlink is not followed either (no file is created at its target).
+    ASSERT_TRUE(
+        QFile::link(path(QStringLiteral("nowhere.bin")), path(QStringLiteral("dangling.bin"))));
+    EXPECT_EQ(uicrRead(QStringLiteral("dangling.bin"), false).exitCode, 3);
+    EXPECT_FALSE(QFile::exists(path(QStringLiteral("nowhere.bin"))));
+#endif
 
     // An erased PIB is pib.invalid (exit 6).
     ASSERT_EQ(hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("erase"),
