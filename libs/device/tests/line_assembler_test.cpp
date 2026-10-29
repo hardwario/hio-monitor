@@ -107,6 +107,25 @@ TEST(LineAssembler, AnsiCsiSequencesAreStripped) {
               "b"); // not CSI: kept
 }
 
+// ADR-0183 (review M-1): what LineAssembler emits for hostile device output.
+TEST(LineAssembler, HostileOutputIsSanitised) {
+    LineAssembler assembler(Channel::Shell, false);
+    const std::string_view input = "\x1b]0;pwned\x07uart:~$ \x1b"
+                                   "c\x0e"
+                                   "ok\xC2\x9B"
+                                   "2J\n"
+                                   "\x1b]52;c;ZXZpbA==\x07\n"
+                                   "\x1b]0;"
+                                   "never ends\n";
+    const auto lines =
+        assembler.feed(std::as_bytes(std::span(input)), std::chrono::system_clock::now());
+    ASSERT_EQ(lines.size(), 3U);
+    EXPECT_EQ(lines[0].text, "uart:~$ ok\xEF\xBF\xBD"
+                             "2J");
+    EXPECT_EQ(lines[1].text, "");
+    EXPECT_EQ(lines[2].text, "");
+}
+
 TEST(LineAssembler, ZephyrLevelOfLogLines) {
     LineAssembler assembler(Channel::Log, false);
     const auto lines = feed(assembler, "[00:00:01.234,000] <inf> app: Build version: v3.1.0\n"
@@ -153,8 +172,6 @@ TEST(LineAssembler, CarriageReturnsOverwriteLikeATerminal) {
               (std::vector<std::string>{"done"}));
     // Only trailing carriage returns: the text before them is kept.
     EXPECT_EQ(texts(feed(assembler, "text\r\r\n")), (std::vector<std::string>{"text"}));
-    EXPECT_EQ(hwio::device::applyCarriageReturns("\r"), "");
-    EXPECT_EQ(hwio::device::applyCarriageReturns("a\rb"), "b");
 }
 
 TEST(LineAssembler, ResetDropsThePartialLine) {

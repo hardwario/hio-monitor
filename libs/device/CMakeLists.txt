@@ -29,7 +29,6 @@ hwio_add_backend_library(hwio_device
     include/hwio/device/session_key.h
     include/hwio/device/session_registry.h
     include/hwio/device/shell_query.h
-    include/hwio/device/text_sanitizer.h
     src/ble_lock.cpp
     src/ble_session.cpp
     src/ble_session_internal.h
@@ -64,8 +63,7 @@ hwio_add_backend_library(hwio_device
     src/session_worker.cpp
     src/shell_query.cpp
     src/session_worker_target.cpp
-    src/session_worker_target.h
-    src/text_sanitizer.cpp)
+    src/session_worker_target.h)
 add_library(hwio::device ALIAS hwio_device)
 
 target_include_directories(hwio_device PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")

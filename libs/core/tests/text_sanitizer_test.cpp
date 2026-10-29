@@ -1,22 +1,18 @@
-// sanitizeDeviceText (ADR-0183, plan/features/0025 M-1): device text is terminal-safe.
+// hwio::sanitizeDeviceText (ADR-0183, plan/features/0025 M-1): device text is terminal-safe.
 
-#include "hwio/device/console_line.h"
-#include "hwio/device/line_assembler.h"
-#include "hwio/device/text_sanitizer.h"
+#include "hwio/core/text_sanitizer.h"
 
 #include <QString>
 #include <QStringLiteral>
 
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <span>
 #include <string>
 #include <string_view>
 
 namespace {
 
-using hwio::device::sanitizeDeviceText;
+using hwio::sanitizeDeviceText;
 using namespace std::string_literals;
 
 const std::string replacement = "\xEF\xBF\xBD"; // U+FFFD in UTF-8
@@ -92,6 +88,8 @@ TEST(TextSanitizer, Utf8IsKept) {
 TEST(TextSanitizer, CarriageReturnsActLikeATerminal) {
     EXPECT_EQ(clean("progress 10%\rdone"), "done");
     EXPECT_EQ(clean("text\r\r"), "text");
+    EXPECT_EQ(hwio::applyCarriageReturns("\r"), "");
+    EXPECT_EQ(hwio::applyCarriageReturns("a\rb"), "b");
 }
 
 TEST(TextSanitizer, UnterminatedOscSwallowsTheRestOfTheLine) {
@@ -102,24 +100,6 @@ TEST(TextSanitizer, UnterminatedOscSwallowsTheRestOfTheLine) {
 TEST(TextSanitizer, QStringOverload) {
     EXPECT_EQ(sanitizeDeviceText(QStringLiteral("CHESTER\nfake line\x1b[2J\u009b")),
               QStringLiteral("CHESTERfake line�"));
-}
-
-// End to end: what LineAssembler emits for hostile device output.
-TEST(TextSanitizer, LineAssemblerSanitisesEveryLine) {
-    hwio::device::LineAssembler assembler(hwio::device::Channel::Shell, false);
-    const std::string_view input = "\x1b]0;pwned\x07uart:~$ \x1b"
-                                   "c\x0e"
-                                   "ok\xC2\x9B"
-                                   "2J\n"
-                                   "\x1b]52;c;ZXZpbA==\x07\n"
-                                   "\x1b]0;"
-                                   "never ends\n";
-    const auto lines =
-        assembler.feed(std::as_bytes(std::span(input)), std::chrono::system_clock::now());
-    ASSERT_EQ(lines.size(), 3U);
-    EXPECT_EQ(lines[0].text, "uart:~$ ok" + replacement + "2J");
-    EXPECT_EQ(lines[1].text, "");
-    EXPECT_EQ(lines[2].text, "");
 }
 
 } // namespace

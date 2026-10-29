@@ -1,7 +1,7 @@
 #include "hwio/device/line_assembler.h"
 
+#include "hwio/core/text_sanitizer.h"
 #include "hwio/device/console_line.h"
-#include "hwio/device/text_sanitizer.h"
 
 #include <QByteArrayView>
 #include <QString>
@@ -86,17 +86,6 @@ std::string stripAnsiCsi(std::string_view bytes) {
 std::string decodeUtf8Lossy(std::string_view bytes) {
     return QString::fromUtf8(QByteArrayView(bytes.data(), static_cast<qsizetype>(bytes.size())))
         .toStdString();
-}
-
-std::string applyCarriageReturns(std::string_view bytes) {
-    while (bytes.ends_with('\r')) {
-        bytes.remove_suffix(1);
-    }
-    const std::size_t last = bytes.rfind('\r');
-    if (last != std::string_view::npos) {
-        bytes.remove_prefix(last + 1); // non-empty: trailing '\r's were removed above
-    }
-    return std::string(bytes);
 }
 
 LogLevel parseZephyrLevel(std::string_view text) {

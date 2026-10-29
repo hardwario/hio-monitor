@@ -122,6 +122,14 @@ TEST(BleScanner, DevicesWithEqualNamesAreKeptApart) {
     EXPECT_NE(result.devices[0].id, result.devices[1].id);
 }
 
+// ADR-0183 (review L-19): an advertised name cannot forge lines or drive a terminal.
+TEST(BleScanner, AdvertisedNamesAreSanitised) {
+    const ScanResult result = scan("hostile_name.json", false);
+    ASSERT_EQ(result.devices.size(), 1U);
+    EXPECT_EQ(result.devices[0].name, "CHESTER-EVILfake line\xEF\xBF\xBD"
+                                      "2J");
+}
+
 TEST(BleScanner, ListIsBounded) {
     const ScanResult result = scan("many.json", false);
     EXPECT_EQ(result.devices.size(), BleScanner::maxDevices);

@@ -4,9 +4,10 @@
 // (ADR-0083, ADR-0129; plan/features/0011).
 //
 // Rows are de-duplicated by device id (never by name: legacy bug), hold at most maxDevices (the
-// one seen least recently is evicted), names are cut at maxNameBytes (UTF-8 boundary) and sorted
-// by RSSI (strongest first). Which profile a device belongs to is decided by the injected matcher
-// (libs/device: ProfileRegistry::findByAdvertisement); without `all`, devices without a profile
+// one seen least recently is evicted), names are sanitised (hwio::sanitizeDeviceText, ADR-0183)
+// and cut at maxNameBytes (UTF-8 boundary), and rows are sorted by RSSI (strongest first). Which
+// profile a device belongs to is decided by the injected matcher (libs/device:
+// ProfileRegistry::findByAdvertisement); without `all`, devices without a profile
 // are left out. devicesChanged() is emitted at most every signalInterval, finished() once per
 // start() when the scan ended (its duration passed, stop() was not called) or failed.
 //

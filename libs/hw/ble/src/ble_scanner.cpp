@@ -4,6 +4,7 @@
 #include "hwio/core/json.h"
 #include "hwio/core/log.h"
 #include "hwio/core/result.h"
+#include "hwio/core/text_sanitizer.h"
 #include "hwio/hw/ble/ble_host.h"
 #include "hwio/hw/ble/types.h"
 
@@ -117,7 +118,8 @@ void BleScanner::add(const Advertisement& advertisement) {
         it = std::prev(m_devices.end());
     }
     if (!advertisement.name.empty() || it->name.empty()) {
-        it->name = truncateUtf8(advertisement.name, maxNameBytes);
+        // ADR-0183 (review L-19): the advertised name is device data; sanitised once here.
+        it->name = truncateUtf8(sanitizeDeviceText(advertisement.name), maxNameBytes);
     }
     it->rssi = advertisement.rssi;
     it->nusAdvertised = it->nusAdvertised || nus;

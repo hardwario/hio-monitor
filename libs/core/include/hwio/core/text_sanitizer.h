@@ -1,7 +1,8 @@
 #pragma once
 
-// Terminal-safe device text (ADR-0183, plan/features/0025 M-1). Everything a device sends that is
-// shown as text (console lines, BLE advertised names, PIB strings) passes through
+// Terminal-safe device text (ADR-0183, plan/features/0025 M-1). In libs/core so that every backend
+// library that receives device text can use it (libs/device, libs/hw/ble). Everything a device
+// sends that is shown as text (console lines, BLE advertised names, PIB strings) passes through
 // sanitizeDeviceText() once, where it enters the backend, so the GUI, the CLI, console files and
 // MCP all see the same text and no front end can be steered by escape sequences:
 //   1. escape sequences are removed: CSI (ESC '[' parameters 0x30-0x3F, intermediates 0x20-0x2F,
@@ -21,11 +22,14 @@
 #include <string>
 #include <string_view>
 
-namespace hwio::device {
+namespace hwio {
+
+// Drops trailing '\r's, then keeps the text after the last '\r' (review fix 8, 2026-10-09).
+[[nodiscard]] std::string applyCarriageReturns(std::string_view bytes);
 
 // Raw device bytes -> sanitised UTF-8.
 [[nodiscard]] std::string sanitizeDeviceText(std::string_view bytes);
 // The same for text that is already a QString (its UTF-8 bytes are sanitised).
 [[nodiscard]] QString sanitizeDeviceText(const QString& text);
 
-} // namespace hwio::device
+} // namespace hwio

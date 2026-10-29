@@ -2,7 +2,7 @@
 
 #include "hwio/core/error.h"
 #include "hwio/core/result.h"
-#include "hwio/device/text_sanitizer.h"
+#include "hwio/core/text_sanitizer.h"
 
 #include <QCoreApplication>
 #include <QJsonObject>

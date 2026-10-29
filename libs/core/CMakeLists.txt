@@ -12,6 +12,7 @@ hwio_add_backend_library(hwio_core
     include/hwio/core/result.h
     include/hwio/core/ring_buffer.h
     include/hwio/core/settings.h
+    include/hwio/core/text_sanitizer.h
     include/hwio/core/version.h
     src/app_identity.cpp
     src/crash_handler.cpp
@@ -21,6 +22,7 @@ hwio_add_backend_library(hwio_core
     src/log.cpp
     src/settings.cpp
     src/settings_internal.h
+    src/text_sanitizer.cpp
     src/version.cpp)
 add_library(hwio::core ALIAS hwio_core)
 

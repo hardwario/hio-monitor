@@ -10,6 +10,7 @@ add_executable(hwio_core_tests
     main.cpp
     ring_buffer_test.cpp
     settings_test.cpp
+    text_sanitizer_test.cpp
     version_test.cpp)
 hwio_apply_target_defaults(hwio_core_tests)
 target_include_directories(hwio_core_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../src")

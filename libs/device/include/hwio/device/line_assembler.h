@@ -5,7 +5,8 @@
 //   - splits at the byte level on '\n' and strips one trailing '\r';
 //   - keeps an incomplete line (at most maxPartialBytes, then it is emitted as a line, cut at a
 //     UTF-8 character boundary);
-//   - sanitises each complete line with sanitizeDeviceText() (ADR-0183, text_sanitizer.h): escape
+//   - sanitises each complete line with hwio::sanitizeDeviceText() (ADR-0183,
+//   hwio/core/text_sanitizer.h): escape
 //     sequences removed, carriage returns applied like a terminal that redraws a line (Zephyr's
 //     shell redraws its prompt with "\r" + erase-line: trailing '\r's are dropped, and the text
 //     after the last remaining '\r' replaces what came before it, applyCarriageReturns), other
@@ -56,8 +57,6 @@ private:
 // Helpers (exposed for tests).
 [[nodiscard]] std::string stripAnsiCsi(std::string_view bytes);
 [[nodiscard]] std::string decodeUtf8Lossy(std::string_view bytes); // invalid -> U+FFFD
-// Drops trailing '\r's, then keeps the text after the last '\r' (review fix 8, 2026-10-09).
-[[nodiscard]] std::string applyCarriageReturns(std::string_view bytes);
 [[nodiscard]] LogLevel parseZephyrLevel(std::string_view text);
 // True when `partial` (raw bytes of the incomplete line, LineAssembler::partial()) is the shell
 // prompt: ANSI CSI sequences and carriage-return redraws removed, it equals `prompt` (ADR-0082;

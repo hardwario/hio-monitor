@@ -174,7 +174,7 @@ why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 1 auth f
 
 - [x] A. ADRs 0182..0188 Accepted; plan Approved (user).
 - [x] B. H-1 + I-1 (mcp_tools, CLI `--dump-dir`), tests.
-- [ ] C. M-1 sanitizer + LineAssembler/BLE/PIB call sites, tests.
+- [x] C. M-1 sanitizer + LineAssembler/BLE/PIB call sites, tests.
 - [x] D. M-2 QML PlainText + `qml_plaintext_check`.
 - [ ] E. M-4 a/b/c/e (the rename it waited for has landed), settings migration, translations.
 - [ ] F. M-3 udev + diag text; M-6 RTT cap; M-8 MCP auth.

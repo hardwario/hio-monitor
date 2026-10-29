@@ -1,6 +1,4 @@
-#include "hwio/device/text_sanitizer.h"
-
-#include "hwio/device/line_assembler.h"
+#include "hwio/core/text_sanitizer.h"
 
 #include <QByteArray>
 #include <QByteArrayView>
@@ -12,7 +10,7 @@
 #include <string>
 #include <string_view>
 
-namespace hwio::device {
+namespace hwio {
 
 namespace {
 
@@ -115,6 +113,17 @@ std::string dropControls(std::string_view bytes) {
 
 } // namespace
 
+std::string applyCarriageReturns(std::string_view bytes) {
+    while (bytes.ends_with('\r')) {
+        bytes.remove_suffix(1);
+    }
+    const std::size_t last = bytes.rfind('\r');
+    if (last != std::string_view::npos) {
+        bytes.remove_prefix(last + 1); // non-empty: trailing '\r's were removed above
+    }
+    return std::string(bytes);
+}
+
 std::string sanitizeDeviceText(std::string_view bytes) {
     const std::string text = dropControls(applyCarriageReturns(stripEscapeSequences(bytes)));
     QString decoded =
@@ -133,4 +142,4 @@ QString sanitizeDeviceText(const QString& text) {
         std::string_view(bytes.constData(), static_cast<std::size_t>(bytes.size()))));
 }
 
-} // namespace hwio::device
+} // namespace hwio
