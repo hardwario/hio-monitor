@@ -96,6 +96,28 @@ TEST(Pib, BadCrc) {
     EXPECT_TRUE(decodePib(pib));
 }
 
+// ADR-0183: PIB strings are sanitised for terminals (controls and escape sequences removed).
+TEST(Pib, StringFieldsAreSanitised) {
+    auto pib = bytes();
+    // vendorName at 0x06 (17 bytes): "AB" ESC "]0;x" BEL "C" ESC "c" "D" 0x7F
+    const std::array<char, 13> hostile{'A',    'B', '\x1b', ']', '0', ';',   'x',
+                                       '\x07', 'C', '\x1b', 'c', 'D', '\x7f'};
+    for (std::size_t i = 0; i < 17; ++i) {
+        pib.at(0x06 + i) =
+            i < hostile.size() ? static_cast<std::byte>(hostile.at(i)) : std::byte{0};
+    }
+    // productName at 0x17: "M" BS "N" 0x9B (8-bit CSI, not ASCII -> '?') "2J"
+    const std::array<char, 6> c1{'M', '\x08', 'N', '\x9b', '2', 'J'};
+    for (std::size_t i = 0; i < c1.size(); ++i) {
+        pib.at(0x17 + i) = static_cast<std::byte>(c1.at(i));
+    }
+    restoreCrc(pib);
+    const auto decoded = decodePib(pib);
+    ASSERT_TRUE(decoded) << decoded.error().detail;
+    EXPECT_EQ(decoded->vendorName, "ABCD");
+    EXPECT_EQ(decoded->productName, "MN?2JR-M");
+}
+
 TEST(Pib, VersionOneCannotPassTheSizeCheck) {
     auto pib = bytes();
     // Version 1 layout: little-endian signature, 16-bit size at 0x08 (py-hardwario).

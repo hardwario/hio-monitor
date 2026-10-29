@@ -5,12 +5,12 @@
 //   - splits at the byte level on '\n' and strips one trailing '\r';
 //   - keeps an incomplete line (at most maxPartialBytes, then it is emitted as a line, cut at a
 //     UTF-8 character boundary);
-//   - decodes UTF-8 per complete line, replacing invalid sequences with U+FFFD, so multi-byte
-//     characters split across reads survive;
-//   - strips ANSI CSI sequences (ESC '[' parameters intermediates final);
-//   - applies carriage returns like a terminal that redraws a line (Zephyr's shell redraws its
-//     prompt with "\r" + erase-line): trailing '\r's are dropped, and the text after the last
-//     remaining '\r' replaces what came before it (applyCarriageReturns);
+//   - sanitises each complete line with sanitizeDeviceText() (ADR-0183, text_sanitizer.h): escape
+//     sequences removed, carriage returns applied like a terminal that redraws a line (Zephyr's
+//     shell redraws its prompt with "\r" + erase-line: trailing '\r's are dropped, and the text
+//     after the last remaining '\r' replaces what came before it, applyCarriageReturns), other
+//     controls dropped, UTF-8 decoded per line (invalid sequences -> U+FFFD, so multi-byte
+//     characters split across reads survive), C1 controls -> U+FFFD;
 //   - parses the Zephyr level tag <dbg|inf|wrn|err> of log lines; a log line without a tag that
 //     has the Zephyr hexdump continuation format gets LogLevel::Hexdump (ADR-0171);
 //   - (profile rule hashPrefixIsLog) routes shell lines starting with '#' to the Log channel.

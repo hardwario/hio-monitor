@@ -1,6 +1,7 @@
 #include "hwio/device/line_assembler.h"
 
 #include "hwio/device/console_line.h"
+#include "hwio/device/text_sanitizer.h"
 
 #include <QByteArrayView>
 #include <QString>
@@ -172,7 +173,7 @@ ConsoleLine LineAssembler::makeLine(std::string_view raw,
     line.channel = m_channel;
     line.dir = Direction::Out;
     line.time = now;
-    line.text = decodeUtf8Lossy(applyCarriageReturns(stripAnsiCsi(raw)));
+    line.text = sanitizeDeviceText(raw); // ADR-0183
     bool hashRouted = false;
     if (line.channel == Channel::Shell && m_hashPrefixIsLog && line.text.starts_with('#')) {
         line.channel = Channel::Log;

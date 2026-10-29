@@ -23,6 +23,7 @@ add_executable(hwio_device_tests
     scripted_api.h
     session_test_support.h
     target_session_test.cpp
+    text_sanitizer_test.cpp
     workflow_test.cpp)
 # The fake BLE backend exists only with HWIO_TEST_OVERRIDES (ADR-0127).
 if(HWIO_TEST_OVERRIDES)

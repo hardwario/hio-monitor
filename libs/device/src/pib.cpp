@@ -2,6 +2,7 @@
 
 #include "hwio/core/error.h"
 #include "hwio/core/result.h"
+#include "hwio/device/text_sanitizer.h"
 
 #include <QCoreApplication>
 #include <QJsonObject>
@@ -52,6 +53,8 @@ std::uint32_t littleEndian32(std::span<const std::byte> bytes, std::size_t offse
            (std::to_integer<std::uint32_t>(bytes[offset + 3]) << 24U);
 }
 
+// The NUL-padded ASCII field; bytes >= 0x80 become '?', then the text is sanitised for terminals
+// (ADR-0183: controls and escape sequences removed).
 std::string ascii(std::span<const std::byte> bytes, const Field& field) {
     std::string text;
     for (std::size_t i = 0; i < field.length; ++i) {
@@ -61,7 +64,7 @@ std::string ascii(std::span<const std::byte> bytes, const Field& field) {
     while (!text.empty() && text.back() == '\0') {
         text.pop_back();
     }
-    return text;
+    return sanitizeDeviceText(text);
 }
 
 Error invalid(std::string_view check, std::string detail) {
