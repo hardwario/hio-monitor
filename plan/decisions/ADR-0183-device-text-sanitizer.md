@@ -9,10 +9,10 @@ Review M-1: `LineAssembler` strips only `ESC [` CSI. OSC, DCS, two-byte ESC sequ
 C1 (U+009B acts as CSI) reach the CLI terminal. BLE advertised names (L-19) and PIB strings are not filtered at all.
 
 ## Options considered
-1. Sanitise in each front end. 2. One sanitizer in `libs/device`, applied where device text enters the backend.
+1. Sanitise in each front end. 2. One sanitizer in the backend, applied where device text enters the backend.
 
 ## Decision
-Option 2. `hwio::device::sanitizeDeviceText()` strips CSI, OSC (to BEL/ST), DCS/SOS/PM/APC (to ST) and other
+Option 2. `sanitizeDeviceText()` in **libs/core** (amended 2026-10-29: `libs/hw/ble` cannot link `libs/device`) strips CSI, OSC (to BEL/ST), DCS/SOS/PM/APC (to ST) and other
 two-byte ESC sequences, drops C0 except TAB, drops DEL, and after lossy UTF-8 decoding replaces U+0080–U+009F with
 U+FFFD. Used by `LineAssembler::makeLine` (after carriage-return handling), `BleScanner::add` and PIB string decoding.
 

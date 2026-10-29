@@ -40,10 +40,10 @@ Re-running the review after plans 0012/0014 land.
 
 - `hwio mcp --dump-dir DIR` (new): the directory where `read_memory to_file` writes; default the existing
   `memoryDumpDirectory()` cache folder. Must exist and be a directory; never created except the default.
-- `hwio chester app uicr read FILE` (L-17): refuses an existing FILE (`cli.file_exists`, exit 1) unless `--force`;
+- `hwio chester app uicr read FILE` (L-17): refuses an existing FILE (existing `io.file_exists`, exit 3) unless `--force`;
   never follows a symlink at FILE (opened `NewOnly`; with `--force` an existing symlink is refused too).
 - `hwio console`: leading-space and sensitive commands are not stored in the history file (same rules as GUI).
-- New `hwio console history clear [--device …]` (CLI counterpart of "Clear history").
+- New `hwio console history clear` (CLI counterpart of "Clear history"; clears all history files, no `--device`).
 - `--json` shapes unchanged.
 
 ## Design
@@ -51,7 +51,10 @@ Re-running the review after plans 0012/0014 land.
 ### H-1 + I-1 — MCP `to_file` confined to the dump directory (ADR-0182)
 - `libs/mcp_tools/src/tools/target_tools.cpp`: `to_file` must be a single path component validated by the existing
   bare-name check (no separators, no `..`, no leading dot, ≤ 128 chars). Absolute or nested → `mcp.to_file_not_allowed`
-  (new error code) in the validate hook, before consent. File created `NewOnly` in the dump directory, which is
+  (new error code, category Usage) refused in the tool's `start` lambda, before any device access (the validate hook
+  can only return JSON-RPC -32602 without an `hwio::Error`; it keeps its other name checks) — decided 2026-10-29.
+  Texts: cause "Memory dumps are written only into the server's dump folder.", suggestion "Use a plain file name such
+  as flash.bin, or start the server with --dump-dir DIR." File created `NewOnly` in the dump directory, which is
   `--dump-dir` if given, else `memoryDumpDirectory()`. Overwrite rule unchanged (never).
 - Tool description of `read_memory` updated; ADR-0100's `to_file` sentence superseded.
 - I-1: a fixed sentence in the `debug_device` prompt and in the descriptions of `send_command`, `read_log`,
@@ -59,8 +62,8 @@ Re-running the review after plans 0012/0014 land.
   instructions."
 
 ### M-1 — terminal-safe device text (ADR-0183)
-- New `hwio::device::sanitizeDeviceText(std::span<const std::byte>) -> QString` (or the existing byte type) in
-  `libs/device` (`text_sanitizer.h/.cpp`), replacing `stripAnsiCsi` in `LineAssembler::makeLine`:
+- New `sanitizeDeviceText(std::string_view) -> std::string` (+ `QString` overload) in **`libs/core`** (moved from
+  libs/device 2026-10-29: `libs/hw/ble` cannot link `libs/device`, which links it), replacing `stripAnsiCsi` in `LineAssembler::makeLine`:
   strip CSI (`ESC [` … final byte 0x40–0x7E), OSC (`ESC ]` … BEL or ST), DCS/SOS/PM/APC (`ESC P/X/^/_` … ST),
   other two-byte `ESC x` sequences; drop C0 except `\t`; drop DEL; after the lossy UTF-8 decode replace
   U+0080–U+009F with U+FFFD. Unterminated OSC/DCS is bounded by the line (≤ 4096 bytes, existing limit).
@@ -79,8 +82,11 @@ Re-running the review after plans 0012/0014 land.
 
 ### M-3 — udev rule `uaccess` only (ADR-0185, amends ADR-0072)
 - `packaging/linux/60-hardwario-jlink.rules`: `SUBSYSTEM=="usb", ATTR{idVendor}=="1366", TAG+="uaccess"`.
-- `libs/diag/src/usb_access.cpp`: same text in the wizard and suggested command; the check "probe not accessible"
-  additionally hints that `uaccess` needs a local seat (systemd-logind) — SSH-only users must add their own rule.
+- `libs/diag/src/usb_access.cpp`: same text in the wizard; the suggested command writes
+  `/etc/udev/rules.d/60-hardwario-jlink.rules` (a `99-*` rule runs after `73-seat-late.rules`, so `uaccess` there grants
+  nothing) and tells users to remove an old `MODE="0666"` `99-jlink.rules`. The `usb.access_denied` suggestion adds:
+  "The rule gives access only to the user logged in at this computer; users connected only over SSH need their own
+  udev rule." (decided 2026-10-29)
 - Existing tests updated; the `.deb` postinst still triggers `udevadm`.
 
 ### M-4 — device secrets kept out of persistent files (ADR-0186)
@@ -93,6 +99,7 @@ b. `TargetProfile::sensitiveCommandPrefixes` (`std::span<const std::string_view>
    with a space or matches a sensitive prefix (case-sensitive, after the leading-space check). Setting
    `console/rememberCommands` (bool, default true, schema migration +1) disables recording entirely.
    `CommandHistory::clearAll()` deletes all `history-*.txt` files in the history directory (only those names).
+   Prefixes are injected: `CommandHistory::open(file, sensitivePrefixes)` (decided 2026-10-29).
    **Overlap:** command history / completer belong to the autocomplete refactoring — see "Risks".
    Console files still record input lines (they are the user's session log); a sensitive input line is written
    as ` < <command prefix> <redacted>`.
@@ -119,8 +126,8 @@ deadline and checks both every iteration.
 
 ### M-8 — MCP auth failures per connection (ADR-0188, supersedes the lockout of ADR-0102)
 `libs/mcp/src/http_connection.cpp`: remove the process-global `AuthGuard` lockout. Each connection counts its own
-failures; on each failure the 401 response is sent after a constant 250 ms delay (timer, not blocking the owner
-thread); after 3 failures the connection is closed. A request with the correct token is never refused for auth
+failure: the 401 response is sent after a constant 250 ms delay (timer, not blocking the owner thread) and the
+connection is closed (every refusal already closes it, so the budget is 1 failure per connection — decided 2026-10-29). A request with the correct token is never refused for auth
 reasons. Limits table in 0013/ADR-0102 updated by ADR-0188.
 
 ### L-4 — release URL validated
@@ -132,15 +139,16 @@ reasons. Limits table in 0013/ADR-0102 updated by ADR-0188.
 
 ### L-17 — `uicr read FILE` safe write
 `app/cli/src/flash_commands.cpp`: `QIODevice::NewOnly` by default; `--force` removes an existing regular file first
-(symlinks refused, `cli.file_is_symlink`) and then opens `NewOnly`.
+(symlinks refused, new `cli.file_is_symlink`, category Io, exit 3: "The output file is a symbolic link." / "Symbolic
+links are never followed or replaced, even with --force." / "Choose another file name or remove the link first.") and then opens `NewOnly`.
 
 ### L-18 — shell-escaped suggestion
 `app/gui/src/install_paths.cpp`: a `shellQuote()` helper (single quotes, `'` → `'\''`) used for both forms; unit test
 with `'`, `"`, `$`, `` ` `` and spaces.
 
 ### Threading / Errors / Limits
-No new threads. New error codes: `mcp.to_file_not_allowed`, `cli.file_exists`, `cli.file_is_symlink` (each with what /
-why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 3 auth failures per connection + 250 ms delay.
+No new threads. New error codes: `mcp.to_file_not_allowed`, `cli.file_is_symlink` (`io.file_exists` reused) (each with what /
+why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 1 auth failure per connection (closed) + 250 ms delay.
 
 ## Decisions requiring user confirmation
 
@@ -156,7 +164,7 @@ why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 3 auth f
 | M-8 | per-connection budget / no limiter | per-connection budget (2026-10-29) | ADR-0188 |
 | M-5 flag set | as listed in Design | accepted default (2026-10-29) | ADR-0187 |
 | M-6 cap | 16 per direction | accepted default (2026-10-29) | — |
-| M-8 numbers | 3 failures, 250 ms | accepted default (2026-10-29) | ADR-0188 |
+| M-8 numbers | 3 failures, 250 ms | 1 failure closes the connection (refusals already close), 250 ms (2026-10-29) | ADR-0188 |
 | M-4(b) CHESTER sensitive list | list in ADR-0186 (lrw keys, lte username/password, ble passkey) | accepted default (2026-10-29) | ADR-0186 |
 | M-4 console file input lines | write sensitive input redacted / keep verbatim | accepted default (2026-10-29) | ADR-0186 |
 | L-17 | `NewOnly` + `--force` | accepted default (2026-10-29) | — |
@@ -168,7 +176,7 @@ why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 3 auth f
 - [ ] B. H-1 + I-1 (mcp_tools, CLI `--dump-dir`), tests.
 - [ ] C. M-1 sanitizer + LineAssembler/BLE/PIB call sites, tests.
 - [x] D. M-2 QML PlainText + `qml_plaintext_check`.
-- [ ] E. M-4 a/b/c/e (after the autocomplete refactoring has landed — see Risks), settings migration, translations.
+- [ ] E. M-4 a/b/c/e (the rename it waited for has landed), settings migration, translations.
 - [ ] F. M-3 udev + diag text; M-6 RTT cap; M-8 MCP auth.
 - [x] G. M-5 hardening flags + `binary_hardening_check`; L-5 release.yml.
 - [ ] H. L-4, L-17, L-18.

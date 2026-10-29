@@ -12,8 +12,8 @@ active and deny service to the legitimate client; with a 256-bit token a global 
 1. Per-connection budget plus constant delay. 2. No limiter, delay only.
 
 ## Decision
-Option 1. A failed auth gets 401 after a constant 250 ms (timer, owner thread not blocked); after 3 failures the
-connection is closed. No process-global state. A request with the correct token is never refused for auth reasons.
+Option 1. A failed auth gets 401 after a constant 250 ms (timer, owner thread not blocked) and the connection is
+closed, as every refusal already closes it (budget = 1 failure per connection; corrected 2026-10-29 from "3"). No process-global state. A request with the correct token is never refused for auth reasons.
 
 ## Consequences
 Brute force stays infeasible (token entropy); local DoS via lockout disappears. Connection limit (16) still applies.

@@ -21,7 +21,9 @@ redaction (chosen).
   `ble config passkey` (prefix match on whitespace-normalised words). Commands that only *print* secrets
   (`info claim-token`, `info ble-passkey`) have no secret in the input and are not listed; their output stays in the
   console file, which is the user's own session log (owner-only).
-- Setting `console/rememberCommands` (default true); "Clear history" in GUI and `hwio console history clear`.
+- Prefixes injected via `CommandHistory::open(file, sensitivePrefixes)`.
+- Setting `console/rememberCommands` (default true); "Clear history" in GUI and `hwio console history clear`
+  (all history files).
 - Console files write sensitive input lines as ` < <prefix> <redacted>`.
 - PIB hex dumps in logs, console-file `@` lines and `Error.detail` show bytes 0x45–0x76 as `..`; `pib read` is full.
 - Diagnostic report redacts `(password|passwd|token|secret|key|psk)[=:]value`, falls back to `getpwuid()` /

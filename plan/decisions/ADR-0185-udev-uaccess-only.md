@@ -13,7 +13,9 @@ users, service accounts) read/flash/erase access to attached targets; `uaccess` 
 
 ## Decision
 Option 1: `SUBSYSTEM=="usb", ATTR{idVendor}=="1366", TAG+="uaccess"` in the packaged rule, the wizard text and the
-suggested command. The USB-access check hints that users without a local seat (SSH only) need their own rule.
+suggested command. The suggested command installs it as `/etc/udev/rules.d/60-hardwario-jlink.rules` (a `99-*` file
+runs after `73-seat-late.rules`, where `uaccess` is applied, and would grant nothing) and asks users to remove an old
+`MODE="0666"` `99-jlink.rules`. The USB-access check hints that users without a local seat (SSH only) need their own rule.
 
 ## Consequences
 Headless/SSH-only use needs a manual rule. ADR-0072 stays valid otherwise.
