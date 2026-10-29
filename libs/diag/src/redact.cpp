@@ -6,9 +6,9 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QSysInfo>
-#include <QtTypes>
 #include <QtEnvironmentVariables>
 #include <QtSystemDetection>
+#include <QtTypes>
 
 #ifndef Q_OS_WIN
 #include <pwd.h>
