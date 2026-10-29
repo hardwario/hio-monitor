@@ -29,6 +29,8 @@ class QQmlEngine;
 
 namespace hwio::gui {
 
+class HistoryStore;
+
 // Opens a file or folder with the desktop (QDesktopServices::openUrl); tests replace it.
 using UrlOpener = std::function<bool(const QUrl&)>;
 
@@ -47,6 +49,8 @@ class ConsoleSettings : public QObject {
     Q_PROPERTY(bool suggestions READ suggestions WRITE setSuggestions NOTIFY changed)
     Q_PROPERTY(bool readCommandsOnConnect READ readCommandsOnConnect WRITE setReadCommandsOnConnect
                    NOTIFY changed)
+    // 0025 (ADR-0186): sent commands are stored in the command history (shared with the CLI).
+    Q_PROPERTY(bool rememberCommands READ rememberCommands WRITE setRememberCommands NOTIFY changed)
     Q_PROPERTY(int minFontSize READ minFontSize CONSTANT)
     Q_PROPERTY(int maxFontSize READ maxFontSize CONSTANT)
     Q_PROPERTY(QString logFolder READ logFolder CONSTANT)
@@ -64,7 +68,7 @@ public:
     ConsoleSettings(SettingsStore* store, std::filesystem::path logFolder, QObject* parent);
 
     // The console/* keys (fontSize, showTimestamps, wrapLines, splitRatio, stacked, logToFile;
-    // 0021: suggestions, readCommandsOnConnect).
+    // 0021: suggestions, readCommandsOnConnect; 0025: rememberCommands).
     static void registerKeys(SettingsStore& store);
 
     // QML singleton factory: the instance created by registerConsolePage (a child of
@@ -87,6 +91,8 @@ public:
     void setSuggestions(bool enabled);
     [[nodiscard]] bool readCommandsOnConnect() const;
     void setReadCommandsOnConnect(bool enabled);
+    [[nodiscard]] bool rememberCommands() const;
+    void setRememberCommands(bool enabled);
     [[nodiscard]] static int minFontSize() { return minFont; }
     [[nodiscard]] static int maxFontSize() { return maxFont; }
     [[nodiscard]] QString logFolder() const;
@@ -99,6 +105,12 @@ public:
     Q_INVOKABLE void resetFontSize();
     // Opens the console log folder in the file manager (created when missing).
     Q_INVOKABLE void openLogFolder() const;
+    // 0025 (ADR-0186): deletes the saved command history of all devices (after the confirmation
+    // in ConsoleSection.qml) and empties the open histories. False when a file could not be
+    // deleted (logged).
+    Q_INVOKABLE bool clearHistory();
+    // The history store "Clear history" works on (AppViewModel's; set by registerConsolePage).
+    void setHistoryStore(HistoryStore* store) noexcept { m_history = store; }
 
     [[nodiscard]] const std::filesystem::path& logFolderPath() const noexcept { return m_folder; }
     // Opens `url` with the desktop (or the test opener); false when that failed.
@@ -112,7 +124,8 @@ private:
     [[nodiscard]] QVariant read(const QString& key, const QVariant& fallback) const;
     void write(const QString& key, const QVariant& value);
 
-    QPointer<SettingsStore> m_store; // non-owning; AppViewModel's child, outlives this object
+    QPointer<SettingsStore> m_store;   // non-owning; AppViewModel's child, outlives this object
+    HistoryStore* m_history = nullptr; // non-owning; AppViewModel's member, outlives this object
     std::filesystem::path m_folder;
     UrlOpener m_opener;
 };

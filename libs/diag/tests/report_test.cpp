@@ -12,6 +12,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <QtEnvironmentVariables>
 #include <QtSystemDetection>
 
 #include <gtest/gtest.h>
@@ -47,6 +48,33 @@ TEST(Redact, HomeUserAndHost) {
     EXPECT_EQ(redact("user jdoe on jdoe-box", posix), "user <user> on <host>");
     EXPECT_EQ(redact("jdoe-box:/home/jdoe", posix), "<host>:~");
 }
+
+// ADR-0186 (review M-4e): secret-looking name=value / name: value pairs.
+TEST(Redact, SecretValues) {
+    EXPECT_EQ(redact("lte password=hunter2 ok", posix), "lte password=<redacted> ok");
+    EXPECT_EQ(redact("PASSWD: abc", posix), "PASSWD=<redacted>");
+    EXPECT_EQ(redact("claim token = 0123456789abcdef", posix), "claim token=<redacted>");
+    EXPECT_EQ(redact("secret:s3cr3t", posix), "secret=<redacted>");
+    EXPECT_EQ(redact("appkey = 00112233445566778899aabbccddeeff", posix), "appkey=<redacted>");
+    EXPECT_EQ(redact("wifi psk=abc;def", posix), "wifi psk=<redacted>");
+    // Without '=' or ':' nothing changes; nor does a longer name.
+    EXPECT_EQ(redact("lrw config appkey 0011", posix), "lrw config appkey 0011");
+    EXPECT_EQ(redact("tokenFile=/tmp/t", posix), "tokenFile=/tmp/t");
+}
+
+// ADR-0186: without USER the account of the effective uid is redacted (Unix).
+#ifndef _WIN32
+TEST(Redact, UserFallsBackToTheAccountWithoutUser) {
+    const QByteArray saved = qgetenv("USER");
+    const bool had = qEnvironmentVariableIsSet("USER");
+    qunsetenv("USER");
+    const RedactionContext context = hwio::diag::currentRedaction();
+    if (had) {
+        qputenv("USER", saved);
+    }
+    EXPECT_FALSE(context.user.empty()); // getpwuid(geteuid())
+}
+#endif
 
 TEST(Redact, SubstringsInLongerWordsStay) {
     EXPECT_EQ(redact("jdoes jdoe_x xjdoe /home/jdoenet", posix),

@@ -4,6 +4,8 @@
 #include "hwio/core/json.h"
 #include "hwio/core/log.h"
 #include "hwio/core/result.h"
+#include "hwio/device/profile.h"
+#include "owner_only.h"
 
 #include <QByteArray>
 #include <QFile>
@@ -17,10 +19,13 @@
 #include <QtTypes>
 
 #include <chrono>
+#include <cstddef>
 #include <deque>
 #include <expected>
 #include <filesystem>
 #include <format>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -31,6 +36,9 @@ namespace hwio::device {
 namespace {
 
 namespace fs = std::filesystem;
+
+// clearAll() looks at no more entries of the history directory than this.
+constexpr std::size_t maxDirectoryEntries = 10000;
 
 // Appends with the rules of the history: consecutive duplicates collapsed, newest maxEntries kept.
 void appendEntry(std::deque<std::string>& entries, std::string entry) {
@@ -87,10 +95,12 @@ fs::path CommandHistory::defaultFile(std::string_view profileId, std::string_vie
            std::format("history-{}-{}.txt", profileId, targetId);
 }
 
-CommandHistory::CommandHistory(fs::path file) : m_file(std::move(file)) {}
+CommandHistory::CommandHistory(fs::path file, std::span<const std::string_view> sensitivePrefixes)
+    : m_file(std::move(file)), m_sensitivePrefixes(sensitivePrefixes) {}
 
-Result<CommandHistory> CommandHistory::open(fs::path file) {
-    CommandHistory history(std::move(file));
+Result<CommandHistory> CommandHistory::open(fs::path file,
+                                            std::span<const std::string_view> sensitivePrefixes) {
+    CommandHistory history(std::move(file), sensitivePrefixes);
     auto entries = readEntries(history.m_file);
     if (!entries) {
         return std::unexpected(std::move(entries).error());
@@ -109,8 +119,44 @@ CommandHistory::~CommandHistory() {
     }
 }
 
+bool CommandHistory::isRecordable(std::string_view entry,
+                                  std::span<const std::string_view> sensitivePrefixes) {
+    return !entry.starts_with(' ') && !matchSensitiveCommand(entry, sensitivePrefixes);
+}
+
+Status CommandHistory::clearAll(const fs::path& directory) {
+    std::error_code ec;
+    if (!fs::is_directory(directory, ec)) {
+        return {};
+    }
+    std::optional<Error> failure;
+    std::size_t visited = 0;
+    for (fs::directory_iterator it(directory, ec), end;
+         !ec && it != end && visited < maxDirectoryEntries; it.increment(ec), ++visited) {
+        const std::string name = toUtf8(it->path().filename());
+        if (!name.starts_with("history-") || !name.ends_with(".txt")) {
+            continue;
+        }
+        std::error_code removeError;
+        if (!fs::remove(it->path(), removeError) && removeError && !failure) {
+            failure = makeError(ErrorCode::IoWriteFailed,
+                                toUtf8(it->path()) + ": " + removeError.message());
+        }
+    }
+    if (failure) {
+        return std::unexpected(std::move(*failure));
+    }
+    return {};
+}
+
+void CommandHistory::clear() noexcept {
+    m_entries.clear();
+    m_pending.clear();
+    m_addsSinceSaveAttempt = 0;
+}
+
 void CommandHistory::add(std::string entry) {
-    if (!isStorable(entry)) {
+    if (!isStorable(entry) || !isRecordable(entry, m_sensitivePrefixes)) {
         return;
     }
     appendEntry(m_entries, entry);
@@ -158,6 +204,8 @@ Status CommandHistory::save() {
         return std::unexpected(makeError(
             ErrorCode::IoWriteFailed, toUtf8(m_file) + ": " + output.errorString().toStdString()));
     }
+    detail::restrictToOwner(
+        output); // ADR-0186: before the first write; the committed file keeps it
     for (const std::string& entry : *merged) {
         output.write(entry.data(), static_cast<qint64>(entry.size()));
         output.write("\n", 1);

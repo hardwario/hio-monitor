@@ -2,7 +2,7 @@
 // PageRegistry::addSettingsSection and rendered by the Settings page (plan 0006): font size,
 // timestamps, line wrapping, console log files, the log folder and the retention of the files;
 // amended by 0021 (ADR-0170): command suggestions while typing and reading the command list on
-// connect.
+// connect; by 0025 (ADR-0186): "Remember commands" and "Clear history".
 // Binds to ConsoleSettings (the console/* keys of the SettingsStore).
 import QtQuick
 import QtQuick.Controls
@@ -69,6 +69,35 @@ ColumnLayout {
         text: qsTr("Read the command list from the device on connect (sends “help”)")
         checked: ConsoleSettings.readCommandsOnConnect
         onToggled: ConsoleSettings.readCommandsOnConnect = checked
+    }
+
+    // 0025 (ADR-0186): recording the command history; "Clear history" deletes it for all devices.
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingM
+
+        Switch {
+            objectName: "consoleRememberCommands"
+            Layout.fillWidth: true
+            text: qsTr("Remember commands")
+            checked: ConsoleSettings.rememberCommands
+            onToggled: ConsoleSettings.rememberCommands = checked
+        }
+
+        HButton {
+            objectName: "consoleClearHistory"
+            text: qsTr("Clear history")
+            onClicked: clearHistoryDialog.open()
+        }
+    }
+
+    ConfirmDialog {
+        id: clearHistoryDialog
+
+        objectName: "consoleClearHistoryConfirm"
+        title: qsTr("Delete the saved command history of all devices?")
+        acceptText: qsTr("Clear history")
+        onAccepted: ConsoleSettings.clearHistory()
     }
 
     Switch {

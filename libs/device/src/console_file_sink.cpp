@@ -7,7 +7,9 @@
 #include "hwio/device/ble_lock.h"
 #include "hwio/device/console_line.h"
 #include "hwio/device/probe_lock.h"
+#include "hwio/device/profile.h"
 #include "hwio/device/session_key.h"
+#include "owner_only.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -234,7 +236,8 @@ ConsoleFileSink::open(const ConsoleFileConfig& config, std::uint32_t probeSerial
 }
 
 ConsoleFileSink::ConsoleFileSink(Passkey /*key*/, ConsoleFileConfig config, fs::path baseFile)
-    : m_config(std::move(config)), m_base(std::move(baseFile)), m_current(m_base) {}
+    : m_config(std::move(config)), m_base(std::move(baseFile)), m_current(m_base),
+      m_sensitivePrefixes(sensitivePrefixesOf(m_config.profileId, m_config.targetId)) {}
 
 ConsoleFileSink::~ConsoleFileSink() {
     if (m_file && !m_buffer.empty()) {
@@ -256,6 +259,7 @@ Status ConsoleFileSink::openCurrent() {
         m_file = nullptr;
         return std::unexpected(writeFailed(m_current, reason));
     }
+    detail::restrictToOwner(*m_file); // ADR-0186: before the first write; existing files too
     m_written = static_cast<std::uintmax_t>(m_file->size());
     openFiles().add(m_current);
     qCInfo(log::lcDevice).noquote() << "Console file:" << toQString(toUtf8(m_current));
@@ -330,6 +334,12 @@ Status ConsoleFileSink::append(std::string_view prefix, std::string_view text,
 }
 
 Status ConsoleFileSink::write(const ConsoleLine& line) {
+    if (line.dir == Direction::In) {
+        // ADR-0186: a command with secret arguments is written as "<prefix> <redacted>".
+        if (const auto prefix = matchSensitiveCommand(line.text, m_sensitivePrefixes)) {
+            return append(consoleFilePrefix(line), std::string(*prefix) + " <redacted>", line.time);
+        }
+    }
     return append(consoleFilePrefix(line), line.text, line.time);
 }
 

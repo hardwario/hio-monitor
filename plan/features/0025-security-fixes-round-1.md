@@ -176,7 +176,7 @@ why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 1 auth f
 - [x] B. H-1 + I-1 (mcp_tools, CLI `--dump-dir`), tests.
 - [x] C. M-1 sanitizer + LineAssembler/BLE/PIB call sites, tests.
 - [x] D. M-2 QML PlainText + `qml_plaintext_check`.
-- [ ] E. M-4 a/b/c/e (the rename it waited for has landed), settings migration, translations.
+- [x] E. M-4 a/b/c/e (the rename it waited for has landed), settings migration, translations.
 - [x] F. M-3 udev + diag text; M-6 RTT cap; M-8 MCP auth.
 - [x] G. M-5 hardening flags + `binary_hardening_check`; L-5 release.yml.
 - [x] H. L-4, L-17, L-18.

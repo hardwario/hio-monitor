@@ -34,6 +34,7 @@
 #include <filesystem>
 #include <functional>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -102,6 +103,11 @@ private:
 struct ConsoleUiOptions {
     bool interactive = false;
     std::optional<std::filesystem::path> historyFile; // interactive only
+    // ADR-0186 (interactive only): commands starting with a space or matching these prefixes
+    // (the target's TargetProfile::sensitiveCommandPrefixes) are neither stored nor offered;
+    // rememberCommands = false (setting console/rememberCommands) records nothing.
+    std::span<const std::string_view> sensitivePrefixes;
+    bool rememberCommands = true;
     // Plan 0021 (ADR-0170), interactive only: replxx hints from the history (console/suggestions,
     // --no-suggestions) and Tab completion from the device command tree the learner learns on the
     // main thread (nullptr = none; it must outlive runConsole()).

@@ -27,6 +27,8 @@ add_library(hwio_cli_impl STATIC
     src/console_learning.cpp
     src/console_learning.h
     src/console_ui.cpp
+    src/console_commands.cpp
+    src/console_commands.h
     src/console_ui.h
     src/exit_codes.cpp
     src/exit_codes.h

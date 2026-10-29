@@ -1,4 +1,5 @@
 #include "hwio/device/command_history.h"
+#include "hwio/device/profile.h"
 
 #include <QFile>
 #include <QIODevice>
@@ -8,12 +9,15 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <deque>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -63,6 +67,91 @@ TEST_F(History, CollapsesConsecutiveDuplicatesAndIgnoresInvalidEntries) {
     history->add("status");
     history->add("version");
     EXPECT_EQ(history->entries(), (std::deque<std::string>{"version", "status", "version"}));
+}
+
+// ADR-0186 (review M-4b): leading-space and sensitive commands are never recorded.
+TEST_F(History, LeadingSpaceAndSensitiveCommandsAreNotRecorded) {
+    const auto prefixes = hwio::device::sensitivePrefixesOf("chester", "app");
+    ASSERT_EQ(prefixes.size(), 6U);
+    {
+        auto history = CommandHistory::open(file(), prefixes);
+        ASSERT_TRUE(history);
+        history->add(" lte config password hunter2"); // leading space: anything
+        history->add(" version");
+        history->add("lrw config appkey 00112233");
+        history->add("lrw\tconfig  nwkskey 00"); // whitespace-normalised words
+        history->add("lrw config appskey");      // without a value too
+        history->add("lte config username me");
+        history->add("lte config password pw");
+        history->add("ble config passkey 123456");
+        history->add("LTE config password pw2"); // case-sensitive: recorded
+        history->add("lrw config appkeys x");    // another word: recorded
+        history->add("lrw config show");
+        history->add("info claim-token"); // only prints a secret: recorded
+        EXPECT_EQ(history->entries(),
+                  (std::deque<std::string>{"LTE config password pw2", "lrw config appkeys x",
+                                           "lrw config show", "info claim-token"}));
+    }
+    const std::vector<std::string> lines = fileLines();
+    EXPECT_EQ(lines, (std::vector<std::string>{"LTE config password pw2", "lrw config appkeys x",
+                                               "lrw config show", "info claim-token"}));
+}
+
+TEST(SensitiveCommands, MatchesWholeLeadingWords) {
+    constexpr std::array<std::string_view, 2> prefixes{"lte config password", "ble config passkey"};
+    using hwio::device::matchSensitiveCommand;
+    EXPECT_EQ(matchSensitiveCommand("lte config password x", prefixes), "lte config password");
+    EXPECT_EQ(matchSensitiveCommand("  ble   config\tpasskey 1", prefixes), "ble config passkey");
+    EXPECT_FALSE(matchSensitiveCommand("lte config", prefixes));
+    EXPECT_FALSE(matchSensitiveCommand("lte config passwords", prefixes));
+    EXPECT_FALSE(matchSensitiveCommand("xlte config password", prefixes));
+    EXPECT_FALSE(matchSensitiveCommand("", prefixes));
+    EXPECT_TRUE(hwio::device::sensitivePrefixesOf("chester", "lte").empty());
+    EXPECT_TRUE(hwio::device::sensitivePrefixesOf("nope", "app").empty());
+}
+
+#ifndef _WIN32
+// ADR-0186 (review M-4a): the history file is owner-only, also when it existed before.
+TEST_F(History, FileIsOwnerOnly) {
+    fs::create_directories(file().parent_path());
+    std::ofstream(file()) << "old\n";
+    fs::permissions(file(), fs::perms::owner_read | fs::perms::owner_write | fs::perms::group_read |
+                                fs::perms::others_read);
+    {
+        auto history = CommandHistory::open(file());
+        ASSERT_TRUE(history);
+        history->add("version");
+    }
+    EXPECT_EQ(fs::status(file()).permissions() & fs::perms::all,
+              fs::perms::owner_read | fs::perms::owner_write);
+}
+#endif
+
+// ADR-0186 ("Clear history"): only history-*.txt files are deleted; clear() forgets the entries.
+TEST_F(History, ClearAllDeletesOnlyHistoryFiles) {
+    const fs::path directory = file().parent_path();
+    fs::create_directories(directory);
+    for (const char* name : {"history-chester-app.txt", "history-other-x.txt"}) {
+        std::ofstream(directory / name) << "x\n";
+    }
+    for (const char* name : {"chester-app-20260101-000000-1.log", "history-notes.md",
+                             "my-history.txt", "history-chester-app.txt.lock"}) {
+        std::ofstream(directory / name) << "keep\n";
+    }
+    auto history = CommandHistory::open(file());
+    ASSERT_TRUE(history);
+    history->add("pending");
+    ASSERT_TRUE(CommandHistory::clearAll(directory));
+    history->clear();
+    EXPECT_TRUE(history->entries().empty());
+    EXPECT_EQ(history->pendingCount(), 0U);
+    EXPECT_FALSE(fs::exists(directory / "history-chester-app.txt"));
+    EXPECT_FALSE(fs::exists(directory / "history-other-x.txt"));
+    for (const char* name : {"chester-app-20260101-000000-1.log", "history-notes.md",
+                             "my-history.txt", "history-chester-app.txt.lock"}) {
+        EXPECT_TRUE(fs::exists(directory / name)) << name;
+    }
+    EXPECT_TRUE(CommandHistory::clearAll(directory / "missing")); // nothing to delete
 }
 
 TEST_F(History, SavedOnDestructionAndLoadedAgain) {

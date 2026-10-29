@@ -102,6 +102,7 @@ void registerConsolePage(AppViewModel& app) {
     auto* settings = new ConsoleSettings( // NOLINT(cppcoreguidelines-owning-memory)
         app.settingsStore(), app.sessionRegistry().options().consoleDirectory, &app);
     HistoryStore* history = &app.historyStore();
+    settings->setHistoryStore(history); // 0025: "Clear history"
 
     app.pageRegistry().add(PageDescriptor{
         .id = consolePageId,

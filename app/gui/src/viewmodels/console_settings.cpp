@@ -3,10 +3,12 @@
 #include "gui_log.h"
 #include "hwio/core/json.h"
 #include "hwio/core/result.h"
+#include "hwio/device/command_history.h"
 #include "hwio/device/completer.h"
 #include "hwio/device/console_file_sink.h"
 #include "settings_store.h"
 #include "viewmodels/app_view_model.h"
+#include "viewmodels/history_store.h"
 
 #include <QDesktopServices>
 #include <QDir>
@@ -39,6 +41,8 @@ const QString logToFileKey = QStringLiteral("console/logToFile");
 // 0021 (ADR-0170): shared with the CLI console (device::suggestionsSetting, ...).
 const QString suggestionsKey = toQString(device::suggestionsSetting.path);
 const QString readCommandsKey = toQString(device::readCommandsOnConnectSetting.path);
+// 0025 (ADR-0186): shared with the CLI console.
+const QString rememberKey = toQString(device::rememberCommandsSetting.path);
 
 } // namespace
 
@@ -79,6 +83,10 @@ void ConsoleSettings::registerKeys(SettingsStore& store) {
         SettingKey{.path = readCommandsKey,
                    .type = QMetaType::Bool,
                    .defaultValue = device::readCommandsOnConnectSetting.defaultValue,
+                   .validator = {}},
+        SettingKey{.path = rememberKey,
+                   .type = QMetaType::Bool,
+                   .defaultValue = device::rememberCommandsSetting.defaultValue,
                    .validator = {}},
     };
     store.registerKeys(keys);
@@ -134,6 +142,29 @@ void ConsoleSettings::setReadCommandsOnConnect(bool enabled) {
     if (enabled != readCommandsOnConnect()) {
         write(readCommandsKey, enabled);
     }
+}
+
+bool ConsoleSettings::rememberCommands() const {
+    return read(rememberKey, device::rememberCommandsSetting.defaultValue).toBool();
+}
+
+void ConsoleSettings::setRememberCommands(bool enabled) {
+    if (enabled != rememberCommands()) {
+        write(rememberKey, enabled);
+    }
+}
+
+bool ConsoleSettings::clearHistory() {
+    if (m_history == nullptr) {
+        return false;
+    }
+    if (const Status cleared = m_history->clearAll(); !cleared) {
+        qCWarning(lcGui) << "The command history could not be deleted:"
+                         << toQString(cleared.error().detail);
+        return false;
+    }
+    qCInfo(lcGui) << "The saved command history was deleted";
+    return true;
 }
 
 int ConsoleSettings::fontSize() const { return read(fontSizeKey, defaultFont).toInt(); }

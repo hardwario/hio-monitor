@@ -197,6 +197,9 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
         auto settings = Settings::openDefault();
         ui.suggestions =
             !options.noSuggestions && (!settings || settings->get(device::suggestionsSetting));
+        // Plan 0025 (ADR-0186).
+        ui.sensitivePrefixes = device::sensitivePrefixesOf(profileId, targetId);
+        ui.rememberCommands = !settings || settings->get(device::rememberCommandsSetting);
     }
     std::optional<ConsoleLearning> learning;
     if (interactive) {

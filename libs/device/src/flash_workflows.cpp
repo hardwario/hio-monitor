@@ -59,13 +59,24 @@ void log(const WorkflowContext& context, const std::string& text) {
     }
 }
 
-std::string hexBytes(std::span<const std::byte> bytes) {
+// ADR-0186 (review M-4c): the PIB bytes that hold secrets (claim token at 0x45, BLE passkey up
+// to 0x76) are never written to the app log, the console file or Error.detail; `pib read` shows
+// them in full.
+constexpr std::size_t pibSecretFirst = 0x45;
+constexpr std::size_t pibSecretLast = 0x76;
+
+// The PIB as hex for logs: the secret bytes as "..".
+std::string pibLogHex(std::span<const std::byte> bytes) {
     constexpr std::string_view digits = "0123456789abcdef";
     std::string text;
     text.reserve(bytes.size() * 2);
-    for (const std::byte b : bytes) {
-        text += digits[std::to_integer<unsigned>(b) >> 4U];
-        text += digits[std::to_integer<unsigned>(b) & 0x0FU];
+    for (std::size_t i = 0; i < bytes.size(); ++i) {
+        if (i >= pibSecretFirst && i <= pibSecretLast) {
+            text += "..";
+            continue;
+        }
+        text += digits[std::to_integer<unsigned>(bytes[i]) >> 4U];
+        text += digits[std::to_integer<unsigned>(bytes[i]) & 0x0FU];
     }
     return text;
 }
@@ -346,12 +357,12 @@ Result<jlink::ChipInfo> runErase(WorkflowContext& context, EraseScope scope) {
                 // Review R17: say that the PIB state is unknown; keep its old bytes in the log.
                 log(context, "ERROR: the Product Information Block could not be read after the "
                              "code-only erase; it was " +
-                                 hexBytes(*before));
+                                 pibLogHex(*before));
                 Error error =
                     makeError(ErrorCode::TargetEraseFailed,
                               std::format("PIB at 0x{:08X} not readable after the erase: "
                                           "{}; before: {}",
-                                          pib.start, after.error().detail, hexBytes(*before)));
+                                          pib.start, after.error().detail, pibLogHex(*before)));
                 error.message =
                     QCoreApplication::translate("hwio::device",
                                                 "The Product Information Block of the %1 MCU could "

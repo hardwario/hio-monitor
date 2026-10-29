@@ -3,11 +3,20 @@
 #include "hwio/diag/report.h"
 
 #include <QDir>
+#include <QRegularExpression>
+#include <QString>
 #include <QSysInfo>
+#include <QtTypes>
 #include <QtEnvironmentVariables>
 #include <QtSystemDetection>
 
+#ifndef Q_OS_WIN
+#include <pwd.h>
+#include <unistd.h>
+#endif
+
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
@@ -90,6 +99,33 @@ std::string replaceAll(std::string_view text, std::string_view needle, std::stri
     }
 }
 
+// ADR-0186: the account name of this process when USER is not set (a service, a cron job, a
+// container); "" when unknown.
+QString accountName() {
+#ifndef Q_OS_WIN
+    constexpr std::size_t bufferSize = 4096;
+    std::array<char, bufferSize> buffer{};
+    passwd entry{};
+    passwd* found = nullptr;
+    if (::getpwuid_r(::geteuid(), &entry, buffer.data(), buffer.size(), &found) == 0 &&
+        found != nullptr && found->pw_name != nullptr) {
+        return QString::fromLocal8Bit(found->pw_name);
+    }
+#endif
+    return {};
+}
+
+// ADR-0186 (review M-4e): "name=value" / "name: value" with a secret-looking name. The value is
+// replaced; the name stays ("appkey = 00ff" -> "appkey=<redacted>").
+std::string redactSecrets(std::string_view text) {
+    static const QRegularExpression pattern(
+        QStringLiteral(R"((password|passwd|token|secret|key|psk)\s*[=:]\s*\S+)"),
+        QRegularExpression::CaseInsensitiveOption);
+    QString result = QString::fromUtf8(text.data(), static_cast<qsizetype>(text.size()));
+    result.replace(pattern, QStringLiteral("\\1=<redacted>"));
+    return result.toStdString();
+}
+
 } // namespace
 
 RedactionContext currentRedaction() {
@@ -97,7 +133,10 @@ RedactionContext currentRedaction() {
     context.home = QDir::homePath().toStdString();
     QString user = qEnvironmentVariable("USER");
     if (user.isEmpty()) {
-        user = qEnvironmentVariable("USERNAME");
+        user = accountName(); // Unix: getpwuid(geteuid()) (ADR-0186)
+    }
+    if (user.isEmpty()) {
+        user = qEnvironmentVariable("USERNAME"); // Windows
     }
     context.user = user.toStdString();
     context.host = QSysInfo::machineHostName().toStdString();
@@ -108,7 +147,7 @@ RedactionContext currentRedaction() {
 }
 
 std::string redact(std::string_view text, const RedactionContext& context) {
-    std::string result(text);
+    std::string result = redactSecrets(text);
     std::string home = context.home;
     while (home.size() > 1 && (home.back() == '/' || home.back() == '\\')) {
         home.pop_back();

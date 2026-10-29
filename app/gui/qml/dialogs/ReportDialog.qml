@@ -104,6 +104,17 @@ Dialog {
             wrapMode: Text.Wrap
         }
 
+        // 0025 (ADR-0186): the logs may hold device output; PlainText so "<redacted>" is shown.
+        Label {
+            objectName: "reportDeviceOutputWarning"
+            Layout.fillWidth: true
+            visible: !dialog.collecting
+            textFormat: Text.PlainText
+            text: qsTr("The logs may contain device output. Values that look like passwords, tokens or keys are replaced by <redacted>; check the report before sending it.")
+            color: Theme.textMuted
+            wrapMode: Text.Wrap
+        }
+
         ErrorPanel {
             objectName: "reportError"
             Layout.fillWidth: true

@@ -6,8 +6,11 @@
 
 #include <QByteArray>
 #include <QDir>
+#include <QFile>
+#include <QIODevice>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLatin1Char>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QString>
@@ -104,6 +107,30 @@ TEST_F(CliProcess, UnknownOptionIsUsageError) {
     EXPECT_EQ(error.value(QStringLiteral("code")).toString(),
               QStringLiteral("usage.invalid_argument"));
 }
+
+// Plan 0025 (ADR-0186): `hwio console history clear` deletes only the history files.
+#ifdef __linux__
+TEST_F(CliProcess, ConsoleHistoryClear) {
+    const QString console = home() + QStringLiteral("/data/HARDWARIO/Monitor/console");
+    ASSERT_TRUE(QDir().mkpath(console));
+    for (const char* name : {"history-chester-app.txt", "history-chester-x.txt", "keep.log"}) {
+        QFile file(console + QLatin1Char('/') + QString::fromLatin1(name));
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+        file.write("x\n");
+    }
+    const RunResult result =
+        run({QStringLiteral("console"), QStringLiteral("history"), QStringLiteral("clear")});
+    EXPECT_EQ(result.exitCode, 0) << result.err;
+    EXPECT_NE(result.out.find("history of all devices was deleted"), std::string::npos)
+        << result.out;
+    EXPECT_FALSE(QFile::exists(console + QStringLiteral("/history-chester-app.txt")));
+    EXPECT_FALSE(QFile::exists(console + QStringLiteral("/history-chester-x.txt")));
+    EXPECT_TRUE(QFile::exists(console + QStringLiteral("/keep.log")));
+    const RunResult json = run({QStringLiteral("--json"), QStringLiteral("console"),
+                                QStringLiteral("history"), QStringLiteral("clear")});
+    EXPECT_EQ(json.exitCode, 0) << json.err;
+}
+#endif
 
 TEST_F(CliProcess, HelpHidesSelftest) {
     const RunResult result = run({QStringLiteral("--help")});

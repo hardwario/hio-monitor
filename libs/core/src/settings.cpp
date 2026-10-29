@@ -15,6 +15,7 @@
 #include <QtContainerFwd>
 
 #include <algorithm>
+#include <array>
 #include <expected>
 #include <filesystem>
 #include <format>
@@ -31,8 +32,22 @@ namespace {
 
 const QString schemaKey = QStringLiteral("meta/schemaVersion");
 
-// Built-in migrations, ordered by toVersion. M0: none (schema 1 is the first schema).
-constexpr std::span<const detail::SettingsMigration> builtInMigrations{};
+// Schema 2 (plan/features/0025, ADR-0186): console/rememberCommands, written with its default
+// (true) when the file does not have it yet. The key is defined in libs/device
+// (device::rememberCommandsSetting).
+Status migrateToSchema2(QSettings& settings) {
+    const QString key = QStringLiteral("console/rememberCommands");
+    if (!settings.contains(key)) {
+        settings.setValue(key, true);
+    }
+    return {};
+}
+
+// Built-in migrations, ordered by toVersion (schema 1 is the first schema).
+constexpr std::array<detail::SettingsMigration, 1> builtInMigrationList{
+    detail::SettingsMigration{.toVersion = 2, .apply = &migrateToSchema2},
+};
+constexpr std::span<const detail::SettingsMigration> builtInMigrations{builtInMigrationList};
 
 QString keyOf(std::string_view path) { return toQString(path); }
 

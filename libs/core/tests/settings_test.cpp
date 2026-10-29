@@ -55,7 +55,7 @@ TEST(Settings, NewFileGetsCurrentSchemaAndDefaults) {
     EXPECT_EQ(settings->get(countKey), 7);
     EXPECT_EQ(settings->get(nameKey), "default");
     EXPECT_EQ(settings->get(pathKey), fs::path("none"));
-    EXPECT_NE(readFile(file).find("schemaVersion=1"), std::string::npos);
+    EXPECT_NE(readFile(file).find("schemaVersion=2"), std::string::npos);
 }
 
 TEST(Settings, ValuesPersistAcrossReopen) {
@@ -93,6 +93,31 @@ TEST(Settings, InvalidTypesFallBackToDefaults) {
     EXPECT_TRUE(settings->get(flagKey));
     EXPECT_EQ(settings->get(countKey), 7);
     EXPECT_EQ(settings->get(nameKey), "default");
+}
+
+// Plan 0025 (ADR-0186): schema 1 -> 2 writes console/rememberCommands = true; an existing value
+// is kept.
+TEST(Settings, Schema2AddsRememberCommands) {
+    const hwio::SettingKey<bool> remember{.path = "console/rememberCommands",
+                                          .defaultValue = false};
+    {
+        const QTemporaryDir dir;
+        const fs::path file = settingsFile(dir);
+        writeRaw(file, QStringLiteral("meta/schemaVersion"), 1);
+        auto settings = Settings::openFile(file);
+        ASSERT_TRUE(settings.has_value());
+        EXPECT_EQ(settings->schemaVersion(), 2);
+        EXPECT_TRUE(settings->get(remember)); // the written value, not this key's default
+    }
+    {
+        const QTemporaryDir dir;
+        const fs::path file = settingsFile(dir);
+        writeRaw(file, QStringLiteral("meta/schemaVersion"), 1);
+        writeRaw(file, QStringLiteral("console/rememberCommands"), false);
+        auto settings = Settings::openFile(file);
+        ASSERT_TRUE(settings.has_value());
+        EXPECT_FALSE(settings->get(remember));
+    }
 }
 
 TEST(Settings, NewerSchemaIsReadOnlyAndNeverWritten) {
@@ -135,7 +160,7 @@ TEST(Settings, RemoveDeletesAGroupAndItsKeys) {
     const std::string text = readFile(file);
     EXPECT_EQ(text.find("801234567"), std::string::npos) << text;
     EXPECT_NE(text.find("801000002"), std::string::npos);
-    EXPECT_NE(text.find("schemaVersion=1"), std::string::npos);
+    EXPECT_NE(text.find("schemaVersion=2"), std::string::npos);
     auto reopened = Settings::openFile(file);
     ASSERT_TRUE(reopened.has_value());
     EXPECT_EQ(reopened->get(countKey), 3);

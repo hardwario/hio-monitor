@@ -6,7 +6,9 @@
 //     2026-10-09 12:34:56.789 # text     log line
 //     2026-10-09 12:34:56.789 < text     command sent
 //     2026-10-09 12:34:56.789 @ text     connection change
-// (local time), with a header block naming the probe when the file is opened.
+// (local time), with a header block naming the probe when the file is opened. ADR-0186: a command
+// with secret arguments (TargetProfile::sensitiveCommandPrefixes of the config's profile and
+// target) is written as "< <prefix> <redacted>"; the files are owner-only (0600 on Unix).
 //
 // Default mode: one file per session (in ConsoleFileConfig::consoleFileDir when set, ADR-0156),
 // <directory>/<profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log
@@ -41,6 +43,7 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -124,6 +127,8 @@ private:
     bool m_rotationFailed = false; // explicit file: rename to P.1 failed, not retried
     std::optional<Error> m_warning;
     std::string m_buffer; // <= maxBufferedBytes (+ one line)
+    // ADR-0186: input lines matching these are written redacted (the target's profile list).
+    std::span<const std::string_view> m_sensitivePrefixes;
 };
 
 // Prefix of a line in the console file (" > ", " # ", " < ", " @ ").

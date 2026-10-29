@@ -98,6 +98,12 @@ struct TargetProfile {
     // The firmware HARDWARIO supports for this target, downloaded and SHA-256 verified by
     // FirmwareCatalog::downloadDesignated (CHESTER `lte`: the LTE bundle); nullopt = none.
     std::optional<firmware::DesignatedFirmware> designatedFirmware = std::nullopt;
+    // ---- plan 0025 (ADR-0186) ----
+    // Shell commands whose arguments are secrets (keys, passwords, passkeys): words separated by
+    // single spaces, matched case-sensitively against the first words of a command line
+    // (matchSensitiveCommand). Such commands are sent but never stored in the command history,
+    // and the console file shows them as "<prefix> <redacted>".
+    std::span<const std::string_view> sensitiveCommandPrefixes;
 };
 
 // A URL for one UI language (ADR-0167): `language` is a BCP 47 primary language subtag ("en",
@@ -154,6 +160,16 @@ public:
 // nullptr when the profile has no target with this id.
 [[nodiscard]] const TargetProfile* findTarget(const DeviceProfile& profile,
                                               std::string_view id) noexcept;
+
+// ADR-0186: the sensitive command prefixes of a console (profile, target; a BLE console uses its
+// BleProfile::consoleTargetId). Empty for unknown ids.
+[[nodiscard]] std::span<const std::string_view>
+sensitivePrefixesOf(std::string_view profileId, std::string_view targetId) noexcept;
+
+// ADR-0186: the prefix of `prefixes` whose words are the first words of `line` (words separated
+// by spaces or tabs, compared case-sensitively), nullopt when none matches.
+[[nodiscard]] std::optional<std::string_view>
+matchSensitiveCommand(std::string_view line, std::span<const std::string_view> prefixes) noexcept;
 
 // The part of `target` with this FICR part number, nullptr when it is not one of its parts.
 [[nodiscard]] const ChipPart* findPart(const TargetProfile& target, std::uint32_t part) noexcept;

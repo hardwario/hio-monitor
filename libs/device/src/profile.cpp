@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <expected>
 #include <format>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -60,6 +61,58 @@ const DeviceProfile* ProfileRegistry::findByAdvertisement(
 const TargetProfile* findTarget(const DeviceProfile& profile, std::string_view id) noexcept {
     const auto it = std::ranges::find(profile.targets, id, &TargetProfile::id);
     return it == profile.targets.end() ? nullptr : &*it;
+}
+
+std::span<const std::string_view> sensitivePrefixesOf(std::string_view profileId,
+                                                      std::string_view targetId) noexcept {
+    const DeviceProfile* profile = ProfileRegistry::find(profileId);
+    if (profile == nullptr) {
+        return {};
+    }
+    const TargetProfile* target = findTarget(*profile, targetId);
+    return target != nullptr ? target->sensitiveCommandPrefixes
+                             : std::span<const std::string_view>{};
+}
+
+namespace {
+
+// The next word of `text` from `position` (spaces and tabs separate words); "" at the end.
+std::string_view nextWord(std::string_view text, std::size_t& position) noexcept {
+    const auto isSpace = [](char c) { return c == ' ' || c == '\t'; };
+    while (position < text.size() && isSpace(text[position])) {
+        ++position;
+    }
+    const std::size_t start = position;
+    while (position < text.size() && !isSpace(text[position])) {
+        ++position;
+    }
+    return text.substr(start, position - start);
+}
+
+bool startsWithWords(std::string_view line, std::string_view prefix) noexcept {
+    std::size_t linePosition = 0;
+    std::size_t prefixPosition = 0;
+    while (true) {
+        const std::string_view expected = nextWord(prefix, prefixPosition);
+        if (expected.empty()) {
+            return prefixPosition > 0;
+        }
+        if (nextWord(line, linePosition) != expected) {
+            return false;
+        }
+    }
+}
+
+} // namespace
+
+std::optional<std::string_view>
+matchSensitiveCommand(std::string_view line, std::span<const std::string_view> prefixes) noexcept {
+    for (const std::string_view prefix : prefixes) {
+        if (startsWithWords(line, prefix)) {
+            return prefix;
+        }
+    }
+    return std::nullopt;
 }
 
 const ChipPart* findPart(const TargetProfile& target, std::uint32_t part) noexcept {

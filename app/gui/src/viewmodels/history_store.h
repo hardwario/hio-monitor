@@ -8,11 +8,14 @@
 // <console directory>/history-<profile>-<target>.txt, the CLI's file; at most 1000 entries of at
 // most 4 KiB; saved every 50 new entries and when the store is destroyed, locked and merged across
 // processes). When the file cannot be read the history is kept in memory for this run (bounded by
-// the same limit) and the failure is logged.
+// the same limit) and the failure is logged. ADR-0186: commands starting with a space or matching
+// the target's sensitive prefixes are never stored (nor offered later); clearAll() deletes every
+// history file ("Clear history").
 //
 // Ownership: owned by AppViewModel (std::unique_ptr); a SharedHistory lives as long as the store
 // or a console view model holds it (std::shared_ptr). GUI thread only.
 
+#include "hwio/core/result.h"
 #include "hwio/device/command_history.h"
 
 #include <QString>
@@ -25,14 +28,17 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace hwio::gui {
 
 class SharedHistory {
 public:
-    explicit SharedHistory(std::filesystem::path file);
+    // `sensitivePrefixes`: TargetProfile::sensitiveCommandPrefixes (static storage).
+    SharedHistory(std::filesystem::path file, std::span<const std::string_view> sensitivePrefixes);
     ~SharedHistory(); // saves pending entries (errors are logged)
     SharedHistory(const SharedHistory&) = delete;
     SharedHistory& operator=(const SharedHistory&) = delete;
@@ -51,9 +57,12 @@ public:
     [[nodiscard]] bool persistent() const noexcept { return m_history.has_value(); }
     // Writes pending entries now (tests, quit). Errors are logged.
     void save();
+    // Forgets every entry, including unsaved ones (after the files were deleted).
+    void clear();
 
 private:
     std::optional<device::CommandHistory> m_history;
+    std::span<const std::string_view> m_sensitivePrefixes;
     std::deque<std::string> m_memory; // used when the file could not be read
     std::uint64_t m_revision = 0;
 };
@@ -68,6 +77,9 @@ public:
                                                          const QString& targetId);
     [[nodiscard]] std::filesystem::path fileFor(const QString& profileId,
                                                 const QString& targetId) const;
+    // ADR-0186 ("Clear history"): deletes every history-*.txt in the directory and empties the
+    // open histories. Errors: io.write_failed (a file could not be deleted).
+    [[nodiscard]] Status clearAll();
 
 private:
     std::filesystem::path m_directory;

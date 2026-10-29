@@ -2,6 +2,7 @@
 
 #include "ble_commands.h"
 #include "chester_commands.h"
+#include "console_commands.h"
 #include "diag_commands.h"
 #include "hwio/core/error.h"
 #include "hwio/core/json.h"
@@ -87,6 +88,7 @@ CliApp::CliApp()
     registerJLinkCommands(app, m_slot, m_options);
     registerChesterCommands(app, m_slot, m_options);
     registerBleCommands(app, m_slot, m_options);
+    registerConsoleCommands(app, m_slot);
     registerDiagCommands(app, m_slot, m_options);
     registerMcpCommand(app, m_slot, m_options);
     registerUpdateCommands(app, m_slot);

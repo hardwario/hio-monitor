@@ -501,6 +501,38 @@ TEST_F(ConsoleViewModelTest, HistorySurvivesTheApplication) {
     EXPECT_EQ(console().historyPrevious(QString()), QStringLiteral("app config show"));
 }
 
+// 0025 (ADR-0186): leading-space and sensitive commands are sent but never stored or offered;
+// "Remember commands" off stores nothing; "Clear history" deletes the files of all devices.
+TEST_F(ConsoleViewModelTest, SecretsStayOutOfTheHistory) {
+    ASSERT_TRUE(connectAndWait(tab()));
+    console().send(QStringLiteral("version"));
+    console().send(QStringLiteral("lte config password hunter2"));
+    console().send(QStringLiteral(" kernel uptime"));
+    EXPECT_EQ(console().historySearch(QString()), QStringList{QStringLiteral("version")});
+    EXPECT_TRUE(console().suggestions(QStringLiteral("lte")).isEmpty());
+
+    hwio::gui::ConsoleSettings& settings = *console().settings();
+    EXPECT_TRUE(settings.rememberCommands());
+    settings.setRememberCommands(false);
+    console().send(QStringLiteral("status"));
+    EXPECT_EQ(console().historySearch(QString()), QStringList{QStringLiteral("version")});
+    settings.setRememberCommands(true);
+    console().send(QStringLiteral("status"));
+    EXPECT_EQ(console().historySearch(QString()),
+              (QStringList{QStringLiteral("status"), QStringLiteral("version")}));
+
+    const std::filesystem::path file =
+        app().historyStore().fileFor(QStringLiteral("chester"), QStringLiteral("app"));
+    app().historyStore().history(QStringLiteral("chester"), QStringLiteral("app"))->save();
+    ASSERT_TRUE(std::filesystem::exists(file));
+    EXPECT_TRUE(settings.clearHistory());
+    EXPECT_FALSE(std::filesystem::exists(file));
+    EXPECT_TRUE(console().historySearch(QString()).isEmpty());
+    TearDown(); // nothing pending is written back
+    EXPECT_FALSE(std::filesystem::exists(file));
+    SetUp();
+}
+
 TEST_F(ConsoleViewModelTest, InputStatesAndBusy) {
     ASSERT_TRUE(connectAndWait(tab()));
     EXPECT_TRUE(console().inputEnabled());

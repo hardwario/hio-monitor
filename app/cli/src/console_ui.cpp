@@ -372,7 +372,8 @@ private:
         if (!m_options->historyFile) {
             return;
         }
-        auto opened = device::CommandHistory::open(*m_options->historyFile);
+        auto opened =
+            device::CommandHistory::open(*m_options->historyFile, m_options->sensitivePrefixes);
         if (!opened) {
             m_view->printStatus(humanWarning(opened.error()));
             return;
@@ -520,7 +521,8 @@ private:
             }
             m_promptOpen = false; // replxx ended the line (Enter)
             std::string line(text);
-            if (!line.empty()) {
+            if (!line.empty() && m_options->rememberCommands &&
+                device::CommandHistory::isRecordable(line, m_options->sensitivePrefixes)) {
                 m_rx.history_add(line);
                 m_inputHistory.push_back(line);
                 while (m_inputHistory.size() > device::CommandHistory::maxEntries) {
@@ -554,7 +556,7 @@ private:
             if (!line) {
                 return;
             }
-            if (m_history) {
+            if (m_history && m_options->rememberCommands) {
                 m_history->add(*line);
             }
             m_sender.add(std::move(*line));

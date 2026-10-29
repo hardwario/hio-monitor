@@ -43,7 +43,8 @@ struct RedactionContext {
     bool caseInsensitive = false; // Windows
 };
 
-// The context of this process (QDir::homePath, the user name from the environment, the host name).
+// The context of this process (QDir::homePath, the user name from USER, else the account of the
+// effective uid on Unix, else USERNAME (Windows); the host name).
 [[nodiscard]] RedactionContext currentRedaction();
 
 // Replaces the home path (also with the other separator on Windows) by "~" where it is the folder
@@ -52,7 +53,8 @@ struct RedactionContext {
 // "<user>" / "<host>" where they stand as whole words (not inside a longer word: letters, digits,
 // '_' and '-' around them keep the text unchanged). The short host name (before the first '.')
 // is replaced too when it has at least 3 characters. Empty or one-character names are not
-// replaced.
+// replaced. First (ADR-0186): "<name>=<value>" or "<name>: <value>" where the name ends in
+// password, passwd, token, secret, key or psk (any case) becomes "<name>=<redacted>".
 [[nodiscard]] std::string redact(std::string_view text, const RedactionContext& context);
 
 struct ReportInput {

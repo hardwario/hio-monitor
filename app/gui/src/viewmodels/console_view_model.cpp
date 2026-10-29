@@ -427,7 +427,9 @@ bool ConsoleViewModel::send(const QString& line) {
     if (m_history == nullptr && m_context.history != nullptr) {
         m_history = m_context.history->history(m_tab->profileId(), m_tab->consoleTargetId());
     }
-    if (m_history != nullptr) {
+    // ADR-0186: "Remember commands" off = nothing is recorded (the history is still offered).
+    const bool remember = m_context.settings == nullptr || m_context.settings->rememberCommands();
+    if (m_history != nullptr && remember) {
         m_history->add(line);
         m_historyIndex = m_history->entries().size();
         m_historyRevision = m_history->revision();

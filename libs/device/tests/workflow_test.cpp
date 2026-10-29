@@ -465,6 +465,15 @@ TEST_F(Workflow, PibUnreadableAfterTheCodeEraseFails) {
     EXPECT_EQ(result.error().message, "The Product Information Block of the application MCU could "
                                       "not be checked after the erase.");
     EXPECT_NE(result.error().detail.find("before: baba"), std::string::npos);
+    // ADR-0186: the claim token and BLE passkey bytes (0x45-0x76) are never in the detail.
+    const std::string hex =
+        result.error().detail.substr(result.error().detail.find("before: ") + 8);
+    ASSERT_EQ(hex.size(), 256U);
+    std::string expected;
+    for (std::size_t i = 0; i < 128; ++i) {
+        expected += (i >= 0x45 && i <= 0x76) ? ".." : "ba";
+    }
+    EXPECT_EQ(hex, expected);
     EXPECT_EQ(
         result.error().suggestion,
         "Do not erase again. Run `hwio chester app pib read` and compare it with the bytes in "

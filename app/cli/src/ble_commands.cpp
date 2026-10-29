@@ -7,6 +7,7 @@
 #include "hwio/core/error.h"
 #include "hwio/core/json.h"
 #include "hwio/core/result.h"
+#include "hwio/core/settings.h"
 #include "hwio/device/ble_lock.h"
 #include "hwio/device/ble_session.h"
 #include "hwio/device/command_history.h"
@@ -425,6 +426,10 @@ Result<CommandResult> console(const Context& context, const ConsoleOptions& opti
             options.historyFile.empty()
                 ? device::CommandHistory::defaultFile((*profile)->id, ble.consoleTargetId())
                 : fs::path(toQString(options.historyFile).toStdU16String());
+        // Plan 0025 (ADR-0186): the same rules as the J-Link console and the GUI.
+        ui.sensitivePrefixes = device::sensitivePrefixesOf((*profile)->id, ble.consoleTargetId());
+        auto settings = Settings::openDefault();
+        ui.rememberCommands = !settings || settings->get(device::rememberCommandsSetting);
     }
     const Status status = runConsole(consoleContext, ble, view, ui);
     ble.close(); // writes the console file's last line and closes it

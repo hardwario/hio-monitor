@@ -144,6 +144,13 @@ constexpr std::array firmwareDocs{
                "#application-firmware"},
 };
 
+// ADR-0186: shell commands with secret arguments (chester-sdk ctr_lrw, ctr_lrw_v2, ctr_lte,
+// ctr_lte_v2, ctr_ble shell configs); commands that only print secrets are not listed.
+constexpr std::array<std::string_view, 6> appSensitiveCommands{
+    "lrw config appkey",   "lrw config nwkskey",  "lrw config appskey",
+    "lte config username", "lte config password", "ble config passkey",
+};
+
 constexpr std::array chesterTargets{
     // Application MCU: the RTT console of `hwio chester app console` / `command`.
     TargetProfile{.id = "app",
@@ -170,7 +177,8 @@ constexpr std::array chesterTargets{
                   // The RTT shell prompt is not confirmed on hardware yet (open question 25):
                   // empty = send_command uses the silence rule (ADR-0104).
                   .shellPrompt = "",
-                  .designatedFirmware = std::nullopt},
+                  .designatedFirmware = std::nullopt,
+                  .sensitiveCommandPrefixes = appSensitiveCommands},
     // LTE modem MCU (nRF9151 or nRF9160). Programming only; no RTT console. Connected with the
     // first part's J-Link name, then with the exact part's name (to confirm in Phase 0). The PIB
     // lies in the UICR OTP area, which a UICR erase does not touch.
@@ -196,7 +204,8 @@ constexpr std::array chesterTargets{
                   .peripherals = nrfPeripherals,
                   .writeDenied = lteWriteDenied,
                   .shellPrompt = "", // no RTT console
-                  .designatedFirmware = lteFirmware},
+                  .designatedFirmware = lteFirmware,
+                  .sensitiveCommandPrefixes = {}},
 };
 
 } // namespace
