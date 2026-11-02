@@ -17,8 +17,8 @@
 // command prefixes of the console's target (TargetProfile::sensitiveCommandPrefixes) is never
 // stored (isRecordable); entries of older files that break this rule are dropped when the file is
 // read (review R3). The file is owner-only (0600 on Unix: created so, tightened on open() and on
-// every save; Windows: the per-user AppData ACL). Whether commands are recorded at all is the setting
-// rememberCommandsSetting, checked by the callers (GUI and CLI console).
+// every save; Windows: the per-user AppData ACL). Whether commands are recorded at all is the
+// setting rememberCommandsSetting, checked by the callers (GUI and CLI console).
 //
 // Thread safety: none; one owner thread (the CLI / GUI thread).
 
