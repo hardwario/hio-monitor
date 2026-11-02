@@ -53,8 +53,10 @@ struct RedactionContext {
 // "<user>" / "<host>" where they stand as whole words (not inside a longer word: letters, digits,
 // '_' and '-' around them keep the text unchanged). The short host name (before the first '.')
 // is replaced too when it has at least 3 characters. Empty or one-character names are not
-// replaced. First (ADR-0186): "<name>=<value>" or "<name>: <value>" where the name ends in
-// password, passwd, token, secret, key or psk (any case) becomes "<name>=<redacted>".
+// replaced. First (ADR-0186, review R2): the arguments after a profile's sensitive shell command
+// ("lrw config appkey 00ff" -> "lrw config appkey <redacted>", also inside JSON strings), then
+// values of names ending in password, passwd, token, secret, key or psk (any case): "name=value",
+// "name: value" and quoted values -> "name=<redacted>"; JSON "name":"value" -> "name":"<redacted>".
 [[nodiscard]] std::string redact(std::string_view text, const RedactionContext& context);
 
 struct ReportInput {

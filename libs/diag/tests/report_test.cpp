@@ -57,9 +57,30 @@ TEST(Redact, SecretValues) {
     EXPECT_EQ(redact("secret:s3cr3t", posix), "secret=<redacted>");
     EXPECT_EQ(redact("appkey = 00112233445566778899aabbccddeeff", posix), "appkey=<redacted>");
     EXPECT_EQ(redact("wifi psk=abc;def", posix), "wifi psk=<redacted>");
-    // Without '=' or ':' nothing changes; nor does a longer name.
-    EXPECT_EQ(redact("lrw config appkey 0011", posix), "lrw config appkey 0011");
+    // A longer name is not a secret name.
     EXPECT_EQ(redact("tokenFile=/tmp/t", posix), "tokenFile=/tmp/t");
+    // Review R2: quoted values with spaces.
+    EXPECT_EQ(redact(R"(password: "two words" next)", posix), "password=<redacted> next");
+}
+
+// Review R2: JSON forms and the space form of the sensitive shell commands.
+TEST(Redact, SecretValuesInJsonAndShellCommands) {
+    EXPECT_EQ(redact(R"({"password":"hunter2","user":"x"})", posix),
+              R"({"password":"<redacted>","user":"x"})");
+    EXPECT_EQ(redact(R"({"claim_token": "ab cd", "n": 1})", posix),
+              R"({"claim_token": "<redacted>", "n": 1})");
+    EXPECT_EQ(redact(R"({"psk":12345})", posix), R"({"psk":<redacted>})");
+    // The compact MCP activity log and console lines.
+    EXPECT_EQ(redact(R"(send_command {"command":"lte config password hunter2"} ok)", posix),
+              R"(send_command {"command":"lte config password <redacted>"} ok)");
+    EXPECT_EQ(redact("12:00 < lrw config appkey 00112233445566778899aabbccddeeff", posix),
+              "12:00 < lrw config appkey <redacted>");
+    EXPECT_EQ(redact("uart:~$ lrw  config\tnwkskey 0011 x", posix),
+              "uart:~$ lrw  config\tnwkskey <redacted> x");
+    EXPECT_EQ(redact("ble config passkey 123456\nlrw config show", posix),
+              "ble config passkey <redacted>\nlrw config show");
+    EXPECT_EQ(redact("lrw config appkeys 00", posix), "lrw config appkeys 00");
+    EXPECT_EQ(redact("xlrw config appkey 00", posix), "xlrw config appkey 00");
 }
 
 // ADR-0186: without USER the account of the effective uid is redacted (Unix).

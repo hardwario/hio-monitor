@@ -1,11 +1,15 @@
 // Redaction of the diagnostic report (ADR-0075).
 
+#include "hwio/device/profile.h"
 #include "hwio/diag/report.h"
 
 #include <QDir>
+#include <QLatin1Char>
 #include <QRegularExpression>
 #include <QString>
+#include <QStringList>
 #include <QSysInfo>
+#include <QtCore/qnamespace.h>
 #include <QtEnvironmentVariables>
 #include <QtSystemDetection>
 #include <QtTypes>
@@ -22,6 +26,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace hwio::diag {
 
@@ -115,15 +120,61 @@ QString accountName() {
     return {};
 }
 
-// ADR-0186 (review M-4e): "name=value" / "name: value" with a secret-looking name. The value is
-// replaced; the name stays ("appkey = 00ff" -> "appkey=<redacted>").
-std::string redactSecrets(std::string_view text) {
-    static const QRegularExpression pattern(
-        QStringLiteral(R"((password|passwd|token|secret|key|psk)\s*[=:]\s*\S+)"),
+// ADR-0186 (review M-4e, R2): values of secret-looking names, in the forms
+//   name=value, name: value, name = "two words"   -> name=<redacted>
+//   "name":"value", "name": 123 (JSON)           -> "name":"<redacted>", "name": <redacted>
+// where the name ends in password, passwd, token, secret, key or psk (any case).
+std::string redactNamedSecrets(QString text) {
+    static const QRegularExpression jsonQuoted(
+        QStringLiteral(R"re((password|passwd|token|secret|key|psk)"(\s*:\s*)"(?:[^"\\]|\\.)*")re"),
         QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression jsonBare(
+        QStringLiteral(
+            R"re((password|passwd|token|secret|key|psk)"(\s*:\s*)[^\s,}\]"][^\s,}\]]*)re"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression plain(
+        QStringLiteral(
+            R"re((password|passwd|token|secret|key|psk)\s*[=:]\s*("(?:[^"\\]|\\.)*"|\S+))re"),
+        QRegularExpression::CaseInsensitiveOption);
+    text.replace(jsonQuoted, QStringLiteral("\\1\"\\2\"<redacted>\""));
+    text.replace(jsonBare, QStringLiteral("\\1\"\\2<redacted>"));
+    text.replace(plain, QStringLiteral("\\1=<redacted>"));
+    return text.toStdString();
+}
+
+// Review R2: the arguments of the profiles' sensitive shell commands (ADR-0186), wherever such a
+// command appears (console lines, the MCP activity log, JSON strings): "lrw config appkey 00ff"
+// -> "lrw config appkey <redacted>". Words are separated by spaces or tabs; case-sensitive like
+// the profile match.
+const QRegularExpression& sensitiveCommandPattern() {
+    static const QRegularExpression pattern = [] {
+        QStringList alternatives;
+        for (const device::DeviceProfile* profile : device::ProfileRegistry::all()) {
+            for (const device::TargetProfile& target : profile->targets) {
+                for (const std::string_view prefix : target.sensitiveCommandPrefixes) {
+                    QStringList words;
+                    for (const QString& word :
+                         QString::fromUtf8(prefix.data(), static_cast<qsizetype>(prefix.size()))
+                             .split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                        words.append(QRegularExpression::escape(word));
+                    }
+                    alternatives.append(words.join(QStringLiteral("[ \\t]+")));
+                }
+            }
+        }
+        if (alternatives.isEmpty()) {
+            return QRegularExpression(QStringLiteral("(?!)")); // matches nothing
+        }
+        return QRegularExpression(QStringLiteral(R"re((?<![\w-])(%1)([ \t]+)[^\s"\\]+)re")
+                                      .arg(alternatives.join(QLatin1Char('|'))));
+    }();
+    return pattern;
+}
+
+std::string redactSecrets(std::string_view text) {
     QString result = QString::fromUtf8(text.data(), static_cast<qsizetype>(text.size()));
-    result.replace(pattern, QStringLiteral("\\1=<redacted>"));
-    return result.toStdString();
+    result.replace(sensitiveCommandPattern(), QStringLiteral("\\1\\2<redacted>"));
+    return redactNamedSecrets(std::move(result));
 }
 
 } // namespace
