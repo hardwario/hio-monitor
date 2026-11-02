@@ -29,6 +29,7 @@
 
 #include <QByteArrayView>
 #include <QFile>
+#include <QFileDevice>
 #include <QIODevice>
 #include <QJsonObject>
 #include <QJsonValue>
@@ -377,10 +378,12 @@ std::string hexOf(std::span<const std::byte> bytes) {
     return text;
 }
 
-// Review L-17: FILE is created exclusively (NewOnly, a symlink at FILE is never followed); an
-// existing FILE is io.file_exists unless `force`, which removes a regular file first and refuses
-// a symlink (cli.file_is_symlink). Checked before the device is touched.
-Status prepareOutputFile(const std::string& file, bool force) {
+// Review L-17: FILE is created exclusively (NewOnly, a symlink at FILE is never followed) and
+// owner-only (review R10); an existing FILE is io.file_exists unless `force`, which replaces a
+// regular file and refuses a symlink (cli.file_is_symlink). `remove` = false: only validate (before
+// the device is touched); true: also remove a regular file (right before it is written, after a
+// successful read, review R5).
+Status prepareOutputFile(const std::string& file, bool force, bool remove) {
     const fs::path path = toPath(file);
     std::error_code ec;
     const fs::file_status status = fs::symlink_status(path, ec);
@@ -393,10 +396,11 @@ Status prepareOutputFile(const std::string& file, bool force) {
     if (fs::is_symlink(status)) {
         return std::unexpected(makeError(ErrorCode::CliFileIsSymlink, file));
     }
-    if (!fs::is_regular_file(status) || !fs::remove(path, ec)) {
-        return std::unexpected(
-            makeError(ErrorCode::IoWriteFailed,
-                      file + ": " + (ec ? ec.message() : std::string("not a regular file"))));
+    if (!fs::is_regular_file(status)) {
+        return std::unexpected(makeError(ErrorCode::IoWriteFailed, file + ": not a regular file"));
+    }
+    if (remove && !fs::remove(path, ec) && ec) {
+        return std::unexpected(makeError(ErrorCode::IoWriteFailed, file + ": " + ec.message()));
     }
     return {};
 }
@@ -405,8 +409,8 @@ Result<CommandResult> uicrRead(const Context& context, const GlobalOptions& glob
                                const ProbeOptions& group, const ProbeOptions& own,
                                const std::string& format, const std::string& file, bool force) {
     if (file != "-") {
-        if (const Status prepared = prepareOutputFile(file, force); !prepared) {
-            return std::unexpected(prepared.error());
+        if (const Status checked = prepareOutputFile(file, force, false); !checked) {
+            return std::unexpected(checked.error());
         }
     }
     auto bytes = readPibBytes(context, globals, group, own);
@@ -430,8 +434,12 @@ Result<CommandResult> uicrRead(const Context& context, const GlobalOptions& glob
             std::cout.flush();
         }
     } else {
+        if (const Status prepared = prepareOutputFile(file, force, true); !prepared) {
+            return std::unexpected(prepared.error());
+        }
         QFile out(toQString(file));
-        if (!out.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
+        if (!out.open(QIODevice::WriteOnly | QIODevice::NewOnly,
+                      QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
             // Created meanwhile (NewOnly never follows or replaces it).
             return std::unexpected(
                 makeError(out.exists() ? ErrorCode::IoFileExists : ErrorCode::IoWriteFailed,

@@ -11,6 +11,7 @@
 #include <QCryptographicHash>
 #include <QEventLoop>
 #include <QFile>
+#include <QFileDevice>
 #include <QFileInfo>
 #include <QIODevice>
 #include <QJsonArray>
@@ -380,6 +381,19 @@ TEST_F(FlashCli, ResetAndPibAndUicr) {
     EXPECT_EQ(uicrRead(QStringLiteral("dangling.bin"), false).exitCode, 3);
     EXPECT_FALSE(QFile::exists(path(QStringLiteral("nowhere.bin"))));
 #endif
+#ifndef _WIN32
+    // Review R10: the output is owner-only.
+    EXPECT_EQ(QFile::permissions(path(QStringLiteral("existing.bin"))) &
+                  (QFileDevice::ReadGroup | QFileDevice::WriteGroup | QFileDevice::ReadOther |
+                   QFileDevice::WriteOther),
+              QFileDevice::Permissions());
+#endif
+    // Review R5: a failed read with --force keeps the old file.
+    useScenario(QStringLiteral(R"({"probes": []})"));
+    const RunResult noProbe = uicrRead(QStringLiteral("existing.bin"), true);
+    EXPECT_NE(noProbe.exitCode, 0);
+    EXPECT_EQ(readFile(QStringLiteral("existing.bin")).toHex(), QByteArray(pibHex));
+    SetUp(); // the fixture's scenario again
 
     // An erased PIB is pib.invalid (exit 6).
     ASSERT_EQ(hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("erase"),
