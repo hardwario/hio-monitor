@@ -12,6 +12,7 @@
 // as the singleton ConsoleSettings (create() finds the instance). GUI thread only.
 
 #include "settings_store.h"
+#include "viewmodels/error_info.h"
 
 #include <QObject>
 #include <QPointer>
@@ -51,6 +52,8 @@ class ConsoleSettings : public QObject {
                    NOTIFY changed)
     // 0025 (ADR-0186): sent commands are stored in the command history (shared with the CLI).
     Q_PROPERTY(bool rememberCommands READ rememberCommands WRITE setRememberCommands NOTIFY changed)
+    // Review R8: why the last "Clear history" failed (invalid = no error).
+    Q_PROPERTY(hwio::gui::ErrorInfo historyError READ historyError NOTIFY historyErrorChanged)
     Q_PROPERTY(int minFontSize READ minFontSize CONSTANT)
     Q_PROPERTY(int maxFontSize READ maxFontSize CONSTANT)
     Q_PROPERTY(QString logFolder READ logFolder CONSTANT)
@@ -107,8 +110,10 @@ public:
     Q_INVOKABLE void openLogFolder() const;
     // 0025 (ADR-0186): deletes the saved command history of all devices (after the confirmation
     // in ConsoleSection.qml) and empties the open histories. False when a file could not be
-    // deleted (logged).
+    // deleted: historyError then says why (review R8; also logged).
     Q_INVOKABLE bool clearHistory();
+    [[nodiscard]] ErrorInfo historyError() const { return m_historyError; }
+    Q_INVOKABLE void dismissHistoryError();
     // The history store "Clear history" works on (AppViewModel's; set by registerConsolePage).
     void setHistoryStore(HistoryStore* store) noexcept { m_history = store; }
 
@@ -119,6 +124,7 @@ public:
 
 signals:
     void changed();
+    void historyErrorChanged();
 
 private:
     [[nodiscard]] QVariant read(const QString& key, const QVariant& fallback) const;
@@ -126,6 +132,7 @@ private:
 
     QPointer<SettingsStore> m_store;   // non-owning; AppViewModel's child, outlives this object
     HistoryStore* m_history = nullptr; // non-owning; AppViewModel's member, outlives this object
+    ErrorInfo m_historyError;
     std::filesystem::path m_folder;
     UrlOpener m_opener;
 };

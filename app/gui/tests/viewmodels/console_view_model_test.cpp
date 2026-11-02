@@ -25,6 +25,7 @@
 #include <QByteArray>
 #include <QFile>
 #include <QIODevice>
+#include <QLockFile>
 #include <QModelIndex>
 #include <QObject>
 #include <QPointer>
@@ -531,6 +532,28 @@ TEST_F(ConsoleViewModelTest, SecretsStayOutOfTheHistory) {
     TearDown(); // nothing pending is written back
     EXPECT_FALSE(std::filesystem::exists(file));
     SetUp();
+}
+
+// Review R8: a failed "Clear history" (a file locked by another program) is shown as an error.
+TEST_F(ConsoleViewModelTest, ClearHistoryFailureIsReported) {
+    ASSERT_TRUE(connectAndWait(tab()));
+    console().send(QStringLiteral("version"));
+    app().historyStore().history(QStringLiteral("chester"), QStringLiteral("app"))->save();
+    const std::filesystem::path file =
+        app().historyStore().fileFor(QStringLiteral("chester"), QStringLiteral("app"));
+    QLockFile lock(QString::fromStdString(file.string() + ".lock"));
+    ASSERT_TRUE(lock.tryLock(0));
+    hwio::gui::ConsoleSettings& settings = *console().settings();
+    QSignalSpy errorChanged(&settings, &hwio::gui::ConsoleSettings::historyErrorChanged);
+    EXPECT_FALSE(settings.clearHistory());
+    EXPECT_TRUE(settings.historyError().valid());
+    EXPECT_EQ(settings.historyError().code(), QStringLiteral("io.write_failed"));
+    EXPECT_EQ(errorChanged.count(), 1);
+    EXPECT_TRUE(std::filesystem::exists(file));
+    lock.unlock();
+    EXPECT_TRUE(settings.clearHistory());
+    EXPECT_FALSE(settings.historyError().valid());
+    EXPECT_FALSE(std::filesystem::exists(file));
 }
 
 TEST_F(ConsoleViewModelTest, InputStatesAndBusy) {

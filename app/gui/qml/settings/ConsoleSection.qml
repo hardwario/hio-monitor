@@ -91,11 +91,22 @@ ColumnLayout {
         }
     }
 
+    // Review R8: why "Clear history" failed (e.g. a file is locked by another program).
+    ErrorPanel {
+        objectName: "consoleClearHistoryError"
+        Layout.fillWidth: true
+        visible: ConsoleSettings.historyError.valid
+        error: ConsoleSettings.historyError
+        primaryAction: ErrorAction.Dismiss
+        onActionTriggered: ConsoleSettings.dismissHistoryError()
+    }
+
     ConfirmDialog {
         id: clearHistoryDialog
 
         objectName: "consoleClearHistoryConfirm"
-        title: qsTr("Delete the saved command history of all devices?")
+        title: qsTr("Clear history")
+        body: qsTr("Delete the saved command history of all devices?")
         acceptText: qsTr("Clear history")
         onAccepted: ConsoleSettings.clearHistory()
     }

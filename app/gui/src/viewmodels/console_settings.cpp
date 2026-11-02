@@ -161,10 +161,20 @@ bool ConsoleSettings::clearHistory() {
     if (const Status cleared = m_history->clearAll(); !cleared) {
         qCWarning(lcGui) << "The command history could not be deleted:"
                          << toQString(cleared.error().detail);
+        m_historyError = ErrorInfo(cleared.error());
+        historyErrorChanged(); // signal
         return false;
     }
     qCInfo(lcGui) << "The saved command history was deleted";
+    dismissHistoryError();
     return true;
+}
+
+void ConsoleSettings::dismissHistoryError() {
+    if (m_historyError.valid()) {
+        m_historyError = ErrorInfo();
+        historyErrorChanged(); // signal
+    }
 }
 
 int ConsoleSettings::fontSize() const { return read(fontSizeKey, defaultFont).toInt(); }
