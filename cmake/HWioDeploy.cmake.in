@@ -112,13 +112,19 @@ if(_hwio_os STREQUAL "linux")
 
 elseif(_hwio_os STREQUAL "macos")
     set(_hwio_bundle "@HWIO_MACOS_BUNDLE_DIR@")
+    # The offscreen platform plugin (as on Linux) for the installed-tree self-test; macdeployqt
+    # takes only cocoa and fixes up the copied plugin through -executable.
+    set(_hwio_offscreen "${QT_DEPLOY_PREFIX}/${_hwio_bundle}/Contents/PlugIns/platforms")
+    file(COPY "${_hwio_qt_plugins_dir}/platforms/libqoffscreen.dylib"
+        DESTINATION "${_hwio_offscreen}")
     # macdeployqt: Qt frameworks into Contents/Frameworks, plugins into Contents/PlugIns, QML
     # modules (scanned from app/gui/qml) into Contents/Resources/qml, `hwio` fixed up as well.
     qt_deploy_runtime_dependencies(
         EXECUTABLE "${QT_DEPLOY_PREFIX}/${_hwio_bundle}"
         ADDITIONAL_EXECUTABLES "${QT_DEPLOY_PREFIX}/${_hwio_bundle}/Contents/MacOS/hwio"
         NO_TRANSLATIONS
-        DEPLOY_TOOL_OPTIONS "-qmldir=${_hwio_qml_source}")
+        DEPLOY_TOOL_OPTIONS "-qmldir=${_hwio_qml_source}"
+            "-executable=${_hwio_offscreen}/libqoffscreen.dylib")
     # macdeployqt's Contents/Resources/qt.conf has no Translations entry.
     file(APPEND "${QT_DEPLOY_PREFIX}/${_hwio_bundle}/Contents/Resources/qt.conf"
         "Translations = Resources/translations\n")
@@ -126,8 +132,9 @@ elseif(_hwio_os STREQUAL "macos")
     _hwio_deploy_qt_translations("${CMAKE_INSTALL_PREFIX}/${_hwio_bundle}/Contents/Resources/translations")
 
 elseif(_hwio_os STREQUAL "windows")
-    # windeployqt: Qt DLLs next to the executables, plugins/ and qml/ (scanned from app/gui/qml);
-    # the MSVC runtime is installed app-local by the install rules (--no-compiler-runtime).
+    # windeployqt: Qt DLLs next to the executables, plugins/ and qml/ (scanned from app/gui/qml),
+    # the offscreen platform plugin as on Linux (installed-tree self-test); the MSVC runtime is
+    # installed app-local by the install rules (--no-compiler-runtime).
     qt_deploy_runtime_dependencies(
         EXECUTABLE "${QT_DEPLOY_PREFIX}/hwio-monitor.exe"
         ADDITIONAL_EXECUTABLES "${QT_DEPLOY_PREFIX}/hwio.exe"
@@ -139,6 +146,7 @@ elseif(_hwio_os STREQUAL "windows")
         NO_TRANSLATIONS
         NO_COMPILER_RUNTIME
         DEPLOY_TOOL_OPTIONS --qmldir "${_hwio_qml_source}" --no-system-d3d-compiler --no-opengl-sw
-            --skip-plugin-types qmltooling,generic,networkinformation)
+            --skip-plugin-types qmltooling,generic,networkinformation
+            --include-plugins qoffscreen)
     _hwio_deploy_qt_translations("${CMAKE_INSTALL_PREFIX}/translations")
 endif()

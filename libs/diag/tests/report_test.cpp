@@ -336,7 +336,8 @@ TEST(Report, CrashFilesAreIncludedWithinTheBound) {
     auto input = sampleInput(root);
     const fs::path crashes = root / "crashes";
     fs::create_directories(crashes);
-    std::ofstream(crashes / "crash-hwio-monitor-20261016-100000.txt")
+    // Binary: no CRLF on Windows.
+    std::ofstream(crashes / "crash-hwio-monitor-20261016-100000.txt", std::ios::binary)
         << "HARDWARIO Monitor crash report\n/home/jdoe/build/hwio-monitor(+0x10)\n";
     {
         std::ofstream dump(crashes / "crash-hwio-20261016-090000.dmp", std::ios::binary);

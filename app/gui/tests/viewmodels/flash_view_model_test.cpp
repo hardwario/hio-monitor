@@ -850,6 +850,9 @@ TEST_F(LoaderTest, ARequestDroppedFromTheFullQueueIsAnswered) {
 // bundle; a damaged download says so and [Try again] downloads again. The fixture serves it
 // through the test-only HWIO_DESIGNATED_URL / HWIO_DESIGNATED_SHA256.
 TEST_F(FlashTest, DesignatedLteFirmware) {
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_DESIGNATED_URL)";
+#endif
     hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
     // Unique content: the firmware cache of the test data directory never has it yet.
@@ -949,6 +952,9 @@ TEST_F(FlashTest, DesignatedLteFirmware) {
 // The catalog page of a valid ID (ADR-0166): name, version and upload date; "Unknown firmware"
 // when the page cannot be read; its SHA-256 verifies the download.
 TEST_F(FlashTest, CatalogInfoOfAnId) {
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_CATALOG_URL)";
+#endif
     hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
     qputenv("HWIO_CATALOG_URL", http.baseUrl().toUtf8());
@@ -1027,6 +1033,9 @@ TEST_F(FlashTest, CatalogInfoOfAnId) {
 // Review F1: a download started while the page lookup still runs waits for it, so the page's hash
 // verifies it (the Recent list, a paste + Enter); a cached HEX is checked against the page too.
 TEST_F(FlashTest, ACatalogDownloadWaitsForTheLookup) {
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_CATALOG_URL)";
+#endif
     hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
     qputenv("HWIO_CATALOG_URL", http.baseUrl().toUtf8());

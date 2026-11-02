@@ -390,17 +390,21 @@ jobs:
           py=$(command -v python3 || command -v python)
           "$py" .github/ci-failure-notes.py "build/windows-${{ matrix.preset }}" \
             "$RUNNER_TEMP/configure.log" "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/coverage.log"
-      - name: TEMPORARY death test probe (plan 0023)
-        if: failure() && matrix.preset == 'debug'
+      - name: TEMPORARY tst_console probe (plan 0023)
+        # ctest showed no output of tst_gui.tst_console on Windows: run it alone with its exit code.
+        if: failure()
         shell: bash
         run: |
-          exe=$(find build/windows-debug -name hwio_gui_tests.exe | head -n 1)
+          exe=$(find "build/windows-${{ matrix.preset }}" -name tst_gui.exe | head -n 1)
           status=0
-          /usr/bin/timeout 90 "$exe" --gtest_filter=PageRegistry.DuplicatePageIsAProgrammingError \
-            > "$RUNNER_TEMP/death.log" 2>&1 || status=$?
-          echo "exit $status" >> "$RUNNER_TEMP/death.log"
+          QT_QPA_PLATFORM=offscreen QT_IM_MODULE=none QT_IM_MODULES=none /usr/bin/timeout 120 \
+            "$exe" -input app/gui/tests/tst_console.qml -o "$RUNNER_TEMP/console-qt.txt,txt" \
+            > "$RUNNER_TEMP/console.log" 2>&1 || status=$?
+          echo "exit $status" >> "$RUNNER_TEMP/console.log"
+          cat "$RUNNER_TEMP/console-qt.txt" >> "$RUNNER_TEMP/console.log" || true
+          cat "$RUNNER_TEMP/console.log"
           py=$(command -v python3 || command -v python)
-          "$py" .github/ci-failure-notes.py build/none "$RUNNER_TEMP/death.log"
+          "$py" .github/ci-failure-notes.py build/none "$RUNNER_TEMP/console.log"
 
   # ---- Packages (plan/features/0015 F1, ADR-0125): unsigned, 7-day artifacts ----------------------
 

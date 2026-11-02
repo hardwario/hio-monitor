@@ -13,15 +13,19 @@
 #include <QFile>
 #include <QFileDevice>
 #include <QFileInfo>
+#include <QHostAddress>
 #include <QIODevice>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QObject>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
 #include <QStringLiteral>
+#include <QTcpServer>
+#include <QTcpSocket>
 
 #include <gtest/gtest.h>
 
@@ -278,14 +282,24 @@ TEST_F(FlashCli, CatalogNetworkDown) {
 #ifndef HWIO_TEST_OVERRIDES
     GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_CATALOG_URL)";
 #endif
+    // A server that drops every connection: on the macOS runners a connection to a closed port is
+    // not refused but times out, later than the test waits.
+    QTcpServer down;
+    ASSERT_TRUE(down.listen(QHostAddress::LocalHost, 0));
+    QObject::connect(&down, &QTcpServer::newConnection, &down, [&down] {
+        while (QTcpSocket* socket = down.nextPendingConnection()) {
+            socket->abort();
+        }
+    });
     QProcessEnvironment env = fakeEnvironment();
-    env.insert(QStringLiteral("HWIO_CATALOG_URL"), QStringLiteral("http://127.0.0.1:1/chester"));
+    env.insert(QStringLiteral("HWIO_CATALOG_URL"),
+               QStringLiteral("http://127.0.0.1:%1/chester").arg(down.serverPort()));
     // Not the ID FlashByCatalogId downloads: on macOS and Windows the firmware cache is in the
     // system folders, not in the test home, so that one may already be cached.
     const RunResult result =
-        run({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("flash"), QStringLiteral("fedcba9876543210fedcba9876543210")},
-            env);
+        runWithEvents({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+                       QStringLiteral("flash"), QStringLiteral("fedcba9876543210fedcba9876543210")},
+                      env);
     EXPECT_EQ(result.exitCode, 8) << result.out;
     EXPECT_EQ(errorCode(result), QStringLiteral("network.download_failed"));
 }
