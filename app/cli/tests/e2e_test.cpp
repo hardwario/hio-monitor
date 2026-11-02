@@ -118,16 +118,22 @@ TEST_F(CliProcess, ConsoleHistoryClear) {
         ASSERT_TRUE(file.open(QIODevice::WriteOnly));
         file.write("x\n");
     }
-    const RunResult result =
+    // Not interactive: --yes is required (decided 2026-11-02).
+    const RunResult refused =
         run({QStringLiteral("console"), QStringLiteral("history"), QStringLiteral("clear")});
+    EXPECT_EQ(refused.exitCode, 2) << refused.err;
+    EXPECT_TRUE(QFile::exists(console + QStringLiteral("/history-chester-app.txt")));
+    const RunResult result = run({QStringLiteral("console"), QStringLiteral("history"),
+                                  QStringLiteral("clear"), QStringLiteral("--yes")});
     EXPECT_EQ(result.exitCode, 0) << result.err;
     EXPECT_NE(result.out.find("history of all devices was deleted"), std::string::npos)
         << result.out;
     EXPECT_FALSE(QFile::exists(console + QStringLiteral("/history-chester-app.txt")));
     EXPECT_FALSE(QFile::exists(console + QStringLiteral("/history-chester-x.txt")));
     EXPECT_TRUE(QFile::exists(console + QStringLiteral("/keep.log")));
-    const RunResult json = run({QStringLiteral("--json"), QStringLiteral("console"),
-                                QStringLiteral("history"), QStringLiteral("clear")});
+    const RunResult json =
+        run({QStringLiteral("--json"), QStringLiteral("console"), QStringLiteral("history"),
+             QStringLiteral("clear"), QStringLiteral("--yes")});
     EXPECT_EQ(json.exitCode, 0) << json.err;
 }
 #endif

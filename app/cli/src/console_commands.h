@@ -1,7 +1,8 @@
 #pragma once
 
 // Plan 0025 (ADR-0186): the CLI counterpart of Settings > Console > "Clear history":
-//   hwio console history clear [--json]
+//   hwio console history clear [--yes] [--json]
+// Asks [y/N] on a TTY; otherwise --yes is required (usage.confirmation_required, exit 2).
 // Deletes every saved command history file (history-*.txt in the console directory, the files of
 // all devices and profiles, GUI and CLI alike). English only (ADR-0027).
 

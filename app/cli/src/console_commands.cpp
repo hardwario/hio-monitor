@@ -1,6 +1,7 @@
 #include "console_commands.h"
 
 #include "cli_app.h"
+#include "confirm.h"
 #include "hwio/core/json.h"
 #include "hwio/core/result.h"
 #include "hwio/device/command_history.h"
@@ -13,6 +14,7 @@
 
 #include <expected>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -20,7 +22,15 @@ namespace hwio::cli {
 
 namespace {
 
-Result<CommandResult> clearHistory() {
+Result<CommandResult> clearHistory(const Context& context, bool yes) {
+    // Decided 2026-11-02: asked on a TTY, --yes otherwise (ADR-0038 pattern).
+    if (const Status confirmed = confirmDestructive(
+            context, yes,
+            "The saved command history of all devices (GUI and CLI) will be deleted.\n"
+            "Continue? [y/N] ");
+        !confirmed) {
+        return std::unexpected(confirmed.error());
+    }
     // The directory of CommandHistory::defaultFile() (the GUI uses the same one).
     const std::filesystem::path directory =
         device::CommandHistory::defaultFile("profile", "target").parent_path();
@@ -44,8 +54,11 @@ void registerConsoleCommands(CLI::App& app, CommandSlot& slot) {
     history->require_subcommand(1);
     CLI::App* clear = history->add_subcommand(
         "clear", "Delete the saved command history of all devices (GUI and CLI)");
-    clear->callback(
-        [&slot] { slot.command = [](const Context& /*context*/) { return clearHistory(); }; });
+    auto yes = std::make_shared<bool>(false);
+    clear->add_flag("--yes", *yes, "Do not ask for confirmation");
+    clear->callback([&slot, yes] {
+        slot.command = [yes](const Context& context) { return clearHistory(context, *yes); };
+    });
 }
 
 } // namespace hwio::cli
