@@ -3,6 +3,7 @@
 #include "cli_app.h"
 #include "cli_log.h"
 #include "command_collector.h"
+#include "console_learning.h"
 #include "console_ui.h"
 #include "hwio/core/error.h"
 #include "hwio/core/json.h"
@@ -11,6 +12,7 @@
 #include "hwio/device/ble_lock.h"
 #include "hwio/device/ble_session.h"
 #include "hwio/device/command_history.h"
+#include "hwio/device/command_tree_cache.h"
 #include "hwio/device/console_session.h"
 #include "hwio/device/probe_lock.h"
 #include "hwio/device/profile.h"
@@ -431,8 +433,16 @@ Result<CommandResult> console(const Context& context, const ConsoleOptions& opti
         auto settings = Settings::openDefault();
         ui.rememberCommands = !settings || settings->get(device::rememberCommandsSetting);
     }
+    // Plan 0028 (D9): `info show` names a generated console file (no command tree learning).
+    std::optional<ConsoleLearning> identity;
+    if (!options.consoleFileGiven) {
+        identity.emplace(ble, (*profile)->id, ble.consoleTargetId(), false,
+                         device::CommandTreeCache::defaultDirectory(), false);
+    }
     const Status status = runConsole(consoleContext, ble, view, ui);
-    ble.close(); // writes the console file's last line and closes it
+    identity.reset();
+    ble.close();                              // writes the console file's last line and closes it
+    view.printConsoleFile(ble.consoleFile()); // plan 0028 (U3)
     view.printStopped();
     if (!status) {
         return std::unexpected(withReason(status.error()));

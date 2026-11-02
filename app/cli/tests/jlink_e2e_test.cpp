@@ -4,13 +4,16 @@
 #include "cli_process.h"
 
 #include <QByteArray>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QIODevice>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
 #include <QProcessEnvironment>
+#include <QRegularExpression>
 #include <QString>
 #include <QStringList>
 #include <QtContainerFwd>
@@ -233,6 +236,98 @@ TEST_F(FakeJLinkCli, AppInfoJsonAndHuman) {
         hwio({QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("info")});
     EXPECT_EQ(human.exitCode, 0) << human.err;
     EXPECT_NE(human.out.find("fw-version: v4.0.1\n"), std::string::npos) << human.out;
+}
+
+// Plan 0028 (D2): the real CHESTER `info show` keys ("firmware name: ...") are normalised.
+constexpr const char* realChester = R"({"probes": [{"serialNumber": 683012345, "rtt": {
+    "output": [{"atMs": 0, "buffer": 1, "text": "[00:00:00.001,000] <inf> app: Boot\n"}],
+    "responses": {"version": "Firmware version: v3.0.0\n",
+                  "info show": "vendor name: HARDWARIO a.s.\nproduct name: CHESTER-M\nhardware variant: CDGLS\nhardware revision: R3.2\nfirmware bundle: (unset)\nfirmware name: CHESTER Clime\nfirmware version: v3.0.0\nserial number: 2159018247\nclaim token: 0123456789abcdef0123456789abcdef\nble devaddr: 00:11:22:33:44:55\nble passkey: 123456\n"}}}]})";
+
+TEST_F(FakeJLinkCli, AppInfoJsonWithTheRealChesterKeys) {
+    useScenario(realChester);
+    const RunResult json = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                 QStringLiteral("app"), QStringLiteral("info")});
+    EXPECT_EQ(json.exitCode, 0) << json.err;
+    const auto all = envelopes(json.out);
+    ASSERT_EQ(all.size(), 1U) << json.out;
+    const QJsonObject fields = data(all[0]);
+    EXPECT_EQ(fields.value(QStringLiteral("firmware-name")).toString(),
+              QStringLiteral("CHESTER Clime"));
+    EXPECT_EQ(fields.value(QStringLiteral("firmware-version")).toString(),
+              QStringLiteral("v3.0.0"));
+    EXPECT_EQ(fields.value(QStringLiteral("serial-number")).toString(),
+              QStringLiteral("2159018247"));
+    EXPECT_EQ(fields.size(), 11);
+}
+
+// Plan 0028 (ADR-0200, D7): the generated console file of a piped console is named after the
+// firmware once `info show` answered; an explicit --console-file never is.
+TEST_F(FakeJLinkCli, ConsoleFileIsNamedAfterTheFirmware) {
+    useScenario(realChester);
+    const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
+                                   QStringLiteral("app"), QStringLiteral("console")},
+                                  "version\n");
+    EXPECT_EQ(result.exitCode, 0) << result.err;
+    const QDir console(home() + QStringLiteral("/data/HARDWARIO/Monitor/console"));
+    const QStringList files = console.entryList({QStringLiteral("chester-app-*.log")}, QDir::Files);
+    ASSERT_EQ(files.size(), 1) << console.absolutePath().toStdString();
+    EXPECT_TRUE(QRegularExpression(
+                    QStringLiteral(R"(^chester-app-clime-v3\.0\.0-\d{8}-\d{6}-683012345\.log$)"))
+                    .match(files.front())
+                    .hasMatch())
+        << files.front().toStdString();
+    QFile file(console.filePath(files.front()));
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    const QByteArray content = file.readAll();
+    EXPECT_TRUE(content.contains(" @ Firmware: CHESTER Clime v3.0.0\n")) << content.toStdString();
+    EXPECT_TRUE(content.contains(" < version\n")) << content.toStdString();
+
+    // U3: the final name is printed (a JSON event before the final "stopped").
+    const auto events = envelopes(result.out);
+    QString reported;
+    for (const QJsonObject& envelope : events) {
+        if (data(envelope).value(QStringLiteral("type")) == QStringLiteral("consoleFile")) {
+            reported = data(envelope).value(QStringLiteral("path")).toString();
+        }
+    }
+    EXPECT_EQ(QFileInfo(reported).fileName(), files.front()) << result.out;
+    ASSERT_FALSE(events.empty());
+    EXPECT_EQ(data(events.back()).value(QStringLiteral("state")).toString(),
+              QStringLiteral("stopped"));
+
+    // Human mode: "Console file: <path>" on stderr.
+    const RunResult human = hwio(
+        {QStringLiteral("chester"), QStringLiteral("app"), QStringLiteral("console")}, "version\n");
+    EXPECT_EQ(human.exitCode, 0) << human.err;
+    EXPECT_NE(human.err.find("Console file: "), std::string::npos) << human.err;
+    EXPECT_NE(human.err.find("chester-app-clime-v3.0.0-"), std::string::npos) << human.err;
+
+    // An explicit --console-file keeps its name: no rename, no firmware marker, no new file.
+    const QStringList before = console.entryList({QStringLiteral("*.log")}, QDir::Files);
+    const QString explicitFile = home() + QStringLiteral("/mine.log");
+    const RunResult kept =
+        hwio({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
+              QStringLiteral("console"), QStringLiteral("--console-file"), explicitFile},
+             "version\n");
+    EXPECT_EQ(kept.exitCode, 0) << kept.err;
+    ASSERT_TRUE(QFile::exists(explicitFile));
+    QFile mine(explicitFile);
+    ASSERT_TRUE(mine.open(QIODevice::ReadOnly));
+    const QByteArray mineContent = mine.readAll();
+    EXPECT_FALSE(mineContent.contains("@ Firmware:")) << mineContent.toStdString();
+    EXPECT_TRUE(mineContent.contains(" < version\n"));
+    EXPECT_EQ(console.entryList({QStringLiteral("*.log")}, QDir::Files), before);
+    EXPECT_EQ(QDir(home()).entryList({QStringLiteral("mine*")}, QDir::Files),
+              QStringList{QStringLiteral("mine.log")});
+    bool explicitReported = false;
+    for (const QJsonObject& envelope : envelopes(kept.out)) {
+        explicitReported =
+            explicitReported ||
+            QFileInfo(data(envelope).value(QStringLiteral("path")).toString()).fileName() ==
+                QStringLiteral("mine.log");
+    }
+    EXPECT_TRUE(explicitReported) << kept.out;
 }
 
 TEST_F(FakeJLinkCli, AppInfoWithoutAnAnswerIsATimeout) {

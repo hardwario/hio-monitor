@@ -9,6 +9,7 @@
 #include "hwio/device/console_line.h"
 #include "hwio/device/console_log.h"
 #include "hwio/device/device_session.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/operation.h"
 #include "hwio/device/probe_lock.h"
 #include "hwio/device/profile.h"
@@ -62,6 +63,11 @@ struct ReattachProbeCommand {};
 struct SetRttAddressCommand {
     std::optional<std::uint32_t> address;
 };
+// Plan 0028 (ADR-0200): ConsoleSession::setFirmwareIdentity().
+struct SetFirmwareIdentityCommand {
+    std::optional<FirmwareIdentity> identity;
+    std::uint64_t attach = 0;
+};
 
 // One session operation (plan/features/0003, ADR-0057, ADR-0062). The images are immutable and
 // shared with the owner thread; `stop` is the operation's cancel token (DeviceSession::cancel).
@@ -84,9 +90,10 @@ struct OperationCommand {
     std::stop_token stop;
 };
 
-using Command = std::variant<SendLineCommand, ReconnectCommand, SuspendCommand, ResumeCommand,
-                             OperationCommand, StartConnectionCommand, DetachProbeCommand,
-                             ReattachProbeCommand, SetRttAddressCommand>;
+using Command =
+    std::variant<SendLineCommand, ReconnectCommand, SuspendCommand, ResumeCommand, OperationCommand,
+                 StartConnectionCommand, DetachProbeCommand, ReattachProbeCommand,
+                 SetRttAddressCommand, SetFirmwareIdentityCommand>;
 
 // ---- events (worker -> owner thread) ----------------------------------------------------------
 
@@ -114,10 +121,15 @@ struct DiagnoseStepEvent {
     DiagnoseStep step;
 };
 
+// Plan 0028 (R6): the firmware identity the worker adopted (ConsoleSession::adoptedIdentity()).
+struct IdentityAdopted {
+    FirmwareIdentity identity;
+};
+
 // M6 (ADR-0104): hwio::device::PromptSeen, the RTT shell prompt after output.
-using WorkerEvent =
-    std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified, ConsoleFileChanged,
-                 OperationProgressEvent, OperationFinishedEvent, DiagnoseStepEvent, PromptSeen>;
+using WorkerEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, ProbeIdentified,
+                                 ConsoleFileChanged, OperationProgressEvent, OperationFinishedEvent,
+                                 DiagnoseStepEvent, PromptSeen, IdentityAdopted>;
 
 // The events the event queue may drop when it is full: shell and log output (Direction::Out).
 // Echoes of written commands (Direction::In) are kept, so a caller that counts the written lines
@@ -218,8 +230,9 @@ struct SessionInternals {
     [[nodiscard]] static std::optional<OperationResult> finished(const DeviceSession& session,
                                                                  OperationId id);
     // After join(): takes the OperationFinishedEvent of the running operation from the event
-    // queue, if the worker delivered one (review R13). True when it was found.
-    bool takeQueuedResult();
+    // queue, if the worker delivered one (review R13). True when it was found. Plan 0028 (U3): the
+    // last ConsoleFileChanged in the queue is stored in `consoleFile` (the final file name).
+    bool takeQueuedResult(std::filesystem::path& consoleFile);
     // Ends the running operation (if any) with `error` without a worker result (review R4: the
     // session was closed or its worker died). Returns the synthesized result.
     std::optional<std::pair<OperationId, OperationResult>> abandonRunning(Error error);

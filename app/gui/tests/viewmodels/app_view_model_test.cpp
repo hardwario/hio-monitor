@@ -1,6 +1,7 @@
 // AppViewModel: tab lifecycle and the 8-tab limit, restore without connect, toasts, theme, global
 // pages, responsive rail (plan 0004, B1, B2; ADR-0043, ADR-0061).
 
+#include "fonts.h"
 #include "gui_test_support.h"
 #include "viewmodels/app_view_model.h"
 #include "viewmodels/device_tab_list_model.h"
@@ -20,6 +21,7 @@
 #include <QVariantMap>
 #include <QWindow>
 #include <QtContainerFwd>
+#include <QtEnvironmentVariables>
 
 #include <gtest/gtest.h>
 
@@ -402,6 +404,22 @@ TEST_F(AppViewModelTest, QuitWithoutBusyPagesSavesState) {
     QSignalSpy needed(app.get(), &AppViewModel::quitConfirmationNeeded);
     EXPECT_TRUE(app->canQuit());
     EXPECT_EQ(needed.count(), 0);
+}
+
+// ADR-0205 (plan 0028 U1): grayscale text antialiasing unless the environment says otherwise.
+TEST(TextAntialiasing, GrayUnlessTheEnvironmentHasAValue) {
+    const QByteArray saved = qgetenv("QSG_DISTANCEFIELD_ANTIALIASING");
+    const bool wasSet = qEnvironmentVariableIsSet("QSG_DISTANCEFIELD_ANTIALIASING");
+    qunsetenv("QSG_DISTANCEFIELD_ANTIALIASING");
+    EXPECT_EQ(hwio::gui::applyTextAntialiasing(), QByteArrayLiteral("gray"));
+    EXPECT_EQ(qgetenv("QSG_DISTANCEFIELD_ANTIALIASING"), QByteArrayLiteral("gray"));
+    qputenv("QSG_DISTANCEFIELD_ANTIALIASING", QByteArrayLiteral("subpixel"));
+    EXPECT_EQ(hwio::gui::applyTextAntialiasing(), QByteArrayLiteral("subpixel")); // kept
+    if (wasSet) {
+        qputenv("QSG_DISTANCEFIELD_ANTIALIASING", saved);
+    } else {
+        qunsetenv("QSG_DISTANCEFIELD_ANTIALIASING");
+    }
 }
 
 } // namespace

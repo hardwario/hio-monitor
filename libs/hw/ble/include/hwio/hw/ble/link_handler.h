@@ -6,10 +6,13 @@
 // and the console file run there, ADR-0128). Every call must be short and must not throw.
 
 #include "hwio/core/error.h"
+#include "hwio/core/firmware_identity.h"
 #include "hwio/core/result.h"
 #include "hwio/hw/ble/types.h"
 
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 
@@ -47,6 +50,10 @@ public:
     // The link is closed for good (session closed or the host stops); the handler is destroyed
     // right after this call.
     virtual void onClosed() = 0;
+    // Plan 0028 (ADR-0200): the owner's firmware identity of attach `attach` (SetFirmwareIdentity),
+    // passed through unchanged; libs/hw/ble does not interpret it. Default: ignored.
+    virtual void onFirmwareIdentity(const std::optional<FirmwareIdentity>& /*identity*/,
+                                    std::uint64_t /*attach*/) {}
 };
 
 } // namespace hwio::ble

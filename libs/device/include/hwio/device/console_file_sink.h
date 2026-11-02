@@ -9,8 +9,10 @@
 // (local time), with a header block naming the probe when the file is opened. ADR-0186: a command
 // with secret arguments (TargetProfile::sensitiveCommandPrefixes of the config's profile and
 // target) is written as "< <prefix> <redacted>", and so is a shell's echo of it in the output
-// (after the profile's shell prompt or a Zephyr "<name>:~$ " prompt); the files are owner-only
-// (0600 on Unix, created so).
+// (after the profile's shell prompt or a Zephyr "<name>:~$ " prompt); plan 0028 (U2): a shell
+// output line "<key>: <value>" whose key is one of the profile's sensitiveOutputKeys (CHESTER
+// `info show`: claim token, BLE passkey) is written as "<key>: <redacted>"; the files are
+// owner-only (0600 on Unix, created so).
 //
 // Default mode: one file per session (in ConsoleFileConfig::consoleFileDir when set, ADR-0156),
 // <directory>/<profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log
@@ -30,6 +32,19 @@
 // takeWarning()) and keeps being appended to, up to maxExplicitFileBytesAfterFailedRotation; beyond
 // that flush() fails (io.write_failed) and the session stops writing the file (review R26).
 //
+// Plan 0028 (ADR-0200): adoptIdentity() names a default-mode file after the device firmware once
+// it is known: <directory>/<consoleFileBase(profile, target|"ble", identity)>-<stamp>-<sn|id>.log
+// (e.g. chester-app-clime-v3.0.0-20261102-101500-683012345.log); the first identity renames every
+// part of the session written so far (D4, D5; same stamp and key, a "-2" ... "-9" suffix before
+// ".log" when the name exists already; a part that cannot be renamed keeps its name, D11) and
+// writes the marker "@ Firmware: <name> <version>" (D6). A different identity later continues in a
+// new file with a new stamp (D3; the marker lines name the two files): another firmware (name or
+// version), or another device (both device serials known and different, review round 1 R1; an
+// empty serial keeps the stored one). A collision suffix is free for every part (R3); a part that
+// is already gone (pruned) is skipped. While renaming, the old and the new path stay in the
+// open-files list, so another sink of this process never prunes the live file (R2). An explicit
+// file is never renamed.
+//
 // Writes are buffered (at most maxBufferedBytes) and written by flush(), which the session worker
 // calls every cycle (BLE: the BLE thread every <= 250 ms, ADR-0128). Thread safety: none; owned by
 // the session worker (J-Link) or the BLE thread (BLE).
@@ -37,6 +52,7 @@
 #include "hwio/core/error.h"
 #include "hwio/core/result.h"
 #include "hwio/device/console_line.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/session_key.h"
 
 #include <array>
@@ -109,6 +125,14 @@ public:
     // Writes the buffer to the file (rotating first if needed). Errors: io.write_failed.
     [[nodiscard]] Status flush();
 
+    // Plan 0028 (ADR-0200, D3-D6, D11): see the file comment. nullopt, the identity the file has
+    // already and an explicit file: no-op. Errors: io.write_failed (the reopened file).
+    [[nodiscard]] Status adoptIdentity(const std::optional<FirmwareIdentity>& identity,
+                                       std::chrono::system_clock::time_point now);
+    [[nodiscard]] const std::optional<FirmwareIdentity>& identity() const noexcept {
+        return m_identity;
+    }
+
     [[nodiscard]] const std::filesystem::path& currentFile() const noexcept { return m_current; }
     // A problem that did not stop the file (a failed rotation, io.write_failed); returned once.
     [[nodiscard]] std::optional<Error> takeWarning();
@@ -120,6 +144,15 @@ private:
     [[nodiscard]] Status rotateIfNeeded(std::size_t incoming);
     void closeFile();
     void prune() const;
+    // The generated file name for `identity` with m_stamp and m_keySuffix, free for `parts` parts
+    // (with a "-2" ... "-9" suffix when taken); nullopt when all are taken.
+    [[nodiscard]] std::optional<std::filesystem::path>
+    generatedName(const std::optional<FirmwareIdentity>& identity, int parts) const;
+    [[nodiscard]] Status renameForIdentity(const FirmwareIdentity& identity,
+                                           std::chrono::system_clock::time_point now);
+    [[nodiscard]] Status continueInNewFile(const FirmwareIdentity& identity,
+                                           std::chrono::system_clock::time_point now,
+                                           bool deviceChanged);
 
     ConsoleFileConfig m_config;
     std::filesystem::path m_base;    // default mode: <name>.log; explicit: P
@@ -130,14 +163,27 @@ private:
     bool m_rotationFailed = false; // explicit file: rename to P.1 failed, not retried
     std::optional<Error> m_warning;
     std::string m_buffer; // <= maxBufferedBytes (+ one line)
+    // Plan 0028: the parts of a generated name and the identity the name carries.
+    std::string m_headerText;
+    std::string m_nameTarget; // the target id, "ble" for a BLE session
+    std::string m_stamp;      // yyyyMMdd-HHmmss (UTC)
+    std::string m_keySuffix;  // the probe SN or the sanitised BLE id
+    std::optional<FirmwareIdentity> m_identity;
+    bool m_renameFailureLogged = false;
     // The length of a shell prompt at the start of an echoed line (0 = none).
     [[nodiscard]] std::size_t echoPromptLength(std::string_view text) const noexcept;
 
     // ADR-0186: input lines matching these are written redacted (the target's profile list).
     std::span<const std::string_view> m_sensitivePrefixes;
+    // Plan 0028 (U2): output lines "<key>: <secret>" are written as "<key>: <redacted>".
+    std::span<const std::string_view> m_sensitiveOutput;
     // Review R4: the profile's shell prompts (RTT target, BLE); "" = none.
     std::array<std::string_view, 2> m_prompts{};
 };
+
+// The session key of a generated console file name (old and plan 0028 names, with .partN and the
+// "-2" ... "-9" collision suffix); nullopt for other names. Used by the retention (review R45).
+[[nodiscard]] std::optional<SessionKey> consoleFileSessionKey(const std::filesystem::path& file);
 
 // Prefix of a line in the console file (" > ", " # ", " < ", " @ ").
 [[nodiscard]] std::string_view consoleFilePrefix(const ConsoleLine& line) noexcept;

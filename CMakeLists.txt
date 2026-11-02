@@ -34,6 +34,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 option(HWIO_BUILD_TESTS "Build the unit and integration tests" ON)
+# Plan 0028 (review round 1, R5): the translation lint needs Python 3; CI requires it so the test
+# is never skipped there (a developer machine without Python only gets a warning).
+option(HWIO_REQUIRE_PYTHON "Fail the configure step when Python 3 (translation lint) is missing" OFF)
 # libFuzzer targets (ADR-0152): only the linux-fuzz preset turns this on; it needs
 # HWIO_SANITIZERS to contain "fuzzer" (cmake/HWioSanitizers.cmake).
 option(HWIO_BUILD_FUZZERS "Build the libFuzzer targets (linux-fuzz preset only)" OFF)

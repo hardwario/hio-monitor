@@ -6,6 +6,8 @@
 
 #include <QByteArray>
 #include <QDir>
+#include <QFile>
+#include <QIODevice>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -263,7 +265,16 @@ TEST_F(FakeBleCli, ConsoleWritesTheDefaultConsoleFile) {
     const QDir console(home() + QStringLiteral("/data/HARDWARIO/Monitor/console"));
     const QStringList files =
         console.entryList({QStringLiteral("chester-ble-*-F1-22-33-44-55-66.log")}, QDir::Files);
-    EXPECT_EQ(files.size(), 1) << console.absolutePath().toStdString();
+    ASSERT_EQ(files.size(), 1) << console.absolutePath().toStdString();
+    // Plan 0028 (D9): named after the firmware `info show` reported (real CHESTER keys).
+    EXPECT_TRUE(files.front().startsWith(QStringLiteral("chester-ble-clime-v3.0.0-")))
+        << files.front().toStdString();
+    QFile file(console.filePath(files.front()));
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    EXPECT_TRUE(file.readAll().contains(" @ Firmware: CHESTER Clime v3.0.0\n"));
+    // U3: the final name on stderr.
+    EXPECT_NE(result.err.find("Console file: "), std::string::npos) << result.err;
+    EXPECT_NE(result.err.find(files.front().toStdString()), std::string::npos) << result.err;
 }
 
 TEST_F(FakeBleCli, PairOutcomes) {
@@ -401,8 +412,13 @@ TEST_F(FakeBleCli, InteractiveQuitEndsThePromptLine) {
         ASSERT_TRUE(process.waitForFinished(20000)) << out.toStdString();
         out += process.readAllStandardOutput();
         EXPECT_EQ(process.exitCode(), 0) << out.toStdString();
-        // The prompt line is ended once: no prompt left open, no stray empty line.
-        EXPECT_TRUE(out.endsWith("bt_nus:~$ \r\n"))
+        // The prompt line is ended once: no prompt left open, no stray empty line; plan 0028 (U3):
+        // the console file line follows it as the last line.
+        const auto prompt = out.lastIndexOf("bt_nus:~$ \r\n");
+        ASSERT_GE(prompt, 0) << QString::fromUtf8(out.toPercentEncoding()).toStdString();
+        const QByteArray tail = out.mid(prompt + 12);
+        EXPECT_TRUE(tail.startsWith("Console file: ") && tail.endsWith(".log\r\n") &&
+                    tail.count("\r\n") == 1)
             << QString::fromUtf8(out.toPercentEncoding()).toStdString();
     }
 #endif

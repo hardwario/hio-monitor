@@ -233,7 +233,9 @@ public:
 
     // --- misc ---
     Q_INVOKABLE void showToast(const QString& text);
-    Q_INVOKABLE void copyToClipboard(const QString& text);
+    // Plan 0028 (ADR-0202): the only clipboard writer of the GUI. Empty text: nothing (no toast);
+    // otherwise the clipboard and the toast `toast`, by default "Copied to clipboard.".
+    Q_INVOKABLE void copyToClipboard(const QString& text, const QString& toast = QString());
     // Help → Documentation (opens the browser).
     Q_INVOKABLE static void openDocumentation();
 

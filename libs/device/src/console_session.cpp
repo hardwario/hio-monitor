@@ -6,6 +6,7 @@
 #include "hwio/core/result.h"
 #include "hwio/device/command_capture.h"
 #include "hwio/device/console_line.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/session_events.h"
 
 #include <QCoreApplication>
@@ -31,6 +32,14 @@
 namespace hwio::device {
 
 using ShellClock = std::chrono::steady_clock;
+
+void ConsoleSession::setAdoptedIdentity(FirmwareIdentity identity) {
+    if (m_adoptedIdentity == identity) {
+        return;
+    }
+    m_adoptedIdentity = std::move(identity);
+    emit firmwareIdentityAdopted();
+}
 
 void ConsoleSession::close() {
     if (m_closeCalled) {

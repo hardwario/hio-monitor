@@ -288,6 +288,9 @@ public:
     // stopped it (the session's io.write_failed warning). Updated by the worker's events, like
     // probe(); a continuation file (.partN.log) replaces the name. Owner thread only.
     [[nodiscard]] std::filesystem::path consoleFile() const override;
+    // Plan 0028: queued like setRttAddress(); the worker renames the console file.
+    [[nodiscard]] Status setFirmwareIdentity(std::optional<FirmwareIdentity> identity,
+                                             std::uint64_t attach) override;
     // The last reported connection event (Connecting before the first one).
     [[nodiscard]] const ConnectionEvent& connection() const noexcept override {
         return m_connection;

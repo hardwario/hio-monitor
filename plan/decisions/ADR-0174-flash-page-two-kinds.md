@@ -37,3 +37,8 @@ not have to know which part they need.
 - `FlashViewModel::Kind` loses `ModemFirmware`; the operation is derived from the loaded LTE input.
 - The recent list (`flash/recent`) maps stored `modem` entries to the LTE kind.
 - The flash wizard (0010) step 2 shows the same two cards.
+
+## Amendment 2026-11-02 (ADR-0204, plan 0028, accepted by Matej Strnad)
+
+"Sticky Flash bar" stays sticky; its contents follow the centred form column and the Flash button shows the bolt
+icon.

@@ -262,7 +262,8 @@ class IActivitySink { public: virtual ~IActivitySink() = default; virtual void r
   `BleProfile::consoleTargetId`.
 - CLI implementations: `CliDeviceProvider` owns `std::unique_ptr<ConsoleSession>`s within the registry limit
   (`SessionRegistry::maxSessions` = 8, shared with BLE), each with its own `ConsoleLog` (100 000 lines/channel,
-  ADR-0063) and console file (M1 rules; `consoleFileDir` from `--console-file-dir`, ADR-0156). Probe list from
+  ADR-0063) and console file (M1 rules; `consoleFileDir` from `--console-file-dir`, ADR-0156; amended by 0028 D8:
+  MCP sessions do not query `info show`, so their file names never carry the firmware). Probe list from
   `SessionRegistry::enumerateProbes` (`ProbeStatus::usedBySession` / `usedByOtherProcess`). `FlagConsentBroker`
   decides immediately from `--allow`. The activity sink logs to `hio.mcp`.
 

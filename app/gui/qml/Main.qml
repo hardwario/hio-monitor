@@ -12,6 +12,8 @@ import HardwarioMonitor
 ApplicationWindow {
     id: window
 
+    // The toast column (in the overlay layer, plan 0028 D21; tests find it here).
+    readonly property Item toastLayer: toastColumn
 
     objectName: "mainWindow"
     width: 1280
@@ -138,12 +140,18 @@ ApplicationWindow {
         }
     }
 
+    // Plan 0028 (D21, ADR-0202): in the overlay layer above the modal dialogs (wizard, report), so
+    // a copy inside a dialog shows its toast; never focusable and never takes input.
     Toast {
+        id: toastColumn
+
         objectName: "toasts"
+        parent: Overlay.overlay
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Theme.spacingL + 2
-        z: 20
+        z: 1000
+        enabled: false
     }
 
     ShortcutOverlay {}

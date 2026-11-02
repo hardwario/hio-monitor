@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <initializer_list>
 #include <optional>
 #include <span>
 #include <string>
@@ -15,7 +16,38 @@ namespace {
 
 bool isKeyChar(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' ||
-           c == '_';
+           c == '_' || c == ' ';
+}
+
+// D2 (plan 0028): [A-Za-z0-9 _-], spaces only single and between words.
+bool isKey(std::string_view key) {
+    return !key.empty() && std::ranges::all_of(key, isKeyChar) && key.front() != ' ' &&
+           key.back() != ' ' && key.find("  ") == std::string_view::npos;
+}
+
+// Lower-case, ' ' -> '-' ("firmware name" -> "firmware-name").
+std::string normalisedKey(std::string_view key) {
+    std::string result(key);
+    for (char& c : result) {
+        if (c >= 'A' && c <= 'Z') {
+            c = static_cast<char>(c - 'A' + 'a');
+        } else if (c == ' ') {
+            c = '-';
+        }
+    }
+    return result;
+}
+
+// The first present (not "(unset)", not empty) value of `keys`.
+std::string_view firstValue(const DeviceInfo& info, std::initializer_list<std::string_view> keys) {
+    constexpr std::string_view unset = "(unset)";
+    for (const std::string_view key : keys) {
+        const std::optional<std::string_view> value = info.value(key);
+        if (value && !value->empty() && *value != unset) {
+            return *value;
+        }
+    }
+    return {};
 }
 
 std::string_view trim(std::string_view text) {
@@ -49,9 +81,17 @@ std::optional<std::string_view> DeviceInfo::value(std::string_view key) const no
     return std::string_view(it->value);
 }
 
-std::string_view DeviceInfo::fwName() const noexcept { return value("fw-name").value_or(""); }
+std::string_view DeviceInfo::fwName() const noexcept {
+    return firstValue(*this, {"fw-name", "firmware-name"});
+}
 
-std::string_view DeviceInfo::fwVersion() const noexcept { return value("fw-version").value_or(""); }
+std::string_view DeviceInfo::fwVersion() const noexcept {
+    return firstValue(*this, {"fw-version", "firmware-version"});
+}
+
+std::string_view DeviceInfo::deviceSerial() const noexcept {
+    return firstValue(*this, {"serial-number"});
+}
 
 bool DeviceInfo::hasFirmware() const noexcept { return !fwName().empty() && !fwVersion().empty(); }
 
@@ -70,10 +110,11 @@ DeviceInfo parseInfoShow(std::span<const std::string> lines) {
         if (colon == std::string_view::npos || colon == 0 || colon > DeviceInfo::maxKeyBytes) {
             continue;
         }
-        const std::string_view key = line.substr(0, colon);
-        if (!std::ranges::all_of(key, isKeyChar)) {
+        const std::string_view rawKey = line.substr(0, colon);
+        if (!isKey(rawKey)) {
             continue; // text, not a field
         }
+        const std::string key = normalisedKey(rawKey);
         std::string_view value = trim(line.substr(colon + 1));
         if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
             value = value.substr(1, value.size() - 2);
@@ -81,9 +122,8 @@ DeviceInfo parseInfoShow(std::span<const std::string> lines) {
         if (info.value(key)) {
             continue; // the first occurrence wins
         }
-        info.fields.push_back(
-            DeviceInfoField{.key = std::string(key),
-                            .value = std::string(cutUtf8(value, DeviceInfo::maxFieldBytes))});
+        info.fields.push_back(DeviceInfoField{
+            .key = key, .value = std::string(cutUtf8(value, DeviceInfo::maxFieldBytes))});
     }
     return info;
 }

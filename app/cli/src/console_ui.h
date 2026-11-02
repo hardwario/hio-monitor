@@ -66,6 +66,9 @@ public:
     // The final {"type":"connection","state":"stopped"} event (--json); skipped when the last
     // connection event printed was already Stopped (review R28).
     void printStopped();
+    // Plan 0028 (U3): the console file the session wrote, at the end: "Console file: <path>" on
+    // stderr (human mode) or {"type":"consoleFile","path":...} (--json). Nothing when empty.
+    void printConsoleFile(const std::filesystem::path& file);
 
     // Called once when a write to stdout failed (the reader of a pipe went away, review R32);
     // the console turns it into a stop request.

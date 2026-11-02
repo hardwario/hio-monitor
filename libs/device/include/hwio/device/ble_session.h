@@ -66,9 +66,10 @@ struct BlePairingFinished;
 struct BleConsoleFileChanged;
 struct BleAttemptEnded;
 struct BleLineRejected;
-using BleSessionEvent =
-    std::variant<ConsoleLine, ConnectionEvent, Warning, BlePromptSeen, BlePairingPrompt,
-                 BlePairingFinished, BleConsoleFileChanged, BleAttemptEnded, BleLineRejected>;
+struct BleIdentityAdopted;
+using BleSessionEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, BlePromptSeen,
+                                     BlePairingPrompt, BlePairingFinished, BleConsoleFileChanged,
+                                     BleAttemptEnded, BleLineRejected, BleIdentityAdopted>;
 } // namespace detail
 
 struct BleSessionOptions {
@@ -134,6 +135,9 @@ public:
     [[nodiscard]] const DeviceProfile& profile() const noexcept override;
     [[nodiscard]] std::string_view consoleTargetId() const override;
     [[nodiscard]] std::filesystem::path consoleFile() const override;
+    // Plan 0028 (D9): posted to the BLE host; the handler renames the console file.
+    [[nodiscard]] Status setFirmwareIdentity(std::optional<FirmwareIdentity> identity,
+                                             std::uint64_t attach) override;
     // The last RSSI a background scan saw (nullopt before any).
     [[nodiscard]] std::optional<int> rssi() const;
     // The negotiated MTU, 0 until Connected.

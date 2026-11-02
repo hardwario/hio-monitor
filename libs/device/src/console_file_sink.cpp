@@ -6,6 +6,7 @@
 #include "hwio/core/result.h"
 #include "hwio/device/ble_lock.h"
 #include "hwio/device/console_line.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/probe_lock.h"
 #include "hwio/device/profile.h"
 #include "hwio/device/session_key.h"
@@ -58,6 +59,14 @@ QDateTime toDateTime(std::chrono::system_clock::time_point time) {
     const auto ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count();
     return QDateTime::fromMSecsSinceEpoch(ms);
+}
+
+// The stamp of generated file names (UTC).
+std::string utcStamp(std::chrono::system_clock::time_point time) {
+    return toDateTime(time)
+        .toTimeZone(QTimeZone::UTC)
+        .toString(QStringLiteral("yyyyMMdd-HHmmss"))
+        .toStdString();
 }
 
 std::string timestamp(std::chrono::system_clock::time_point time) {
@@ -128,45 +137,98 @@ bool allDigits(std::string_view text) {
     return !text.empty() && std::ranges::all_of(text, [](char c) { return c >= '0' && c <= '9'; });
 }
 
-// The session key of a default console file name (ADR-0128):
-// <profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log (J-Link) or <profile>-ble-YYYYMMDD-HHMMSS-<id>.log
-// (BLE, the sanitised id), optionally with .partN before .log; nullopt for other names.
-std::optional<SessionKey> sessionKeyOf(const fs::path& file) {
+// Seconds-resolution stamp "YYYYMMDD-HHMMSS" at `at` (15 characters).
+bool isStamp(std::string_view name, std::size_t at) {
+    constexpr std::size_t stampSize = 15;
+    if (at + stampSize > name.size()) {
+        return false;
+    }
+    const std::string_view stamp = name.substr(at, stampSize);
+    return stamp[8] == '-' && allDigits(stamp.substr(0, 8)) && allDigits(stamp.substr(9, 6));
+}
+
+// "-<one digit 2..9>" at the end: the collision suffix of a generated name (plan 0028).
+bool hasCollisionSuffix(std::string_view name) {
+    return name.size() >= 2 && name[name.size() - 2] == '-' && name.back() >= '2' &&
+           name.back() <= '9';
+}
+
+// J-Link: "...-YYYYMMDD-HHMMSS-<1..10 digits>".
+std::optional<SessionKey> probeKeyOf(std::string_view name) {
+    constexpr std::size_t maxDigits = 10; // std::uint32_t
+    constexpr std::size_t stampSize = 15;
+    const std::size_t dash = name.rfind('-');
+    if (dash == std::string_view::npos || dash < stampSize + 1) {
+        return std::nullopt;
+    }
+    const std::string_view id = name.substr(dash + 1);
+    const std::size_t stampAt = dash - stampSize;
+    if (id.size() > maxDigits || !allDigits(id) || !isStamp(name, stampAt) ||
+        name[stampAt - 1] != '-') {
+        return std::nullopt;
+    }
+    std::uint64_t value = 0;
+    for (const char c : id) {
+        value = (value * 10) + static_cast<std::uint64_t>(c - '0');
+    }
+    if (value > std::numeric_limits<std::uint32_t>::max()) {
+        return std::nullopt;
+    }
+    return SessionKey(ProbeKey{.sn = static_cast<std::uint32_t>(value)});
+}
+
+} // namespace
+
+// The session key of a generated console file name (ADR-0128, plan 0028):
+// <profile>-<target>[-<slug>-<version>]-YYYYMMDD-HHMMSS-<sn>.log (J-Link) or
+// <profile>-ble[-<slug>-<version>]-YYYYMMDD-HHMMSS-<id>.log (BLE, the sanitised id), optionally
+// with "-2" ... "-9" and/or .partN before .log; nullopt for other names. Profile ids contain no '-'
+// (static_assert in the profile). J-Link names are parsed from the end; for BLE the second token is
+// "ble" and the FIRST stamp after it ends the prefix (the id may contain dashes).
+std::optional<SessionKey> consoleFileSessionKey(const fs::path& file) {
+    if (file.extension() != ".log") {
+        return std::nullopt;
+    }
     std::string stem = file.stem().string(); // without ".log"
     if (const auto part = stem.rfind(".part"); part != std::string::npos) {
         stem.resize(part);
     }
     const std::string_view name = stem;
-    // Find "-YYYYMMDD-HHMMSS-" (the first one: the sanitised BLE id may contain dashes).
-    constexpr std::size_t stampSize = 17; // -YYYYMMDD-HHMMSS-
-    for (std::size_t at = name.find('-');
-         at != std::string_view::npos && at + stampSize < name.size();
-         at = name.find('-', at + 1)) {
-        const std::string_view stamp = name.substr(at, stampSize);
-        if (stamp[9] != '-' || stamp[16] != '-' || !allDigits(stamp.substr(1, 8)) ||
-            !allDigits(stamp.substr(10, 6))) {
-            continue;
-        }
-        const std::string_view prefix = name.substr(0, at);
-        const std::string_view id = name.substr(at + stampSize);
-        if (prefix.ends_with("-ble")) {
+    const std::size_t first = name.find('-');
+    if (first == std::string_view::npos || first == 0) {
+        return std::nullopt;
+    }
+    const std::size_t second = name.find('-', first + 1);
+    const std::string_view target = name.substr(
+        first + 1, second == std::string_view::npos ? std::string_view::npos : second - first - 1);
+    if (target == "ble") {
+        for (std::size_t at = second; at != std::string_view::npos; at = name.find('-', at + 1)) {
+            constexpr std::size_t stampSize = 15;
+            if (!isStamp(name, at + 1) || at + 1 + stampSize >= name.size() ||
+                name[at + 1 + stampSize] != '-') {
+                continue;
+            }
+            std::string_view id = name.substr(at + 1 + stampSize + 1);
+            if (hasCollisionSuffix(id) && id.size() > 2) {
+                id.remove_suffix(2);
+            }
+            if (id.empty()) {
+                return std::nullopt;
+            }
             return SessionKey(BleKey{.id = std::string(id)});
         }
-        constexpr std::size_t maxDigits = 10; // std::uint32_t
-        if (id.size() > maxDigits || !allDigits(id)) {
-            return std::nullopt;
-        }
-        std::uint64_t value = 0;
-        for (const char c : id) {
-            value = (value * 10) + static_cast<std::uint64_t>(c - '0');
-        }
-        if (value > std::numeric_limits<std::uint32_t>::max()) {
-            return std::nullopt;
-        }
-        return SessionKey(ProbeKey{.sn = static_cast<std::uint32_t>(value)});
+        return std::nullopt;
+    }
+    if (auto key = probeKeyOf(name)) {
+        return key;
+    }
+    if (hasCollisionSuffix(name)) {
+        return probeKeyOf(name.substr(0, name.size() - 2));
     }
     return std::nullopt;
 }
+
+namespace {
 
 // A set key per session ("p<sn>", "b<id>").
 std::string keyText(const SessionKey& key) {
@@ -202,21 +264,26 @@ ConsoleFileSink::open(const ConsoleFileConfig& config, const SessionKey& key,
                       std::string_view headerText, std::chrono::system_clock::time_point now) {
     fs::path base;
     const fs::path& directory = config.consoleFileDir.value_or(config.directory);
+    std::string nameTarget = config.targetId;
+    std::string keySuffix;
+    if (const auto* probe = std::get_if<ProbeKey>(&key)) {
+        keySuffix = std::to_string(probe->sn);
+    } else {
+        nameTarget = "ble";
+        keySuffix = sanitisedBleId(std::get<BleKey>(key).id);
+    }
+    const std::string stamp = utcStamp(now);
     if (config.explicitFile) {
         base = *config.explicitFile;
     } else {
-        const QString stamp =
-            toDateTime(now).toTimeZone(QTimeZone::UTC).toString(QStringLiteral("yyyyMMdd-HHmmss"));
-        if (const auto* probe = std::get_if<ProbeKey>(&key)) {
-            base = directory / std::format("{}-{}-{}-{}.log", config.profileId, config.targetId,
-                                           stamp.toStdString(), probe->sn);
-        } else {
-            base =
-                directory / std::format("{}-ble-{}-{}.log", config.profileId, stamp.toStdString(),
-                                        sanitisedBleId(std::get<BleKey>(key).id));
-        }
+        base = directory /
+               std::format("{}-{}-{}-{}.log", config.profileId, nameTarget, stamp, keySuffix);
     }
     auto sink = std::make_unique<ConsoleFileSink>(Passkey{}, config, std::move(base));
+    sink->m_headerText = std::string(headerText);
+    sink->m_nameTarget = std::move(nameTarget);
+    sink->m_stamp = stamp;
+    sink->m_keySuffix = std::move(keySuffix);
     if (auto status = sink->openCurrent(); !status) {
         return std::unexpected(std::move(status).error());
     }
@@ -238,7 +305,8 @@ ConsoleFileSink::open(const ConsoleFileConfig& config, std::uint32_t probeSerial
 
 ConsoleFileSink::ConsoleFileSink(Passkey /*key*/, ConsoleFileConfig config, fs::path baseFile)
     : m_config(std::move(config)), m_base(std::move(baseFile)), m_current(m_base),
-      m_sensitivePrefixes(sensitivePrefixesOf(m_config.profileId, m_config.targetId)) {
+      m_sensitivePrefixes(sensitivePrefixesOf(m_config.profileId, m_config.targetId)),
+      m_sensitiveOutput(sensitiveOutputKeysOf(m_config.profileId, m_config.targetId)) {
     // Review R4: the shell prompts of the profile (RTT target, BLE), stripped from echoed lines.
     if (const DeviceProfile* profile = ProfileRegistry::find(m_config.profileId)) {
         if (const TargetProfile* target = findTarget(*profile, m_config.targetId)) {
@@ -358,6 +426,13 @@ Status ConsoleFileSink::write(const ConsoleLine& line) {
             return append(consoleFilePrefix(line),
                           line.text.substr(0, promptLength) + std::string(*prefix) + " <redacted>",
                           line.time);
+        } // Plan 0028 (U2): the value of a secret printed by the device ("claim token:
+          // <redacted>").
+        if (line.dir == Direction::Out) {
+            if (const auto key = matchSensitiveOutput(command, m_sensitiveOutput)) {
+                return append(consoleFilePrefix(line),
+                              line.text.substr(0, promptLength) + *key + ": <redacted>", line.time);
+            }
         }
     }
     return append(consoleFilePrefix(line), line.text, line.time);
@@ -406,6 +481,169 @@ Status ConsoleFileSink::flush() {
     return {};
 }
 
+// ---- plan 0028: the firmware identity in the file name (ADR-0200) ----------------------------
+
+std::optional<fs::path>
+ConsoleFileSink::generatedName(const std::optional<FirmwareIdentity>& identity, int parts) const {
+    const fs::path directory = m_base.parent_path();
+    const std::string stem =
+        std::format("{}-{}-{}", consoleFileBase(m_config.profileId, m_nameTarget, identity),
+                    m_stamp, m_keySuffix);
+    // R3: free for every part that will be renamed to it.
+    const auto isFree = [parts](const fs::path& base) {
+        for (int part = 1; part <= parts; ++part) {
+            std::error_code ec;
+            if (fs::exists(partFile(base, part), ec)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (fs::path candidate = directory / (stem + ".log"); isFree(candidate)) {
+        return candidate;
+    }
+    constexpr int maxCollisionSuffix = 9;
+    for (int suffix = 2; suffix <= maxCollisionSuffix; ++suffix) {
+        if (fs::path candidate = directory / std::format("{}-{}.log", stem, suffix);
+            isFree(candidate)) {
+            return candidate;
+        }
+    }
+    return std::nullopt;
+}
+
+Status ConsoleFileSink::adoptIdentity(const std::optional<FirmwareIdentity>& identity,
+                                      std::chrono::system_clock::time_point now) {
+    if (m_config.explicitFile || !identity) {
+        return {}; // never renamed; an unidentified attach keeps the name
+    }
+    if (!m_identity) {
+        return renameForIdentity(*identity, now); // D4, D5
+    }
+    const bool firmware = sameFirmware(*m_identity, *identity);
+    if (firmware && !otherDevice(*m_identity, *identity)) {
+        if (m_identity->deviceSerial.empty()) {
+            m_identity->deviceSerial = identity->deviceSerial; // R1: learned now
+        }
+        return {}; // the same firmware on the same device
+    }
+    FirmwareIdentity next = *identity;
+    if (next.deviceSerial.empty()) {
+        next.deviceSerial = m_identity->deviceSerial; // R1: an empty serial keeps the stored one
+    }
+    return continueInNewFile(next, now, firmware); // D3
+}
+
+Status ConsoleFileSink::renameForIdentity(const FirmwareIdentity& identity,
+                                          std::chrono::system_clock::time_point now) {
+    m_identity = identity;
+    const std::string marker = "Firmware: " + identityText(identity);
+    const std::string wanted =
+        std::format("{}-{}-{}.log", consoleFileBase(m_config.profileId, m_nameTarget, identity),
+                    m_stamp, m_keySuffix);
+    if (m_base.filename().string() == wanted) {
+        return writeConnection(marker, now); // no identity part (empty slugs): the same name
+    }
+    const std::optional<fs::path> newBase = generatedName(identity, m_part);
+    if (!newBase) {
+        qCInfo(log::lcDevice) << "Console file not renamed: the firmware names are taken";
+        return writeConnection(marker, now);
+    }
+    if (Status flushed = flush(); !flushed) {
+        return flushed;
+    }
+    // R2: the old and the new path of the live file stay in the open-files list until the file is
+    // open again, so the retention of another sink in this process never deletes it meanwhile.
+    const fs::path oldCurrent = m_current;
+    const fs::path newCurrent = partFile(*newBase, m_part);
+    openFiles().add(oldCurrent);
+    openFiles().add(newCurrent);
+    closeFile();
+    fs::path current = m_current;
+    for (int part = 1; part <= m_part; ++part) {
+        const fs::path from = partFile(m_base, part);
+        std::error_code missing;
+        if (!fs::exists(from, missing)) {
+            continue; // R3: a closed part that was pruned already
+        }
+        const fs::path to = partFile(*newBase, part);
+        std::error_code ec;
+        fs::rename(from, to, ec);
+        if (ec) {
+            // D11: e.g. Windows, another program holds the file without FILE_SHARE_DELETE.
+            if (!std::exchange(m_renameFailureLogged, true)) {
+                qCInfo(log::lcDevice).noquote()
+                    << "Console file not renamed (it keeps its name):" << toQString(toUtf8(from))
+                    << toQString(ec.message());
+            }
+            continue;
+        }
+        if (part == m_part) {
+            current = to;
+        }
+    }
+    m_base = *newBase;
+    m_current = current;
+    Status opened = openCurrent();
+    openFiles().remove(newCurrent);
+    openFiles().remove(oldCurrent);
+    if (!opened) {
+        return opened;
+    }
+    return writeConnection(marker, now);
+}
+
+Status ConsoleFileSink::continueInNewFile(const FirmwareIdentity& identity,
+                                          std::chrono::system_clock::time_point now,
+                                          bool deviceChanged) {
+    // R1: the same firmware on another device (other serial number; the serial is never written).
+    // R1: the same firmware on another device (the serial is never written). English like every
+    // other file marker (user decision 2026-11-02).
+    const auto changeText = [&](const std::optional<std::string>& next) {
+        if (deviceChanged) {
+            return next ? "Device changed; continued in " + *next : std::string("Device changed");
+        }
+        return next ? std::format("Firmware changed to {}; continued in {}", identityText(identity),
+                                  *next)
+                    : "Firmware changed to " + identityText(identity);
+    };
+    const std::string previousStamp = std::exchange(m_stamp, utcStamp(now));
+    const std::optional<fs::path> next = generatedName(identity, 1);
+    if (!next) {
+        m_stamp = previousStamp;
+        m_identity = identity;
+        qCInfo(log::lcDevice) << "Console file not continued: the names are taken";
+        return writeConnection(changeText(std::nullopt), now);
+    }
+    const std::string oldName = m_current.filename().string();
+    if (Status written = writeConnection(changeText(toUtf8(next->filename())), now); !written) {
+        return written;
+    }
+    if (Status flushed = flush(); !flushed) {
+        return flushed;
+    }
+    closeFile();
+    m_identity = identity;
+    m_base = *next;
+    m_current = m_base;
+    m_part = 1;
+    if (Status opened = openCurrent(); !opened) {
+        return opened;
+    }
+    m_buffer += headerBlock(m_headerText);
+    if (Status written = writeConnection("Continues " + oldName, now); !written) {
+        return written;
+    }
+    if (Status written = writeConnection("Firmware: " + identityText(identity), now); !written) {
+        return written;
+    }
+    if (Status flushed = flush(); !flushed) {
+        return flushed;
+    }
+    prune();
+    return {};
+}
+
 void ConsoleFileSink::prune() const {
     std::vector<FileInfo> files;
     std::error_code ec;
@@ -418,7 +656,7 @@ void ConsoleFileSink::prune() const {
         if (!it->is_regular_file(entryError) || it->path().extension() != ".log") {
             continue;
         }
-        if (sessionFilesOnly && !sessionKeyOf(it->path())) {
+        if (sessionFilesOnly && !consoleFileSessionKey(it->path())) {
             continue;
         }
         FileInfo info{.path = it->path(),
@@ -445,7 +683,7 @@ void ConsoleFileSink::prune() const {
         if (openFiles().contains(file.path)) {
             return true;
         }
-        const std::optional<SessionKey> key = sessionKeyOf(file.path);
+        const std::optional<SessionKey> key = consoleFileSessionKey(file.path);
         if (!key || !newestSeen.insert(keyText(*key)).second) {
             return false; // not a session file, or not the newest file of its session
         }

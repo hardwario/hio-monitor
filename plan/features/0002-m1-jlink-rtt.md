@@ -391,6 +391,11 @@ Both libraries are created with `hio_add_backend_library` (static, ADR-0022; Qt 
   `<profile>-ble-YYYYMMDD-HHMMSS-<sanitised id>.log`; the retention parses the key from the file name and asks
   `ProbeLock::owner` or `BleLock::owner` with the same live-file rules. Owner: the session worker (J-Link) or the
   BLE thread (BLE).
+  *Amended by 0028 (ADR-0200):* once the firmware is identified (`info show`, or an application boot banner), a
+  generated name gains `-<fw-slug>-<fw-version>` after `<profile>-<target>` (`chester-app-clime-v3.0.0-YYYYMMDD-HHMMSS-<sn>.log`,
+  BLE `chester-ble-clime-v3.0.0-…`): every part written so far is renamed (same stamp and key, `-2`…`-9` on a
+  collision), a marker line `@ Firmware: <name> <version>` follows; a different firmware later continues in a new
+  file with a new stamp. Explicit `--console-file` paths are never renamed. The retention parses old and new names.
   Explicit `--console-file P`: append; when it exceeds **100 MiB** it is renamed
   to `P.1` (replacing an older `P.1`) and a new file starts. If that rename fails, the file is not rotated again
   in this session (one `Warning` `io.write_failed`) and is appended to up to **2 × 100 MiB**, then it is not

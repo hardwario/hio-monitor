@@ -1,9 +1,11 @@
 #include "viewmodels/console_view_model.h"
 
 #include "gui_log.h"
+#include "hwio/core/docs_urls.h"
 #include "hwio/core/error.h"
 #include "hwio/core/json.h"
 #include "hwio/core/result.h"
+#include "hwio/device/command_history.h"
 #include "hwio/device/command_tree.h"
 #include "hwio/device/command_tree_cache.h"
 #include "hwio/device/command_tree_learner.h"
@@ -12,6 +14,7 @@
 #include "hwio/device/console_log.h"
 #include "hwio/device/device_info.h"
 #include "hwio/device/device_session.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/operation.h"
 #include "hwio/device/profile.h"
 #include "hwio/device/session_events.h"
@@ -25,15 +28,17 @@
 #include "workers/batch_runner.h"
 
 #include <QChar>
-#include <QClipboard>
+#include <QDateTime>
 #include <QDir>
-#include <QGuiApplication>
+#include <QFileInfo>
 #include <QLatin1Char>
 #include <QList>
+#include <QLocale>
 #include <QLoggingCategory>
 #include <QModelIndex>
 #include <QObject>
 #include <QSaveFile>
+#include <QStandardPaths>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
@@ -657,7 +662,11 @@ void ConsoleViewModel::clear(int channelMask) {
 }
 
 void ConsoleViewModel::saveView(int channel, const QUrl& file) {
-    const QString path = file.isLocalFile() ? file.toLocalFile() : file.toString();
+    if (!file.isLocalFile()) {
+        setError(nonLocalFileError(file)); // plan 0028 D13: never a silent no-op
+        return;
+    }
+    const QString path = file.toLocalFile();
     const auto failed = [this, &path](const QString& reason) {
         setError(guiError(ErrorCode::IoWriteFailed, tr("The file could not be saved."),
                           tr("the folder is not writable or the disk is full."),
@@ -678,22 +687,68 @@ void ConsoleViewModel::saveView(int channel, const QUrl& file) {
         failed(out.errorString());
         return;
     }
+    if (m_context.settings != nullptr) {
+        m_context.settings->setSaveViewFolder(QFileInfo(path).absolutePath()); // ADR-0201
+    }
     m_tab->showToast(tr("The view was saved to %1.").arg(QDir::toNativeSeparators(path)));
+}
+
+QUrl ConsoleViewModel::saveViewFolder() const {
+    const QString folder =
+        m_context.settings != nullptr ? m_context.settings->saveViewFolder() : QString();
+    if (!folder.isEmpty() && QFileInfo(folder).isDir()) {
+        return QUrl::fromLocalFile(folder);
+    }
+    return QUrl::fromLocalFile(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+}
+
+QString ConsoleViewModel::saveViewFileName(int channel) const {
+    const std::string profile = toStdString(m_tab->profileId());
+    const std::string base = device::consoleFileBase(
+        profile.empty() ? std::string("console") : profile, toStdString(m_tab->consoleTargetId()),
+        m_tab->lastFirmwareIdentity());
+    const QString stamp =
+        QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd-HHmmss"));
+    return QStringLiteral("%1-%2-%3.txt")
+        .arg(toQString(base), stamp,
+             channel == 0 ? QStringLiteral("shell") : QStringLiteral("log"));
+}
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static): Q_PROPERTY getter
+QString ConsoleViewModel::batchHelpText() const {
+    // The second part of the Batch… tooltip (HToolButton.description; the first line is
+    // "Batch… (Ctrl+B)"). Locale-formatted numbers.
+    const QLocale locale;
+    return tr("Sends each line of a UTF-8 text file to the device as a shell command, one line "
+              "every %1 ms. Empty lines and lines starting with # are skipped. At most %2 "
+              "commands, %3 MiB per file and %4 bytes per line.")
+        .arg(locale.toString(static_cast<qlonglong>(BatchRunner::defaultInterval.count())),
+             locale.toString(BatchRunner::maxCommands),
+             locale.toString(BatchRunner::maxFileBytes / (1024LL * 1024)),
+             locale.toString(static_cast<qulonglong>(device::CommandHistory::maxEntryBytes)));
+}
+
+void ConsoleViewModel::openBatchDocs() const {
+    const QString language =
+        m_context.app != nullptr ? m_context.app->language() : QStringLiteral("en");
+    const QUrl url = docsUrl(DocsTopic::ConsoleBatch, language);
+    if (m_context.settings == nullptr || !m_context.settings->openUrl(url)) {
+        qCWarning(lcGui) << "The documentation could not be opened:" << url.toString();
+    }
 }
 
 void ConsoleViewModel::copySelection(int channel) {
     const bool withTime = m_context.settings != nullptr && m_context.settings->showTimestamps();
     const ConsoleLineModel::CopyText copied = model(channel)->selectedText(withTime);
     if (copied.lines == 0) {
-        return;
+        return; // nothing to copy: no toast (ADR-0202)
     }
-    if (QClipboard* clipboard = QGuiApplication::clipboard(); clipboard != nullptr) {
-        clipboard->setText(copied.text);
-    }
-    if (copied.truncated) {
-        m_tab->showToast(tr("Only the first %Ln lines were copied (copy limit).", "",
-                            static_cast<int>(copied.lines)));
-    }
+    // D19: a copy cut by the copy limit says so instead of the generic text.
+    m_tab->copyToClipboard(copied.text,
+                           copied.truncated
+                               ? tr("Copied the first %n lines to the clipboard (copy limit).", "",
+                                    static_cast<int>(copied.lines))
+                               : QString());
 }
 
 std::filesystem::path ConsoleViewModel::consoleFile() const {

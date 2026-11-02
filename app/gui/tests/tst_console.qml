@@ -777,6 +777,46 @@ TestCase {
         checkInside(findAll(one("logSearchBar"), "levelError").concat(findAll(one("logSearchBar"), "searchField")));
     }
 
+    // Plan 0028 (ADR-0201): Save view opens in the remembered folder (else Documents) with a
+    // prefilled name; (ADR-0203) the Batch tooltip explains it within 360 px; the info button opens
+    // the documentation.
+    function test_saveViewDialogIsPrefilled() {
+        const console = vm();
+        const name = console.saveViewFileName(1);
+        verify(/^chester-app-\d{8}-\d{6}-log\.txt$/.test(name), name);
+        verify(/-shell\.txt$/.test(console.saveViewFileName(0)));
+        verify(console.saveViewFolder().toString().startsWith("file://"));
+        const dialog = findChild(one("consoleContent"), "saveViewDialog");
+        verify(dialog !== null);
+        dialog.prepareFor(0); // openFor() = prepareFor() + open() (a native dialog is not opened here)
+        compare(dialog.currentFolder.toString(), console.saveViewFolder().toString());
+        verify(/\/chester-app-\d{8}-\d{6}-shell\.txt$/.test(dialog.selectedFile.toString()), dialog.selectedFile.toString());
+        compare(dialog.channel, 0);
+    }
+
+    function test_batchTooltipAndDocs() {
+        AppViewModel.setLanguage("en");
+        window.width = 1280;
+        window.height = 800;
+        const batch = one("batchButton");
+        verify(batch.description.indexOf("200 ms") >= 0, batch.description);
+        verify(batch.description.indexOf("10,000") >= 0, batch.description);
+        verify(batch.description.indexOf("4,096") >= 0, batch.description);
+        compare(batch.Accessible.description, batch.description);
+        verify(batch.toolTip.text.indexOf("Batch") === 0, batch.toolTip.text);
+        verify(batch.toolTip.text.indexOf("\n" + batch.description) > 0, batch.toolTip.text);
+        batch.toolTip.visible = true;
+        tryVerify(() => batch.toolTip.opened);
+        verify(batch.toolTip.contentItem.width <= 360.5, `tooltip content width ${batch.toolTip.contentItem.width}`);
+        batch.toolTip.visible = false;
+        testSupport.interceptConsoleUrls(0);
+        const info = one("batchHelpButton");
+        verify(info !== null);
+        mouseClick(info);
+        tryCompare(testSupport.openedUrls(), "length", 1);
+        verify(testSupport.openedUrls()[0].startsWith("https://docs.hardwario.com/"));
+    }
+
     function test_settingsSection() {
         const component = Qt.createComponent("HardwarioMonitor", "ConsoleSection");
         compare(component.status, Component.Ready, component.errorString());

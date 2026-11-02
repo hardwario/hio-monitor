@@ -335,7 +335,23 @@ TestCase {
 
     function test_toast() {
         AppViewModel.showToast("Firmware flashed and verified in 14 s.");
-        tryVerify(() => findChild(find("toasts"), "toast") !== null);
+        tryVerify(() => findChild(window.toastLayer, "toast") !== null);
+    }
+
+    // Plan 0028 (D21): toasts are drawn above an open modal dialog and never take input.
+    function test_toastAboveTheReportDialog() {
+        const report = findChild(window, "reportDialog");
+        verify(report !== null);
+        AppViewModel.report.show();
+        tryVerify(() => report.opened);
+        AppViewModel.copyToClipboard("summary text");
+        const toasts = window.toastLayer;
+        tryVerify(() => findAll(toasts, "toast").some(toast => toast.visible && toast.Accessible.name === "Copied to clipboard."));
+        verify(toasts.z > report.z);
+        verify(toasts.parent !== window.contentItem);
+        compare(toasts.enabled, false);
+        AppViewModel.report.close();
+        tryVerify(() => !report.visible);
     }
 
     name: "Shell"

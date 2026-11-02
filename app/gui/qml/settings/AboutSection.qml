@@ -137,10 +137,7 @@ ColumnLayout {
                 HButton {
                     objectName: "copyCliPath"
                     text: qsTr("Copy")
-                    onClicked: {
-                        AppViewModel.copyToClipboard(section.vm.cliCommand);
-                        AppViewModel.showToast(qsTr("Copied."));
-                    }
+                    onClicked: AppViewModel.copyToClipboard(section.vm.cliCommand)
                 }
             }
 
@@ -160,10 +157,7 @@ ColumnLayout {
                 HButton {
                     objectName: "copyCliSymlink"
                     text: qsTr("Copy")
-                    onClicked: {
-                        AppViewModel.copyToClipboard(section.vm.cliSymlinkCommand);
-                        AppViewModel.showToast(qsTr("Copied."));
-                    }
+                    onClicked: AppViewModel.copyToClipboard(section.vm.cliSymlinkCommand)
                 }
             }
         }

@@ -149,11 +149,19 @@ Item {
 
                 property int channel: 1
 
-                function openFor(newChannel: int) {
+                // ADR-0201: the last folder and a prefilled name, both from the view model.
+                function prepareFor(newChannel: int) {
                     saveDialog.channel = newChannel;
+                    saveDialog.currentFolder = page.vm.saveViewFolder();
+                    saveDialog.selectedFile = page.vm.saveViewFolder() + "/" + page.vm.saveViewFileName(newChannel);
+                }
+
+                function openFor(newChannel: int) {
+                    saveDialog.prepareFor(newChannel);
                     saveDialog.open();
                 }
 
+                objectName: "saveViewDialog"
                 title: qsTr("Save view")
                 fileMode: FileDialog.SaveFile
                 defaultSuffix: "txt"
@@ -265,9 +273,19 @@ Item {
                             iconName: "batch"
                             text: qsTr("Batch…")
                             shortcutId: "console.batch"
+                            description: page.vm.batchHelpText
                             compact: page.compact
                             enabled: page.vm.canRunBatch
                             onClicked: batchDialog.open()
+                        }
+
+                        // ADR-0203 (D17): the batch file documentation.
+                        HToolButton {
+                            objectName: "batchHelpButton"
+                            iconName: "info"
+                            text: qsTr("Batch files — documentation")
+                            compact: true
+                            onClicked: page.vm.openBatchDocs()
                         }
 
                         HToolButton {

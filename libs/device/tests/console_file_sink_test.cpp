@@ -1,14 +1,18 @@
 #include "hwio/core/error.h"
 #include "hwio/device/console_file_sink.h"
 #include "hwio/device/console_line.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/probe_lock.h"
 #include "hwio/device/session_key.h"
 #include "lock_holder.h"
 
 #include <QFile>
 #include <QIODevice>
+#include <QLatin1Char>
+#include <QMessageLogContext>
 #include <QString>
 #include <QTemporaryDir>
+#include <QtLogging>
 #include <QtTypes>
 
 #include <gtest/gtest.h>
@@ -494,6 +498,339 @@ TEST_F(Sink, ConsoleFileDirKeepsForeignFiles) {
     }
     EXPECT_EQ(sessionFiles, ConsoleFileSink::maxDefaultFiles);
     EXPECT_FALSE(fs::exists(dir())); // the default directory was not used
+}
+
+// ---- plan 0028: firmware identity in the name (ADR-0200) -------------------------------------
+
+using hwio::device::consoleFileSessionKey;
+using hwio::device::FirmwareIdentity;
+using hwio::device::ProbeKey;
+using hwio::device::SessionKey;
+
+SessionKey probe(std::uint32_t sn) { return SessionKey(ProbeKey{.sn = sn}); }
+SessionKey bleKey(std::string id) { return SessionKey(hwio::device::BleKey{.id = std::move(id)}); }
+
+TEST(ConsoleFileSessionKey, OldAndNewNames) {
+    // Old names (kept in users' directories).
+    EXPECT_EQ(consoleFileSessionKey("chester-app-20260101-000005-1.log"), probe(1));
+    EXPECT_EQ(consoleFileSessionKey("chester-app-20260101-000000-778.part2.log"), probe(778));
+    EXPECT_EQ(consoleFileSessionKey("chester-ble-20260101-000000-F1-22-33-44-55-66.log"),
+              bleKey("F1-22-33-44-55-66"));
+    EXPECT_EQ(consoleFileSessionKey("chester-ble-20260101-000000-F1-22-33-44-55-66.part3.log"),
+              bleKey("F1-22-33-44-55-66"));
+    // Plan 0028 names.
+    EXPECT_EQ(consoleFileSessionKey("chester-app-clime-v3.0.0-20261102-101500-683012345.log"),
+              probe(683012345));
+    EXPECT_EQ(consoleFileSessionKey("chester-app-clime-v3.0.0-20261102-101500-683012345.part2.log"),
+              probe(683012345));
+    EXPECT_EQ(consoleFileSessionKey("chester-app-clime-v3.0.0-20261102-101500-683012345-2.log"),
+              probe(683012345));
+    EXPECT_EQ(
+        consoleFileSessionKey("chester-app-clime-v3.0.0-20261102-101500-683012345-9.part4.log"),
+        probe(683012345));
+    EXPECT_EQ(
+        consoleFileSessionKey("chester-ble-clime-v3.0.0-20261102-101500-F1-22-33-44-55-66.log"),
+        bleKey("F1-22-33-44-55-66"));
+    EXPECT_EQ(
+        consoleFileSessionKey("chester-ble-clime-v3.0.0-20261102-101500-F1-22-33-44-55-66-2.log"),
+        bleKey("F1-22-33-44-55-66"));
+    // A version that looks like a stamp: J-Link parses from the end and is not misled.
+    EXPECT_EQ(consoleFileSessionKey("chester-app-x-20250101-000000-20261102-101500-5.log"),
+              probe(5));
+    // A probe SN is all of the last token (a probe SN of 2 is not a collision suffix).
+    EXPECT_EQ(consoleFileSessionKey("chester-app-20261102-101500-2.log"), probe(2));
+    // Not session files.
+    EXPECT_FALSE(consoleFileSessionKey("build.log"));
+    EXPECT_FALSE(consoleFileSessionKey("chester-app-20261102-101500-x.log"));
+    EXPECT_FALSE(consoleFileSessionKey("chester-app-20261102-101500-99999999999.log"));
+    EXPECT_FALSE(consoleFileSessionKey("chester-app-clime-v3.0.0-20261102-101500-683.txt"));
+    EXPECT_FALSE(consoleFileSessionKey("chester-ble-clime-v3.log"));
+}
+
+const FirmwareIdentity clime{
+    .name = "CHESTER Clime", .version = "v3.0.0", .deviceSerial = "2159018247"};
+const FirmwareIdentity push{
+    .name = "hio-chester-push-fm", .version = "v4.0.1", .deviceSerial = "2159018247"};
+
+std::string stampOf(const fs::path& file) {
+    std::smatch match;
+    const std::string name = file.filename().string();
+    if (std::regex_search(name, match, std::regex(R"(\d{8}-\d{6})"))) {
+        return match.str();
+    }
+    return {};
+}
+
+TEST_F(Sink, FirstIdentityRenamesTheFileAndWritesAMarker) {
+    auto sink = ConsoleFileSink::open(defaultConfig(), 683012345, "Console: CHESTER app",
+                                      std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    const fs::path before = (*sink)->currentFile();
+    ASSERT_TRUE((*sink)->write(line(Channel::Shell, Direction::Out, "before")));
+    ASSERT_TRUE((*sink)->adoptIdentity(std::nullopt, std::chrono::system_clock::now()));
+    EXPECT_EQ((*sink)->currentFile(), before); // nullopt: no-op
+    ASSERT_TRUE((*sink)->adoptIdentity(clime, std::chrono::system_clock::now()));
+    const fs::path after = (*sink)->currentFile();
+    EXPECT_EQ(after.filename().string(),
+              std::format("chester-app-clime-v3.0.0-{}-683012345.log", stampOf(before)));
+    EXPECT_FALSE(fs::exists(before));
+    ASSERT_TRUE((*sink)->write(line(Channel::Shell, Direction::Out, "after")));
+    ASSERT_TRUE((*sink)->adoptIdentity(clime, std::chrono::system_clock::now())); // the same
+    EXPECT_EQ((*sink)->currentFile(), after);
+    ASSERT_TRUE((*sink)->flush());
+    const std::string content = readAll(after);
+    EXPECT_NE(content.find("Console: CHESTER app"), std::string::npos);
+    EXPECT_NE(content.find(" > before\n"), std::string::npos);
+    EXPECT_TRUE(
+        std::regex_search(content, std::regex(R"(\.\d{3} @ Firmware: CHESTER Clime v3\.0\.0\n)")));
+    EXPECT_NE(content.find(" > after\n"), std::string::npos);
+    EXPECT_EQ(content.find("2159018247"), std::string::npos); // the device serial is never written
+    EXPECT_EQ(content.find("Firmware: CHESTER Clime"), content.rfind("Firmware: CHESTER Clime"));
+    EXPECT_EQ(consoleFileSessionKey(after), probe(683012345));
+}
+
+TEST_F(Sink, FirstIdentityRenamesEveryPart) {
+    auto sink =
+        ConsoleFileSink::open(defaultConfig(), 7, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    const fs::path first = (*sink)->currentFile();
+    const std::string big(ConsoleFileSink::maxDefaultFileBytes / 2, 'x');
+    for (int i = 0; i < 3; ++i) { // each line just over 5 MiB: every line starts a new part
+        ASSERT_TRUE((*sink)->write(line(Channel::Shell, Direction::Out, big)));
+        ASSERT_TRUE((*sink)->flush());
+    }
+    ASSERT_NE((*sink)->currentFile(), first);
+    ASSERT_TRUE((*sink)->adoptIdentity(clime, std::chrono::system_clock::now()));
+    const std::string stem = std::format("chester-app-clime-v3.0.0-{}-7", stampOf(first));
+    EXPECT_TRUE(fs::exists(dir() / (stem + ".log")));
+    EXPECT_TRUE(fs::exists(dir() / (stem + ".part2.log")));
+    EXPECT_TRUE(fs::exists(dir() / (stem + ".part3.log")));
+    EXPECT_EQ((*sink)->currentFile(), dir() / (stem + ".part3.log"));
+    for (const fs::path& file : files()) {
+        EXPECT_TRUE(file.filename().string().starts_with("chester-app-clime-")) << file;
+    }
+}
+
+TEST_F(Sink, ATakenNameGetsACollisionSuffix) {
+    const auto now = std::chrono::system_clock::now();
+    auto sink = ConsoleFileSink::open(defaultConfig(), 7, "header", now);
+    ASSERT_TRUE(sink);
+    const std::string stem =
+        std::format("chester-app-clime-v3.0.0-{}-7", stampOf((*sink)->currentFile()));
+    std::ofstream(dir() / (stem + ".log")) << "an earlier session in the same second";
+    ASSERT_TRUE((*sink)->adoptIdentity(clime, now));
+    EXPECT_EQ((*sink)->currentFile(), dir() / (stem + "-2.log"));
+    EXPECT_EQ(readAll(dir() / (stem + ".log")), "an earlier session in the same second");
+    EXPECT_EQ(consoleFileSessionKey((*sink)->currentFile()), probe(7));
+}
+
+TEST_F(Sink, AnotherIdentityContinuesInANewFile) {
+    const auto start = std::chrono::system_clock::now();
+    auto sink = ConsoleFileSink::open(defaultConfig(), 7, "Console: CHESTER app", start);
+    ASSERT_TRUE(sink);
+    ASSERT_TRUE((*sink)->adoptIdentity(clime, start));
+    const fs::path first = (*sink)->currentFile();
+    const auto later = start + std::chrono::seconds(90);
+    ASSERT_TRUE((*sink)->adoptIdentity(push, later));
+    const fs::path second = (*sink)->currentFile();
+    ASSERT_NE(second, first);
+    EXPECT_TRUE(second.filename().string().starts_with("chester-app-hio-chester-push-fm-v4.0.1-"));
+    EXPECT_NE(stampOf(second), stampOf(first)); // a new stamp
+    ASSERT_TRUE((*sink)->flush());
+    const std::string old = readAll(first);
+    EXPECT_NE(old.find("@ Firmware changed to hio-chester-push-fm v4.0.1; continued in " +
+                       second.filename().string()),
+              std::string::npos)
+        << old;
+    const std::string next = readAll(second);
+    EXPECT_NE(next.find("Console: CHESTER app"), std::string::npos);
+    EXPECT_NE(next.find("@ Continues " + first.filename().string()), std::string::npos);
+    EXPECT_NE(next.find("@ Firmware: hio-chester-push-fm v4.0.1"), std::string::npos);
+    // The same firmware on another device (serial) is another identity too (D3).
+    FirmwareIdentity otherDevice = push;
+    otherDevice.deviceSerial = "2159018248";
+    ASSERT_TRUE((*sink)->adoptIdentity(otherDevice, later + std::chrono::seconds(5)));
+    EXPECT_NE((*sink)->currentFile(), second);
+}
+
+TEST_F(Sink, AnExplicitFileIsNeverRenamed) {
+    fs::create_directories(dir());
+    ConsoleFileConfig config = defaultConfig();
+    config.explicitFile = dir() / "mine.log";
+    auto sink = ConsoleFileSink::open(config, 7, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    ASSERT_TRUE((*sink)->adoptIdentity(clime, std::chrono::system_clock::now()));
+    EXPECT_EQ((*sink)->currentFile(), dir() / "mine.log");
+    ASSERT_TRUE((*sink)->flush());
+    EXPECT_EQ(readAll(dir() / "mine.log").find("Firmware:"), std::string::npos);
+}
+
+#ifndef _WIN32
+// D11: a part that cannot be renamed keeps its name; the session keeps writing it.
+TEST_F(Sink, ARenameFailureKeepsTheName) {
+    auto sink =
+        ConsoleFileSink::open(defaultConfig(), 7, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    const fs::path before = (*sink)->currentFile();
+    // A directory without write permission: the rename fails, appending to the file works.
+    fs::permissions(dir(), fs::perms::owner_read | fs::perms::owner_exec);
+    const auto status = (*sink)->adoptIdentity(clime, std::chrono::system_clock::now());
+    fs::permissions(dir(), fs::perms::owner_all);
+    ASSERT_TRUE(status) << status.error().detail;
+    EXPECT_EQ((*sink)->currentFile(), before);
+    ASSERT_TRUE((*sink)->write(line(Channel::Shell, Direction::Out, "still written")));
+    ASSERT_TRUE((*sink)->flush());
+    const std::string content = readAll(before);
+    EXPECT_NE(content.find("@ Firmware: CHESTER Clime v3.0.0"), std::string::npos);
+    EXPECT_NE(content.find("still written"), std::string::npos);
+}
+
+// The renamed file of another process's live session is still its newest file (R45).
+TEST_F(Sink, RetentionKeepsARenamedLiveFileOfAnotherProcess) {
+    makeOldFiles();
+    fs::create_directories(lockDir());
+    hwio::device::test::LockHolder holder(
+        QString::fromStdString((lockDir() / "probe-778.lock").string()));
+    ASSERT_TRUE(holder.waitUntilLocked());
+    const auto now = fs::file_time_type::clock::now();
+    fs::last_write_time(lockDir() / "probe-778.lock", now - std::chrono::hours(300));
+    const fs::path live = dir() / "chester-app-clime-v3.0.0-20260101-000000-778.log";
+    std::ofstream(live) << "x";
+    fs::last_write_time(live, now - std::chrono::hours(150));
+    auto sink =
+        ConsoleFileSink::open(defaultConfig(), 1, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    EXPECT_TRUE(fs::exists(live));
+    EXPECT_FALSE(fs::exists(oldFile(0)));
+}
+#endif
+
+TEST_F(Sink, BleNamesCarryTheIdentityToo) {
+    auto sink = ConsoleFileSink::open(defaultConfig(), bleKey("F1:22:33:44:55:66"), "header",
+                                      std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    ASSERT_TRUE((*sink)->adoptIdentity(clime, std::chrono::system_clock::now()));
+    const std::string name = (*sink)->currentFile().filename().string();
+    EXPECT_TRUE(std::regex_match(
+        name, std::regex(R"(chester-ble-clime-v3\.0\.0-\d{8}-\d{6}-F1-22-33-44-55-66\.log)")))
+        << name;
+    EXPECT_EQ(consoleFileSessionKey((*sink)->currentFile()), bleKey("F1-22-33-44-55-66"));
+}
+
+// Review round 1 (R1): an empty device serial is never a change; only another serial is another
+// device ("Device changed", the serial is not written).
+TEST_F(Sink, AnEmptySerialIsNoChangeAndAnotherSerialIsAnotherDevice) {
+    const auto start = std::chrono::system_clock::now();
+    auto sink = ConsoleFileSink::open(defaultConfig(), 7, "header", start);
+    ASSERT_TRUE(sink);
+    FirmwareIdentity noSerial = clime;
+    noSerial.deviceSerial.clear();
+    ASSERT_TRUE((*sink)->adoptIdentity(noSerial, start)); // e.g. the boot banner
+    const fs::path first = (*sink)->currentFile();
+    ASSERT_TRUE((*sink)->adoptIdentity(clime, start)); // the serial is learned: no new file
+    EXPECT_EQ((*sink)->currentFile(), first);
+    ASSERT_TRUE((*sink)->identity().has_value());
+    EXPECT_EQ((*sink)->identity().value_or(FirmwareIdentity{}).deviceSerial, "2159018247");
+    ASSERT_TRUE((*sink)->adoptIdentity(noSerial, start)); // the stored serial is kept
+    EXPECT_EQ((*sink)->currentFile(), first);
+    EXPECT_EQ((*sink)->identity().value_or(FirmwareIdentity{}).deviceSerial, "2159018247");
+
+    FirmwareIdentity other = clime;
+    other.deviceSerial = "2159018248";
+    ASSERT_TRUE((*sink)->adoptIdentity(other, start + std::chrono::seconds(30)));
+    const fs::path second = (*sink)->currentFile();
+    EXPECT_NE(second, first);
+    EXPECT_TRUE(second.filename().string().starts_with("chester-app-clime-v3.0.0-"));
+    ASSERT_TRUE((*sink)->flush());
+    const std::string old = readAll(first);
+    EXPECT_NE(old.find("@ Device changed; continued in " + second.filename().string()),
+              std::string::npos)
+        << old;
+    EXPECT_EQ(old.find("Firmware changed"), std::string::npos);
+    EXPECT_EQ(old.find("2159018248"), std::string::npos); // never the serial
+
+    // Another firmware with an empty serial keeps the stored one (no device change later).
+    FirmwareIdentity pushNoSerial = push;
+    pushNoSerial.deviceSerial.clear();
+    ASSERT_TRUE((*sink)->adoptIdentity(pushNoSerial, start + std::chrono::seconds(60)));
+    EXPECT_EQ((*sink)->identity().value_or(FirmwareIdentity{}).deviceSerial, "2159018248");
+}
+
+// Review round 1 (R3): the collision suffix is free for every part; a part that was pruned is
+// skipped without the one-time rename-failure log.
+TEST_F(Sink, CollisionSuffixIsFreeForEveryPartAndMissingPartsAreSkipped) {
+    const auto now = std::chrono::system_clock::now();
+    auto sink = ConsoleFileSink::open(defaultConfig(), 7, "header", now);
+    ASSERT_TRUE(sink);
+    const fs::path first = (*sink)->currentFile();
+    const std::string big(ConsoleFileSink::maxDefaultFileBytes / 2, 'x');
+    for (int i = 0; i < 2; ++i) { // each line just over 5 MiB: two parts
+        ASSERT_TRUE((*sink)->write(line(Channel::Shell, Direction::Out, big)));
+        ASSERT_TRUE((*sink)->flush());
+    }
+    const std::string stem = std::format("chester-app-clime-v3.0.0-{}-7", stampOf(first));
+    std::ofstream(dir() / (stem + ".part2.log")) << "only the second part of the name is taken";
+    fs::remove(first); // the closed first part was pruned meanwhile
+    QString log;
+    static QString* captured = nullptr;
+    captured = &log;
+    const QtMessageHandler previous =
+        qInstallMessageHandler([](QtMsgType, const QMessageLogContext&, const QString& text) {
+            *captured += text + QLatin1Char('\n');
+        });
+    const auto status = (*sink)->adoptIdentity(clime, now);
+    qInstallMessageHandler(previous);
+    ASSERT_TRUE(status);
+    EXPECT_EQ((*sink)->currentFile(), dir() / (stem + "-2.part2.log"));
+    EXPECT_FALSE(log.contains(QStringLiteral("not renamed"))) << log.toStdString();
+    EXPECT_EQ(readAll(dir() / (stem + ".part2.log")), "only the second part of the name is taken");
+}
+
+// Review round 1 (R2): the renamed live file is kept by the retention of another sink in this
+// process, and released once its sink closes (no stale entry of the old or the new name).
+TEST_F(Sink, RenamedLiveFileStaysProtectedInThisProcess) {
+    auto first =
+        ConsoleFileSink::open(defaultConfig(), 900, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(first);
+    ASSERT_TRUE((*first)->adoptIdentity(clime, std::chrono::system_clock::now()));
+    ASSERT_TRUE((*first)->flush()); // the marker: no later write changes the time below
+    const fs::path renamed = (*first)->currentFile();
+    makeOldFiles();
+    fs::last_write_time(renamed, fs::file_time_type::clock::now() - std::chrono::hours(200));
+    auto second =
+        ConsoleFileSink::open(defaultConfig(), 1, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(second);
+    EXPECT_TRUE(fs::exists(renamed));
+    first->reset();
+    auto third =
+        ConsoleFileSink::open(defaultConfig(), 2, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(third);
+    EXPECT_FALSE(fs::exists(renamed));
+}
+
+// Plan 0028 (U2, ADR-0186 amendment): the secrets `info show` prints are redacted in the file.
+TEST_F(Sink, InfoShowSecretsAreRedacted) {
+    auto sink =
+        ConsoleFileSink::open(defaultConfig(), 7, "header", std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    for (const char* text :
+         {"claim token: 0123456789abcdef", "ble passkey: 654321", "claim-token: fedcba9876543210",
+          "\x1b[1;32mble passkey:\x1b[0m 111222", "uart:~$ claim token: aaaabbbb",
+          "firmware name: CHESTER Clime", "serial number: 2159018247"}) {
+        ASSERT_TRUE((*sink)->write(line(Channel::Shell, Direction::Out, text)));
+    }
+    ASSERT_TRUE((*sink)->flush());
+    const std::string content = readAll((*sink)->currentFile());
+    for (const char* secret :
+         {"0123456789abcdef", "654321", "fedcba9876543210", "111222", "aaaabbbb"}) {
+        EXPECT_EQ(content.find(secret), std::string::npos) << secret;
+    }
+    EXPECT_NE(content.find(" > claim token: <redacted>\n"), std::string::npos) << content;
+    EXPECT_NE(content.find(" > ble passkey: <redacted>\n"), std::string::npos) << content;
+    EXPECT_NE(content.find(" > claim-token: <redacted>\n"), std::string::npos) << content;
+    EXPECT_NE(content.find(" > uart:~$ claim token: <redacted>\n"), std::string::npos) << content;
+    EXPECT_NE(content.find(" > firmware name: CHESTER Clime\n"), std::string::npos);
+    EXPECT_NE(content.find(" > serial number: 2159018247\n"), std::string::npos);
 }
 
 TEST(ConsoleFilePrefix, RtttPrefixes) {

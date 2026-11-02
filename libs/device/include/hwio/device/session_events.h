@@ -39,6 +39,11 @@ struct ConnectionEvent {
     Transport transport = Transport::JLink;
     // M5: the negotiated BLE ATT MTU, set on Connected of a BLE session; nullopt for J-Link.
     std::optional<std::uint16_t> mtu = std::nullopt;
+    // Plan 0028: the attach this event belongs to, set by the J-Link worker / BLE handler on
+    // every Connected (monotonic per session, from 1) and kept on the later events of that
+    // attach; 0 before the first Connected. ConsoleSession::setFirmwareIdentity() names it, so a
+    // stale answer after a reconnect is ignored (events may be dropped, ADR-0031).
+    std::uint64_t attach = 0;
 };
 
 // Events were lost because the event queue was full (it drops the oldest, ADR-0031).

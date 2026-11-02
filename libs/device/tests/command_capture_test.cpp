@@ -11,6 +11,8 @@
 #include "hwio/device/console_line.h"
 #include "hwio/device/console_log.h"
 #include "hwio/device/console_session.h"
+#include "hwio/device/device_info_watcher.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/profile.h"
 #include "hwio/device/session_events.h"
 #include "hwio/device/shell_query.h"
@@ -19,9 +21,12 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QList>
+#include <QMessageLogContext>
+#include <QString>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtCore/qtmetamacros.h>
+#include <QtLogging>
 
 #include <gtest/gtest.h>
 
@@ -123,6 +128,15 @@ public:
     [[nodiscard]] const hwio::device::DeviceProfile& profile() const override { return *m_profile; }
     [[nodiscard]] std::string_view consoleTargetId() const override { return "app"; }
     [[nodiscard]] std::filesystem::path consoleFile() const override { return {}; }
+    [[nodiscard]] hwio::Status
+    setFirmwareIdentity(std::optional<hwio::device::FirmwareIdentity> identity,
+                        std::uint64_t attach) override {
+        identities.emplace_back(std::move(identity), attach);
+        return {};
+    }
+    // Plan 0028: what setFirmwareIdentity() received (a test recorder).
+    // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+    std::vector<std::pair<std::optional<hwio::device::FirmwareIdentity>, std::uint64_t>> identities;
 
     void deliver(Channel channel, Direction dir, const std::string& text,
                  std::uint64_t origin = 0) {
@@ -144,6 +158,12 @@ public:
         m_connection.state = state;
         emit connectionChanged(m_connection);
     }
+    // Plan 0028: a new attach (ConnectionEvent::attach) reported as Connected.
+    void attachAgain(std::uint64_t attach) {
+        m_connection.attach = attach;
+        setState(hwio::device::ConnectionState::Connected);
+    }
+    void setAttach(std::uint64_t attach) { m_connection.attach = attach; }
 
     [[nodiscard]] const std::vector<std::string>& written() const noexcept { return m_written; }
     void clearWritten() { m_written.clear(); }
@@ -826,6 +846,130 @@ TEST(ShellQueryTest, AMissingPromptExpiresAfterSilence) {
     EXPECT_FALSE(idle(session));
     ASSERT_TRUE(runUntil([&] { return idle(session); }, std::chrono::seconds(4)));
     EXPECT_TRUE(ShellQuery::start(session, "info show"));
+}
+
+// ---- DeviceInfoWatcher (plan 0028 D7) ------------------------------------------------------
+
+const std::vector<std::string>& realInfoShow() {
+    static const std::vector<std::string> lines{"vendor name: HARDWARIO a.s.",
+                                                "product name: CHESTER-M",
+                                                "hardware variant: CDGLS",
+                                                "hardware revision: R3.2",
+                                                "firmware bundle: (unset)",
+                                                "firmware name: CHESTER Clime",
+                                                "firmware version: v3.0.0",
+                                                "serial number: 2159018247",
+                                                "claim token: c1a1m70ken5ecre7",
+                                                "ble devaddr: 00:11:22:33:44:55",
+                                                "ble passkey: 654321"};
+    return lines;
+}
+
+const hwio::device::FirmwareIdentity clime{
+    .name = "CHESTER Clime", .version = "v3.0.0", .deviceSerial = "2159018247"};
+
+QString capturedLog;              // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+QtMessageHandler previousHandler; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+
+void captureInfoAndAbove(QtMsgType type, const QMessageLogContext& context, const QString& text) {
+    if (type != QtDebugMsg) {
+        capturedLog += text + QLatin1Char('\n');
+    }
+    if (previousHandler != nullptr) {
+        previousHandler(type, context, text);
+    }
+}
+
+TEST(DeviceInfoWatcherTest, AnswerOfTheCurrentAttachNamesTheFirmware) {
+    FakeSession session;
+    session.setAttach(1);
+    session.answer("info show", realInfoShow());
+    ShellQueryQueue queries;
+    queries.setSession(&session);
+    capturedLog.clear();
+    previousHandler = qInstallMessageHandler(captureInfoAndAbove);
+    hwio::device::DeviceInfoWatcher watcher(session, queries);
+    int answered = 0;
+    QObject::connect(&watcher, &hwio::device::DeviceInfoWatcher::answered, [&] { ++answered; });
+    const bool done = runUntil([&] { return answered > 0; });
+    qInstallMessageHandler(previousHandler);
+    ASSERT_TRUE(done);
+    EXPECT_EQ(watcher.info().fwName(), "CHESTER Clime");
+    ASSERT_EQ(session.identities.size(), 1U);
+    EXPECT_EQ(session.identities[0].first, clime);
+    EXPECT_EQ(session.identities[0].second, 1U);
+    // The name and version are logged; the secrets of `info show` never (above debug level).
+    EXPECT_TRUE(capturedLog.contains(QStringLiteral("CHESTER Clime")));
+    EXPECT_FALSE(capturedLog.contains(QStringLiteral("c1a1m70ken5ecre7")));
+    EXPECT_FALSE(capturedLog.contains(QStringLiteral("654321")));
+    EXPECT_FALSE(capturedLog.contains(QStringLiteral("2159018247")));
+}
+
+TEST(DeviceInfoWatcherTest, AnAnswerWithoutFirmwarePassesNoIdentity) {
+    FakeSession session;
+    session.setAttach(3);
+    session.answer("info show", {"vendor name: HARDWARIO a.s."});
+    ShellQueryQueue queries;
+    queries.setSession(&session);
+    hwio::device::DeviceInfoWatcher watcher(session, queries);
+    ASSERT_TRUE(runUntil([&] { return !session.identities.empty(); }));
+    EXPECT_FALSE(session.identities[0].first.has_value());
+    EXPECT_EQ(session.identities[0].second, 3U);
+    EXPECT_FALSE(watcher.info().hasFirmware());
+}
+
+TEST(DeviceInfoWatcherTest, AStaleAnswerIsIgnoredAndADisconnectClears) {
+    FakeSession session;
+    session.setState(hwio::device::ConnectionState::Disconnected);
+    session.answer("info show", realInfoShow());
+    ShellQueryQueue queries;
+    queries.setSession(&session);
+    hwio::device::DeviceInfoWatcher watcher(session, queries);
+    session.setDelayEcho(true);
+    session.attachAgain(1); // the query of attach 1 waits for its echo
+    ASSERT_TRUE(runUntil([&] { return session.written().size() == 1U; }));
+    session.setState(hwio::device::ConnectionState::Disconnected); // ends it without a result
+    session.setDelayEcho(false);
+    session.releaseEchoes();
+    session.attachAgain(2);
+    ASSERT_TRUE(runUntil([&] { return !session.identities.empty(); }));
+    runFor(std::chrono::milliseconds(100));
+    ASSERT_EQ(session.identities.size(), 1U);
+    EXPECT_EQ(session.identities[0].second, 2U);
+    int changed = 0;
+    QObject::connect(&watcher, &hwio::device::DeviceInfoWatcher::infoChanged, [&] { ++changed; });
+    session.setState(hwio::device::ConnectionState::Disconnected);
+    EXPECT_EQ(changed, 1);
+    EXPECT_TRUE(watcher.info().fields.empty());
+}
+
+// Review round 1 (R8): a refused query (the caller is busy) and a query without an answer (it
+// times out) both tell the session "no identity" for the attach (D10: the banner may be used).
+TEST(DeviceInfoWatcherTest, ARefusedQueryPassesNoIdentity) {
+    FakeSession session;
+    session.setAttach(4);
+    session.answer("info show", realInfoShow());
+    ShellQueryQueue queries([] { return true; }); // always busy: refused
+    queries.setSession(&session);
+    const hwio::device::DeviceInfoWatcher watcher(session, queries);
+    ASSERT_TRUE(runUntil([&] { return !session.identities.empty(); },
+                         ShellQueryQueue::maxIdleWait + std::chrono::seconds(3)));
+    EXPECT_FALSE(session.identities[0].first.has_value());
+    EXPECT_EQ(session.identities[0].second, 4U);
+    EXPECT_TRUE(session.written().empty()); // nothing was sent
+    EXPECT_TRUE(watcher.info().fields.empty());
+}
+
+TEST(DeviceInfoWatcherTest, ATimedOutQueryPassesNoIdentity) {
+    FakeSession session(promptProfile()); // a prompt that never comes: the query times out
+    session.setAttach(5);
+    ShellQueryQueue queries;
+    queries.setSession(&session);
+    const hwio::device::DeviceInfoWatcher watcher(session, queries);
+    ASSERT_TRUE(runUntil([&] { return !session.identities.empty(); }, std::chrono::seconds(8)));
+    EXPECT_FALSE(session.identities[0].first.has_value());
+    EXPECT_EQ(session.identities[0].second, 5U);
+    EXPECT_EQ(session.written(), std::vector<std::string>{"info show"});
 }
 
 } // namespace

@@ -9,6 +9,7 @@
 #include "hwio/device/console_line.h"
 #include "hwio/device/console_log.h"
 #include "hwio/device/console_session.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/profile.h"
 #include "hwio/device/session_events.h"
 
@@ -30,6 +31,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -92,6 +94,15 @@ public:
     }
     [[nodiscard]] std::string_view consoleTargetId() const override { return "app"; }
     [[nodiscard]] std::filesystem::path consoleFile() const override { return {}; }
+    [[nodiscard]] hwio::Status
+    setFirmwareIdentity(std::optional<hwio::device::FirmwareIdentity> identity,
+                        std::uint64_t attach) override {
+        identities.emplace_back(std::move(identity), attach);
+        return {};
+    }
+    // Plan 0028: what setFirmwareIdentity() received (a test recorder).
+    // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+    std::vector<std::pair<std::optional<hwio::device::FirmwareIdentity>, std::uint64_t>> identities;
 
     void setState(ConnectionState state) {
         m_connection.state = state;
@@ -220,6 +231,31 @@ TEST(ConsoleLearningTest, SubcommandsQueriedOnlyWithTheShellHelpMarker) {
         ASSERT_NE(lte, nullptr);
         EXPECT_EQ(lte->children.size(), marker ? 1U : 0U);
     }
+}
+
+// Plan 0028 (D7): a console that is not interactive but writes a generated file only names it:
+// `info show` (the real CHESTER keys) passes the identity to the session; no `help`.
+TEST(ConsoleLearningTest, IdentityOnlyWithoutLearning) {
+    const QTemporaryDir dir;
+    FakeSession session;
+    session.answer("info show", {"firmware name: CHESTER Clime", "firmware version: v3.0.0",
+                                 "serial number: 2159018247"});
+    session.answer("help", {"Available commands:", "  info  :Info commands"});
+    hwio::cli::ConsoleLearning learning(session, "chester", "app", true,
+                                        std::filesystem::path(dir.path().toStdU16String()), false);
+    session.setState(ConnectionState::Connected);
+    ASSERT_TRUE(runUntil([&] { return !session.identities.empty(); }));
+    const auto identity =
+        session.identities.front().first.value_or(hwio::device::FirmwareIdentity{});
+    EXPECT_EQ(identity.name, "CHESTER Clime");
+    EXPECT_EQ(identity.version, "v3.0.0");
+    QElapsedTimer timer;
+    timer.start();
+    while (timer.elapsed() < 500) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    }
+    EXPECT_EQ(session.sent("help"), 0U);
+    EXPECT_FALSE(learning.learner().tree());
 }
 
 } // namespace

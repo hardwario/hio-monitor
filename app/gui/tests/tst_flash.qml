@@ -323,6 +323,34 @@ TestCase {
         verify(find("kindCard0") !== null);
     }
 
+    // Plan 0028 (ADR-0204, D22): the Flash button ends at the right edge of the form column and
+    // the bar row starts at its left edge, at 960, 1280 and 2560 px, with and without a vertical
+    // scroll bar; the bar background stays full width; the button has the bolt icon.
+    function test_flashBarFollowsTheFormColumn_data() {
+        return [
+            { tag: "960", width: 960, height: 1400 }, { tag: "1280", width: 1280, height: 1400 },
+            { tag: "2560", width: 2560, height: 1400 }, { tag: "1280-scrolling", width: 1280, height: 500 },
+            { tag: "2560-scrolling", width: 2560, height: 500 }
+        ];
+    }
+
+    function test_flashBarFollowsTheFormColumn(data) {
+        window.width = data.width;
+        window.height = data.height;
+        waitForRendering(window.contentItem);
+        const form = rect(find("flashForm"));
+        tryVerify(() => Math.abs(rect(find("flashButton")).x + rect(find("flashButton")).w - (rect(find("flashForm")).x + rect(find("flashForm")).w)) < 1, 3000, `button right edge vs form right edge at ${data.tag}`);
+        const row = rect(find("flashBarRow"));
+        verify(Math.abs(row.x - form.x) < 1, `row x ${row.x} vs form x ${form.x}`);
+        verify(Math.abs(row.w - form.w) < 1, `row width ${row.w} vs form width ${form.w}`);
+        const bar = rect(find("flashBar"));
+        const content = rect(find("flashContent"));
+        verify(Math.abs(bar.x - content.x) < 1 && Math.abs(bar.w - content.w) < 1, "the bar spans the page");
+        compare(find("flashButton").iconName, "flash");
+        if (data.width >= 1280)
+            verify(form.w <= 880.5);
+    }
+
     function test_layoutCzech960() {
         AppViewModel.setLanguage("cs");
         window.width = 960;

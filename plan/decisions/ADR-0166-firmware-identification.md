@@ -35,3 +35,12 @@ the shell command `info show` with, among others, `fw-name` and `fw-version`.
 - Users see what they flash and what they replace.
 - Parsing an HTML page is fragile; the parser is isolated, tolerant and covered by a fixture. A JSON endpoint from the
   new HARDWARIO system replaces it when available (open question 15).
+
+## Amendment 2026-11-02 (plan 0028 D2, accepted by Matej Strnad)
+
+Real CHESTER firmware (chester-sdk `subsys/ctr_info/ctr_info_shell.c`, since 2022) prints `firmware name: …` and
+`firmware version: …` in `info show`, not `fw-name:` / `fw-version:`; `parseInfoShow` rejects keys with a space, so
+the device firmware is not identified on real hardware. Plan 0028 (D2a) accepts the real keys: keys may contain
+single spaces and are normalised to lower-case with dashes (`firmware name` → `firmware-name`); `fwName()` /
+`fwVersion()` read `fw-name` / `fw-version` first, then `firmware-name` / `firmware-version`; `chester app info
+--json` shows the normalised keys. The identity is also used for console file names (ADR-0200).

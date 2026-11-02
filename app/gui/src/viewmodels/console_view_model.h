@@ -110,6 +110,8 @@ class ConsoleViewModel : public QObject {
     // 0021 (ADR-0170): the device command tree is being read ("Reading commands from the
     // device…").
     Q_PROPERTY(bool readingCommands READ readingCommands NOTIFY commandTreeChanged)
+    // Plan 0028 (ADR-0203): the long tooltip of Batch… (plain text, numbers from BatchRunner).
+    Q_PROPERTY(QString batchHelpText READ batchHelpText NOTIFY stateChanged)
 
 public:
     static constexpr int stackBreakpoint = 1000; // ADR-0061
@@ -150,6 +152,7 @@ public:
     [[nodiscard]] int pageWidth() const noexcept { return m_pageWidth; }
     void setPageWidth(int width);
     [[nodiscard]] bool stackedLayout() const;
+    [[nodiscard]] QString batchHelpText() const;
 
     // Sends a command (Enter); adds it to the history. False when it was not sent (input disabled,
     // or the session refused it: the error is shown), so the input keeps the text (review K9).
@@ -178,6 +181,13 @@ public:
     Q_INVOKABLE void clear(int channelMask);
     // channel: 0 = shell, 1 = log. Writes the rows of that view (filter applied).
     Q_INVOKABLE void saveView(int channel, const QUrl& file);
+    // Plan 0028 (ADR-0201, D12, D14): the Save view dialog's folder (console/saveViewFolder when
+    // it is an existing folder, else Documents) and file name (the console file name base with
+    // the tab's last firmware identity, the UTC time now and -shell.txt / -log.txt).
+    Q_INVOKABLE [[nodiscard]] QUrl saveViewFolder() const;
+    Q_INVOKABLE [[nodiscard]] QString saveViewFileName(int channel) const;
+    // Plan 0028 (D17, D18): the batch file documentation (docsUrl(ConsoleBatch)).
+    Q_INVOKABLE void openBatchDocs() const;
     // Copies the selected rows of a view (with timestamps when they are shown).
     Q_INVOKABLE void copySelection(int channel);
     Q_INVOKABLE void openLogFile();

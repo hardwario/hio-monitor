@@ -7,6 +7,7 @@
 #include "hwio/device/console_log.h"
 #include "hwio/device/console_session.h"
 #include "hwio/device/device_session.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/operation.h"
 #include "hwio/device/probe_lock.h"
 #include "hwio/device/profile.h"
@@ -1042,6 +1043,109 @@ TEST_F(Session, DefaultConsoleFileIsReported) {
     EXPECT_EQ(file.parent_path(), root() / "console");
     EXPECT_TRUE(file.filename().string().starts_with("chester-app-")) << file;
     EXPECT_TRUE(fs::exists(file)) << file;
+}
+
+// Plan 0028 (ADR-0200): the identity of the current attach renames the default console file; a
+// stale attach is ignored; another identity continues in a new file (D3).
+TEST_F(Session, FirmwareIdentityRenamesTheConsoleFile) {
+    SessionOptions opts = options();
+    opts.consoleFile = std::nullopt;
+    Recorder* events = nullptr;
+    auto session = openConnected(opts, events);
+    ASSERT_TRUE(session);
+    ASSERT_TRUE(waitFor([&] { return !session->consoleFile().empty(); }));
+    const std::uint64_t first = session->connection().attach;
+    EXPECT_EQ(first, 1U);
+    const hwio::device::FirmwareIdentity clime{
+        .name = "CHESTER Clime", .version = "v3.0.0", .deviceSerial = "1"};
+    ASSERT_TRUE(session->setFirmwareIdentity(clime, first + 1)); // not this attach: ignored
+    spin(std::chrono::milliseconds(100));
+    EXPECT_FALSE(session->consoleFile().filename().string().starts_with("chester-app-clime-"));
+    ASSERT_TRUE(session->setFirmwareIdentity(clime, first));
+    ASSERT_TRUE(waitFor([&] {
+        return session->consoleFile().filename().string().starts_with("chester-app-clime-v3.0.0-");
+    })) << session->consoleFile();
+    const fs::path renamed = session->consoleFile();
+    EXPECT_TRUE(fs::exists(renamed));
+    // R6: the session reports the identity it adopted.
+    ASSERT_TRUE(waitFor([&] { return session->adoptedIdentity().has_value(); }));
+    EXPECT_EQ(session->adoptedIdentity().value_or(hwio::device::FirmwareIdentity{}).name,
+              "CHESTER Clime");
+
+    // A new attach: answers of the earlier one are ignored.
+    ASSERT_TRUE(session->reconnect());
+    ASSERT_TRUE(waitFor([&] { return session->connection().attach == first + 1; }));
+    const hwio::device::FirmwareIdentity push{
+        .name = "hio-chester-push-fm", .version = "v4.0.1", .deviceSerial = "1"};
+    ASSERT_TRUE(session->setFirmwareIdentity(push, first));
+    spin(std::chrono::milliseconds(100));
+    EXPECT_EQ(session->consoleFile(), renamed);
+    ASSERT_TRUE(session->setFirmwareIdentity(push, first + 1));
+    ASSERT_TRUE(waitFor([&] {
+        return session->consoleFile().filename().string().starts_with(
+            "chester-app-hio-chester-push-fm-v4.0.1-");
+    })) << session->consoleFile();
+    session->close();
+    std::ifstream input(renamed);
+    std::stringstream content;
+    content << input.rdbuf();
+    EXPECT_NE(content.str().find("Firmware changed to hio-chester-push-fm v4.0.1"),
+              std::string::npos);
+}
+
+// D10: an application boot banner names the file only when `info show` gave no identity.
+TEST_F(Session, BootBannerIsTheFallbackIdentity) {
+    SessionOptions opts = options();
+    opts.consoleFile = std::nullopt;
+    Recorder* events = nullptr;
+    auto session = openConnected(opts, events);
+    ASSERT_TRUE(session);
+    ASSERT_TRUE(waitFor([&] { return !session->consoleFile().empty(); }));
+    target().output(0,
+                    "*** Booting nRF Connect SDK v2.8.0 ***\r\n*** Booting My App v1.2.3 ***\r\n");
+    ASSERT_TRUE(waitFor([&] { return events->lines.size() >= 2; }));
+    spin(std::chrono::milliseconds(50));
+    EXPECT_FALSE(session->consoleFile().filename().string().starts_with("chester-app-my-app-"));
+    ASSERT_TRUE(session->setFirmwareIdentity(std::nullopt, session->connection().attach));
+    ASSERT_TRUE(waitFor([&] {
+        return session->consoleFile().filename().string().starts_with("chester-app-my-app-v1.2.3-");
+    })) << session->consoleFile();
+    // R6: the adopted (banner) identity is reported too.
+    ASSERT_TRUE(waitFor([&] { return session->adoptedIdentity().has_value(); }));
+    EXPECT_EQ(session->adoptedIdentity().value_or(hwio::device::FirmwareIdentity{}).name, "My App");
+}
+
+// Plan 0028 (U2): the secrets of `info show` are redacted in the J-Link console file.
+TEST_F(Session, InfoShowSecretsAreRedactedInTheConsoleFile) {
+    const fs::path file = root() / "secrets.log";
+    SessionOptions opts = options();
+    opts.consoleFile = file;
+    target().set([](ScriptedTarget& t) {
+        t.responses["info show"] =
+            "firmware name: CHESTER Clime\nclaim token: 0123456789abcdef\nble passkey: 654321\n";
+    });
+    {
+        Recorder* events = nullptr;
+        auto session = openConnected(opts, events);
+        ASSERT_TRUE(session);
+        ASSERT_TRUE(session->sendLine("info show"));
+        ASSERT_TRUE(waitFor([&] { return events->lines.size() >= 4; }));
+        // The session itself (the console view) is unchanged.
+        bool shown = false;
+        for (const auto& line : events->lines) {
+            shown = shown || line.text == "claim token: 0123456789abcdef";
+        }
+        EXPECT_TRUE(shown);
+    }
+    std::ifstream input(file);
+    std::stringstream content;
+    content << input.rdbuf();
+    const std::string text = content.str();
+    EXPECT_EQ(text.find("0123456789abcdef"), std::string::npos) << text;
+    EXPECT_EQ(text.find("654321"), std::string::npos) << text;
+    EXPECT_NE(text.find(" > claim token: <redacted>"), std::string::npos) << text;
+    EXPECT_NE(text.find(" > ble passkey: <redacted>"), std::string::npos) << text;
+    EXPECT_NE(text.find(" > firmware name: CHESTER Clime"), std::string::npos) << text;
 }
 
 TEST_F(Session, NoConsoleFileIsEmpty) {

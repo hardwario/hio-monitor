@@ -90,6 +90,11 @@ public:
     void fail(Error error);
     // fail(), and automatic connect() calls are ignored until a non-automatic one (N4).
     void stop(Error error);
+    // Plan 0028: forwards to the handler (BleHost SetFirmwareIdentity).
+    void setFirmwareIdentity(const std::optional<FirmwareIdentity>& identity,
+                             std::uint64_t attach) {
+        m_handler->onFirmwareIdentity(identity, attach);
+    }
 
     // IBleApi events of this link (the worker routes them by LinkId).
     [[nodiscard]] std::optional<LinkId> link() const noexcept { return m_link; }

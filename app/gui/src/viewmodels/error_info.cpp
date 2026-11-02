@@ -3,10 +3,12 @@
 #include "hwio/core/error.h"
 #include "hwio/core/json.h"
 
+#include <QCoreApplication>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
 #include <QStringLiteral>
+#include <QUrl>
 
 namespace hwio::gui {
 
@@ -59,6 +61,22 @@ QString ErrorInfo::detailsText() const {
         return m_code;
     }
     return m_code + QLatin1Char('\n') + m_detail;
+}
+
+Error nonLocalFileError(const QUrl& url) {
+    Error error =
+        makeError(ErrorCode::IoWriteFailed,
+                  "not a local file: " + url.toString(QUrl::RemoveUserInfo).toStdString());
+    error.message =
+        QCoreApplication::translate("hwio::gui::FileErrors", "The file could not be saved.")
+            .toStdString();
+    error.cause = QCoreApplication::translate("hwio::gui::FileErrors",
+                                              "Only folders on this computer can be used.")
+                      .toStdString();
+    error.suggestion =
+        QCoreApplication::translate("hwio::gui::FileErrors", "Choose a folder on this computer.")
+            .toStdString();
+    return error;
 }
 
 } // namespace hwio::gui

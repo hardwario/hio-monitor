@@ -11,6 +11,7 @@
 
 #include <array>
 #include <optional>
+#include <string_view>
 
 namespace hwio::device::profiles {
 
@@ -151,6 +152,10 @@ constexpr std::array<std::string_view, 6> appSensitiveCommands{
     "lte config username", "lte config password", "ble config passkey",
 };
 
+// Plan 0028 (U2, ADR-0186 amendment): secrets printed by chester-sdk ctr_info_shell.c (`info show`,
+// `info claim-token`, `info ble-passkey`).
+constexpr std::array<std::string_view, 2> appSensitiveOutput{"claim token", "ble passkey"};
+
 constexpr std::array chesterTargets{
     // Application MCU: the RTT console of `hwio chester app console` / `command`.
     TargetProfile{.id = "app",
@@ -178,7 +183,8 @@ constexpr std::array chesterTargets{
                   // empty = send_command uses the silence rule (ADR-0104).
                   .shellPrompt = "",
                   .designatedFirmware = std::nullopt,
-                  .sensitiveCommandPrefixes = appSensitiveCommands},
+                  .sensitiveCommandPrefixes = appSensitiveCommands,
+                  .sensitiveOutputKeys = appSensitiveOutput},
     // LTE modem MCU (nRF9151 or nRF9160). Programming only; no RTT console. Connected with the
     // first part's J-Link name, then with the exact part's name (to confirm in Phase 0). The PIB
     // lies in the UICR OTP area, which a UICR erase does not touch.
@@ -205,13 +211,19 @@ constexpr std::array chesterTargets{
                   .writeDenied = lteWriteDenied,
                   .shellPrompt = "", // no RTT console
                   .designatedFirmware = lteFirmware,
-                  .sensitiveCommandPrefixes = {}},
+                  .sensitiveCommandPrefixes = {},
+                  .sensitiveOutputKeys = {}},
 };
+
+// Plan 0028 (ADR-0200): console file names are parsed back by splitting at '-' (the retention's
+// session key); a profile id never contains one.
+constexpr std::string_view chesterId = "chester";
+static_assert(chesterId.find('-') == std::string_view::npos, "profile ids contain no '-'");
 
 } // namespace
 
 constinit const DeviceProfile chester{
-    .id = "chester",
+    .id = chesterId,
     .displayName = "CHESTER",
     .targets = chesterTargets,
     .firmwareCatalogUrl = "https://firmware.hardwario.com/chester",

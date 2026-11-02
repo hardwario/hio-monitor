@@ -10,6 +10,7 @@
 #include "hwio/device/ble_session.h"
 #include "hwio/device/console_line.h"
 #include "hwio/device/console_session.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/profile.h"
 #include "hwio/device/session_events.h"
 #include "hwio/device/session_key.h"
@@ -674,6 +675,52 @@ TEST_F(BleSessionTest, ConsoleFileWithConnectionLines) {
     EXPECT_NE(text.find(" @ connected"), std::string::npos);
     EXPECT_NE(text.find(" > hello"), std::string::npos);
     EXPECT_NE(text.find(" @ stopped"), std::string::npos);
+}
+
+// Plan 0028 (D9, D10): the firmware identity of the current attach renames the BLE console file
+// on the BLE thread; a stale attach is ignored; the boot banner is only the fallback.
+TEST_F(BleSessionTest, FirmwareIdentityRenamesTheConsoleFile) {
+    Events* events = nullptr;
+    BleSessionOptions opts = options();
+    opts.consoleFile = std::nullopt;
+    BleSession* session = openRecorded(std::move(opts), events);
+    ASSERT_NE(session, nullptr);
+    ASSERT_TRUE(waitFor([this] { return driver()->count(&Driver::connects) == 1; }));
+    driver()->run([](IBleListener& l) {
+        l.onLinkReady(1, LinkReady{.mtu = 247, .writeMode = WriteMode::WithResponse});
+    });
+    data("*** Booting My App v1.2.3 ***\nbt_nus:~$ ");
+    ASSERT_TRUE(waitFor([events] { return events->prompts == 1; }));
+    const std::uint64_t attach = events->connections.back().attach;
+    EXPECT_EQ(attach, 1U);
+    const hwio::device::FirmwareIdentity clime{
+        .name = "CHESTER Clime", .version = "v3.0.0", .deviceSerial = ""};
+    ASSERT_TRUE(session->setFirmwareIdentity(clime, attach + 1)); // stale: ignored
+    ASSERT_TRUE(session->setFirmwareIdentity(clime, attach));     // wins over the banner
+    ASSERT_TRUE(waitFor([session] {
+        return session->consoleFile().filename().string().starts_with("chester-ble-clime-v3.0.0-");
+    })) << session->consoleFile();
+    EXPECT_TRUE(session->consoleFile().filename().string().ends_with("-F1-22-33-44-55-66.log"));
+    ASSERT_TRUE(session->setFirmwareIdentity(std::nullopt, attach)); // the banner stays unused
+    data("x\nbt_nus:~$ ");
+    ASSERT_TRUE(waitFor([events] { return events->prompts == 2; }));
+    EXPECT_TRUE(session->consoleFile().filename().string().starts_with("chester-ble-clime-"));
+    EXPECT_EQ(session->adoptedIdentity().value_or(hwio::device::FirmwareIdentity{}).name,
+              "CHESTER Clime"); // R6
+    // U2: the secrets of `info show` are redacted in the BLE console file.
+    data("claim token: 0123456789abcdef\nble passkey: 654321\nbt_nus:~$ ");
+    ASSERT_TRUE(waitFor([events] { return events->prompts == 3; }));
+    const fs::path file = session->consoleFile();
+    session->close();
+    stopHost();
+    std::ifstream input(file);
+    std::stringstream content;
+    content << input.rdbuf();
+    const std::string text = content.str();
+    EXPECT_EQ(text.find("0123456789abcdef"), std::string::npos) << text;
+    EXPECT_EQ(text.find("654321"), std::string::npos) << text;
+    EXPECT_NE(text.find(" > claim token: <redacted>"), std::string::npos) << text;
+    EXPECT_NE(text.find(" > ble passkey: <redacted>"), std::string::npos) << text;
 }
 
 // HIL H7: with -a the name is the id (or unknown): no "(id)" after the id.

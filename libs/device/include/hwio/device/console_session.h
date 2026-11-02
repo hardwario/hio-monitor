@@ -14,6 +14,7 @@
 #include "hwio/core/result.h"
 #include "hwio/device/console_line.h"
 #include "hwio/device/console_log.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/profile.h"
 #include "hwio/device/session_events.h"
 
@@ -28,6 +29,7 @@
 #include <deque>
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <stop_token>
 #include <string>
 #include <string_view>
@@ -78,6 +80,19 @@ public:
     [[nodiscard]] virtual std::string_view consoleTargetId() const = 0;
     // The console log file the session writes now; empty for none (plan 0005 rules).
     [[nodiscard]] virtual std::filesystem::path consoleFile() const = 0;
+    // Plan 0028 (ADR-0200): the firmware identity of attach `attach` (ConnectionEvent::attach)
+    // for the console file name; queued for the session's worker, which ignores it when `attach`
+    // is not its current attach. nullopt = `info show` gave no identity for that attach (the
+    // worker may then use the attach's boot banner identity, D10). Errors: internal.queue_full,
+    // cancelled (closed).
+    [[nodiscard]] virtual Status setFirmwareIdentity(std::optional<FirmwareIdentity> identity,
+                                                     std::uint64_t attach) = 0;
+    // Plan 0028 (review round 1, R6): the firmware identity the session's worker adopted last
+    // (from `info show` or the boot banner fallback; also without a console file); nullopt before
+    // the first one. Kept after a disconnect. firmwareIdentityAdopted() when it changes.
+    [[nodiscard]] const std::optional<FirmwareIdentity>& adoptedIdentity() const noexcept {
+        return m_adoptedIdentity;
+    }
 
     // ---- silent shell captures (plan 0021 phase 2, ADR-0175: ShellQuery) ----
     // Returns true when it takes the line (it is then neither appended to the log nor emitted).
@@ -122,6 +137,8 @@ signals:
     void promptSeen();
     // Plan 0021: a shell capture was removed (the held lines were sent).
     void shellCaptureEnded();
+    // Plan 0028 (R6): adoptedIdentity() changed.
+    void firmwareIdentityAdopted();
 
 protected:
     ConsoleSession();
@@ -138,6 +155,8 @@ protected:
     // Call after sendLine() queued a line (not held) for the transport.
     void lineQueued();
     [[nodiscard]] std::size_t heldLineCount() const noexcept { return m_held.size(); }
+    // Plan 0028 (R6): for the implementations, when the worker reports an adopted identity.
+    void setAdoptedIdentity(FirmwareIdentity identity);
 
     // The concrete close. Each final class's destructor calls its own close path directly (no
     // virtual call from a destructor).
@@ -154,6 +173,7 @@ private:
     std::chrono::steady_clock::time_point m_lastSent;
     std::chrono::steady_clock::time_point m_lastShellActivity;
     bool m_promptPending = false;
+    std::optional<FirmwareIdentity> m_adoptedIdentity;
 };
 
 // CLI helper (ADR-0053): runs a local QEventLoop until the first Connected (success), a

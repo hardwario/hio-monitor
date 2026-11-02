@@ -112,7 +112,8 @@ bool askStartAnyway() {
 }
 
 int run(int& argc, char** argv) {
-    hwio::gui::applyPlatformIdentity(); // Windows AppUserModelID, before the first window
+    hwio::gui::applyPlatformIdentity();       // Windows AppUserModelID, before the first window
+    (void)hwio::gui::applyTextAntialiasing(); // ADR-0205: before the QGuiApplication
     QGuiApplication app(argc, argv);
     hwio::initApplicationIdentity();
     QGuiApplication::setApplicationDisplayName(QStringLiteral("HARDWARIO Monitor"));

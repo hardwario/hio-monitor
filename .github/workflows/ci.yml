@@ -134,7 +134,8 @@ jobs:
           path: .cpm-cache
           key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
-        run: cmake --preset linux-${{ matrix.preset }}
+        # Plan 0028 (R5): the translation lint (Python 3) must run, never be skipped.
+        run: cmake --preset linux-${{ matrix.preset }} -DHWIO_REQUIRE_PYTHON=ON
       - name: Build
         run: cmake --build --preset linux-${{ matrix.preset }}
       - name: Test

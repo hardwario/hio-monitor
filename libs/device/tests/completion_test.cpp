@@ -18,6 +18,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <filesystem>
 #include <format>
@@ -82,6 +83,99 @@ TEST(InfoShow, Bounded) {
     EXPECT_EQ(info.fields.front().value.size(), 255U);
     for (const auto& field : info.fields) {
         EXPECT_LE(field.value.size(), hwio::device::DeviceInfo::maxFieldBytes);
+    }
+}
+
+// Plan 0028 (D2): the real CHESTER output (chester-sdk subsys/ctr_info/ctr_info_shell.c).
+const std::vector<std::string>& realChesterInfoShow() {
+    static const std::vector<std::string> lines{
+        "uart:~$ info show",
+        "vendor name: HARDWARIO a.s.",
+        "product name: CHESTER-M",
+        "hardware variant: CDGLS",
+        "hardware revision: R3.2",
+        "firmware bundle: (unset)",
+        "firmware name: CHESTER Clime",
+        "firmware version: v3.0.0-5-gabc1234",
+        "serial number: 2159018247",
+        "claim token: 0123456789abcdef0123456789abcdef",
+        "ble devaddr: 00:11:22:33:44:55",
+        "ble passkey: 123456",
+    };
+    return lines;
+}
+
+TEST(InfoShow, RealChesterKeysWithSpaces) {
+    const auto info = parseInfoShow(realChesterInfoShow());
+    EXPECT_EQ(info.fields.size(), 11U);
+    EXPECT_EQ(info.fwName(), "CHESTER Clime");
+    EXPECT_EQ(info.fwVersion(), "v3.0.0-5-gabc1234");
+    EXPECT_EQ(info.deviceSerial(), "2159018247");
+    EXPECT_TRUE(info.hasFirmware());
+    // Normalised keys: lower-case, spaces as dashes.
+    EXPECT_EQ(info.value("firmware-name"), "CHESTER Clime");
+    EXPECT_EQ(info.value("vendor-name"), "HARDWARIO a.s.");
+    EXPECT_EQ(info.value("ble-devaddr"), "00:11:22:33:44:55"); // split at the first ':'
+    EXPECT_EQ(info.value("firmware-bundle"), "(unset)");
+    EXPECT_FALSE(info.value("firmware name"));
+}
+
+TEST(InfoShow, OldKeysWinAndUnsetIsMissing) {
+    const auto both = parseInfoShow(std::vector<std::string>{
+        "fw-name: old", "firmware name: new", "fw-version: v1", "firmware version: v2"});
+    EXPECT_EQ(both.fwName(), "old");
+    EXPECT_EQ(both.fwVersion(), "v1");
+    const auto unset = parseInfoShow(std::vector<std::string>{
+        "firmware name: (unset)", "firmware version: v1.0.0", "serial number: (unset)"});
+    EXPECT_EQ(unset.fwName(), "");
+    EXPECT_EQ(unset.deviceSerial(), "");
+    EXPECT_FALSE(unset.hasFirmware());
+}
+
+TEST(InfoShow, KeySpacingRules) {
+    const auto info = parseInfoShow(std::vector<std::string>{
+        " leading: no",      // trimmed line: "leading" is a key
+        "double  space: no", // two spaces
+        "trailing : no",     // a space before ':'
+        "Mixed Case Key: yes",
+        "tab\tkey: no",
+    });
+    EXPECT_EQ(info.value("leading"), "no");
+    EXPECT_FALSE(info.value("double--space"));
+    EXPECT_FALSE(info.value("trailing-"));
+    EXPECT_FALSE(info.value("trailing"));
+    EXPECT_EQ(info.value("mixed-case-key"), "yes");
+    EXPECT_EQ(info.fields.size(), 2U);
+}
+
+// Mutations of the real output (cut, doubled, garbage bytes) never break the bounds.
+TEST(InfoShow, MutationsStayBounded) {
+    std::uint32_t seed = 12345;
+    const auto next = [&seed] {
+        seed = (seed * 1103515245U) + 12345U;
+        return seed >> 8U;
+    };
+    for (int round = 0; round < 500; ++round) {
+        std::vector<std::string> lines = realChesterInfoShow();
+        for (std::string& line : lines) {
+            const std::uint32_t kind = next() % 5;
+            if (kind == 0 && !line.empty()) {
+                line.resize(next() % line.size());
+            } else if (kind == 1) {
+                line[next() % line.size()] = static_cast<char>(next() & 0xFFU);
+            } else if (kind == 2) {
+                line += std::string(next() % 600, static_cast<char>('a' + (next() % 26)));
+            } else if (kind == 3) {
+                line.insert(0, std::string(next() % 80, ' '));
+            }
+        }
+        const auto info = parseInfoShow(lines);
+        EXPECT_LE(info.fields.size(), hwio::device::DeviceInfo::maxFields);
+        for (const auto& field : info.fields) {
+            EXPECT_LE(field.key.size(), hwio::device::DeviceInfo::maxKeyBytes);
+            EXPECT_LE(field.value.size(), hwio::device::DeviceInfo::maxFieldBytes);
+            EXPECT_EQ(field.key.find(' '), std::string::npos);
+        }
     }
 }
 

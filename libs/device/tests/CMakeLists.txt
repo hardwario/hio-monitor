@@ -12,6 +12,7 @@ add_executable(hwio_device_tests
     console_log_test.cpp
     device_session_test.cpp
     fake_library_test.cpp
+    firmware_identity_test.cpp
     line_assembler_test.cpp
     lock_holder.h
     main.cpp

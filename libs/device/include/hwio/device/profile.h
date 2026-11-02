@@ -104,6 +104,11 @@ struct TargetProfile {
     // (matchSensitiveCommand). Such commands are sent but never stored in the command history,
     // and the console file shows them as "<prefix> <redacted>".
     std::span<const std::string_view> sensitiveCommandPrefixes;
+    // ---- plan 0028 (U2, ADR-0186 amendment) ----
+    // Keys of shell output lines "<key>: <value>" whose value is a secret (CHESTER `info show`:
+    // "claim token", "ble passkey"), compared after the `info show` key normalisation (lower case,
+    // spaces as '-'). The console file writes "<key>: <redacted>" (matchSensitiveOutput).
+    std::span<const std::string_view> sensitiveOutputKeys;
 };
 
 // A URL for one UI language (ADR-0167): `language` is a BCP 47 primary language subtag ("en",
@@ -170,6 +175,15 @@ sensitivePrefixesOf(std::string_view profileId, std::string_view targetId) noexc
 // by spaces or tabs, compared case-sensitively), nullopt when none matches.
 [[nodiscard]] std::optional<std::string_view>
 matchSensitiveCommand(std::string_view line, std::span<const std::string_view> prefixes) noexcept;
+
+// Plan 0028 (U2): the sensitive output keys of a console (as sensitivePrefixesOf).
+[[nodiscard]] std::span<const std::string_view>
+sensitiveOutputKeysOf(std::string_view profileId, std::string_view targetId) noexcept;
+
+// Plan 0028 (U2): for a line "<key>: <value>" (ANSI codes ignored) whose normalised key is one of
+// `keys`: the key as printed (without ANSI codes, trimmed), else nullopt.
+[[nodiscard]] std::optional<std::string>
+matchSensitiveOutput(std::string_view line, std::span<const std::string_view> keys);
 
 // The part of `target` with this FICR part number, nullptr when it is not one of its parts.
 [[nodiscard]] const ChipPart* findPart(const TargetProfile& target, std::uint32_t part) noexcept;

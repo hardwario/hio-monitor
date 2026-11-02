@@ -6,6 +6,7 @@
 // while idle -> auto-reconnect every 3 s when enabled -> wait on the command queue for the rest of
 // the poll interval. No QTimer and no event loop; every wait takes the stop token.
 
+#include "banner_scan.h"
 #include "flash_workflows.h"
 #include "hwio/core/bounded_queue.h"
 #include "hwio/core/error.h"
@@ -15,6 +16,7 @@
 #include "hwio/core/version.h"
 #include "hwio/device/console_file_sink.h"
 #include "hwio/device/console_line.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/line_assembler.h"
 #include "hwio/device/operation.h"
 #include "hwio/device/probe_lock.h"
@@ -190,15 +192,36 @@ private:
         if (m_sink) {
             sinkResult(m_sink->writeConnection(text, std::chrono::system_clock::now()));
         }
-        emitEvent(ConnectionEvent{
-            .state = state, .error = std::move(error), .targetMillivolts = m_lastMillivolts});
+        if (state == ConnectionState::Connected) {
+            m_banner.attached(clock().now()); // plan 0028: a new attach
+        }
+        emitEvent(ConnectionEvent{.state = state,
+                                  .error = std::move(error),
+                                  .targetMillivolts = m_lastMillivolts,
+                                  .transport = Transport::JLink,
+                                  .mtu = std::nullopt,
+                                  .attach = m_banner.attach()});
     }
 
     void emitLine(ConsoleLine line) {
         if (m_sink) {
             sinkResult(m_sink->write(line));
         }
+        if (line.dir == Direction::Out && m_reported == ConnectionState::Connected) {
+            // Plan 0028 (D10): the boot banner of this attach.
+            if (auto banner = m_banner.feed(line.text, clock().now())) {
+                adoptIdentity(*banner);
+            }
+        }
         emitEvent(std::move(line));
+    }
+
+    // Plan 0028 (ADR-0200): names the console file after the firmware.
+    void adoptIdentity(const FirmwareIdentity& identity) {
+        emitEvent(IdentityAdopted{.identity = identity}); // R6: also without a console file
+        if (m_sink) {
+            sinkResult(m_sink->adoptIdentity(identity, std::chrono::system_clock::now()));
+        }
     }
 
     // ---- console file -------------------------------------------------------------------------
@@ -1764,6 +1787,12 @@ private:
                     }
                     reattachProbe(stop);
                 },
+                [&](const SetFirmwareIdentityCommand& set) {
+                    // Plan 0028: only for the current attach (a stale answer is ignored).
+                    if (auto identity = m_banner.answer(set.identity, set.attach)) {
+                        adoptIdentity(*identity);
+                    }
+                },
                 [&](const SetRttAddressCommand& set) {
                     // Sticky (rttt): used by every later attach.
                     m_config.rttAddress = set.address;
@@ -1860,6 +1889,7 @@ private:
     std::string m_connectedDevice;                // with this J-Link device name
     std::unique_ptr<ConsoleFileSink> m_sink;
     std::filesystem::path m_reportedConsoleFile; // the last ConsoleFileChanged
+    BannerScan m_banner;                         // plan 0028: attach numbers and D10
     LineAssembler m_shellLines;
     LineAssembler m_logLines;
     std::vector<std::byte> m_readBuffer; // maxReadBytes, allocated once

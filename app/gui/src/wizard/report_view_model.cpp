@@ -2,13 +2,12 @@
 
 #include "hwio/core/result.h"
 #include "hwio/diag/report.h"
+#include "viewmodels/error_info.h"
 #include "workers/diag_worker.h"
 
-#include <QClipboard>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
-#include <QGuiApplication>
 #include <QLoggingCategory>
 #include <QStandardPaths>
 #include <QString>
@@ -87,7 +86,12 @@ void ReportViewModel::close() {
 }
 
 void ReportViewModel::save(const QUrl& file) {
-    if (!m_input || m_generation != 0 || !file.isLocalFile()) {
+    if (!m_input || m_generation != 0) {
+        return;
+    }
+    if (!file.isLocalFile()) {
+        m_error = ErrorInfo(nonLocalFileError(file)); // plan 0028 D13: never a silent no-op
+        setState(QStringLiteral("error"));
         return;
     }
     const QString path = file.toLocalFile();
@@ -99,11 +103,8 @@ void ReportViewModel::save(const QUrl& file) {
 }
 
 void ReportViewModel::copySummary() {
-    if (QClipboard* clipboard = QGuiApplication::clipboard(); clipboard != nullptr) {
-        clipboard->setText(m_summary);
-        if (m_hooks.toast) {
-            m_hooks.toast(tr("Summary copied."));
-        }
+    if (m_hooks.copy) {
+        m_hooks.copy(m_summary); // ADR-0202: "Copied to clipboard."
     }
 }
 

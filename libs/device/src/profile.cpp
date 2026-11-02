@@ -2,6 +2,7 @@
 
 #include "hwio/core/error.h"
 #include "hwio/core/result.h"
+#include "hwio/device/line_assembler.h"
 #include "hwio/firmware/firmware_image.h"
 #include "profiles/profiles.h"
 
@@ -110,6 +111,50 @@ matchSensitiveCommand(std::string_view line, std::span<const std::string_view> p
     for (const std::string_view prefix : prefixes) {
         if (startsWithWords(line, prefix)) {
             return prefix;
+        }
+    }
+    return std::nullopt;
+}
+
+std::span<const std::string_view> sensitiveOutputKeysOf(std::string_view profileId,
+                                                        std::string_view targetId) noexcept {
+    const DeviceProfile* profile = ProfileRegistry::find(profileId);
+    if (profile == nullptr) {
+        return {};
+    }
+    const TargetProfile* target = findTarget(*profile, targetId);
+    return target != nullptr ? target->sensitiveOutputKeys : std::span<const std::string_view>{};
+}
+
+std::optional<std::string> matchSensitiveOutput(std::string_view line,
+                                                std::span<const std::string_view> keys) {
+    if (keys.empty()) {
+        return std::nullopt;
+    }
+    const std::size_t colon = line.find(':');
+    if (colon == std::string_view::npos) {
+        return std::nullopt;
+    }
+    const std::string clean = stripAnsiCsi(line.substr(0, colon));
+    const std::size_t first = clean.find_first_not_of(" \t");
+    const std::size_t last = clean.find_last_not_of(" \t");
+    if (first == std::string::npos) {
+        return std::nullopt;
+    }
+    std::string key = clean.substr(first, last - first + 1);
+    std::string normalised = key;
+    for (char& c : normalised) {
+        if (c >= 'A' && c <= 'Z') {
+            c = static_cast<char>(c - 'A' + 'a');
+        } else if (c == ' ') {
+            c = '-';
+        }
+    }
+    for (const std::string_view sensitive : keys) {
+        std::string wanted(sensitive);
+        std::ranges::replace(wanted, ' ', '-');
+        if (normalised == wanted) {
+            return key;
         }
     }
     return std::nullopt;

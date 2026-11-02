@@ -255,6 +255,10 @@ TEST_F(WizardTest, CopyTextGoesToTheClipboard) {
     QClipboard* clipboard = QGuiApplication::clipboard();
     ASSERT_NE(clipboard, nullptr);
     EXPECT_EQ(clipboard->text(), QStringLiteral("sudo udevadm trigger"));
+    // Plan 0028 (ADR-0202): the unified toast; none for an empty text.
+    EXPECT_EQ(app->toasts().count(QStringLiteral("Copied to clipboard.")), 1);
+    app->copyToClipboard(QString());
+    EXPECT_EQ(app->toasts().count(QStringLiteral("Copied to clipboard.")), 1);
 }
 
 TEST(CheckListModelTest, RowsAndStatuses) {
@@ -397,6 +401,13 @@ TEST_F(WizardTest, ReportCollectSaveAndCopy) {
 
     report.copySummary();
     EXPECT_EQ(QGuiApplication::clipboard()->text(), report.summary());
+    EXPECT_TRUE(app->toasts().contains(QStringLiteral("Copied to clipboard."))); // ADR-0202
+
+    // Plan 0028 (D13): a location that is not on this computer is refused with an error.
+    report.save(QUrl(QStringLiteral("smb://server/share/report.zip")));
+    EXPECT_EQ(report.state(), QStringLiteral("error"));
+    EXPECT_EQ(report.error().code(), QStringLiteral("io.write_failed"));
+    EXPECT_EQ(report.error().cause(), QStringLiteral("Only folders on this computer can be used."));
 
     const QString target = QString::fromStdU16String((root() / "report.zip").u16string());
     report.save(QUrl::fromLocalFile(target));

@@ -2,6 +2,7 @@
 
 #include "gui_log.h"
 
+#include <QByteArray>
 #include <QFont>
 #include <QFontDatabase>
 #include <QGuiApplication>
@@ -9,6 +10,7 @@
 #include <QString>
 #include <QStringList>
 #include <QtContainerFwd>
+#include <QtEnvironmentVariables>
 
 #include <array>
 
@@ -39,6 +41,14 @@ int loadBundledFonts() {
     }
     qCDebug(lcGui) << "Bundled fonts loaded:" << loaded << families;
     return loaded;
+}
+
+QByteArray applyTextAntialiasing() {
+    static constexpr const char* variable = "QSG_DISTANCEFIELD_ANTIALIASING";
+    if (!qEnvironmentVariableIsSet(variable)) {
+        qputenv(variable, QByteArrayLiteral("gray"));
+    }
+    return qgetenv(variable);
 }
 
 } // namespace hwio::gui

@@ -2,6 +2,7 @@
 
 #include "gui_log.h"
 #include "hwio/core/crash_handler.h"
+#include "hwio/core/docs_urls.h"
 #include "hwio/core/i18n.h"
 #include "hwio/core/json.h"
 #include "hwio/core/log.h"
@@ -118,7 +119,8 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
                                                m_options.scanInterval)),
       m_diagWorker(std::make_unique<DiagWorker>()),
       m_wizard(new WizardViewModel( // NOLINT(cppcoreguidelines-owning-memory)
-          m_wizardRegistry, this)),
+          m_wizardRegistry, this,
+          [this](const QString& text) { copyToClipboard(text); })), // ADR-0202
       m_launcher(new WizardLauncher( // NOLINT(cppcoreguidelines-owning-memory)
           m_wizardRegistry, *m_wizard,
           [this](int index) { return index < 0 ? currentTabViewModel() : m_tabs->at(index); },
@@ -129,6 +131,7 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
                                  .tabs = [this] { return tabsJson(); },
                                  .language = [this] { return language(); },
                                  .toast = [this](const QString& text) { showToast(text); },
+                                 .copy = [this](const QString& text) { copyToClipboard(text); },
                                  .openFolder = {}},
           this)),
       m_history(std::make_unique<HistoryStore>(m_options.registry.consoleDirectory)),
@@ -182,7 +185,6 @@ AppViewModel::AppViewModel(AppOptions options, QObject* parent)
 
     connect(m_scanner.get(), &ProbeScanner::scanned, this, &AppViewModel::onScan);
     connect(m_wizard, &WizardViewModel::handOff, this, &AppViewModel::onHandOff);
-    connect(m_wizard, &WizardViewModel::copied, this, [this] { showToast(tr("Copied.")); });
     connect(m_settings, &SettingsStore::valueChanged, this, [this](const QString& key) {
         if (key == QStringLiteral("jlink/libraryPath")) {
             updateLocatorOptions();
@@ -543,6 +545,9 @@ std::unique_ptr<DeviceTabViewModel> AppViewModel::makeTab() {
         return tabUsingProbe(serial, self);
     };
     context.showToast = [this](const QString& text) { showToast(text); };
+    context.copyToClipboard = [this](const QString& text, const QString& toast) {
+        copyToClipboard(text, toast);
+    };
     context.openWizard = [this](const QString& wizardId, DeviceTabViewModel* tab) {
         (void)m_launcher->openForTab(wizardId, tab);
     };
@@ -984,11 +989,14 @@ int AppViewModel::stepValue(int value, int step, int direction, int minimum, int
     return static_cast<int>(std::clamp<long long>(next, minimum, maximum));
 }
 
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static): a QML invokable
-void AppViewModel::copyToClipboard(const QString& text) {
+void AppViewModel::copyToClipboard(const QString& text, const QString& toast) {
+    if (text.isEmpty()) {
+        return; // nothing to copy: no toast (ADR-0202)
+    }
     if (QClipboard* clipboard = QGuiApplication::clipboard(); clipboard != nullptr) {
         clipboard->setText(text);
     }
+    showToast(toast.isEmpty() ? tr("Copied to clipboard.") : toast);
 }
 
 void AppViewModel::onScan(const ProbeScan& scan) {
@@ -1015,8 +1023,8 @@ diag::EnvironmentContext AppViewModel::diagEnvironment() const {
 }
 
 QString AppViewModel::documentationUrl() {
-    return QStringLiteral("https://docs.hardwario.com/chester/platform-connectivity/"
-                          "hardwario-monitor/");
+    // Plan 0028 (D18): the central table; it does not use the language until plan 0029.
+    return docsUrl(DocsTopic::Monitor, u"en").toString();
 }
 
 void AppViewModel::openDocumentation() { QDesktopServices::openUrl(QUrl(documentationUrl())); }

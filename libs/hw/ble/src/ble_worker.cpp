@@ -123,6 +123,11 @@ void BleWorker::handle(BleCommand command) {
                    },
                    [this](const CloseLink& item) { closeLink(item); },
                    [this](PairDevice& item) { pair(std::move(item)); },
+                   [this](const SetFirmwareIdentity& item) {
+                       if (const auto it = m_links.find(item.client); it != m_links.end()) {
+                           it->second->setFirmwareIdentity(item.identity, item.attach);
+                       }
+                   },
                    [this](StopLink& item) {
                        if (const auto it = m_links.find(item.client); it != m_links.end()) {
                            it->second->stop(std::move(item.error));

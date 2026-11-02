@@ -26,6 +26,8 @@
 
 #include "hwio/core/result.h"
 #include "hwio/device/device_info.h"
+#include "hwio/device/device_info_watcher.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/session_events.h"
 #include "hwio/device/shell_query.h"
 #include "viewmodels/connection_view_model.h"
@@ -74,6 +76,8 @@ struct TabContext {
     std::function<int(std::uint32_t serial, const DeviceTabViewModel* self)> tabUsingProbe;
     // Shows a toast (AppViewModel, ≤ 3 visible); may be empty.
     std::function<void(QString)> showToast;
+    // Plan 0028 (ADR-0202): AppViewModel::copyToClipboard(text, toast); toast "" = the default.
+    std::function<void(const QString& text, const QString& toast)> copyToClipboard;
     // M4 (plan/features/0007): opens a wizard for this tab (AppViewModel's WizardLauncher); may be
     // empty.
     std::function<void(const QString& wizardId, DeviceTabViewModel* tab)> openWizard;
@@ -155,6 +159,8 @@ public:
                  std::function<void()> cancel);
     void clearBusy(const QString& pageId);
     void showToast(QString text); // queued in AppViewModel (≤ 3 visible)
+    // Plan 0028 (ADR-0202): clipboard + toast ("Copied to clipboard." unless `toast` is given).
+    void copyToClipboard(const QString& text, const QString& toast = QString());
 
     // --- shell (AppViewModel, ConnectionViewModel) ---
     // Leaves ChoosingDevice with this configuration (restore or the picker); never connects.
@@ -178,10 +184,16 @@ public:
     [[nodiscard]] device::ShellQueryQueue& shellQueries() const { return *m_queries; }
     [[nodiscard]] QVariantMap deviceInfo() const;
     // Asks `info show` again (after a flash).
-    void refreshDeviceInfo() { queryDeviceInfo(); }
-    // The parsed `info show` of the current attach (empty while unknown).
-    [[nodiscard]] const device::DeviceInfo& deviceInfoFields() const noexcept {
-        return m_deviceInfo;
+    void refreshDeviceInfo();
+    // The parsed `info show` of the current attach (empty while unknown; plan 0028: from the
+    // session's DeviceInfoWatcher).
+    [[nodiscard]] const device::DeviceInfo& deviceInfoFields() const noexcept;
+    // Plan 0028 (D14, R6): the last firmware identity the tab's session adopted (`info show` or the
+    // boot banner), kept after a disconnect until another identity arrives; cleared when the tab
+    // switches probe (Save view name).
+    [[nodiscard]] const std::optional<device::FirmwareIdentity>&
+    lastFirmwareIdentity() const noexcept {
+        return m_lastIdentity;
     }
     [[nodiscard]] QString busyConfirmText() const;
     // [Cancel and close] / quit: calls the busy page's cancel callback (once); with `close`, the
@@ -227,8 +239,7 @@ private:
     void onConnectionChanged(const device::ConnectionEvent& event);
     void addMarker(const QString& text);
     void updateState();
-    void queryDeviceInfo();
-    void clearDeviceInfo();
+    void resetInfoWatcher();
 
     TabContext m_context;
     ProbePickerViewModel* m_picker = nullptr;         // child
@@ -251,8 +262,9 @@ private:
     State m_state = ChoosingDevice;
     bool m_hasError = false;
     device::ShellQueryQueue* m_queries = nullptr; // child
-    device::DeviceInfo m_deviceInfo;
-    unsigned m_attach = 0; // +1 per Connected / Disconnected / Stopped (review P3)
+    // Plan 0028 (D7): `info show` of the current session (one per session; nullptr without).
+    std::unique_ptr<device::DeviceInfoWatcher> m_infoWatcher;
+    std::optional<device::FirmwareIdentity> m_lastIdentity;
 };
 
 } // namespace hwio::gui

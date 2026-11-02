@@ -277,7 +277,8 @@ signals:
 ```
 
 - Data path (ADR-0128): NUS bytes → `LineAssembler` (target `consoleTargetId`'s rules) + prompt detection
-  (ADR-0082) + `ConsoleFileSink` (file name `<profile>-ble-YYYYMMDD-HHMMSS-<sanitised id>.log`, M1
+  (ADR-0082) + `ConsoleFileSink` (file name `<profile>-ble-YYYYMMDD-HHMMSS-<sanitised id>.log`, amended by 0028:
+  `<profile>-ble-<fw-slug>-<fw-version>-…` once the firmware is known; M1
   rotation/retention, connection lines ` @ `) on the **BLE thread** → finished `ConsoleLine`s through the session's
   bounded event queue → `ConsoleLog` + batched signals on the owner thread.
 - Reconnect (ADR-0082): with `autoReconnect`, after `Disconnected` the session asks the host for a background scan

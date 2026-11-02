@@ -21,6 +21,7 @@
 #include <QUrl>
 #include <QVariant>
 #include <QtCore/qnamespace.h>
+#include <QtTypes>
 
 #include <algorithm>
 #include <array>
@@ -38,6 +39,9 @@ const QString wrapKey = QStringLiteral("console/wrapLines");
 const QString splitKey = QStringLiteral("console/splitRatio");
 const QString stackedKey = QStringLiteral("console/stacked");
 const QString logToFileKey = QStringLiteral("console/logToFile");
+// Plan 0028 (ADR-0201): the folder "Save view…" saved to last ("" = Documents).
+const QString saveViewFolderKey = QStringLiteral("console/saveViewFolder");
+constexpr qsizetype maxFolderChars = 4096;
 // 0021 (ADR-0170): shared with the CLI console (device::suggestionsSetting, ...).
 const QString suggestionsKey = toQString(device::suggestionsSetting.path);
 const QString readCommandsKey = toQString(device::readCommandsOnConnectSetting.path);
@@ -76,6 +80,10 @@ void ConsoleSettings::registerKeys(SettingsStore& store) {
             .path = stackedKey, .type = QMetaType::Bool, .defaultValue = false, .validator = {}},
         SettingKey{
             .path = logToFileKey, .type = QMetaType::Bool, .defaultValue = true, .validator = {}},
+        SettingKey{.path = saveViewFolderKey,
+                   .type = QMetaType::QString,
+                   .defaultValue = QString(),
+                   .validator = validators::maxLength(maxFolderChars)},
         SettingKey{.path = suggestionsKey,
                    .type = QMetaType::Bool,
                    .defaultValue = device::suggestionsSetting.defaultValue,
@@ -224,6 +232,16 @@ bool ConsoleSettings::logToFile() const { return read(logToFileKey, true).toBool
 void ConsoleSettings::setLogToFile(bool log) {
     if (log != logToFile()) {
         write(logToFileKey, log);
+    }
+}
+
+QString ConsoleSettings::saveViewFolder() const {
+    return read(saveViewFolderKey, QString()).toString();
+}
+
+void ConsoleSettings::setSaveViewFolder(const QString& folder) {
+    if (folder != saveViewFolder()) {
+        write(saveViewFolderKey, folder);
     }
 }
 

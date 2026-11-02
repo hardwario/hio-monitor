@@ -69,6 +69,10 @@ Q_IMPORT_QML_PLUGIN(HardwarioMonitorPlugin)
 class QmlTestSupport : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString screenshotDir READ screenshotDir CONSTANT)
+    // Plan 0028 Phase C: the text rendering grabs go here (HWIO_TEXT_GRABS; "" = not saved).
+    Q_PROPERTY(QString textGrabsDir READ textGrabsDir CONSTANT)
+    // ADR-0205: QSG_DISTANCEFIELD_ANTIALIASING of this process ("" = not set).
+    Q_PROPERTY(QString textAntialiasing READ textAntialiasing CONSTANT)
     // The console performance test (plan 0005) runs only with HWIO_CONSOLE_PERF_SECONDS > 0.
     Q_PROPERTY(int perfSeconds READ perfSeconds CONSTANT)
 
@@ -113,6 +117,10 @@ public:
 
     [[nodiscard]] static QString screenshotDir() {
         return qEnvironmentVariable("HWIO_SCREENSHOT_DIR");
+    }
+    [[nodiscard]] static QString textGrabsDir() { return qEnvironmentVariable("HWIO_TEXT_GRABS"); }
+    [[nodiscard]] static QString textAntialiasing() {
+        return qEnvironmentVariable("QSG_DISTANCEFIELD_ANTIALIASING");
     }
 
     Q_INVOKABLE bool configureTab(int index, const QString& target, int serial,
@@ -332,6 +340,20 @@ public:
         }
     }
 
+    // Plan 0028: URLs opened through the console settings (docs, log file) are recorded instead.
+    Q_INVOKABLE void interceptConsoleUrls(int index) {
+        auto* console = qobject_cast<hwio::gui::ConsoleViewModel*>(consoleViewModel(index));
+        if (console == nullptr || console->settings() == nullptr) {
+            return;
+        }
+        m_openedUrls.clear();
+        console->settings()->setUrlOpener([this](const QUrl& url) {
+            m_openedUrls.append(url.toString());
+            return true;
+        });
+    }
+    Q_INVOKABLE [[nodiscard]] QStringList openedUrls() const { return m_openedUrls; }
+
 private:
     [[nodiscard]] QUrl write(const QString& name, const QByteArray& bytes) const {
         const QString path = m_dir + QLatin1Char('/') + name;
@@ -345,6 +367,7 @@ private:
 
     hwio::gui::AppViewModel* m_app;
     QString m_dir;
+    QStringList m_openedUrls; // interceptConsoleUrls()
 };
 
 class Setup : public QObject {

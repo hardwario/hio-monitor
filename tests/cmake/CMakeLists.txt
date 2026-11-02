@@ -69,6 +69,41 @@ set_tests_properties(qml_plaintext_check_detects PROPERTIES
     PASS_REGULAR_EXPRESSION "5 problem\\(s\\) in 1 files"
     LABELS "cmake")
 
+# Plan 0028 (ADR-0202): only AppViewModel::copyToClipboard writes the clipboard (+ the toast).
+add_test(NAME clipboard_write_check
+    COMMAND "${CMAKE_COMMAND}" "-DHWIO_GUI_SRC=${PROJECT_SOURCE_DIR}/app/gui/src"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/check_clipboard_writes.cmake")
+set_tests_properties(clipboard_write_check PROPERTIES
+    PASS_REGULAR_EXPRESSION "clipboard_write_check: [0-9]+ files OK"
+    FAIL_REGULAR_EXPRESSION "ADR-0202"
+    LABELS "cmake")
+
+# Plan 0028 (D15): the translation lint over i18n/*.ts (stray '&', '<', combining marks, invisible
+# characters, placeholder sets); the second test proves it finds the six problems of its fixture.
+if(HWIO_REQUIRE_PYTHON)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+else()
+    find_package(Python3 COMPONENTS Interpreter)
+endif()
+if(Python3_Interpreter_FOUND)
+    file(GLOB _hwio_ts_files "${PROJECT_SOURCE_DIR}/i18n/*.ts")
+    add_test(NAME translation_lint
+        COMMAND "${Python3_EXECUTABLE}" -I "${PROJECT_SOURCE_DIR}/tools/translation_lint.py"
+            ${_hwio_ts_files})
+    set_tests_properties(translation_lint PROPERTIES
+        PASS_REGULAR_EXPRESSION "translation_lint: OK"
+        LABELS "cmake")
+    add_test(NAME translation_lint_detects
+        COMMAND "${Python3_EXECUTABLE}" -I "${PROJECT_SOURCE_DIR}/tools/translation_lint.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/translation_lint_fixture.ts")
+    set_tests_properties(translation_lint_detects PROPERTIES
+        PASS_REGULAR_EXPRESSION "translation_lint: 6 problem\\(s\\)"
+        LABELS "cmake")
+    unset(_hwio_ts_files)
+else()
+    message(WARNING "Python 3 was not found: the translation_lint test is not added")
+endif()
+
 # ADR-0187 (plan/features/0025, M-5): the executables carry the hardening of HWioHardening.cmake
 # (builds without sanitizers; macOS is not checked).
 if(NOT HWIO_SANITIZERS AND (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR WIN32))

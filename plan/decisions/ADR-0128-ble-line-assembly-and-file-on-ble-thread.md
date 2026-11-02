@@ -41,3 +41,10 @@ never count as live in another process, and a BLE address contains `:`, which Wi
   (receives finished lines).
 - The BLE thread does small, bounded file writes; handlers stay otherwise short (ADR-0080).
 - `ConsoleFileSink` gains a key type; the J-Link call sites pass the SN unchanged.
+
+## Amendment 2026-11-02 (ADR-0200, plan 0028, accepted by Matej Strnad)
+
+The default file names gain the firmware identity once known (`…-<fw-slug>-<fw-version>-YYYYMMDD-HHMMSS-<sn|id>.log`).
+The session key stays parseable: for a BLE name (second token `ble`) the sanitised id follows the **first**
+`YYYYMMDD-HHMMSS` stamp after `-ble-`; for a J-Link name the probe SN and the stamp are parsed **from the end**
+(review round 1, R7).

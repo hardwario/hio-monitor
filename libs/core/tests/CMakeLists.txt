@@ -3,6 +3,7 @@
 add_executable(hwio_core_tests
     bounded_queue_test.cpp
     crash_handler_test.cpp
+    docs_urls_test.cpp
     error_test.cpp
     i18n_test.cpp
     json_test.cpp

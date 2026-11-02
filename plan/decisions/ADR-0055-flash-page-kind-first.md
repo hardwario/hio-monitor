@@ -39,3 +39,8 @@ prerequisites (nRF Util) before a file is picked.
 ## Consequences
 
 - Flashing an MCU other than the tab's console target is normal. ADR-0057 defines how the session does it.
+
+## Amendment 2026-11-02 (ADR-0204, plan 0028, accepted by Matej Strnad)
+
+The sticky bottom bar stays; its contents are laid out in the centred form column and the Flash button gets the bolt
+icon.

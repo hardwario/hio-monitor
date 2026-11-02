@@ -208,10 +208,15 @@ Result<CommandResult> console(const Context& context, const GlobalOptions& globa
                          !settings || settings->get(device::readCommandsOnConnectSetting),
                          device::CommandTreeCache::defaultDirectory());
         ui.learner = &learning->learner();
+    } else if (!options.consoleFileGiven) {
+        // Plan 0028 (D7): `info show` names the generated console file also without a terminal.
+        learning.emplace(**session, profileId, targetId, false,
+                         device::CommandTreeCache::defaultDirectory(), false);
     }
     const Status status = runConsole(consoleContext, **session, view, ui);
     learning.reset();
     (*session)->close(); // writes the console file's trailer and flushes it
+    view.printConsoleFile((*session)->consoleFile()); // plan 0028 (U3): the final name
     view.printStopped();
     if (!status) {
         return std::unexpected(withReason(status.error()));

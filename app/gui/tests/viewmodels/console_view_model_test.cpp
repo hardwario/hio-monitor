@@ -5,6 +5,7 @@
 // layout, and the review round 1 fixes (K8 history walk, K9 send result and busy batch, K12).
 
 #include "gui_test_support.h"
+#include "hwio/core/docs_urls.h"
 #include "hwio/core/error.h"
 #include "hwio/core/json.h"
 #include "hwio/core/result.h"
@@ -29,7 +30,9 @@
 #include <QModelIndex>
 #include <QObject>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
@@ -715,6 +718,143 @@ TEST_F(ConsoleViewModelTest, ClearSaveAndCopy) {
     EXPECT_EQ(tab().consoleLog()->size(Channel::Shell), 0U);
     console().clear(3);
     EXPECT_EQ(console().log()->rowCount(), 0);
+}
+
+// Plan 0028: a Zephyr shell that answers `info show` like real CHESTER firmware (D2). The firmware
+// name is unique to these tests (the command tree cache is shared by the test processes).
+constexpr const char* realInfoScenario = R"({
+  "libraryVersion": 81000,
+  "probes": [
+    {"serialNumber": 801000001, "product": "Test Probe",
+     "rtt": {"output": [{"atMs": 0, "buffer": 0, "text": "uart:~$ booted A\n"}],
+             "responses": {
+               "info show": "vendor name: HARDWARIO a.s.\nfirmware name: CHESTER Test Save\nfirmware version: v3.0.0\nserial number: 2159018247\nclaim token: 0123456789abcdef\n"}}}
+  ]})";
+
+// Plan 0028 (ADR-0201, D12-D14): the Save view name follows the firmware (kept after a
+// disconnect, cleared with another probe), the folder is remembered, a non-local URL is refused.
+TEST_F(ConsoleViewModelTest, SaveViewNameFolderAndRefusal) {
+    const QRegularExpression plain(QStringLiteral(R"(^chester-app-\d{8}-\d{6}-log\.txt$)"));
+    EXPECT_TRUE(plain.match(console().saveViewFileName(1)).hasMatch())
+        << console().saveViewFileName(1).toStdString();
+    EXPECT_TRUE(console().saveViewFileName(0).endsWith(QStringLiteral("-shell.txt")));
+    EXPECT_EQ(console().saveViewFolder(), QUrl::fromLocalFile(QStandardPaths::writableLocation(
+                                              QStandardPaths::DocumentsLocation)));
+
+    useScenario(realInfoScenario);
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(
+        waitFor([&] { return tab().deviceInfo().value(QStringLiteral("valid")).toBool(); }));
+    EXPECT_EQ(tab().deviceInfo().value(QStringLiteral("text")).toString(),
+              QStringLiteral("CHESTER Test Save v3.0.0"));
+    const QRegularExpression named(
+        QStringLiteral(R"(^chester-app-test-save-v3\.0\.0-\d{8}-\d{6}-shell\.txt$)"));
+    EXPECT_TRUE(named.match(console().saveViewFileName(0)).hasMatch())
+        << console().saveViewFileName(0).toStdString();
+    // ADR-0200: the session's console file got the firmware name too.
+    ASSERT_TRUE(waitFor([&] {
+        return tab().session() != nullptr &&
+               tab().session()->consoleFile().filename().string().starts_with(
+                   "chester-app-test-save-v3.0.0-");
+    }));
+    tab().disconnectDevice();
+    ASSERT_TRUE(waitFor([&] {
+        return tab().session() == nullptr && tab().state() != DeviceTabViewModel::Connected;
+    }));
+    EXPECT_TRUE(named.match(console().saveViewFileName(0)).hasMatch()); // D14
+
+    const std::filesystem::path folder = root() / "views";
+    std::filesystem::create_directories(folder);
+    console().saveView(1, url(folder / "a.txt"));
+    EXPECT_FALSE(console().error().valid());
+    EXPECT_EQ(console().saveViewFolder(), url(folder));
+    std::filesystem::remove_all(folder); // gone: back to Documents
+    EXPECT_EQ(console().saveViewFolder(), QUrl::fromLocalFile(QStandardPaths::writableLocation(
+                                              QStandardPaths::DocumentsLocation)));
+
+    console().saveView(1, QUrl(QStringLiteral("smb://server/share/a.txt"))); // D13
+    EXPECT_EQ(console().error().code(), QStringLiteral("io.write_failed"));
+    EXPECT_EQ(console().error().message(), QStringLiteral("The file could not be saved."));
+    EXPECT_EQ(console().error().cause(),
+              QStringLiteral("Only folders on this computer can be used."));
+    EXPECT_EQ(console().error().suggestion(), QStringLiteral("Choose a folder on this computer."));
+    console().dismissError();
+
+    tab().chooseAnotherProbe(); // another device: the identity is forgotten
+    ASSERT_TRUE(tab().configure(QStringLiteral("chester"), QStringLiteral("app"), 801000001,
+                                QStringLiteral("Test Probe")));
+    EXPECT_TRUE(plain.match(console().saveViewFileName(1)).hasMatch())
+        << console().saveViewFileName(1).toStdString();
+}
+
+// Review round 1 (R6): Save view follows the identity the session adopted, also the boot banner
+// fallback when `info show` names no firmware.
+TEST_F(ConsoleViewModelTest, SaveViewFollowsTheBannerIdentity) {
+    useScenario(R"({"libraryVersion": 81000, "probes": [{"serialNumber": 801000001,
+        "product": "Test Probe", "rtt": {
+        "output": [{"atMs": 0, "buffer": 0, "text": "*** Booting Banner Test v2.1.0 ***\n"}],
+        "responses": {"info show": "vendor name: HARDWARIO a.s.\n"}}}]})");
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(waitFor([&] {
+        return console().saveViewFileName(1).startsWith(
+            QStringLiteral("chester-app-banner-test-v2.1.0-"));
+    })) << console().saveViewFileName(1).toStdString();
+    ASSERT_TRUE(waitFor([&] {
+        return tab().session() != nullptr &&
+               tab().session()->consoleFile().filename().string().starts_with(
+                   "chester-app-banner-test-v2.1.0-");
+    }));
+}
+
+// Plan 0028 (ADR-0202, D19): one "Copied to clipboard." toast per copy, none for an empty
+// selection; a copy cut by the copy limit says so instead.
+TEST_F(ConsoleViewModelTest, CopyShowsOneToast) {
+    ASSERT_TRUE(connectAndWait(tab()));
+    ASSERT_TRUE(waitFor([&] { return console().log()->rowCount() >= 1; }));
+    const auto copiedToasts = [&] {
+        return app().toasts().count(QStringLiteral("Copied to clipboard."));
+    };
+    console().copySelection(1); // nothing selected
+    EXPECT_EQ(copiedToasts(), 0);
+    console().log()->selectAll();
+    console().copySelection(1);
+    EXPECT_EQ(copiedToasts(), 1);
+    console().clear(3);
+    const std::string long4k(4000, 'y');
+    for (int i = 0; i < 2500; ++i) {
+        hwio::device::ConsoleLine line;
+        line.channel = Channel::Log;
+        line.text = long4k;
+        tab().consoleLog()->append(std::move(line));
+    }
+    console().refreshNow();
+    console().log()->selectAll();
+    console().copySelection(1);
+    bool limited = false;
+    for (const QString& toast : app().toasts()) {
+        limited =
+            limited || (toast.startsWith(QStringLiteral("Copied the first ")) &&
+                        toast.endsWith(QStringLiteral(" lines to the clipboard (copy limit).")));
+    }
+    EXPECT_TRUE(limited) << app().toasts().join(QLatin1Char('|')).toStdString();
+}
+
+// Plan 0028 (ADR-0203): the Batch tooltip text names the BatchRunner limits; the docs button opens
+// the central URL.
+TEST_F(ConsoleViewModelTest, BatchHelpTextAndDocs) {
+    const QString text = console().batchHelpText();
+    EXPECT_TRUE(text.contains(QStringLiteral("200 ms"))) << text.toStdString();
+    EXPECT_TRUE(text.contains(QStringLiteral("10,000 commands"))) << text.toStdString();
+    EXPECT_TRUE(text.contains(QStringLiteral("1 MiB"))) << text.toStdString();
+    EXPECT_TRUE(text.contains(QStringLiteral("4,096 bytes"))) << text.toStdString();
+    EXPECT_TRUE(text.contains(QStringLiteral("#"))) << text.toStdString();
+    QUrl opened;
+    console().settings()->setUrlOpener([&](const QUrl& target) {
+        opened = target;
+        return true;
+    });
+    console().openBatchDocs();
+    EXPECT_EQ(opened, hwio::docsUrl(hwio::DocsTopic::ConsoleBatch, u"en"));
 }
 
 // Plan 0005 decision 2026-10-16 (review K10): Open log file opens the session's console file

@@ -1,5 +1,7 @@
 // Tool button with an icon and an optional label (labels hidden when `compact`, e.g. below
-// 1100 px). The tooltip names the action and its shortcut: "Find (Ctrl+F)".
+// 1100 px). The tooltip names the action and its shortcut: "Find (Ctrl+F)". Plan 0028
+// (ADR-0203): an optional `description` follows on the next lines of the tooltip (also shown on
+// keyboard focus) and is the accessible description.
 import QtQuick
 import QtQuick.Controls
 import HardwarioMonitor
@@ -10,6 +12,7 @@ ToolButton {
     property string iconName: ""
     property string shortcutId: ""
     property bool compact: false
+    property string description: ""
     property color iconColor: control.checked ? Theme.accent : Theme.text
     // The tooltip (tests read its text).
     readonly property alias toolTip: tip
@@ -28,11 +31,12 @@ ToolButton {
     HToolTip {
         id: tip
 
-        visible: control.hovered && control.text !== ""
-        text: AppViewModel.shortcuts.tooltip(control.text, control.shortcutId)
+        visible: (control.hovered || (control.description !== "" && control.visualFocus)) && control.text !== ""
+        text: AppViewModel.shortcuts.tooltip(control.text, control.shortcutId) + (control.description !== "" ? "\n" + control.description : "")
         delay: 600
     }
     Accessible.name: control.text
+    Accessible.description: control.description
 
     FocusRing {
         control: control

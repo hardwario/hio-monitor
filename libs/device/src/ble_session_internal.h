@@ -3,6 +3,7 @@
 // Internals of BleSession shared by the facade, the link handler (BLE thread) and the unit tests
 // (plan/features/0011, ADR-0128, ADR-0129).
 
+#include "banner_scan.h"
 #include "hwio/core/error.h"
 #include "hwio/core/result.h"
 #include "hwio/device/ble_lock.h"
@@ -10,6 +11,7 @@
 #include "hwio/device/console_file_sink.h"
 #include "hwio/device/console_line.h"
 #include "hwio/device/console_log.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/line_assembler.h"
 #include "hwio/device/profile.h"
 #include "hwio/device/session_events.h"
@@ -53,10 +55,14 @@ struct BleAttemptEnded {};
 // A line sent with sendLine() was rejected (its warning follows); with the echo it ends the line's
 // in-flight accounting of the facade (review B4).
 struct BleLineRejected {};
+// Plan 0028 (R6): the firmware identity the handler adopted (ConsoleSession::adoptedIdentity()).
+struct BleIdentityAdopted {
+    FirmwareIdentity identity;
+};
 
-using BleSessionEvent =
-    std::variant<ConsoleLine, ConnectionEvent, Warning, BlePromptSeen, BlePairingPrompt,
-                 BlePairingFinished, BleConsoleFileChanged, BleAttemptEnded, BleLineRejected>;
+using BleSessionEvent = std::variant<ConsoleLine, ConnectionEvent, Warning, BlePromptSeen,
+                                     BlePairingPrompt, BlePairingFinished, BleConsoleFileChanged,
+                                     BleAttemptEnded, BleLineRejected, BleIdentityAdopted>;
 
 // When the queue is full only device output lines are dropped (as DeviceSession, review R10).
 [[nodiscard]] inline bool isDroppableBleEvent(const BleSessionEvent& event) {
@@ -96,6 +102,8 @@ public:
     void onPairingFinished(Status status, bool alreadyPaired) override;
     void onFlush() override;
     void onClosed() override;
+    void onFirmwareIdentity(const std::optional<FirmwareIdentity>& identity,
+                            std::uint64_t attach) override;
 
 private:
     void emitEvent(BleSessionEvent event);
@@ -106,6 +114,7 @@ private:
     void openSink();
     void sinkResult(const Status& status);
     void reportConsoleFile();
+    void adoptIdentity(const FirmwareIdentity& identity);
 
     BleHandlerConfig m_config;
     std::shared_ptr<BleEventChannel> m_channel;
@@ -116,6 +125,7 @@ private:
     std::unique_ptr<ConsoleFileSink> m_sink;
     bool m_sinkOpened = false;
     std::filesystem::path m_reportedConsoleFile;
+    BannerScan m_banner; // plan 0028: attach numbers and the boot banner (D10)
     std::optional<ConnectionState> m_reported;
     std::optional<ErrorCode> m_reportedCode;
     std::uint16_t m_mtu = 0;

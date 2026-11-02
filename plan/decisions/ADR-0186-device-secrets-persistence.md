@@ -40,3 +40,12 @@ contain secrets sent by an AI client (accepted).
   `"name":123` with the structure kept, and everything after a profile's sensitive command prefix up to the end of
   the line or of the enclosing JSON string (review rounds 1–2, R2/S1–S3). Patterns are possessive and line-bounded.
 - A history file from which loading dropped entries is rewritten at once (review round 2, S4).
+
+## Amendment 2026-11-02 (plan 0028 U2, decided by Matej Strnad)
+
+- `info show` prints secrets (`claim token: …`, `ble passkey: …`). Console files (GUI, CLI, BLE) write the *value* of
+  such shell output lines as `<redacted>` (`claim token: <redacted>`), whether the line answers a silent query or a
+  command the user typed (`info show`, `info claim-token`, `info ble-passkey`), also after a prompt. The keys are a
+  profile list next to the sensitive command prefixes (`TargetProfile::sensitiveOutputKeys`; CHESTER app:
+  `claim token`, `ble passkey`), compared after the `info show` key normalisation (lower case, spaces as `-`). Other
+  lines are unchanged; the console view on screen is unchanged.

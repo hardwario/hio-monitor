@@ -11,6 +11,7 @@
 #include "hwio/device/console_line.h"
 #include "hwio/device/console_log.h"
 #include "hwio/device/console_session.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/line_assembler.h"
 #include "hwio/device/profile.h"
 #include "hwio/device/session_events.h"
@@ -108,6 +109,12 @@ void BleConsoleHandler::emitLine(ConsoleLine line) {
     if (m_sink) {
         sinkResult(m_sink->write(line));
     }
+    if (line.dir == Direction::Out && m_reported == ConnectionState::Connected) {
+        // Plan 0028 (D10): the boot banner of this attach.
+        if (auto banner = m_banner.feed(line.text, std::chrono::steady_clock::now())) {
+            adoptIdentity(*banner);
+        }
+    }
     emitEvent(std::move(line));
 }
 
@@ -130,13 +137,32 @@ void BleConsoleHandler::report(ConnectionState state, std::optional<Error> error
     if (m_sink) {
         sinkResult(m_sink->writeConnection(text, std::chrono::system_clock::now()));
     }
+    if (state == ConnectionState::Connected) {
+        m_banner.attached(std::chrono::steady_clock::now()); // plan 0028: a new attach
+    }
     emitEvent(ConnectionEvent{.state = state,
                               .error = std::move(error),
                               .targetMillivolts = std::nullopt,
                               .transport = Transport::Ble,
                               .mtu = state == ConnectionState::Connected
                                          ? std::optional<std::uint16_t>(m_mtu)
-                                         : std::nullopt});
+                                         : std::nullopt,
+                              .attach = m_banner.attach()});
+}
+
+void BleConsoleHandler::adoptIdentity(const FirmwareIdentity& identity) {
+    emitEvent(BleIdentityAdopted{.identity = identity}); // R6: also without a console file
+    if (m_sink) {
+        sinkResult(m_sink->adoptIdentity(identity, std::chrono::system_clock::now()));
+    }
+}
+
+void BleConsoleHandler::onFirmwareIdentity(const std::optional<FirmwareIdentity>& identity,
+                                           std::uint64_t attach) {
+    // Plan 0028: only for the current attach; nullopt may fall back to the boot banner (D10).
+    if (auto adopted = m_banner.answer(identity, attach)) {
+        adoptIdentity(*adopted);
+    }
 }
 
 void BleConsoleHandler::sinkResult(const Status& status) {
@@ -552,6 +578,15 @@ std::string_view BleSession::consoleTargetId() const { return m_internals->targe
 
 std::filesystem::path BleSession::consoleFile() const { return m_consoleFile; }
 
+Status BleSession::setFirmwareIdentity(std::optional<FirmwareIdentity> identity,
+                                       std::uint64_t attach) {
+    if (m_closed) {
+        return fail(ErrorCode::Cancelled);
+    }
+    return m_host->post(ble::SetFirmwareIdentity{
+        .client = m_internals->client, .identity = std::move(identity), .attach = attach});
+}
+
 std::optional<int> BleSession::rssi() const { return m_rssi; }
 
 std::uint16_t BleSession::mtu() const { return m_mtu; }
@@ -732,6 +767,10 @@ bool BleSession::handleEvent(detail::BleSessionEvent& event, QList<ConsoleLine>&
                    },
                    [&](detail::BleConsoleFileChanged& changed) {
                        m_consoleFile = std::move(changed.file);
+                   },
+                   [&](detail::BleIdentityAdopted& adopted) {
+                       flushBatch();
+                       setAdoptedIdentity(std::move(adopted.identity));
                    },
                    [&](const detail::BleLineRejected&) {
                        if (!m_linesInFlight.empty()) {

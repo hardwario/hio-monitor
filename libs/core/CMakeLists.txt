@@ -5,7 +5,9 @@ hwio_add_backend_library(hwio_core
     include/hwio/core/app_identity.h
     include/hwio/core/bounded_queue.h
     include/hwio/core/crash_handler.h
+    include/hwio/core/docs_urls.h
     include/hwio/core/error.h
+    include/hwio/core/firmware_identity.h
     include/hwio/core/i18n.h
     include/hwio/core/json.h
     include/hwio/core/log.h
@@ -16,6 +18,7 @@ hwio_add_backend_library(hwio_core
     include/hwio/core/version.h
     src/app_identity.cpp
     src/crash_handler.cpp
+    src/docs_urls.cpp
     src/error.cpp
     src/i18n.cpp
     src/json.cpp

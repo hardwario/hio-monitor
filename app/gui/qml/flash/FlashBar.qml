@@ -1,5 +1,7 @@
 // The sticky bottom bar of the Flash page (design system "FlashBar"): the summary of kind + file,
-// or the reason Flash is disabled; the Ctrl+Enter hint and the primary Flash button.
+// or the reason Flash is disabled; the Ctrl+Enter hint and the primary Flash button (bolt icon).
+// Plan 0028 (ADR-0204, D22): the background and the top border span the page; the row is laid out
+// in the form column the page passes (columnX, columnWidth), so the button ends under the form.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -9,6 +11,9 @@ Rectangle {
     id: bar
 
     required property FlashViewModel vm
+    // The form column of the page (x relative to the bar, width); default: 24 px margins.
+    property real columnX: Theme.spacingXl
+    property real columnWidth: bar.width - 2 * Theme.spacingXl
 
     implicitHeight: row.implicitHeight + 2 * Theme.spacingM
     color: Theme.surface
@@ -24,9 +29,11 @@ Rectangle {
     RowLayout {
         id: row
 
-        anchors.fill: parent
-        anchors.leftMargin: Theme.spacingXl
-        anchors.rightMargin: Theme.spacingXl
+        objectName: "flashBarRow"
+        x: bar.columnX
+        width: bar.columnWidth
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
         spacing: Theme.spacingM
 
         Icon {
@@ -57,6 +64,7 @@ Rectangle {
         HButton {
             objectName: "flashButton"
             kind: "primary"
+            iconName: "flash"
             implicitHeight: 36
             leftPadding: Theme.spacingXl
             rightPadding: Theme.spacingXl

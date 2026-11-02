@@ -39,6 +39,8 @@ public:
         std::function<QJsonArray()> tabs;                      // the open tabs
         std::function<QString()> language;                     // "en", "cs"
         std::function<void(QString)> toast;
+        // Plan 0028 (ADR-0202): AppViewModel::copyToClipboard (clipboard + "Copied to clipboard.").
+        std::function<void(const QString&)> copy;
         std::function<void(QUrl)> openFolder; // empty: QDesktopServices::openUrl
     };
 
@@ -56,7 +58,8 @@ public:
     Q_INVOKABLE void show();
     // Cancel / Close: stops collecting or saving and closes.
     Q_INVOKABLE void close();
-    // Saves the zip to `file` (a local file URL from the file dialog).
+    // Saves the zip to `file` (a local file URL from the file dialog); another URL is refused with
+    // an io.write_failed error (plan 0028 D13).
     Q_INVOKABLE void save(const QUrl& file);
     Q_INVOKABLE void copySummary();
     Q_INVOKABLE void showInFolder();

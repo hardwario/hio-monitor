@@ -18,11 +18,14 @@
 #include "output.h"
 #include "terminal.h"
 
+#include <QDir>
 #include <QEventLoop>
+#include <QJsonObject>
 #include <QJsonValue>
 #include <QList>
 #include <QLoggingCategory>
 #include <QObject>
+#include <QString>
 #include <QTimer>
 #include <QtTypes>
 
@@ -33,6 +36,7 @@
 #include <cstdint>
 #include <deque>
 #include <expected>
+#include <filesystem>
 #include <format>
 #include <functional>
 #include <iostream>
@@ -117,6 +121,19 @@ void ConsoleView::printStatus(std::string_view text) {
     if (m_context->mode == OutputMode::Human) {
         print(ConsoleStream::Err, text);
     }
+}
+
+void ConsoleView::printConsoleFile(const std::filesystem::path& file) {
+    if (file.empty()) {
+        return;
+    }
+    const QString path = QDir::toNativeSeparators(toQString(toUtf8(file)));
+    if (m_context->mode == OutputMode::Json) {
+        printEvent(QJsonObject{{QStringLiteral("type"), QStringLiteral("consoleFile")},
+                               {QStringLiteral("path"), path}});
+        return;
+    }
+    print(ConsoleStream::Err, "Console file: " + path.toStdString());
 }
 
 void ConsoleView::printStopped() {

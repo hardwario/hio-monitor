@@ -11,7 +11,7 @@
     <message>
         <location filename="../app/gui/qml/settings/AboutSection.qml" line="40"/>
         <location filename="../app/gui/qml/settings/AboutSection.qml" line="139"/>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="162"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="159"/>
         <source>Copy</source>
         <translation>Kopírovat</translation>
     </message>
@@ -61,43 +61,37 @@
         <translation>Příkaz hwio je v cestě PATH nových terminálů.</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="142"/>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="165"/>
-        <source>Copied.</source>
-        <translation>Zkopírováno.</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="154"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="151"/>
         <source>Create a symlink: %1</source>
         <translation>Vytvořte symbolický odkaz: %1</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="174"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="168"/>
         <source>Licences</source>
         <translation>Licence</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="175"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="169"/>
         <source>SEGGER J-Link Software and Nordic nRF Util are not included; they are used from your installation.</source>
         <translation>SEGGER J-Link Software a Nordic nRF Util nejsou součástí aplikace; používají se z vaší instalace.</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="200"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="194"/>
         <source>Links</source>
         <translation>Odkazy</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="208"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="202"/>
         <source>Documentation ↗</source>
         <translation>Dokumentace ↗</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="214"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="208"/>
         <source>Firmware catalog ↗</source>
         <translation>Katalog firmwarů ↗</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/settings/AboutSection.qml" line="220"/>
+        <location filename="../app/gui/qml/settings/AboutSection.qml" line="214"/>
         <source>Source code ↗</source>
         <translation>Zdrojový kód ↗</translation>
     </message>
@@ -349,186 +343,191 @@
         <translation>Konzole</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="157"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="165"/>
         <source>Save view</source>
         <translation>Uložit výpis</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="160"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="168"/>
         <source>Text files (*.txt *.log)</source>
         <translation>Textové soubory (*.txt *.log)</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="160"/>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="169"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="168"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="177"/>
         <source>All files (*)</source>
         <translation>Všechny soubory (*)</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="167"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="175"/>
         <source>Run a batch file</source>
         <translation>Spustit dávkový soubor</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="169"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="177"/>
         <source>Text files (*.txt)</source>
         <translation>Textové soubory (*.txt)</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="179"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="187"/>
         <source>Copy</source>
         <translation>Kopírovat</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="184"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="192"/>
         <source>Select all</source>
         <translation>Vybrat vše</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="191"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="199"/>
         <source>Clear the shell</source>
         <translation>Vymazat shell</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="191"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="199"/>
         <source>Clear the log</source>
         <translation>Vymazat log</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="223"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="231"/>
         <source>Console actions</source>
         <translation>Akce konzole</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="230"/>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="241"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="238"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="249"/>
         <source>Reset</source>
         <translation>Reset</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="233"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="241"/>
         <source>Opens the reset menu</source>
         <translation>Otevře nabídku resetu</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="247"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="255"/>
         <source>Reset and halt</source>
         <translation>Reset a zastavit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="256"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="264"/>
         <source>Reconnect</source>
         <translation>Znovu připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="266"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="274"/>
         <source>Batch…</source>
         <translation>Dávka…</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="278"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="286"/>
+        <source>Batch files — documentation</source>
+        <translation>Dávkové soubory — dokumentace</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="296"/>
         <source>Clear</source>
         <translation>Vymazat</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="281"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="299"/>
         <source>Opens the clear menu</source>
         <translation>Otevře nabídku mazání</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="288"/>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="573"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="306"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="591"/>
         <source>Shell</source>
         <translation>Shell</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="293"/>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="629"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="311"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="647"/>
         <source>Log</source>
         <translation>Log</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="298"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="316"/>
         <source>Both</source>
         <translation>Obojí</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="307"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="325"/>
         <source>Save view…</source>
         <translation>Uložit výpis…</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="330"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="348"/>
         <source>Batch %1 / %2</source>
         <translation>Dávka %1 / %2</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="338"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="356"/>
         <source>Stop the batch</source>
         <translation>Zastavit dávku</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="352"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="370"/>
         <source>Follow</source>
         <translation>Sledovat</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="364"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="382"/>
         <source>Pause</source>
         <translation>Pozastavit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="378"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="396"/>
         <source>More</source>
         <translation>Další</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="386"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="404"/>
         <source>Open log file</source>
         <translation>Otevřít soubor s logem</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="391"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="409"/>
         <source>Open log folder</source>
         <translation>Otevřít složku s logy</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="398"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="416"/>
         <source>Show timestamps</source>
         <translation>Zobrazit časové značky</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="405"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="423"/>
         <source>Wrap lines</source>
         <translation>Zalamovat řádky</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="412"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="430"/>
         <source>Swap panes</source>
         <translation>Prohodit panely</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="419"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="437"/>
         <source>Stacked layout</source>
         <translation>Panely pod sebou</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="465"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="483"/>
         <source>Not connected</source>
         <translation>Nepřipojeno</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="466"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="484"/>
         <source>Connect to see the device console.</source>
         <translation>Připojte se a uvidíte konzoli zařízení.</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="467"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="485"/>
         <source>Connect</source>
         <translation>Připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="513"/>
+        <location filename="../app/gui/qml/pages/ConsolePage.qml" line="531"/>
         <source>Resize the shell and the log</source>
         <translation>Změnit velikost shellu a logu</translation>
     </message>
@@ -939,7 +938,7 @@
 <context>
     <name>FlashBar</name>
     <message>
-        <location filename="../app/gui/qml/flash/FlashBar.qml" line="63"/>
+        <location filename="../app/gui/qml/flash/FlashBar.qml" line="71"/>
         <source>Flash</source>
         <translation>Nahrát</translation>
     </message>
@@ -947,12 +946,12 @@
 <context>
     <name>FlashPage</name>
     <message>
-        <location filename="../app/gui/qml/pages/FlashPage.qml" line="105"/>
+        <location filename="../app/gui/qml/pages/FlashPage.qml" line="108"/>
         <source>Guide me</source>
         <translation>Provést mě</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/pages/FlashPage.qml" line="180"/>
+        <location filename="../app/gui/qml/pages/FlashPage.qml" line="186"/>
         <source>Choose a firmware file</source>
         <translation>Vyberte soubor s firmwarem</translation>
     </message>
@@ -1147,33 +1146,33 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="22"/>
+        <location filename="../app/gui/qml/Main.qml" line="24"/>
         <source>HARDWARIO Monitor</source>
         <translation>HARDWARIO Monitor</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="166"/>
+        <location filename="../app/gui/qml/Main.qml" line="174"/>
         <source>Close the tab?</source>
         <translation>Zavřít kartu?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="167"/>
+        <location filename="../app/gui/qml/Main.qml" line="175"/>
         <source>Cancel and close</source>
         <translation>Zrušit a zavřít</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="168"/>
-        <location filename="../app/gui/qml/Main.qml" line="178"/>
+        <location filename="../app/gui/qml/Main.qml" line="176"/>
+        <location filename="../app/gui/qml/Main.qml" line="186"/>
         <source>Keep running</source>
         <translation>Pokračovat</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="176"/>
+        <location filename="../app/gui/qml/Main.qml" line="184"/>
         <source>Quit HARDWARIO Monitor?</source>
         <translation>Ukončit HARDWARIO Monitor?</translation>
     </message>
     <message>
-        <location filename="../app/gui/qml/Main.qml" line="177"/>
+        <location filename="../app/gui/qml/Main.qml" line="185"/>
         <source>Cancel and quit</source>
         <translation>Zrušit a ukončit</translation>
     </message>
@@ -1580,45 +1579,45 @@
 <context>
     <name>Shortcuts</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="339"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="341"/>
         <source>New device tab</source>
         <translation>Nová karta zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="342"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="344"/>
         <source>Close the device tab</source>
         <translation>Zavřít kartu zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="345"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="348"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="347"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="350"/>
         <source>Next tab</source>
         <translation>Další karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="351"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="354"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="353"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="356"/>
         <source>Previous tab</source>
         <translation>Předchozí karta</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="357"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="359"/>
         <source>Settings</source>
         <translation>Nastavení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="360"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="362"/>
         <source>Connect or disconnect</source>
         <translation>Připojit nebo odpojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="363"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="365"/>
         <source>Reconnect</source>
         <translation>Znovu připojit</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="366"/>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="369"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="368"/>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="371"/>
         <source>Keyboard shortcuts</source>
         <translation>Klávesové zkratky</translation>
     </message>
@@ -3517,127 +3516,127 @@
 <context>
     <name>hwio::device</name>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="276"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="302"/>
         <source>The Bluetooth connection to %1 was lost.</source>
         <translation>Spojení Bluetooth s %1 bylo ztraceno.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="281"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="307"/>
         <source>Could not connect to %1 over Bluetooth.</source>
         <translation>K %1 se nepodařilo připojit přes Bluetooth.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="286"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="312"/>
         <source>Pairing with %1 failed.</source>
         <translation>Párování s %1 selhalo.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="342"/>
-        <location filename="../libs/device/src/device_session.cpp" line="78"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="368"/>
+        <location filename="../libs/device/src/device_session.cpp" line="79"/>
         <source>No device profile was given.</source>
         <translation>Nebyl zadán profil zařízení.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="346"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="372"/>
         <source>The device %1 has no Bluetooth console.</source>
         <translation>Zařízení %1 nemá konzoli přes Bluetooth.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="354"/>
-        <location filename="../libs/device/src/device_session.cpp" line="83"/>
-        <location filename="../libs/device/src/device_session.cpp" line="416"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="380"/>
+        <location filename="../libs/device/src/device_session.cpp" line="84"/>
+        <location filename="../libs/device/src/device_session.cpp" line="424"/>
         <source>The device %1 has no target &quot;%2&quot;.</source>
         <translation>Zařízení %1 nemá cíl &quot;%2&quot;.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="362"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="388"/>
         <source>No Bluetooth device was given.</source>
         <translation>Nebylo zadáno žádné zařízení Bluetooth.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="495"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="521"/>
         <source>A command line must not be longer than %1 bytes.</source>
         <translation>Řádek příkazu nesmí být delší než %1 bajtů.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="89"/>
-        <location filename="../libs/device/src/device_session.cpp" line="665"/>
+        <location filename="../libs/device/src/device_session.cpp" line="90"/>
+        <location filename="../libs/device/src/device_session.cpp" line="673"/>
         <source>The %1 target of %2 has no console.</source>
         <translation>Cíl %1 zařízení %2 nemá konzoli.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="95"/>
+        <location filename="../libs/device/src/device_session.cpp" line="96"/>
         <source>The J-Link speed must be between %1 and %2 kHz.</source>
         <translation>Rychlost J-Linku musí být mezi %1 a %2 kHz.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="103"/>
+        <location filename="../libs/device/src/device_session.cpp" line="104"/>
         <source>The latency must be between %1 and %2 ms.</source>
         <translation>Latence musí být mezi %1 a %2 ms.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="453"/>
+        <location filename="../libs/device/src/device_session.cpp" line="461"/>
         <location filename="../libs/device/src/flash_workflows.cpp" line="164"/>
         <source>The firmware image is empty.</source>
         <translation>Obraz firmwaru je prázdný.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="467"/>
+        <location filename="../libs/device/src/device_session.cpp" line="475"/>
         <source>The LTE bundle is incomplete.</source>
         <translation>Balíček LTE je neúplný.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="495"/>
+        <location filename="../libs/device/src/device_session.cpp" line="503"/>
         <source>No modem firmware file was given.</source>
         <translation>Nebyl zadán soubor s firmwarem modemu.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="521"/>
+        <location filename="../libs/device/src/device_session.cpp" line="529"/>
         <source>A %1 must be between 1 and %2 bytes.</source>
         <translation>%1 musí mít 1 až %2 bajtů.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="527"/>
+        <location filename="../libs/device/src/device_session.cpp" line="535"/>
         <source>With %1-bit units the address and the length must be multiples of %2.</source>
         <translation>U %1bitových jednotek musí být adresa i délka násobkem %2.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="542"/>
+        <location filename="../libs/device/src/device_session.cpp" line="550"/>
         <source>A memory read must be between 1 and %1 bytes.</source>
         <translation>Čtení paměti musí mít 1 až %1 bajtů.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="548"/>
+        <location filename="../libs/device/src/device_session.cpp" line="556"/>
         <source>memory read</source>
         <translation>Čtení paměti</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="585"/>
+        <location filename="../libs/device/src/device_session.cpp" line="593"/>
         <source>memory write</source>
         <translation>Zápis do paměti</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="619"/>
+        <location filename="../libs/device/src/device_session.cpp" line="627"/>
         <source>A flash write must be between 1 and %1 bytes.</source>
         <translation>Zápis do flash musí mít 1 až %1 bajtů.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="659"/>
+        <location filename="../libs/device/src/device_session.cpp" line="667"/>
         <source>Only a session with an open probe can be connected.</source>
         <translation>Připojit lze jen relaci s otevřeným J-Linkem.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="686"/>
+        <location filename="../libs/device/src/device_session.cpp" line="694"/>
         <source>Operation %1 is not running.</source>
         <translation>Operace %1 neprobíhá.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/device_session.cpp" line="117"/>
+        <location filename="../libs/device/src/device_session.cpp" line="118"/>
         <source>At this J-Link speed the console may not be found within %1 s. Use auto or %2 kHz or more.</source>
         <translation>Při této rychlosti J-Linku nemusí být konzole nalezena do %1 s. Použijte auto nebo alespoň %2 kHz.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/console_session.cpp" line="167"/>
+        <location filename="../libs/device/src/console_session.cpp" line="176"/>
         <source>The device did not connect in time.</source>
         <translation>Zařízení se nepřipojilo včas.</translation>
     </message>
@@ -3670,97 +3669,97 @@
         <translation>J-Link %1 už tato aplikace používá.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="339"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="1312"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="362"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1335"/>
         <location filename="../libs/diag/src/environment.cpp" line="297"/>
         <source>The J-Link firmware is newer than the J-Link library.</source>
         <translation>Firmware J-Linku je novější než knihovna J-Link.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="384"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="1596"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="407"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1619"/>
         <source>RTT buffer &quot;%1&quot; not found; the device log is not shown.</source>
         <translation>Vyrovnávací paměť RTT &quot;%1&quot; nebyla nalezena; log zařízení se nezobrazí.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="608"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="1332"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="631"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1355"/>
         <source>The device has no power (%1 mV).</source>
         <translation>Zařízení nemá napájení (%1 mV).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/ble_session.cpp" line="261"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="626"/>
+        <location filename="../libs/device/src/ble_session.cpp" line="287"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="649"/>
         <source>Wait for the console to reconnect.</source>
         <translation>Počkejte, až se konzole znovu připojí.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1210"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="1290"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="1393"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="1397"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="1491"/>
-        <location filename="../libs/device/src/session_worker.cpp" line="1562"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1233"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1313"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1416"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1420"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1514"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1585"/>
         <source>Cancelled</source>
         <translation>Zrušeno</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1215"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1238"/>
         <source>Not checked</source>
         <translation>Nezkontrolováno</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1228"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1251"/>
         <source>Not checked: the time for the checks ran out</source>
         <translation>Nezkontrolováno: čas na kontroly vypršel</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1387"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1410"/>
         <source>Not measured by this J-Link</source>
         <translation>Tento J-Link napětí neměří</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1414"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1437"/>
         <source>Only the debug port answers</source>
         <translation>Odpovídá jen ladicí port</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1425"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1448"/>
         <source>Connected (SWD %1 kHz)</source>
         <translation>Připojeno (SWD %1 kHz)</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1427"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1450"/>
         <source>Connected (SWD, automatic speed)</source>
         <translation>Připojeno (SWD, automatická rychlost)</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1505"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1528"/>
         <source>%1, not protected</source>
         <translation>%1, nechráněno</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1527"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1550"/>
         <source>This MCU has no console</source>
         <translation>Tento MCU nemá konzoli</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1531"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1554"/>
         <source>Not checked: the MCU is protected</source>
         <translation>Nezkontrolováno: MCU je chráněn</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1578"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1601"/>
         <source>Found</source>
         <translation>Nalezeno</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1814"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1843"/>
         <source>Another program opened the J-Link after it was released.</source>
         <translation>Po uvolnění J-Linku jej otevřel jiný program.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1818"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1847"/>
         <source>Close the other program, then reacquire the J-Link.</source>
         <translation>Zavřete druhý program a pak J-Link znovu převezměte.</translation>
     </message>
@@ -3795,37 +3794,37 @@
         <translation>Spusťte `hwio %1 %2 recover` (vymaže MCU).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profile.cpp" line="193"/>
+        <location filename="../libs/device/src/profile.cpp" line="238"/>
         <source>The range runs past the end of the address space.</source>
         <translation>Rozsah přesahuje konec adresního prostoru.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profile.cpp" line="197"/>
+        <location filename="../libs/device/src/profile.cpp" line="242"/>
         <source>Use a shorter range or a lower address.</source>
         <translation>Použijte kratší rozsah nebo nižší adresu.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profile.cpp" line="213"/>
+        <location filename="../libs/device/src/profile.cpp" line="258"/>
         <source>The range overlaps system or debug registers of the CPU, through which a write could make the device run arbitrary code.</source>
         <translation>Rozsah zasahuje do systémových nebo ladicích registrů procesoru, přes které by zápis mohl přimět zařízení spustit libovolný kód.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profile.cpp" line="218"/>
+        <location filename="../libs/device/src/profile.cpp" line="263"/>
         <source>The range overlaps the flash controller registers, whose tasks erase flash, UICR and the product information.</source>
         <translation>Rozsah zasahuje do registrů řadiče flash, jejichž úlohy mažou flash, UICR a informace o produktu.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profile.cpp" line="251"/>
+        <location filename="../libs/device/src/profile.cpp" line="296"/>
         <source>The firmware writes into the Product Information Block (address %1).</source>
         <translation>Firmware zapisuje do bloku informací o produktu (PIB) (adresa %1).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profile.cpp" line="266"/>
+        <location filename="../libs/device/src/profile.cpp" line="311"/>
         <source>The firmware does not fit the %1 MCU (address %2).</source>
         <translation>Firmware neodpovídá MCU %1 (adresa %2).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profile.cpp" line="270"/>
+        <location filename="../libs/device/src/profile.cpp" line="315"/>
         <source>Check that the firmware is for the %1 MCU.</source>
         <translation>Zkontrolujte, že je firmware určen pro MCU %1.</translation>
     </message>
@@ -3875,58 +3874,58 @@
         <translation>Blok informací o produktu (PIB) chybí nebo je poškozený (%1).</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="89"/>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="99"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="90"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="100"/>
         <source>Cable</source>
         <translation>Kabel</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="90"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="91"/>
         <source>Connect the J-Link flat cable to the programming connector of the application MCU.</source>
         <translation>Připojte plochý kabel J-Linku k programovacímu konektoru MCU aplikace.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="100"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="101"/>
         <source>Connect the J-Link flat cable to the programming connector of the LTE MCU.</source>
         <translation>Připojte plochý kabel J-Linku k programovacímu konektoru MCU LTE.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="111"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="112"/>
         <source>Bluetooth</source>
         <translation>Bluetooth</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="112"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="113"/>
         <source>Make sure the device is powered and its Bluetooth is on.</source>
         <translation>Ověřte, že je zařízení napájené a má zapnuté Bluetooth.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="118"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="119"/>
         <source>Pairing</source>
         <translation>Párování</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="119"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="120"/>
         <source>When the system asks for the passkey, enter it in the system dialog.</source>
         <translation>Až se systém zeptá na přístupový klíč, zadejte ho do systémového dialogu.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="157"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="162"/>
         <source>application</source>
         <translation>aplikace</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="186"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="192"/>
         <source>LTE</source>
         <translation>LTE</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="219"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="231"/>
         <source>Power CHESTER with batteries or the USB-C power input.</source>
         <translation>Napájejte CHESTER z baterií nebo přes napájecí vstup USB-C.</translation>
     </message>
     <message>
-        <location filename="../libs/device/src/profiles/chester.cpp" line="228"/>
+        <location filename="../libs/device/src/profiles/chester.cpp" line="240"/>
         <source>The passkey is 123456 unless it was changed when the device was configured.</source>
         <translation>Přístupový klíč je 123456, pokud nebyl změněn při konfiguraci zařízení.</translation>
     </message>
@@ -3964,7 +3963,7 @@
 <context>
     <name>hwio::diag</name>
     <message>
-        <location filename="../libs/device/src/session_worker.cpp" line="1252"/>
+        <location filename="../libs/device/src/session_worker.cpp" line="1275"/>
         <location filename="../libs/diag/src/check.cpp" line="233"/>
         <location filename="../libs/diag/src/environment.cpp" line="202"/>
         <source>The check &quot;%1&quot; did not finish in time.</source>
@@ -4178,9 +4177,9 @@
 <context>
     <name>hwio::gui::AppViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="185"/>
-        <source>Copied.</source>
-        <translation>Zkopírováno.</translation>
+        <location filename="../app/gui/src/viewmodels/app_view_model.cpp" line="999"/>
+        <source>Copied to clipboard.</source>
+        <translation>Zkopírováno do schránky.</translation>
     </message>
 </context>
 <context>
@@ -4330,91 +4329,96 @@
 <context>
     <name>hwio::gui::ConsoleViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="139"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="144"/>
         <source>another operation started on the device.</source>
         <translation>na zařízení byla spuštěna jiná operace.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="140"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="145"/>
         <source>Run the batch file again when it has finished.</source>
         <translation>Po jejím dokončení spusťte dávkový soubor znovu.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="201"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="206"/>
         <source>the device disconnected.</source>
         <translation>zařízení se odpojilo.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="202"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="207"/>
         <source>Reconnect and run the batch file again.</source>
         <translation>Znovu se připojte a spusťte dávkový soubor znovu.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="216"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="221"/>
         <source>The batch stopped after %1 of %2 commands.</source>
         <translation>Dávka se zastavila po %1 z %2 příkazů.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="229"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="234"/>
         <source>The device was reset and halted.</source>
         <translation>Zařízení bylo resetováno a zastaveno.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="230"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="235"/>
         <source>The device was reset.</source>
         <translation>Zařízení bylo resetováno.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="307"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="312"/>
         <source>%1 — the console resumes automatically</source>
         <translation>%1 — konzole se obnoví automaticky</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="310"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="315"/>
         <source>This target has no console</source>
         <translation>Tento cíl nemá konzoli</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="313"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="318"/>
         <source>Connecting…</source>
         <translation>Připojování…</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="315"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="320"/>
         <source>Not connected</source>
         <translation>Nepřipojeno</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="662"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="671"/>
         <source>The file could not be saved.</source>
         <translation>Soubor se nepodařilo uložit.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="663"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="672"/>
         <source>the folder is not writable or the disk is full.</source>
         <translation>do složky nelze zapisovat nebo je disk plný.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="664"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="673"/>
         <source>Choose another folder.</source>
         <translation>Vyberte jinou složku.</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="681"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="693"/>
         <source>The view was saved to %1.</source>
         <translation>Výpis byl uložen do %1.</translation>
     </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="722"/>
+        <source>Sends each line of a UTF-8 text file to the device as a shell command, one line every %1 ms. Empty lines and lines starting with # are skipped. At most %2 commands, %3 MiB per file and %4 bytes per line.</source>
+        <translation>Odešle každý řádek textového souboru v UTF-8 do zařízení jako příkaz shellu, jeden řádek každých %1 ms. Prázdné řádky a řádky začínající znakem # se přeskočí. Nejvýše %2 příkazů, %3 MiB na soubor a %4 bajtů na řádek.</translation>
+    </message>
     <message numerus="yes">
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="694"/>
-        <source>Only the first %Ln lines were copied (copy limit).</source>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="749"/>
+        <source>Copied the first %n lines to the clipboard (copy limit).</source>
         <translation>
-            <numerusform>Zkopírován byl jen první %Ln řádek (limit kopírování).</numerusform>
-            <numerusform>Zkopírovány byly jen první %Ln řádky (limit kopírování).</numerusform>
-            <numerusform>Zkopírováno bylo jen prvních %Ln řádků (limit kopírování).</numerusform>
+            <numerusform>Do schránky byl zkopírován první %n řádek (limit kopírování).</numerusform>
+            <numerusform>Do schránky byly zkopírovány první %n řádky (limit kopírování).</numerusform>
+            <numerusform>Do schránky bylo zkopírováno prvních %n řádků (limit kopírování).</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="709"/>
+        <location filename="../app/gui/src/viewmodels/console_view_model.cpp" line="764"/>
         <source>There is no console log file for this device yet.</source>
         <translation>Pro toto zařízení zatím neexistuje soubor s logem konzole.</translation>
     </message>
@@ -4450,36 +4454,54 @@
 <context>
     <name>hwio::gui::DeviceTabViewModel</name>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="104"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="105"/>
         <source>New device</source>
         <translation>Nové zařízení</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="339"/>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="403"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="351"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="412"/>
         <source>— disconnected: %1 —</source>
         <translation>— odpojeno: %1 —</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="353"/>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="404"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="365"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="413"/>
         <source>— disconnected —</source>
         <translation>— odpojeno —</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="392"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="405"/>
         <source>— connected —</source>
         <translation>— připojeno —</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="491"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="493"/>
         <source>— paused: %1 —</source>
         <translation>— pozastaveno: %1 —</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="504"/>
+        <location filename="../app/gui/src/viewmodels/device_tab_view_model.cpp" line="506"/>
         <source>— resumed —</source>
         <translation>— obnoveno —</translation>
+    </message>
+</context>
+<context>
+    <name>hwio::gui::FileErrors</name>
+    <message>
+        <location filename="../app/gui/src/viewmodels/error_info.cpp" line="71"/>
+        <source>The file could not be saved.</source>
+        <translation>Soubor se nepodařilo uložit.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/error_info.cpp" line="73"/>
+        <source>Only folders on this computer can be used.</source>
+        <translation>Lze použít jen složky na tomto počítači.</translation>
+    </message>
+    <message>
+        <location filename="../app/gui/src/viewmodels/error_info.cpp" line="77"/>
+        <source>Choose a folder on this computer.</source>
+        <translation>Vyberte složku na tomto počítači.</translation>
     </message>
 </context>
 <context>
@@ -5079,14 +5101,9 @@
 <context>
     <name>hwio::gui::ReportViewModel</name>
     <message>
-        <location filename="../app/gui/src/wizard/report_view_model.cpp" line="51"/>
+        <location filename="../app/gui/src/wizard/report_view_model.cpp" line="50"/>
         <source>Diagnostic report saved.</source>
         <translation>Diagnostická zpráva byla uložena.</translation>
-    </message>
-    <message>
-        <location filename="../app/gui/src/wizard/report_view_model.cpp" line="105"/>
-        <source>Summary copied.</source>
-        <translation>Shrnutí zkopírováno.</translation>
     </message>
 </context>
 <context>
@@ -5153,11 +5170,6 @@
         <source>nRF Util: %1</source>
         <translation>nRF Util: %1</translation>
     </message>
-    <message>
-        <location filename="../app/gui/src/viewmodels/settings_view_model.cpp" line="468"/>
-        <source>Copied.</source>
-        <translation>Zkopírováno.</translation>
-    </message>
 </context>
 <context>
     <name>hwio::gui::UpdateViewModel</name>
@@ -5187,12 +5199,12 @@
 <context>
     <name>hwio::gui::WizardViewModel</name>
     <message>
-        <location filename="../app/gui/src/wizard/wizard_view_model.cpp" line="153"/>
+        <location filename="../app/gui/src/wizard/wizard_view_model.cpp" line="154"/>
         <source>Step %1 of %2 · %3</source>
         <translation>Krok %1 z %2 · %3</translation>
     </message>
     <message>
-        <location filename="../app/gui/src/wizard/wizard_view_model.cpp" line="167"/>
+        <location filename="../app/gui/src/wizard/wizard_view_model.cpp" line="168"/>
         <source>Step %1 of %2, %3</source>
         <translation>Krok %1 z %2, %3</translation>
     </message>

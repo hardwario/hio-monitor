@@ -10,6 +10,11 @@ import QtQuick.Controls.Material
 ToolTip {
     id: tip
 
+    // Plan 0028 (ADR-0203): long texts wrap at this content width (design system: 360 px).
+    property real maxContentWidth: 360
+
+    width: Math.min(tip.implicitWidth, tip.maxContentWidth + tip.leftPadding + tip.rightPadding)
+
     contentItem: Text {
         text: tip.text
         textFormat: Text.PlainText

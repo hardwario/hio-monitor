@@ -26,6 +26,7 @@
 
 #include "hwio/core/bounded_queue.h"
 #include "hwio/core/error.h"
+#include "hwio/core/firmware_identity.h"
 #include "hwio/core/result.h"
 #include "hwio/hw/ble/ble_api.h"
 #include "hwio/hw/ble/event_channel.h"
@@ -123,8 +124,16 @@ struct StopLink {
     Error error;
 };
 
+// Plan 0028 (ADR-0200): passes the owner's firmware identity to the link's handler
+// (ILinkHandler::onFirmwareIdentity) on the BLE thread; ignored for an unknown client.
+struct SetFirmwareIdentity {
+    ClientId client = 0;
+    std::optional<FirmwareIdentity> identity;
+    std::uint64_t attach = 0;
+};
+
 using BleCommand = std::variant<StartScan, StopScan, OpenLink, ConnectLink, SendLine, CloseLink,
-                                PairDevice, QueryAdapter, StopLink>;
+                                PairDevice, QueryAdapter, StopLink, SetFirmwareIdentity>;
 
 namespace detail {
 struct HostShared;

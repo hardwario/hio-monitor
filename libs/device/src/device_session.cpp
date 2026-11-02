@@ -11,6 +11,7 @@
 #include "hwio/device/console_line.h"
 #include "hwio/device/console_log.h"
 #include "hwio/device/console_session.h"
+#include "hwio/device/firmware_identity.h"
 #include "hwio/device/operation.h"
 #include "hwio/device/probe_lock.h"
 #include "hwio/device/profile.h"
@@ -185,16 +186,20 @@ nrfutil::LocatorOptions nrfUtilLocator(const SessionOptions& options) {
     return nrfutil::defaultLocatorOptions(std::nullopt, settings ? &*settings : nullptr);
 }
 
-bool SessionInternals::takeQueuedResult() {
+bool SessionInternals::takeQueuedResult(std::filesystem::path& consoleFile) {
+    bool found = false;
     while (auto event = events.pop({}, std::chrono::milliseconds(0))) {
-        if (auto* finishedEvent = std::get_if<OperationFinishedEvent>(&*event);
-            finishedEvent != nullptr && runningOperation == finishedEvent->id) {
+        if (auto* changed = std::get_if<ConsoleFileChanged>(&*event)) {
+            consoleFile = std::move(changed->file);
+        } else if (auto* finishedEvent = std::get_if<OperationFinishedEvent>(&*event);
+                   finishedEvent != nullptr && runningOperation &&
+                   runningOperation == finishedEvent->id) {
             runningOperation.reset();
             lastFinished = std::pair(finishedEvent->id, std::move(finishedEvent->result));
-            return true;
+            found = true;
         }
     }
-    return false;
+    return found;
 }
 
 std::optional<OperationResult> SessionInternals::finished(const DeviceSession& session,
@@ -354,7 +359,10 @@ void DeviceSession::closeNow() {
     // result (success or a real error) wins over a synthesized one. Review R4: otherwise the
     // operation ends as cancelled (or internal.unexpected when the worker died). No signal after
     // close(); waitForOperation() / finishedResult() pick the result up.
-    if (m_internals->runningOperation && !m_internals->takeQueuedResult()) {
+    // Plan 0028 (U3): the queue is drained in any case, so consoleFile() names the final file
+    // (e.g. renamed just before the close).
+    const bool hadOperation = m_internals->runningOperation.has_value();
+    if (!m_internals->takeQueuedResult(m_consoleFile) && hadOperation) {
         (void)m_internals->abandonRunning(
             m_internals->workerFailed.load()
                 ? makeError(ErrorCode::InternalUnexpected, "the session worker died")
@@ -718,6 +726,13 @@ Status DeviceSession::setRttAddress(std::optional<std::uint32_t> address) {
     return post(*m_internals, m_closed, detail::SetRttAddressCommand{.address = address});
 }
 
+Status DeviceSession::setFirmwareIdentity(std::optional<FirmwareIdentity> identity,
+                                          std::uint64_t attach) {
+    return post(
+        *m_internals, m_closed,
+        detail::SetFirmwareIdentityCommand{.identity = std::move(identity), .attach = attach});
+}
+
 const ConsoleLog& DeviceSession::log() const { return *m_internals->log; }
 
 jlink::ProbeInfo DeviceSession::probe() const { return m_probe; }
@@ -811,6 +826,10 @@ void DeviceSession::drainEvents() {
                 [&](detail::ProbeIdentified& identified) { m_probe = std::move(identified.probe); },
                 [&](detail::ConsoleFileChanged& changed) {
                     m_consoleFile = std::move(changed.file);
+                },
+                [&](detail::IdentityAdopted& adopted) {
+                    flushBatch();
+                    setAdoptedIdentity(std::move(adopted.identity));
                 },
                 [&](const detail::OperationProgressEvent& item) {
                     flushBatch();

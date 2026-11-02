@@ -75,6 +75,9 @@ Item {
                     contentWidth: availableWidth
 
                     ColumnLayout {
+                        id: formColumn
+
+                        objectName: "flashForm"
                         x: Math.max(Theme.spacingXl, (scroll.availableWidth - width) / 2)
                         width: Math.min(880, scroll.availableWidth - 2 * Theme.spacingXl)
                         spacing: Theme.spacingM
@@ -161,6 +164,9 @@ Item {
                     Layout.fillWidth: true
                     visible: !page.running && !page.showResult
                     vm: page.model
+                    // ADR-0204 (D22): the same column as the form (also with a scroll bar).
+                    columnX: scroll.leftPadding + formColumn.x
+                    columnWidth: formColumn.width
                 }
             }
         }

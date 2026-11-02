@@ -23,6 +23,8 @@
 #include <QVariantMap>
 #include <QtQmlIntegration>
 
+#include <functional>
+
 namespace hwio::gui {
 
 class DeviceTabViewModel;
@@ -52,7 +54,10 @@ class WizardViewModel : public QObject {
     Q_PROPERTY(bool closing READ closing NOTIFY changed) // waiting for a cancelled operation
 
 public:
-    explicit WizardViewModel(const WizardRegistry& registry, QObject* parent = nullptr);
+    // `copy` (plan 0028, ADR-0202): AppViewModel::copyToClipboard (clipboard + toast); empty =
+    // CommandBlock [Copy] does nothing (tests).
+    explicit WizardViewModel(const WizardRegistry& registry, QObject* parent = nullptr,
+                             std::function<void(const QString&)> copy = {});
     ~WizardViewModel() override;
     WizardViewModel(const WizardViewModel&) = delete;
     WizardViewModel& operator=(const WizardViewModel&) = delete;
@@ -108,13 +113,13 @@ signals:
     // The open wizard should come to the front (another wizard was asked for).
     void raiseRequested();
     void handOff(const QString& action, hwio::gui::DeviceTabViewModel* tab);
-    void copied();
 
 private:
     void close(bool completed);
     void onWizardChanged();
 
     const WizardRegistry& m_registry;
+    std::function<void(const QString&)> m_copy;
     QPointer<Wizard> m_wizard; // child while open
     QPointer<DeviceTabViewModel> m_tab;
     bool m_tabBound = false;

@@ -464,8 +464,7 @@ QString SettingsViewModel::nrfUtilInstallUrl() {
 }
 
 void SettingsViewModel::copyAbout() {
-    m_app.copyToClipboard(aboutText());
-    m_app.showToast(tr("Copied."));
+    m_app.copyToClipboard(aboutText()); // + "Copied to clipboard." (ADR-0202)
 }
 
 void SettingsViewModel::retranslate() {

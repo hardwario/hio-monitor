@@ -19,6 +19,8 @@ hwio_add_backend_library(hwio_device
     include/hwio/device/console_session.h
     include/hwio/device/device_info.h
     include/hwio/device/device_session.h
+    include/hwio/device/device_info_watcher.h
+    include/hwio/device/firmware_identity.h
     include/hwio/device/line_assembler.h
     include/hwio/device/operation.h
     include/hwio/device/pib.h
@@ -32,6 +34,7 @@ hwio_add_backend_library(hwio_device
     src/ble_lock.cpp
     src/ble_session.cpp
     src/ble_session_internal.h
+    src/banner_scan.h
     src/command_capture.cpp
     src/command_history.cpp
     src/command_tree.cpp
@@ -44,6 +47,8 @@ hwio_add_backend_library(hwio_device
     src/console_session.cpp
     src/device_info.cpp
     src/device_session.cpp
+    src/device_info_watcher.cpp
+    src/firmware_identity.cpp
     src/flash_workflows.cpp
     src/flash_workflows.h
     src/line_assembler.cpp

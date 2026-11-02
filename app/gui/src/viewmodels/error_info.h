@@ -16,6 +16,7 @@
 #include <QMetaType>
 #include <QObject>
 #include <QString>
+#include <QUrl>
 #include <QtQmlIntegration>
 #include <QtTypes>
 
@@ -90,6 +91,11 @@ private:
     QString m_wizard;
     int m_primaryAction = error_action::Dismiss;
 };
+
+// Plan 0028 (D13): a save dialog returned a location that is not a local file (e.g. a network
+// URL of a portal dialog): io.write_failed "The file could not be saved." / "Only folders on this
+// computer can be used." / "Choose a folder on this computer." (translated now, ADR-0027).
+[[nodiscard]] Error nonLocalFileError(const QUrl& url);
 
 } // namespace hwio::gui
 

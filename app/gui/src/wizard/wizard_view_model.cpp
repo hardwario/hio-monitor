@@ -7,9 +7,7 @@
 #include "wizard.h"
 #include "wizard/wizard_registry.h"
 
-#include <QClipboard>
 #include <QFile>
-#include <QGuiApplication>
 #include <QLoggingCategory>
 #include <QObject>
 #include <QString>
@@ -21,12 +19,15 @@
 #include <QtContainerFwd>
 #include <QtCore/qtmetamacros.h>
 
+#include <functional>
+#include <utility>
 #include <vector>
 
 namespace hwio::gui {
 
-WizardViewModel::WizardViewModel(const WizardRegistry& registry, QObject* parent)
-    : QObject(parent), m_registry(registry) {}
+WizardViewModel::WizardViewModel(const WizardRegistry& registry, QObject* parent,
+                                 std::function<void(const QString&)> copy)
+    : QObject(parent), m_registry(registry), m_copy(std::move(copy)) {}
 
 WizardViewModel::~WizardViewModel() {
     if (m_wizard) {
@@ -246,9 +247,8 @@ void WizardViewModel::cancel(bool force) {
 }
 
 void WizardViewModel::copyText(const QString& text) {
-    if (QClipboard* clipboard = QGuiApplication::clipboard(); clipboard != nullptr) {
-        clipboard->setText(text);
-        emit copied();
+    if (m_copy) {
+        m_copy(text); // clipboard + "Copied to clipboard." (ADR-0202)
     }
 }
 

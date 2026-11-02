@@ -120,6 +120,11 @@ public:
     [[nodiscard]] const hwio::device::DeviceProfile& profile() const override { return *m_profile; }
     [[nodiscard]] std::string_view consoleTargetId() const override { return "app"; }
     [[nodiscard]] std::filesystem::path consoleFile() const override { return {}; }
+    [[nodiscard]] hwio::Status
+    setFirmwareIdentity(std::optional<hwio::device::FirmwareIdentity> /*identity*/,
+                        std::uint64_t /*attach*/) override {
+        return {};
+    }
 
     // Appends lines to the log and emits them as one batch (like the real sessions).
     // A silent shell capture (plan 0021) takes its lines first, like in the real sessions.

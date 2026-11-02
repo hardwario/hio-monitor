@@ -26,6 +26,29 @@ TEST(Profiles, ChesterIsRegistered) {
     EXPECT_EQ(ProfileRegistry::all().front(), chester);
 }
 
+// Plan 0028 (review round 1, R8): console file names are split at '-' (the retention's session
+// key, ADR-0200): no registered profile id contains one (also a static_assert in chester.cpp).
+TEST(Profiles, NoProfileIdContainsADash) {
+    for (const hwio::device::DeviceProfile* profile : ProfileRegistry::all()) {
+        ASSERT_NE(profile, nullptr);
+        EXPECT_EQ(profile->id.find('-'), std::string_view::npos) << profile->id;
+        EXPECT_FALSE(profile->id.empty());
+    }
+}
+
+// Plan 0028 (U2): the secrets `info show` prints are the CHESTER app's sensitive output keys.
+TEST(Profiles, ChesterSensitiveOutputKeys) {
+    const auto keys = hwio::device::sensitiveOutputKeysOf("chester", "app");
+    ASSERT_EQ(keys.size(), 2U);
+    EXPECT_TRUE(hwio::device::matchSensitiveOutput("claim token: x", keys));
+    EXPECT_TRUE(hwio::device::matchSensitiveOutput("ble-passkey: 1", keys));
+    EXPECT_EQ(hwio::device::matchSensitiveOutput(" Claim Token : x", keys).value_or(""),
+              "Claim Token");
+    EXPECT_FALSE(hwio::device::matchSensitiveOutput("serial number: 1", keys));
+    EXPECT_FALSE(hwio::device::matchSensitiveOutput("claim token", keys));
+    EXPECT_TRUE(hwio::device::sensitiveOutputKeysOf("chester", "lte").empty());
+}
+
 TEST(Profiles, ChesterAppTarget) {
     const auto* app = hwio::device::findTarget(*ProfileRegistry::find("chester"), "app");
     ASSERT_NE(app, nullptr);

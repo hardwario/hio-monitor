@@ -151,6 +151,9 @@ TEST_F(SettingsTest, DependencyDetection) {
     EXPECT_EQ(settings().nrfUtilStatusText(),
               QStringLiteral("Not found — needed only for LTE modem firmware"));
     EXPECT_TRUE(settings().aboutText().contains(QStringLiteral("J-Link Software: 8.10")));
+    // Plan 0028 (ADR-0202): Copy shows the unified toast once.
+    settings().copyAbout();
+    EXPECT_EQ(app().toasts().count(QStringLiteral("Copied to clipboard.")), 1);
 
     // With nRF Util (the fake).
     qputenv("HWIO_NRFUTIL", QByteArray(HWIO_FAKE_NRFUTIL));
