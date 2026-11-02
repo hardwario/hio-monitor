@@ -6,6 +6,8 @@
 #include <QDir>
 #include <QLatin1Char>
 #include <QRegularExpression>
+#include <QRegularExpressionMatch>
+#include <QRegularExpressionMatchIterator>
 #include <QString>
 #include <QStringList>
 #include <QSysInfo>
@@ -25,9 +27,11 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace hwio::diag {
 
@@ -121,21 +125,26 @@ QString accountName() {
     return {};
 }
 
-// ADR-0186 (review M-4e, R2): values of secret-looking names, in the forms
+// ADR-0186 (review M-4e, R2, S1, S3): values of secret-looking names, in the forms
 //   name=value, name: value, name = "two words"   -> name=<redacted>
 //   "name":"value", "name": 123 (JSON)           -> "name":"<redacted>", "name": <redacted>
-// where the name ends in password, passwd, token, secret, key or psk (any case).
+// where the name ends in password, passwd, token, secret, key or psk (any case). A quoted value
+// ends at its line (an unclosed quote never spans lines) and is matched possessively, so a long
+// unterminated quote cannot make PCRE2 give up (review S1: QString::replace would then silently
+// stop and leave later secrets). A bare JSON value never starts with '{' or '[' (an object or an
+// array is not a secret value and must stay intact, review S3).
 std::string redactNamedSecrets(QString text) {
     static const QRegularExpression jsonQuoted(
-        QStringLiteral(R"re((password|passwd|token|secret|key|psk)"(\s*:\s*)"(?:[^"\\]|\\.)*")re"),
+        QStringLiteral(
+            R"re((password|passwd|token|secret|key|psk)"(\s*+:\s*+)"(?:[^"\\\n]++|\\.)*+")re"),
         QRegularExpression::CaseInsensitiveOption);
     static const QRegularExpression jsonBare(
         QStringLiteral(
-            R"re((password|passwd|token|secret|key|psk)"(\s*:\s*)[^\s,}\]"][^\s,}\]]*)re"),
+            R"re((password|passwd|token|secret|key|psk)"(\s*+:\s*+)[^\s,}\]"{\[][^\s,}\]]*+)re"),
         QRegularExpression::CaseInsensitiveOption);
     static const QRegularExpression plain(
         QStringLiteral(
-            R"re((password|passwd|token|secret|key|psk)\s*[=:]\s*("(?:[^"\\]|\\.)*"|\S+))re"),
+            R"re((password|passwd|token|secret|key|psk)\s*+[=:]\s*+("(?:[^"\\\n]++|\\.)*+"|\S++))re"),
         QRegularExpression::CaseInsensitiveOption);
     text.replace(jsonQuoted, QStringLiteral("\\1\"\\2\"<redacted>\""));
     text.replace(jsonBare, QStringLiteral("\\1\"\\2<redacted>"));
@@ -143,10 +152,12 @@ std::string redactNamedSecrets(QString text) {
     return text.toStdString();
 }
 
-// Review R2: the arguments of the profiles' sensitive shell commands (ADR-0186), wherever such a
-// command appears (console lines, the MCP activity log, JSON strings): "lrw config appkey 00ff"
-// -> "lrw config appkey <redacted>". Words are separated by spaces or tabs; case-sensitive like
-// the profile match.
+// Review R2, S2: the arguments of the profiles' sensitive shell commands (ADR-0186), wherever such
+// a command appears (console lines, the MCP activity log, JSON strings). Everything after the
+// prefix is redacted: to the end of the line, or, when the command stands inside a JSON string
+// (an odd number of unescaped quotes before it on its line), to the end of that string (the next
+// unescaped quote; escaped quotes \" belong to the argument). Words are separated by spaces or
+// tabs; case-sensitive like the profile match.
 const QRegularExpression& sensitiveCommandPattern() {
     static const QRegularExpression pattern = [] {
         QStringList alternatives;
@@ -166,15 +177,72 @@ const QRegularExpression& sensitiveCommandPattern() {
         if (alternatives.isEmpty()) {
             return QRegularExpression(QStringLiteral("(?!)")); // matches nothing
         }
-        return QRegularExpression(QStringLiteral(R"re((?<![\w-])(%1)([ \t]+)[^\s"\\]+)re")
+        return QRegularExpression(QStringLiteral(R"re((?<![\w-])(?:%1)[ \t]++)re")
                                       .arg(alternatives.join(QLatin1Char('|'))));
     }();
     return pattern;
 }
 
+// True when `position` lies inside a JSON string: an odd number of unescaped quotes between the
+// start of its line and `position`.
+bool insideJsonString(const QString& text, qsizetype position) {
+    qsizetype lineStart = text.lastIndexOf(QLatin1Char('\n'), position - 1) + 1;
+    bool inside = false;
+    for (qsizetype i = lineStart; i < position; ++i) {
+        if (text.at(i) == QLatin1Char('\\')) {
+            ++i; // the escaped character
+        } else if (text.at(i) == QLatin1Char('"')) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
+// The end of a sensitive command's arguments that start at `start` (see above).
+qsizetype argumentsEnd(const QString& text, qsizetype start, bool inJsonString) {
+    qsizetype i = start;
+    while (i < text.size() && text.at(i) != QLatin1Char('\n') && text.at(i) != QLatin1Char('\r')) {
+        if (inJsonString && text.at(i) == QLatin1Char('\\')) {
+            i += 2; // an escape sequence, e.g. \" inside the JSON string
+            continue;
+        }
+        if (inJsonString && text.at(i) == QLatin1Char('"')) {
+            break;
+        }
+        ++i;
+    }
+    return std::min(i, text.size());
+}
+
+void redactSensitiveCommands(QString& text) {
+    struct Span {
+        qsizetype start;
+        qsizetype end;
+    };
+    std::vector<Span> spans; // bounded by the matches in the text
+    QRegularExpressionMatchIterator it = sensitiveCommandPattern().globalMatch(text);
+    qsizetype covered = 0;
+    while (it.hasNext()) {
+        const QRegularExpressionMatch match = it.next();
+        const qsizetype start = match.capturedEnd();
+        if (start < covered) {
+            continue; // inside arguments already redacted
+        }
+        const qsizetype end =
+            argumentsEnd(text, start, insideJsonString(text, match.capturedStart()));
+        if (end > start) {
+            spans.push_back(Span{.start = start, .end = end});
+            covered = end;
+        }
+    }
+    for (const Span& span : std::views::reverse(spans)) { // from the end: earlier spans stay valid
+        text.replace(span.start, span.end - span.start, QStringLiteral("<redacted>"));
+    }
+}
+
 std::string redactSecrets(std::string_view text) {
     QString result = QString::fromUtf8(text.data(), static_cast<qsizetype>(text.size()));
-    result.replace(sensitiveCommandPattern(), QStringLiteral("\\1\\2<redacted>"));
+    redactSensitiveCommands(result);
     return redactNamedSecrets(std::move(result));
 }
 

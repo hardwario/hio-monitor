@@ -76,11 +76,46 @@ TEST(Redact, SecretValuesInJsonAndShellCommands) {
     EXPECT_EQ(redact("12:00 < lrw config appkey 00112233445566778899aabbccddeeff", posix),
               "12:00 < lrw config appkey <redacted>");
     EXPECT_EQ(redact("uart:~$ lrw  config\tnwkskey 0011 x", posix),
-              "uart:~$ lrw  config\tnwkskey <redacted> x");
+              "uart:~$ lrw  config\tnwkskey <redacted>");
     EXPECT_EQ(redact("ble config passkey 123456\nlrw config show", posix),
               "ble config passkey <redacted>\nlrw config show");
     EXPECT_EQ(redact("lrw config appkeys 00", posix), "lrw config appkeys 00");
     EXPECT_EQ(redact("xlrw config appkey 00", posix), "xlrw config appkey 00");
+}
+
+// Review S2: everything after a sensitive command, to the end of the line or of the JSON string.
+TEST(Redact, SensitiveCommandArgumentsToTheEnd) {
+    EXPECT_EQ(redact("lte config password my secret", posix), "lte config password <redacted>");
+    EXPECT_EQ(redact("lte config password \"my secret\"\nnext", posix),
+              "lte config password <redacted>\nnext");
+    EXPECT_EQ(redact(R"({"command":"lte config password \"x y\"","n":1})", posix),
+              R"({"command":"lte config password <redacted>","n":1})");
+}
+
+// Review S3: a JSON object or array after a secret-looking name stays intact.
+TEST(Redact, JsonObjectsAreNotValues) {
+    EXPECT_EQ(redact(R"({"publicKey": {"x": 1}, "keys": [1, 2]})", posix),
+              R"({"publicKey": {"x": 1}, "keys": [1, 2]})");
+}
+
+// Review S1: a long unterminated quote neither stops the redaction of later secrets nor spans
+// lines (PCRE2 must not hit its stack limit; also with a multi-MB input).
+TEST(Redact, LongUnterminatedQuoteDoesNotStopTheRedaction) {
+    for (const std::size_t length : {std::size_t{40000}, std::size_t{3} * 1024 * 1024}) {
+        const std::string input = "psk=FIRST lte config password SECRET3\ntoken: \"" +
+                                  std::string(length, 'a') + "x\" more\nlater password=SECRET2\n";
+        const std::string output = redact(input, posix);
+        EXPECT_EQ(output.find("FIRST"), std::string::npos) << length;
+        EXPECT_EQ(output.find("SECRET3"), std::string::npos) << length;
+        EXPECT_EQ(output.find("SECRET2"), std::string::npos) << length;
+        EXPECT_NE(output.find("later password=<redacted>\n"), std::string::npos) << length;
+        // A quote that is never closed ends at its line.
+        const std::string open =
+            "token: \"" + std::string(length, 'b') + "\nlater secret=SECRET4\n";
+        const std::string redacted = redact(open, posix);
+        EXPECT_EQ(redacted.find("SECRET4"), std::string::npos) << length;
+        EXPECT_EQ(redacted, "token=<redacted>\nlater secret=<redacted>\n") << length;
+    }
 }
 
 // ADR-0186: without USER the account of the effective uid is redacted (Unix).
