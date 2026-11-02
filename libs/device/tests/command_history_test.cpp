@@ -168,6 +168,30 @@ TEST_F(History, SavesKeepTheFileOwnerOnly) {
 }
 #endif
 
+// Review S4: secrets already in an old file are removed from the disk when it is opened, also
+// when nothing is recorded afterwards (and under the file's lock).
+TEST_F(History, OldSecretsAreRemovedFromTheFileOnOpen) {
+    fs::create_directories(file().parent_path());
+    std::ofstream(file()) << "version\nlte config password hunter2\nstatus\n";
+    {
+        auto history =
+            CommandHistory::open(file(), hwio::device::sensitivePrefixesOf("chester", "app"));
+        ASSERT_TRUE(history);
+        EXPECT_EQ(fileLines(), (std::vector<std::string>{"version", "status"}));
+    }
+    EXPECT_EQ(fileLines(), (std::vector<std::string>{"version", "status"}));
+    // A file without such entries is left alone (not rewritten).
+    const auto before = fs::last_write_time(file());
+    fs::last_write_time(file(), before - std::chrono::hours(1));
+    const auto older = fs::last_write_time(file());
+    {
+        auto history =
+            CommandHistory::open(file(), hwio::device::sensitivePrefixesOf("chester", "app"));
+        ASSERT_TRUE(history);
+    }
+    EXPECT_EQ(fs::last_write_time(file()), older);
+}
+
 // Review R12: a history file whose lock another process holds is not deleted.
 TEST_F(History, ClearAllRespectsTheFileLock) {
     const fs::path directory = file().parent_path();

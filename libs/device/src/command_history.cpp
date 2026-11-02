@@ -57,15 +57,21 @@ bool isStorable(std::string_view entry) {
            entry.find_first_of("\r\n") == std::string_view::npos;
 }
 
+struct LoadedEntries {
+    std::deque<std::string> entries;  // <= CommandHistory::maxEntries
+    bool droppedUnrecordable = false; // the file holds entries that must not be recorded
+};
+
 // The entries stored in `file` (missing file = none); entries that must not be recorded
-// (CommandHistory::isRecordable, e.g. written by an older version) are dropped (review R3).
-// Errors: io.read_failed.
-Result<std::deque<std::string>> readEntries(const fs::path& file,
-                                            std::span<const std::string_view> sensitivePrefixes) {
-    std::deque<std::string> entries;
+// (CommandHistory::isRecordable, e.g. written by an older version) are dropped (review R3) and
+// reported (review S4). Errors: io.read_failed.
+Result<LoadedEntries> readEntries(const fs::path& file,
+                                  std::span<const std::string_view> sensitivePrefixes) {
+    LoadedEntries loaded;
+    std::deque<std::string>& entries = loaded.entries;
     QFile input(toQString(toUtf8(file)));
     if (!input.exists()) {
-        return entries;
+        return loaded;
     }
     if (!input.open(QIODevice::ReadOnly)) {
         return std::unexpected(makeError(ErrorCode::IoReadFailed,
@@ -84,11 +90,16 @@ Result<std::deque<std::string>> readEntries(const fs::path& file,
             line.chop(1);
         }
         std::string entry = line.toStdString();
-        if (isStorable(entry) && CommandHistory::isRecordable(entry, sensitivePrefixes)) {
-            appendEntry(entries, std::move(entry));
+        if (!isStorable(entry)) {
+            continue;
         }
+        if (!CommandHistory::isRecordable(entry, sensitivePrefixes)) {
+            loaded.droppedUnrecordable = true;
+            continue;
+        }
+        appendEntry(entries, std::move(entry));
     }
-    return entries;
+    return loaded;
 }
 
 } // namespace
@@ -109,11 +120,19 @@ Result<CommandHistory> CommandHistory::open(fs::path file,
     if (QFile existing(toQString(toUtf8(history.m_file))); existing.exists()) {
         detail::restrictToOwner(existing);
     }
-    auto entries = readEntries(history.m_file, history.m_sensitivePrefixes);
-    if (!entries) {
-        return std::unexpected(std::move(entries).error());
+    auto loaded = readEntries(history.m_file, history.m_sensitivePrefixes);
+    if (!loaded) {
+        return std::unexpected(std::move(loaded).error());
     }
-    history.m_entries = std::move(*entries);
+    history.m_entries = std::move(loaded->entries);
+    // Review S4: secrets already in the file are removed from the disk at once (also when nothing
+    // is recorded): the file is rewritten, under its lock, without them.
+    if (loaded->droppedUnrecordable) {
+        if (const Status rewritten = history.writeFile(); !rewritten) {
+            qCWarning(log::lcDevice).noquote()
+                << "Command history not cleaned:" << toQString(rewritten.error().detail);
+        }
+    }
     return history;
 }
 
@@ -197,6 +216,10 @@ Status CommandHistory::save() {
     if (m_pending.empty()) {
         return {};
     }
+    return writeFile();
+}
+
+Status CommandHistory::writeFile() {
     std::error_code ec;
     fs::create_directories(m_file.parent_path(), ec);
     QLockFile lock(toQString(toUtf8(m_file)) + QStringLiteral(".lock"));
@@ -206,14 +229,15 @@ Status CommandHistory::save() {
             << toQString(toUtf8(m_file));
         return {};
     }
-    auto merged = readEntries(m_file, m_sensitivePrefixes);
-    if (!merged) {
+    std::deque<std::string> merged;
+    if (auto loaded = readEntries(m_file, m_sensitivePrefixes)) {
+        merged = std::move(loaded->entries);
+    } else {
         // An unreadable file is replaced by our entries rather than blocking every save.
-        qCWarning(log::lcDevice).noquote() << toQString(merged.error().detail);
-        merged = std::deque<std::string>{};
+        qCWarning(log::lcDevice).noquote() << toQString(loaded.error().detail);
     }
     for (const std::string& entry : m_pending) {
-        appendEntry(*merged, entry);
+        appendEntry(merged, entry);
     }
 
     // Review R9: QSaveFile creates its temporary file 0600 when the target exists (and then copies
@@ -236,7 +260,7 @@ Status CommandHistory::save() {
             ErrorCode::IoWriteFailed, toUtf8(m_file) + ": " + output.errorString().toStdString()));
     }
     detail::restrictToOwner(output); // ADR-0186: the temporary file too, before any write
-    for (const std::string& entry : *merged) {
+    for (const std::string& entry : merged) {
         output.write(entry.data(), static_cast<qint64>(entry.size()));
         output.write("\n", 1);
     }

@@ -16,9 +16,10 @@
 // ADR-0186 (plan/features/0025): an entry that starts with a space or matches one of the sensitive
 // command prefixes of the console's target (TargetProfile::sensitiveCommandPrefixes) is never
 // stored (isRecordable); entries of older files that break this rule are dropped when the file is
-// read (review R3). The file is owner-only (0600 on Unix: created so, tightened on open() and on
-// every save; Windows: the per-user AppData ACL). Whether commands are recorded at all is the
-// setting rememberCommandsSetting, checked by the callers (GUI and CLI console).
+// read (review R3), and such a file is rewritten without them at once (review S4). The file is
+// owner-only (0600 on Unix: created so, tightened on open() and on every save; Windows: the
+// per-user AppData ACL). Whether commands are recorded at all is the setting
+// rememberCommandsSetting, checked by the callers (GUI and CLI console).
 //
 // Thread safety: none; one owner thread (the CLI / GUI thread).
 
@@ -93,6 +94,10 @@ public:
 
 private:
     CommandHistory(std::filesystem::path file, std::span<const std::string_view> sensitivePrefixes);
+    // Merges the file and the pending entries under the file lock and writes them (atomically,
+    // owner-only); save() without pending entries does nothing, open() calls it to remove
+    // unrecordable entries from an old file (review S4). A lock timeout is not an error.
+    [[nodiscard]] Status writeFile();
 
     std::filesystem::path m_file;
     std::span<const std::string_view> m_sensitivePrefixes; // static storage (the profiles)
