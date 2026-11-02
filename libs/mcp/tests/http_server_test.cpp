@@ -449,22 +449,44 @@ TEST_F(HttpServerTest, MalformedVersionAndSizeLimits) {
 // ADR-0188 (review M-8): a wrong token gets 401 after a constant delay and loses its connection;
 // there is no shared lockout, so other clients with the correct token are never refused.
 TEST_F(HttpServerTest, TokenFailureIsDelayedAndClosesOnlyItsConnection) {
+    // Review R13: no absolute upper bounds; the order of the answers and the lower bound of the
+    // delay are checked (both hold on slow sanitizer builds).
     Limits limits;
-    limits.authFailureDelay = 500ms; // the default is 250 ms; longer for slow sanitizer builds
+    limits.authFailureDelay = 2000ms; // longer than any echo round trip, also under sanitizers
     start(limits);
     QElapsedTimer elapsed;
     elapsed.start();
     Client wrong(port);
     wrong.send(request("POST", "{}", {{"Authorization", "Bearer wrong"}}));
-    // Meanwhile a client with the correct token is served at once.
+    // Meanwhile a client with the correct token is served, before the 401 arrives.
     EXPECT_EQ(statusOf(echo()), 200);
-    EXPECT_LT(elapsed.elapsed(), 500);
+    EXPECT_FALSE(wrong.partial().received);
     auto unauthorized = wrong.response();
     ASSERT_TRUE(unauthorized.received);
-    EXPECT_GE(elapsed.elapsed(), 500);
+    EXPECT_GE(elapsed.elapsed(), 2000); // never earlier than the delay (a precise timer)
     EXPECT_EQ(unauthorized.status, 401);
     EXPECT_EQ(unauthorized.header("connection"), "close");
     EXPECT_TRUE(wrong.waitClosed());
+}
+
+// Review R13: a client that disconnects during the delay ends its connection at once; the
+// delay timer is stopped (nothing is written to the closed connection; ASan/TSan builds check the
+// absence of use-after-close) and the server keeps serving.
+TEST_F(HttpServerTest, DisconnectDuringTheAuthDelay) {
+    Limits limits;
+    limits.authFailureDelay = 300ms;
+    start(limits);
+    {
+        Client wrong(port);
+        wrong.send(request("POST", "{}", {{"Authorization", "Bearer wrong"}}));
+        ASSERT_TRUE(runUntil([&] { return http->connectionCount() == 1; }));
+        runFor(50ms); // the request is parsed and the delay runs
+        wrong.close();
+        EXPECT_TRUE(runUntil([&] { return http->connectionCount() == 0; }));
+    }
+    runFor(500ms); // past the delay: the stopped timer does not fire on the closed connection
+    EXPECT_EQ(http->connectionCount(), 0U);
+    EXPECT_EQ(statusOf(echo()), 200);
 }
 
 TEST_F(HttpServerTest, ManyTokenFailuresNeverLockTheCorrectTokenOut) {
