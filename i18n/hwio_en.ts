@@ -23,7 +23,7 @@
 <context>
     <name>ConsoleSearchBar</name>
     <message numerus="yes">
-        <location filename="../../../app/gui/qml/console/ConsoleSearchBar.qml" line="314"/>
+        <location filename="../../../app/gui/qml/console/ConsoleSearchBar.qml" line="318"/>
         <source>%Ln matches</source>
         <translation type="unfinished">
             <numerusform></numerusform>

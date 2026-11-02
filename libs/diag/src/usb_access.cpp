@@ -154,4 +154,22 @@ std::optional<Error> usbAccessDeniedError(std::span<const UsbDeviceAccess> devic
     return makeError(ErrorCode::UsbAccessDenied, detail);
 }
 
+std::optional<Error> usbWorldAccessibleError(std::span<const UsbDeviceAccess> devices) {
+    std::string detail;
+    for (const UsbDeviceAccess& device : devices) {
+        if (!device.worldAccessible) {
+            continue;
+        }
+        if (!detail.empty()) {
+            detail += ", ";
+        }
+        detail += std::format("/dev/bus/usb/{:03}/{:03} accessible to every account", device.bus,
+                              device.device);
+    }
+    if (detail.empty()) {
+        return std::nullopt;
+    }
+    return makeError(ErrorCode::UsbWorldAccessible, detail);
+}
+
 } // namespace hwio::diag

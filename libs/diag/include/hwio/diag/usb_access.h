@@ -60,4 +60,9 @@ checkUsbAccess(const std::filesystem::path& sysfsRoot = "/sys",
 // accessible, nullopt otherwise.
 [[nodiscard]] std::optional<Error> usbAccessDeniedError(std::span<const UsbDeviceAccess> devices);
 
+// Review R1 (ADR-0185 amendment): usb.world_accessible (detail: the nodes every account can open)
+// when one of `devices` is readable or writable by every account, nullopt otherwise.
+[[nodiscard]] std::optional<Error>
+usbWorldAccessibleError(std::span<const UsbDeviceAccess> devices);
+
 } // namespace hwio::diag

@@ -28,6 +28,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <format>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <span>
@@ -194,6 +196,41 @@ TEST_F(Environment, AllGood) {
 }
 
 // M5 (ADR-0088): Bluetooth problems are warnings only; an undecided macOS permission is Ok.
+#ifdef Q_OS_LINUX
+// Review R1: a J-Link node every account can open (SEGGER's MODE="0666" rule) is a warning;
+// a node the user cannot open is still a failure (usb.access_denied wins).
+TEST_F(Environment, WorldAccessibleProbeIsAWarning) {
+    const auto addDevice = [this](const std::string& entry, int device, fs::perms perms) {
+        const fs::path dir = root() / "sys/bus/usb/devices" / entry;
+        fs::create_directories(dir);
+        std::ofstream(dir / "idVendor") << "1366\n";
+        std::ofstream(dir / "busnum") << "1\n";
+        std::ofstream(dir / "devnum") << device << "\n";
+        const fs::path node = root() / "dev/bus/usb/001" / std::format("{:03}", device);
+        fs::create_directories(node.parent_path());
+        std::ofstream(node) << "";
+        fs::permissions(node, perms);
+    };
+    const fs::perms rw = fs::perms::owner_read | fs::perms::owner_write;
+    addDevice("1-2", 5, rw | fs::perms::others_read | fs::perms::others_write);
+    auto results = run(context());
+    const CheckResult& world = find(results, "usb-access");
+    EXPECT_EQ(world.status, CheckStatus::Warning);
+    EXPECT_EQ(world.result, "Accessible to every account");
+    ASSERT_TRUE(world.error.has_value());
+    EXPECT_EQ(world.error.value_or(hwio::Error{}).code, hwio::ErrorCode::UsbWorldAccessible);
+    EXPECT_EQ(world.error.value_or(hwio::Error{}).detail,
+              "/dev/bus/usb/001/005 accessible to every account");
+    if (::geteuid() != 0) {
+        addDevice("1-3", 6, fs::perms::none);
+        results = run(context());
+        EXPECT_EQ(find(results, "usb-access").status, CheckStatus::Failed);
+        EXPECT_EQ(find(results, "usb-access").error.value_or(hwio::Error{}).code,
+                  hwio::ErrorCode::UsbAccessDenied);
+    }
+}
+#endif
+
 TEST_F(Environment, BluetoothStates) {
     for (const auto& [state, status, code] :
          {std::tuple{hwio::ble::AdapterState::NotFound, CheckStatus::Warning,

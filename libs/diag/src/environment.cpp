@@ -173,6 +173,12 @@ CheckResult checkUsb(const Check& check, const EnvironmentContext& context) {
     if (auto denied = usbAccessDeniedError(*devices)) {
         return problemResult(check, CheckStatus::Failed, std::move(*denied));
     }
+    // Review R1: e.g. SEGGER's own 99-jlink.rules (MODE="0666") keeps the probe world-rw.
+    if (auto world = usbWorldAccessibleError(*devices)) {
+        return problemResult(
+            check, CheckStatus::Warning, std::move(*world),
+            QCoreApplication::translate("hwio::diag", "Accessible to every account").toStdString());
+    }
     return okResult(check,
                     QCoreApplication::translate("hwio::diag", "Access granted").toStdString());
 #endif

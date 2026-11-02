@@ -149,6 +149,25 @@ TEST_F(History, OldFileIsFilteredAndTightenedOnOpen) {
 }
 #endif
 
+#ifndef _WIN32
+// Review R9: a new history file is created 0600, and QSaveFile keeps it 0600 when it replaces the
+// existing file on later saves (the pre-create approach relies on that QSaveFile behaviour).
+TEST_F(History, SavesKeepTheFileOwnerOnly) {
+    const fs::perms ownerOnly = fs::perms::owner_read | fs::perms::owner_write;
+    auto history = CommandHistory::open(file());
+    ASSERT_TRUE(history);
+    history->add("first");
+    ASSERT_TRUE(history->save()); // creates the file
+    EXPECT_EQ(fs::status(file()).permissions() & fs::perms::all, ownerOnly);
+    for (const char* entry : {"second", "third"}) {
+        history->add(entry);
+        ASSERT_TRUE(history->save()); // replaces the existing file
+        EXPECT_EQ(fs::status(file()).permissions() & fs::perms::all, ownerOnly) << entry;
+    }
+    EXPECT_EQ(fileLines(), (std::vector<std::string>{"first", "second", "third"}));
+}
+#endif
+
 // Review R12: a history file whose lock another process holds is not deleted.
 TEST_F(History, ClearAllRespectsTheFileLock) {
     const fs::path directory = file().parent_path();

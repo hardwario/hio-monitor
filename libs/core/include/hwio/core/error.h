@@ -125,6 +125,7 @@ enum class ErrorCode : std::uint8_t {
     // Security fixes round 1 (plan/features/0025-security-fixes-round-1.md)
     McpToFileNotAllowed, // ADR-0182
     CliFileIsSymlink,    // review L-17
+    UsbWorldAccessible,  // review round 1, R1 (ADR-0185 amendment)
 };
 
 // Wizards the UI can offer to fix an error (M4). Serialized as kebab-case ids.
@@ -395,6 +396,9 @@ inline constexpr std::array errorTable{
     ErrorInfo{.code = ErrorCode::CliFileIsSymlink,
               .id = "cli.file_is_symlink",
               .category = ErrorCategory::Io},
+    ErrorInfo{.code = ErrorCode::UsbWorldAccessible,
+              .id = "usb.world_accessible",
+              .category = ErrorCategory::Probe},
 };
 
 // Compile-time checks of errorTable (ids unique and well-formed, index == enum value, every

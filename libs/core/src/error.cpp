@@ -143,6 +143,7 @@ consteval bool isEnumerator(ErrorCode code) {
     case ErrorCode::UpdateTooLarge:
     case ErrorCode::McpToFileNotAllowed:
     case ErrorCode::CliFileIsSymlink:
+    case ErrorCode::UsbWorldAccessible:
         return true;
     }
     return false;
@@ -1206,6 +1207,25 @@ constexpr std::array defaultTexts{
             QT_TRANSLATE_NOOP3("hwio::core", "Choose another file name or remove the link first.",
                                "cli.file_is_symlink suggestion"),
         .wizard = std::nullopt,
+    },
+    // Review round 1, R1 (ADR-0185 amendment, decided 2026-11-02): a doctor warning.
+    DefaultTexts{
+        .code = ErrorCode::UsbWorldAccessible,
+        .message = QT_TRANSLATE_NOOP3(
+            "hwio::core",
+            "Every user account on this computer can use the J-Link (USB permissions).",
+            "usb.world_accessible message"),
+        .cause = QT_TRANSLATE_NOOP3(
+            "hwio::core",
+            "A udev rule, usually /etc/udev/rules.d/99-jlink.rules from the SEGGER J-Link "
+            "Software, makes the probe accessible to all accounts.",
+            "usb.world_accessible cause"),
+        .suggestion = QT_TRANSLATE_NOOP3(
+            "hwio::core",
+            "Remove that rule (or its MODE=\"0666\"), install the rule shown in the setup wizard, "
+            "then reconnect the J-Link. A J-Link Software update may install the rule again.",
+            "usb.world_accessible suggestion"),
+        .wizard = WizardId::FirstRunSetup,
     },
 };
 
