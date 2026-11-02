@@ -245,3 +245,20 @@ disables the in-session Up-arrow history; the old `99-jlink.rules` is removed on
 limits table is left as history (ADR-0188 rules).
 
 - [x] R1–R13 + the two changes above, re-verified (debug, asan, tsan, tidy, qmllint, translations, format, LFS).
+
+## Review round 2 (re-review of 468f3c8..12be503, 2026-11-02)
+
+R1, R3 (partly), R5–R13 and both extra changes confirmed closed. Fixed now (decided 2026-11-02):
+
+| # | Sev | Finding | Fix |
+|---|---|---|---|
+| S1 | medium | Report redaction: an unterminated quoted value of 20–40 K chars makes PCRE2 hit its JIT stack limit and `replace` silently stops, leaving later secrets; unclosed quotes also span lines | possessive, newline-bounded quoted value (`"(?:[^"\\\n]++|\\.)*+"`); test with a long unterminated quote followed by a secret |
+| S2 | low | Space form redacts only the first argument word and misses quoted / escaped-quoted arguments | after a sensitive prefix redact to the end of the line, or of the enclosing JSON string; tests |
+| S3 | low | `"publicKey": {…}` style JSON in logs is corrupted | the bare-value form does not start at `{` or `[` |
+| S4 | low | Secrets already in a history file stay on disk until the next save | if loading dropped entries, rewrite the file under its lock in `open()` |
+| S5 | info | ADR-0186 text predates R2/R4 | amendment of ADR-0186 |
+| S6 | nit | Hardening check does not verify replxx | replxx archive added to the check |
+
+Left open: echo with a backspace correction (needs the CHESTER HIL echo check, already open).
+
+- [ ] S1–S6 fixed and re-verified.

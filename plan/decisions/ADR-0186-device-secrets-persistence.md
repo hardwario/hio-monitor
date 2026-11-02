@@ -32,3 +32,11 @@ redaction (chosen).
 ## Consequences
 Secrets typed without a known prefix still reach history unless the user prefixes a space. MCP activity logs may
 contain secrets sent by an AI client (accepted).
+
+## Amendment 2026-11-02
+- Console files also redact a device echo of a sensitive command (and output lines in command form), after
+  stripping a profile or Zephyr `<name>:~$ ` prompt (review round 1, R4).
+- Report redaction covers `name=value`, `name: value`, quoted values (on one line), JSON pairs `"name":"value"` /
+  `"name":123` with the structure kept, and everything after a profile's sensitive command prefix up to the end of
+  the line or of the enclosing JSON string (review rounds 1–2, R2/S1–S3). Patterns are possessive and line-bounded.
+- A history file from which loading dropped entries is rewritten at once (review round 2, S4).
