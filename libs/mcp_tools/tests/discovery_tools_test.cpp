@@ -15,6 +15,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

@@ -16,6 +16,7 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 #include <QtLogging>
 #include <QtTypes>
 

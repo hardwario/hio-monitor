@@ -16,6 +16,7 @@
 #include <QSignalSpy>
 #include <QSize>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QVariant>
 #include <QVariantMap>

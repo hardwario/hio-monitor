@@ -32,6 +32,7 @@
 #include <QMetaObject>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtCore/qnamespace.h>
 #include <QtCore/qtconfigmacros.h>
 #include <QtGlobal>

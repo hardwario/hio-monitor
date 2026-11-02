@@ -9,6 +9,7 @@
 #include <QKeySequence>
 #include <QSet>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>

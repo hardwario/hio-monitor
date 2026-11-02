@@ -12,6 +12,7 @@
 #include <QObject>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 
 #include <algorithm>
 #include <filesystem>

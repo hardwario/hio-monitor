@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtTypes>
 
 #include <cstddef>

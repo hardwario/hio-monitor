@@ -18,6 +18,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QVariant>
 #include <QtCore/qnamespace.h>
@@ -53,7 +54,7 @@ const QString rememberKey = toQString(device::rememberCommandsSetting.path);
 ConsoleSettings::ConsoleSettings(SettingsStore* store, std::filesystem::path logFolder,
                                  QObject* parent)
     : QObject(parent), m_store(store), m_folder(std::move(logFolder)) {
-    if (m_store) {
+    if (!m_store.isNull()) {
         connect(m_store, &SettingsStore::valueChanged, this, [this](const QString& key) {
             if (key.startsWith(QStringLiteral("console/"))) {
                 changed(); // signal
@@ -115,14 +116,14 @@ ConsoleSettings* ConsoleSettings::create(QQmlEngine* qmlEngine, QJSEngine* jsEng
 }
 
 QVariant ConsoleSettings::read(const QString& key, const QVariant& fallback) const {
-    if (!m_store || !m_store->isRegistered(key)) {
+    if (m_store.isNull() || !m_store->isRegistered(key)) {
         return fallback;
     }
     return m_store->value(key);
 }
 
 void ConsoleSettings::write(const QString& key, const QVariant& value) {
-    if (!m_store) {
+    if (m_store.isNull()) {
         return;
     }
     if (const Status written = m_store->setValue(key, value); !written) {

@@ -16,6 +16,7 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 #include <QSysInfo>
 #include <QtLogging>
 #include <QtTypes>

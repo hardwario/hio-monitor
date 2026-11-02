@@ -20,6 +20,7 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 #include <QTimeZone>
 #include <QtLogging>
 #include <QtTypes>

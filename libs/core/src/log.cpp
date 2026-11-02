@@ -9,6 +9,7 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 #include <QtLogging>
 
 #include <algorithm>

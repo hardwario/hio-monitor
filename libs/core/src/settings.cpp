@@ -11,6 +11,7 @@
 #include <QMetaType>
 #include <QSettings>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 #include <QtContainerFwd>
 

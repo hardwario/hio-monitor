@@ -11,6 +11,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
+#include <QStringLiteral>
 #include <QtCore/qcborcommon.h>
 #include <QtCore/qhashfunctions.h>
 

@@ -24,6 +24,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariantMap>
 #include <QtContainerFwd>
 #include <QtCore/qnamespace.h>

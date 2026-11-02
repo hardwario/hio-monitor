@@ -25,7 +25,7 @@ it. Nothing in this repository creates tags or publishes releases by itself.
 - [ ] CI is green on the commit to be tagged (`v2-dev` or the release branch), including the three
       `package-<os>` jobs.
 - [ ] Manual verification matrix of plan 0015 (F4) on the release candidate: Ubuntu 22.04 AppImage, Ubuntu
-      24.04 / Debian 13 .deb, Fedora AppImage, macOS 13 Intel and macOS 15 Apple silicon DMG, Windows 10 22H2 and
+      24.04 / Debian 13 .deb, Fedora AppImage, macOS 13.3 Intel and macOS 15 Apple silicon DMG, Windows 10 22H2 and
       Windows 11 MSI (install, upgrade, downgrade refusal, uninstall, silent install, SmartScreen, J-Link with
       Defender), the crash notice after `HWIO_TEST_CRASH=1` (debug build). Results are recorded in plan 0015.
 - [ ] Release notes draft: minimum OS versions, "Install SEGGER J-Link Software 8.00 or newer separately", the

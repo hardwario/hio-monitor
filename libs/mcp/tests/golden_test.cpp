@@ -37,6 +37,7 @@
 #include <QJsonValue>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QtContainerFwd>
 #include <QtCore/qcborcommon.h>
 #include <QtEnvironmentVariables>

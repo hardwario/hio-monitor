@@ -24,6 +24,7 @@
 #include <QList>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtEnvironmentVariables>
 

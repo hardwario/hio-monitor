@@ -3,6 +3,7 @@
 #include "viewmodels/page_registry.h"
 
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QtCore/qttranslation.h>
 

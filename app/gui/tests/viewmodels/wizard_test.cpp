@@ -26,6 +26,7 @@
 #include <QPointer>
 #include <QSignalSpy>
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>

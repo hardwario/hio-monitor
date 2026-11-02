@@ -7,7 +7,7 @@ How HARDWARIO Monitor v2 is installed, packaged and signed. The release procedur
 |---|---|---|---|
 | `hwio-monitor-<v>-x86_64.AppImage` | Ubuntu 22.04+ and other glibc ≥ 2.35 distributions | `packaging/linux/build-packages.sh` (container) | no (SHA256SUMS + provenance) |
 | `hardwario-monitor_<v>_amd64.deb` | Ubuntu 24.04+ / Debian 13+ | same build tree, CPack DEB | no (SHA256SUMS + provenance) |
-| `hwio-monitor-<v>-macos-universal.dmg` | macOS 13+ (arm64 + x86_64) | `macos-package` preset, `packaging/macos/sign-and-notarize.sh` | Developer ID, notarized, stapled |
+| `hwio-monitor-<v>-macos-universal.dmg` | macOS 13.3+ (arm64 + x86_64) | `macos-package` preset, `packaging/macos/sign-and-notarize.sh` | Developer ID, notarized, stapled |
 | `hwio-monitor-<v>-windows-x64.msi` | Windows 10 22H2+ x64 | `windows-package` preset, CPack WIX (WiX ≥ 4) | Azure Trusted Signing |
 
 `<v>` is the version from the git tag (`cmake/HWioVersion.cmake`; build metadata `+` is written as `.` in file

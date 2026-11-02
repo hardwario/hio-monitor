@@ -1,6 +1,7 @@
 #include "wizard/wizard.h"
 
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 #include <QVariantMap>
 #include <QtContainerFwd>

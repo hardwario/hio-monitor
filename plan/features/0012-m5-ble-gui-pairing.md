@@ -287,7 +287,7 @@ adapter re-check 2 s, Test step prompt wait 3 s, remembered BLE devices 32.
 - **Sanitizers:** ASan+UBSan and TSan run the view-model tests with the fake BLE backend.
 - **HIL (CHESTER with Bluetooth shell):** pick from the list and connect; pairing from a fresh bond through the
   wizard on each OS; one J-Link tab and one BLE tab to the same CHESTER; out of range → reconnect.
-- **Manual (by the user, before Done):** Linux, Windows 10/11, macOS 13+: first-run Bluetooth step (macOS prompt),
+- **Manual (by the user, before Done):** Linux, Windows 10/11, macOS 13.3+: first-run Bluetooth step (macOS prompt),
   denied permission → wizard, adapter off, screen reader announcement of new devices.
 
 ## Risks and open points

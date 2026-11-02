@@ -16,6 +16,7 @@
 #include <QLoggingCategory>
 #include <QMetaObject>
 #include <QObject>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QtCore/qnamespace.h>
 #include <QtLogging>

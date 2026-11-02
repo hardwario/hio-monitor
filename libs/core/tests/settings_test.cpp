@@ -5,6 +5,7 @@
 
 #include <QSettings>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QVariant>
 

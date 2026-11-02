@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
+#include <QStringLiteral>
 #include <QTimeZone>
 #include <QtCore/qnamespace.h>
 

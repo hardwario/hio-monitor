@@ -3,6 +3,7 @@
 
 #include <QCoreApplication>
 #include <QString>
+#include <QStringLiteral>
 #include <QTranslator>
 
 #include <gtest/gtest.h>

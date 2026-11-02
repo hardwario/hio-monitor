@@ -14,6 +14,7 @@
 #include <QJsonObject>
 #include <QList>
 #include <QString>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 

@@ -10,6 +10,7 @@
 
 #include <QLoggingCategory>
 #include <QObject>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QtLogging>
 

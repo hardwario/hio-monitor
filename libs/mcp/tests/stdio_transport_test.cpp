@@ -14,6 +14,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QObject>
+#include <QStringLiteral>
 #include <QtContainerFwd>
 #include <QtCore/qhashfunctions.h>
 

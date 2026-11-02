@@ -79,7 +79,7 @@ TEST(PickLatest, PrereleaseTagWithoutGitHubFlagIsAPrerelease) {
 // Review L-4: html_url from the feed is never used; the page is built from the validated tag.
 TEST(PickLatest, ReleasePageIsBuiltFromTheTagNotFromHtmlUrl) {
     const QByteArray json = R"([{"tag_name":"v2.4.0","draft":false,"prerelease":false,
-        "html_url":"https://attacker.example/hio-monitor/releases/tag/v2.4.0"}])";
+        "html_url":"https://attacker.example/hwio-monitor/releases/tag/v2.4.0"}])";
     const auto latest = pickLatest(json, false);
     ASSERT_TRUE(latest.has_value() && latest->has_value());
     EXPECT_EQ(releaseOf(latest).htmlUrl,

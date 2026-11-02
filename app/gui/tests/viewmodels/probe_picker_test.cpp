@@ -15,6 +15,7 @@
 #include <QModelIndex>
 #include <QSignalSpy>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariantMap>
 #include <QtContainerFwd>
 #include <QtEnvironmentVariables>

@@ -29,6 +29,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtCore/qnamespace.h>
 #include <QtTypes>
 

@@ -9,6 +9,7 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 
 #include <gtest/gtest.h>

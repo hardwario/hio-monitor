@@ -3,6 +3,7 @@
 #include <QByteArrayView>
 #include <QLoggingCategory>
 #include <QString>
+#include <QStringLiteral>
 #include <QtLogging>
 
 #include <exception>

@@ -35,6 +35,7 @@
 #include <QJsonValue>
 #include <QLoggingCategory>
 #include <QString>
+#include <QStringLiteral>
 #include <QtLogging>
 #include <QtTypes>
 

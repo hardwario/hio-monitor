@@ -21,6 +21,7 @@
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 
@@ -34,6 +35,9 @@
 
 #include <csignal>
 #include <cstddef>
+#else
+#include <QDir>
+#include <QLibraryInfo>
 #endif
 
 namespace {
@@ -110,7 +114,14 @@ protected:
         env.insert(QStringLiteral("HWIO_JLINK_LIBRARY"), QStringLiteral(HWIO_FAKE_JLINK_LIBRARY));
         env.insert(QStringLiteral("HWIO_FAKE_NRFUTIL_STEP_MS"), QStringLiteral("5"));
         env.remove(QStringLiteral("HWIO_NRFUTIL"));
+        // No nrfutil on PATH. On Windows hwio.exe finds the Qt DLLs through PATH, so it keeps Qt's
+        // bin directory (which has no nrfutil).
+#ifdef _WIN32
+        env.insert(QStringLiteral("PATH"),
+                   QDir::toNativeSeparators(QLibraryInfo::path(QLibraryInfo::BinariesPath)));
+#else
         env.insert(QStringLiteral("PATH"), QStringLiteral("/nonexistent-path-for-tests"));
+#endif
         return env;
     }
 
@@ -139,6 +150,7 @@ protected:
         result.exitCode = process.state() == QProcess::NotRunning ? process.exitCode() : -1;
         result.out = process.readAllStandardOutput().toStdString();
         result.err = process.readAllStandardError().toStdString();
+        normalizeLineEnds(result);
         return result;
     }
 };
@@ -268,9 +280,11 @@ TEST_F(FlashCli, CatalogNetworkDown) {
 #endif
     QProcessEnvironment env = fakeEnvironment();
     env.insert(QStringLiteral("HWIO_CATALOG_URL"), QStringLiteral("http://127.0.0.1:1/chester"));
+    // Not the ID FlashByCatalogId downloads: on macOS and Windows the firmware cache is in the
+    // system folders, not in the test home, so that one may already be cached.
     const RunResult result =
         run({QStringLiteral("--json"), QStringLiteral("chester"), QStringLiteral("app"),
-             QStringLiteral("flash"), QStringLiteral("0123456789abcdef0123456789abcdef")},
+             QStringLiteral("flash"), QStringLiteral("fedcba9876543210fedcba9876543210")},
             env);
     EXPECT_EQ(result.exitCode, 8) << result.out;
     EXPECT_EQ(errorCode(result), QStringLiteral("network.download_failed"));

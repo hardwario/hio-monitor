@@ -25,6 +25,7 @@
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QThread>
@@ -192,6 +193,7 @@ public:
     [[nodiscard]] const std::vector<QByteArray>& lines() const { return m_lines; }
     [[nodiscard]] std::string err() {
         m_err += m_process.readAllStandardError();
+        m_err.replace("\r\n", "\n"); // stderr is a text-mode stream ("\r\n" on Windows)
         return m_err.toStdString();
     }
 
@@ -213,6 +215,7 @@ private:
             m_messages.push_back(QJsonDocument::fromJson(line).object());
         }
         m_err += m_process.readAllStandardError();
+        m_err.replace("\r\n", "\n");
     }
 
     QProcess m_process;
@@ -743,7 +746,9 @@ TEST_F(McpHttpCli, TokenFileIsCreatedAndGeneratedTokenIsPrinted) {
                        fakeEnvironment());
         ASSERT_TRUE(mcp.started());
         ASSERT_TRUE(waitForBanner(mcp)) << mcp.err();
-        EXPECT_NE(mcp.err().find("Token: from " + tokenFile.toStdString() + "\n"),
+        // The path as the OS writes it ('\\' separators on Windows).
+        EXPECT_NE(mcp.err().find("Token: from " +
+                                 QDir::toNativeSeparators(tokenFile).toStdString() + "\n"),
                   std::string::npos)
             << mcp.err();
         EXPECT_NE(mcp.err().find("Allowed destructive tools: none\n"), std::string::npos);

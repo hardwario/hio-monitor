@@ -54,6 +54,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -139,6 +140,14 @@ private:
         bool ready = false;
         // The shell answers lines in order: no answer is sent before an earlier one (H5).
         std::chrono::steady_clock::time_point nextAnswer{};
+        // The answers not sent yet, in order (due times never decrease). Each timer only wakes
+        // sendDueAnswers(): Windows fired timers with (nearly) the same deadline out of order,
+        // which reordered the shell's output (plan 0023). Bounded by the lines in flight.
+        struct PendingAnswer {
+            std::chrono::steady_clock::time_point due;
+            std::string text;
+        };
+        std::deque<PendingAnswer> answers;
     };
 
     void checkThread() const;
@@ -147,6 +156,7 @@ private:
     void linkReady(LinkId id);
     void send(LinkId id, const std::string& text);
     void answer(Link& link, std::chrono::milliseconds delay, std::string text);
+    void sendDueAnswers(LinkId id);
     void received(LinkId id, std::string_view bytes);
     [[nodiscard]] Link* find(LinkId id);
     [[nodiscard]] FakeDevice* device(const BleDeviceId& id);

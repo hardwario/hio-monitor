@@ -41,6 +41,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
@@ -170,7 +171,7 @@ void ConsoleViewModel::attachSession() {
     if (session == m_session.data()) {
         return;
     }
-    if (m_session) {
+    if (!m_session.isNull()) {
         // Open log file keeps working after Disconnect (the old session is deleted after this).
         if (std::filesystem::path file = m_session->consoleFile(); !file.empty()) {
             m_lastConsoleFile = std::move(file);
@@ -182,7 +183,7 @@ void ConsoleViewModel::attachSession() {
     m_learner->reset(); // learned again after the next attach's `info show`
     m_learningStarted = false;
     m_session = session;
-    if (m_session) {
+    if (!m_session.isNull()) {
         connect(m_session, &device::DeviceSession::linesReceived, this,
                 &ConsoleViewModel::scheduleRefresh);
         connect(m_session, &device::DeviceSession::connectionChanged, this,
@@ -296,7 +297,7 @@ bool ConsoleViewModel::targetHasConsole() const {
 }
 
 bool ConsoleViewModel::inputEnabled() const {
-    return !busy() && m_session && m_tab->state() == DeviceTabViewModel::Connected &&
+    return !busy() && !m_session.isNull() && m_tab->state() == DeviceTabViewModel::Connected &&
            targetHasConsole();
 }
 
@@ -752,7 +753,7 @@ void ConsoleViewModel::copySelection(int channel) {
 }
 
 std::filesystem::path ConsoleViewModel::consoleFile() const {
-    if (m_session) {
+    if (!m_session.isNull()) {
         return m_session->consoleFile(); // empty while not written (yet), see DeviceSession
     }
     return m_lastConsoleFile;
@@ -782,13 +783,13 @@ void ConsoleViewModel::reset(bool halt) {
     if (!canReset()) {
         return;
     }
-    if (!m_session) {
+    if (m_session.isNull()) {
         if (const Status opened = m_tab->ensureSession(); !opened) {
             setError(opened.error());
             return;
         }
         attachSession();
-        if (!m_session) {
+        if (m_session.isNull()) {
             return;
         }
     }

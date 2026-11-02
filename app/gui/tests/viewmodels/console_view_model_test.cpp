@@ -35,6 +35,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
@@ -749,7 +750,8 @@ TEST_F(ConsoleViewModelTest, SaveViewNameFolderAndRefusal) {
               QStringLiteral("CHESTER Test Save v3.0.0"));
     const QRegularExpression named(
         QStringLiteral(R"(^chester-app-test-save-v3\.0\.0-\d{8}-\d{6}-shell\.txt$)"));
-    EXPECT_TRUE(named.match(console().saveViewFileName(0)).hasMatch())
+    // The identity reaches the tab through a queued signal after the device info: wait for it.
+    EXPECT_TRUE(waitFor([&] { return named.match(console().saveViewFileName(0)).hasMatch(); }))
         << console().saveViewFileName(0).toStdString();
     // ADR-0200: the session's console file got the firmware name too.
     ASSERT_TRUE(waitFor([&] {

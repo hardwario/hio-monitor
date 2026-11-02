@@ -9,6 +9,7 @@
 
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 
 #include <algorithm>
 #include <cstddef>

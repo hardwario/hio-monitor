@@ -20,6 +20,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QtContainerFwd>
 #include <QtCore/qnamespace.h>
 #include <QtEnvironmentVariables>

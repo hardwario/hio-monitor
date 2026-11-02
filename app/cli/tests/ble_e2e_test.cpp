@@ -11,15 +11,20 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QList>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
+#include <QtTypes>
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
+#include <format>
 #include <qcontainerfwd.h>
 #include <string>
 #include <utility>
@@ -262,6 +267,7 @@ TEST_F(FakeBleCli, ConsoleWritesTheDefaultConsoleFile) {
              QByteArray("version\n"));
     ASSERT_EQ(result.exitCode, 0) << result.err;
     EXPECT_NE(result.out.find("Firmware version: v3.1.0"), std::string::npos) << result.out;
+#ifdef __linux__ // elsewhere QStandardPaths takes the system folders, not the test's XDG_DATA_HOME
     const QDir console(home() + QStringLiteral("/data/HARDWARIO/Monitor/console"));
     const QStringList files =
         console.entryList({QStringLiteral("chester-ble-*-F1-22-33-44-55-66.log")}, QDir::Files);
@@ -275,6 +281,7 @@ TEST_F(FakeBleCli, ConsoleWritesTheDefaultConsoleFile) {
     // U3: the final name on stderr.
     EXPECT_NE(result.err.find("Console file: "), std::string::npos) << result.err;
     EXPECT_NE(result.err.find(files.front().toStdString()), std::string::npos) << result.err;
+#endif
 }
 
 TEST_F(FakeBleCli, PairOutcomes) {
@@ -307,14 +314,37 @@ TEST_F(FakeBleCli, CommandWithManyLinesWritesThemAll) {
     for (int i = 0; i < 300; ++i) {
         many += QStringLiteral("version\n");
     }
-    const RunResult result =
-        hwio("chester.json",
-             {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"), many,
-              QStringLiteral("-a"), device, QStringLiteral("-t"), QStringLiteral("5")});
+    const QString consoleFile = home() + QStringLiteral("/many.log");
+    const RunResult result = hwio(
+        "chester.json", {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("command"),
+                         many, QStringLiteral("-a"), device, QStringLiteral("-t"),
+                         QStringLiteral("5"), QStringLiteral("--console-file"), consoleFile});
     ASSERT_EQ(result.exitCode, 0) << result.err;
     const QJsonArray output =
         data(envelopes(result.out).at(0)).value(QStringLiteral("output")).toArray();
-    EXPECT_EQ(output.size(), 300);
+    std::string unexpected; // the entries that are not the answer to "version"
+    for (qsizetype i = 0; i < output.size(); ++i) {
+        if (output.at(i).toString() != QStringLiteral("Firmware version: v3.1.0")) {
+            unexpected += std::format("[{}] '{}' ", i, output.at(i).toString().toStdString());
+        }
+    }
+    // TEMPORARY (plan 0023): the console file around the first unexpected line, with timestamps.
+    std::string context;
+    if (output.size() != 300) {
+        QFile file(consoleFile);
+        if (file.open(QIODevice::ReadOnly)) {
+            const QList<QByteArray> lines = file.readAll().split('\n');
+            qsizetype first = 0;
+            while (first < lines.size() && !lines.at(first).trimmed().endsWith(" >")) {
+                ++first;
+            }
+            for (qsizetype i = std::max<qsizetype>(0, first - 25);
+                 i < std::min(lines.size(), first + 15); ++i) {
+                context += lines.at(i).toStdString() + "\n";
+            }
+        }
+    }
+    EXPECT_EQ(output.size(), 300) << unexpected << "\n" << context;
 }
 
 // Review B6: another spelling of the address is the same device.
@@ -335,6 +365,9 @@ TEST_F(FakeBleCli, LowerCaseAddressIsTheSameDevice) {
 // Review B8: an undecided permission is asked for before the first scan (here the system answers
 // at once) and the scan runs.
 TEST_F(FakeBleCli, UndecidedPermissionIsAskedForFirst) {
+#ifdef Q_OS_MACOS
+    GTEST_SKIP() << "macOS answers the request itself (TCC); the fake scenario cannot";
+#endif
     const RunResult result =
         hwio("permission_undetermined.json",
              {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),
@@ -344,6 +377,9 @@ TEST_F(FakeBleCli, UndecidedPermissionIsAskedForFirst) {
 
 // Review N6: after the permission was granted the adapter is read again (here it is off).
 TEST_F(FakeBleCli, AdapterIsReadAgainAfterThePermission) {
+#ifdef Q_OS_MACOS
+    GTEST_SKIP() << "macOS answers the request itself (TCC); the fake scenario cannot";
+#endif
     const RunResult result =
         hwio("permission_then_off.json",
              {QStringLiteral("--json"), QStringLiteral("ble"), QStringLiteral("scan"),

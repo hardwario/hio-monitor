@@ -45,6 +45,12 @@ file(GLOB _hwio_gui_qml_tests RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_D
     "${CMAKE_CURRENT_SOURCE_DIR}/tst_*.qml")
 foreach(_test IN LISTS _hwio_gui_qml_tests)
     cmake_path(GET _test STEM _name)
+    # tst_update downloads through QNetworkAccessManager (plan 0016): left out under ThreadSanitizer
+    # like the unit tests below (Qt's HTTP thread is uninstrumented; plan/features/0003, review R11).
+    # It was reported once plan 0020 hid the glib wakeup fd that used to order the two threads.
+    if("thread" IN_LIST HWIO_SANITIZERS AND _name STREQUAL "tst_update")
+        continue()
+    endif()
     add_test(NAME "tst_gui.${_name}"
         COMMAND tst_gui -input "${CMAKE_CURRENT_SOURCE_DIR}/${_test}")
     set_tests_properties("tst_gui.${_name}" PROPERTIES
@@ -88,6 +94,8 @@ target_compile_definitions(hwio_gui_tests PRIVATE
     "HWIO_FAKE_JLINK_LIBRARY=\"$<TARGET_FILE:hwio_fake_jlink>\""
     "HWIO_FAKE_JLINK_INCOMPLETE_LIBRARY=\"$<TARGET_FILE:hwio_fake_jlink_incomplete>\""
     "HWIO_FAKE_NRFUTIL=\"$<TARGET_FILE:hwio_fake_nrfutil>\"")
+# HWIO_CATALOG_URL is honoured only with HWIO_TEST_OVERRIDES (not in Release builds).
+target_compile_definitions(hwio_gui_tests PRIVATE ${HWIO_TEST_OVERRIDES_DEFINE})
 set_target_properties(hwio_gui_tests PROPERTIES AUTOMOC ON)
 add_dependencies(hwio_gui_tests hwio_fake_jlink hwio_fake_jlink_incomplete hwio_fake_nrfutil)
 # Under ThreadSanitizer the tests that download through QNetworkAccessManager (the catalog, the

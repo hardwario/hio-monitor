@@ -8,6 +8,7 @@
 
 #include <QCoreApplication>
 #include <QString>
+#include <QStringLiteral>
 
 #include <algorithm>
 #include <array>

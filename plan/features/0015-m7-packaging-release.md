@@ -180,7 +180,7 @@ cmake/HioPackaging.cmake        install(), deploy scripts, CPack config, package
 
 - Bundle name `HARDWARIO Monitor.app` (`OUTPUT_NAME`-independent: the bundle directory is renamed at install via
   `MACOSX_BUNDLE_BUNDLE_NAME` + install rule; `CFBundleExecutable` stays `hio-monitor`). `Info.plist.in` from
-  ADR-0086 gains `CFBundleIconFile`, `LSMinimumSystemVersion` 13.0, `NSHumanReadableCopyright`,
+  ADR-0086 gains `CFBundleIconFile`, `LSMinimumSystemVersion` 13.3 (ADR-0179; was 13.0), `NSHumanReadableCopyright`,
   `LSApplicationCategoryType public.app-category.developer-tools`.
 - `hio` installed into `Contents/MacOS/` and fixed up by the deploy script (macdeployqt `-executable=`).
 - Signing order (inside-out): Qt frameworks and plugins are re-signed with our identity (macdeployqt
@@ -351,7 +351,7 @@ Manual (clean VMs / machines; J-Link + CHESTER for the hardware rows):
 | Ubuntu 24.04 (Wayland) | .deb | install/uninstall, menu entry + icon, `hio` on PATH, udev rule works without replug-as-root, BLE scan, RTT, flash |
 | Debian 13 | .deb | install, start |
 | Fedora 40+ | AppImage | start, RTT console |
-| macOS 13 Intel, macOS 15 Apple silicon | DMG | no Gatekeeper warning, J-Link loads (ADR-0126), Bluetooth prompt (GUI and `hio` in Terminal), `hio` path in About |
+| macOS 13.3 Intel, macOS 15 Apple silicon | DMG | no Gatekeeper warning, J-Link loads (ADR-0126), Bluetooth prompt (GUI and `hio` in Terminal), `hio` path in About |
 | Windows 10 22H2, Windows 11 | MSI | install/upgrade/downgrade-block/uninstall, SmartScreen, `hio` in new terminal, single instance (ADR-0058), J-Link copies with Defender on, silent install |
 | all | — | crash notice after a forced crash (`HIO_TEST_CRASH` only in debug builds), report contains crash files |
 

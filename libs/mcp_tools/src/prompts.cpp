@@ -8,6 +8,7 @@
 #include "tools/tools.h"
 
 #include <QString>
+#include <QStringLiteral>
 
 #include <map>
 

@@ -13,6 +13,7 @@
 #include <QObject>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QtEnvironmentVariables>
 #include <QtTypes>

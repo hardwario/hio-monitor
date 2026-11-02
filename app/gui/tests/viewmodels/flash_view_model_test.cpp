@@ -29,12 +29,14 @@
 
 #include <QByteArray>
 #include <QCryptographicHash>
+#include <QDir>
 #include <QFile>
 #include <QIODevice>
 #include <QObject>
 #include <QPointer>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QUuid>
 #include <QVariant>
@@ -230,8 +232,9 @@ TEST_F(FlashTest, LoadedHexIsReadyWithSummaryAndRecent) {
     EXPECT_TRUE(flash().canFlash());
     EXPECT_EQ(flash().flashSummary(), QStringLiteral("Application firmware · app.hex"));
     ASSERT_EQ(source().recent()->count(), 1);
+    // The recent list keeps the path of the file URL ('/' separators on Windows too).
     EXPECT_EQ(source().recent()->sourceAt(0),
-              QString::fromStdString((root() / "app.hex").string()));
+              QDir::fromNativeSeparators(QString::fromStdString((root() / "app.hex").string())));
 }
 
 TEST_F(FlashTest, AKindChangeDoesNotAddToRecent) {
@@ -320,6 +323,9 @@ TEST_F(FlashTest, CatalogIdValidation) {
 }
 
 TEST_F(FlashTest, CatalogDownloadAndErrors) {
+#ifndef HWIO_TEST_OVERRIDES
+    GTEST_SKIP() << "needs HWIO_TEST_OVERRIDES (HWIO_CATALOG_URL)";
+#endif
     hwio::firmware::test::HttpFixture http;
     ASSERT_TRUE(http.listening());
     qputenv("HWIO_CATALOG_URL", http.baseUrl().toUtf8());

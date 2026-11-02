@@ -177,7 +177,8 @@ qt_add_qml_module(hwio_gui
         src/workers/firmware_loader.cpp
         src/workers/firmware_loader.h
         src/workers/probe_scanner.cpp
-        src/workers/probe_scanner.h)
+        src/workers/probe_scanner.h
+    OUTPUT_TARGETS _hwio_gui_qml_targets)
 target_include_directories(hwio_gui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 # The generated QML type registration includes the view model headers by file name.
 target_include_directories(hwio_gui PRIVATE
@@ -241,7 +242,9 @@ qt_add_resources(hwio_gui "hwio_gui_app_icon"
         "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor-128.png"
         "${PROJECT_SOURCE_DIR}/packaging/common/icons/hwio-monitor-256.png"
     OUTPUT_TARGETS _hwio_gui_app_icon_targets)
-hwio_skip_linting(${_hwio_gui_style_targets} ${_hwio_gui_font_targets} ${_hwio_gui_app_icon_targets})
+# Generated only: the qt_add_qml_module resource init objects and the resources above.
+hwio_skip_linting(${_hwio_gui_qml_targets} ${_hwio_gui_style_targets} ${_hwio_gui_font_targets} ${_hwio_gui_app_icon_targets})
+hwio_skip_linting_generated_sources(hwio_gui hwio_guiplugin)
 
 qt_add_executable(hwio-monitor src/main.cpp)
 # Plan 0015 A3: icon and VERSIONINFO (Windows), icon in the bundle (macOS).

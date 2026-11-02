@@ -14,6 +14,7 @@
 #include <QLoggingCategory>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtTypes>
 
 #include <cstdint>

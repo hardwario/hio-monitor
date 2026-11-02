@@ -42,6 +42,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QUrl>
 #include <QVariant>

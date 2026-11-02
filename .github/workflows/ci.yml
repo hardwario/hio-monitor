@@ -8,9 +8,7 @@ name: CI
 on:
   pull_request:
   push:
-    # v2/m7-packaging: TEMPORARY, so that the package jobs of plan 0015 run on the branch before a
-    # pull request exists (the branch has no PR yet); remove when the branch is merged.
-    branches: [v2-dev, v2/m7-packaging]
+    branches: [v2-dev]
   # release.yml runs the whole matrix as its gate (plan/features/0015 F2, ADR-0125).
   workflow_call:
 
@@ -83,7 +81,8 @@ jobs:
   linux:
     name: linux-${{ matrix.preset }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # linux-tidy usually needs about 40 minutes; a slow runner once took more than 60 (plan 0023).
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -118,6 +117,15 @@ jobs:
             clang-${LLVM_MAJOR} clang-tidy-${LLVM_MAJOR} llvm-${LLVM_MAJOR} \
             libclang-rt-${LLVM_MAJOR}-dev ninja-build \
             libgl1-mesa-dev libegl1 libxkbcommon-dev libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
+      - name: Czech locale
+        # CliProcess.CzechLocaleStaysEnglish runs `hwio` under cs_CZ.UTF-8; the runner image only
+        # has C.UTF-8 and en_US.UTF-8 (plan 0023).
+        run: sudo locale-gen cs_CZ.UTF-8
+      - name: glibc debug symbols (TSan)
+        if: matrix.preset == 'tsan'
+        # The race:tzset_internal suppression (plan 0019) matches a static glibc function, which the
+        # stripped libc.so.6 of the runner image does not name without its debug info (plan 0023).
+        run: sudo apt-get install -y --no-install-recommends libc6-dbg
       - name: Allow TSan memory mappings
         if: matrix.preset == 'tsan'
         # TSan cannot map its shadow memory with the runner's high ASLR entropy.
@@ -134,18 +142,30 @@ jobs:
           path: .cpm-cache
           key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
-        # Plan 0028 (R5): the translation lint (Python 3) must run, never be skipped.
-        run: cmake --preset linux-${{ matrix.preset }} -DHWIO_REQUIRE_PYTHON=ON
+        shell: bash
+        run: |
+          # Plan 0028 (R5): the translation lint (Python 3) must run, never be skipped.
+          cmake --preset linux-${{ matrix.preset }} -DHWIO_REQUIRE_PYTHON=ON 2>&1 | tee "$RUNNER_TEMP/configure.log"
       - name: Build
-        run: cmake --build --preset linux-${{ matrix.preset }}
+        shell: bash
+        run: cmake --build --preset linux-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
       - name: Test
         run: ctest --preset linux-${{ matrix.preset }} --output-on-failure
+      - name: TEMPORARY failure notes (plan 0023)
+        if: failure()
+        shell: bash
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" .github/ci-failure-notes.py "build/linux-${{ matrix.preset }}" \
+            "$RUNNER_TEMP/configure.log" "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/coverage.log"
       - name: QML lint
         if: matrix.preset == 'debug'
         run: cmake --build --preset linux-debug --target all_qmllint
       - name: Coverage report
         if: matrix.preset == 'coverage'
+        shell: bash
         run: |
+          exec > >(tee "$RUNNER_TEMP/coverage.log") 2>&1
           build_dir=build/linux-coverage
           llvm-profdata-${LLVM_MAJOR} merge -sparse "${build_dir}"/profiles/*.profraw \
             -o "${build_dir}/coverage.profdata"
@@ -153,7 +173,7 @@ jobs:
             "${build_dir}/libs/core/tests/hwio_core_tests"
             -object "${build_dir}/app/cli/tests/hwio_cli_tests"
             -object "${build_dir}/app/cli/hwio"
-            -object "${build_dir}/app/gui/tst_gui"
+            -object "${build_dir}/app/gui/tests/tst_gui"
           )
           ignore='(\.cpm-cache|/build/|/tests/)'
           llvm-cov-${LLVM_MAJOR} show "${objects[@]}" -instr-profile="${build_dir}/coverage.profdata" \
@@ -170,6 +190,10 @@ jobs:
           path: |
             build/linux-coverage/coverage-html
             build/linux-coverage/coverage.lcov
+      - name: TEMPORARY coverage failure notes (plan 0023)
+        if: failure() && matrix.preset == 'coverage'
+        shell: bash
+        run: python3 .github/ci-failure-notes.py build/none "$RUNNER_TEMP/coverage.log"
 
   fuzz:
     # ADR-0152: libFuzzer smoke run of the MCP HTTP parser and JSON-RPC handling, 60 s per target;
@@ -282,11 +306,21 @@ jobs:
           path: .cpm-cache
           key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
-        run: cmake --preset macos-${{ matrix.preset }}
+        shell: bash
+        run: |
+          cmake --preset macos-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/configure.log"
       - name: Build
-        run: cmake --build --preset macos-${{ matrix.preset }}
+        shell: bash
+        run: cmake --build --preset macos-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
       - name: Test
         run: ctest --preset macos-${{ matrix.preset }} --output-on-failure
+      - name: TEMPORARY failure notes (plan 0023)
+        if: failure()
+        shell: bash
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" .github/ci-failure-notes.py "build/macos-${{ matrix.preset }}" \
+            "$RUNNER_TEMP/configure.log" "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/coverage.log"
 
   windows:
     name: windows-${{ matrix.preset }}
@@ -340,13 +374,33 @@ jobs:
           path: .cpm-cache
           key: cpm-${{ hashFiles('cmake/HWioDeps.cmake') }}
       - name: Configure
+        shell: bash
         run: |
           clang-cl --version
-          cmake --preset windows-${{ matrix.preset }}
+          cmake --preset windows-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/configure.log"
       - name: Build
-        run: cmake --build --preset windows-${{ matrix.preset }}
+        shell: bash
+        run: cmake --build --preset windows-${{ matrix.preset }} 2>&1 | tee "$RUNNER_TEMP/build.log"
       - name: Test
         run: ctest --preset windows-${{ matrix.preset }} --output-on-failure
+      - name: TEMPORARY failure notes (plan 0023)
+        if: failure()
+        shell: bash
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" .github/ci-failure-notes.py "build/windows-${{ matrix.preset }}" \
+            "$RUNNER_TEMP/configure.log" "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/coverage.log"
+      - name: TEMPORARY death test probe (plan 0023)
+        if: failure() && matrix.preset == 'debug'
+        shell: bash
+        run: |
+          exe=$(find build/windows-debug -name hwio_gui_tests.exe | head -n 1)
+          status=0
+          /usr/bin/timeout 90 "$exe" --gtest_filter=PageRegistry.DuplicatePageIsAProgrammingError \
+            > "$RUNNER_TEMP/death.log" 2>&1 || status=$?
+          echo "exit $status" >> "$RUNNER_TEMP/death.log"
+          py=$(command -v python3 || command -v python)
+          "$py" .github/ci-failure-notes.py build/none "$RUNNER_TEMP/death.log"
 
   # ---- Packages (plan/features/0015 F1, ADR-0125): unsigned, 7-day artifacts ----------------------
 

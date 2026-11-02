@@ -7,6 +7,7 @@
 #include <QByteArray>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QIODevice>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -15,12 +16,14 @@
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QtContainerFwd>
 
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstddef>
 #include <string>
 
 #ifndef _WIN32
@@ -91,8 +94,19 @@ TEST_F(CliProcess, InternalErrorNamesTheLogFile) {
                                   QStringLiteral("internal.unexpected")});
     ASSERT_TRUE(result.normalExit);
     EXPECT_EQ(result.exitCode, 1);
-    EXPECT_NE(result.err.find("Details: Log file: "), std::string::npos) << result.err;
+    const std::string marker = "Details: Log file: ";
+    const std::size_t at = result.err.find(marker);
+    ASSERT_NE(at, std::string::npos) << result.err;
+    // The named file exists. It is in logDir() of the test home on Linux only: on macOS and
+    // Windows QStandardPaths takes the system folders, not XDG_DATA_HOME / LOCALAPPDATA.
+    const std::size_t begin = at + marker.size();
+    const QString logFile =
+        QString::fromStdString(result.err.substr(begin, result.err.find('\n', begin) - begin));
+    EXPECT_TRUE(QFileInfo(logFile).fileName().startsWith(QStringLiteral("cli-"))) << result.err;
+    EXPECT_TRUE(QFileInfo::exists(logFile)) << result.err;
+#ifdef __linux__
     EXPECT_FALSE(QDir(logDir()).entryList({QStringLiteral("cli-*.log")}).isEmpty());
+#endif
 }
 
 TEST_F(CliProcess, UnknownOptionIsUsageError) {

@@ -107,6 +107,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QString>
+#include <QStringLiteral>
 #include <QtEnvironmentVariables>
 #include <QtTypes>
 

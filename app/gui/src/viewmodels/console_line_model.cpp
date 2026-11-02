@@ -15,6 +15,7 @@
 #include <QModelIndex>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QStringView>
 #include <QVariant>
 #include <QVariantList>

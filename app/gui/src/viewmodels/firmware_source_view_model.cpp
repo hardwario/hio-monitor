@@ -22,6 +22,7 @@
 #include <QRegularExpressionMatch>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QUrl>
 #include <QVariantMap>
 #include <QtContainerFwd>

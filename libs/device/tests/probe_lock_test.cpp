@@ -12,6 +12,7 @@
 #include <QProcess>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QSysInfo>
 #include <QTemporaryDir>
 #include <QtTypes>
@@ -191,7 +192,7 @@ TEST_F(Lock, StaleLockOfADeadProcessIsTakenOver) {
 // Review R51: owner() of another process holds a stale lock file's flock for a moment while it
 // checks it (as QLockFile's removeStaleLock() would), so QLockFile cannot take the stale lock
 // over meanwhile. acquire() tries once more 10 ms later instead of reporting the dead owner (here
-// a thread of this process holds the flock for 5 ms through its own file description).
+// a thread of this process holds the flock for 1 ms through its own file description).
 TEST_F(Lock, StaleLockBrieflyHeldByAnOwnerCheckIsTakenOver) {
     QProcess gone;
     const QByteArray app = startSleep(gone, QStringLiteral("0.1"));
@@ -208,7 +209,9 @@ TEST_F(Lock, StaleLockBrieflyHeldByAnOwnerCheckIsTakenOver) {
             static_cast<void>(::flock(file.handle(), LOCK_EX));
         }
         held.count_down();
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        // 1 ms: well below acquire()'s 10 ms retry delay even on a busy runner (macOS CI woke
+        // this thread more than 10 ms after a 5 ms sleep; plan 0023, decided by the user).
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         file.close(); // releases the flock
     });
     held.wait();
@@ -304,8 +307,9 @@ TEST_F(Lock, ConcurrentAcquireAndReleaseOfTheSameProbe) {
 }
 
 // The application name QLockFile records for this test binary (Qt 6.8.3 processNameByPid():
-// Windows the module name without extension, Linux the file name of /proc/<pid>/exe).
-QString recordedAppName() {
+// Windows the module name without extension, Linux the file name of /proc/<pid>/exe). Not used on
+// macOS (proc_name() may be shortened); [[maybe_unused]] keeps -Wunused-function quiet there.
+[[maybe_unused]] QString recordedAppName() {
     const QFileInfo exe(QCoreApplication::applicationFilePath());
 #ifdef _WIN32
     return exe.completeBaseName();
@@ -468,9 +472,13 @@ TEST_F(Lock, WindowsComparesTheAppNameWithoutExtension) {
     fs::create_directories(dir());
     hwio::device::test::LockHolder holder(lockFile(62));
     ASSERT_TRUE(holder.waitUntilLocked());
-    writeLock(68, contentFor(68, holder.pid(), recordedAppName().toUtf8()));
+    // Both contents first: contentFor() takes lock 68, which the first one makes the helper's.
+    const QByteArray withoutExtension = contentFor(68, holder.pid(), recordedAppName().toUtf8());
+    const QByteArray withExtension =
+        contentFor(68, holder.pid(), recordedAppName().toUtf8() + ".exe");
+    writeLock(68, withoutExtension);
     EXPECT_TRUE(ProbeLock::owner(68, dir()).has_value());
-    writeLock(68, contentFor(68, holder.pid(), recordedAppName().toUtf8() + ".exe"));
+    writeLock(68, withExtension);
     EXPECT_FALSE(ProbeLock::owner(68, dir()).has_value());
     EXPECT_TRUE(ProbeLock::acquire(68, dir()));
 }

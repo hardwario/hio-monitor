@@ -21,6 +21,7 @@
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>

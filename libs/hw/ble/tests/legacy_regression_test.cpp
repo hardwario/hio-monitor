@@ -26,6 +26,7 @@
 #include <QLowEnergyController>
 #include <QLowEnergyService>
 #include <QString>
+#include <QStringLiteral>
 
 #include <gtest/gtest.h>
 

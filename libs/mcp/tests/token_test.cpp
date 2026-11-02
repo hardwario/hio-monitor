@@ -156,6 +156,9 @@ TEST_F(TokenStoreTest, CreatedDirectoryIsOwnerOnly) {
               fs::perms::owner_all);
 }
 
+// Linux only: QStandardPaths follows HOME there (test mode: ~/.qttest/config); on macOS it asks
+// the system for the home folder, so the default location cannot be moved into a temporary one.
+#ifdef __linux__
 TEST_F(TokenStoreTest, DefaultDirectoryIsHardened) {
     // The default location under a temporary HOME (QStandardPaths test mode: ~/.qttest/config).
     const QByteArray savedHome = qgetenv("HOME");
@@ -174,6 +177,7 @@ TEST_F(TokenStoreTest, DefaultDirectoryIsHardened) {
     ASSERT_TRUE(created);
     EXPECT_EQ(mode, fs::perms::owner_all);
 }
+#endif
 
 TEST_F(TokenStoreTest, RelativePathIsMadeAbsolute) {
     const QString saved = QDir::currentPath();

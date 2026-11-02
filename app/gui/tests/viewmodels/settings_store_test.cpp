@@ -9,6 +9,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 
 #include <gtest/gtest.h>

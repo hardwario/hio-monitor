@@ -14,6 +14,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QtContainerFwd>
 
 #include <chrono>
