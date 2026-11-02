@@ -45,9 +45,11 @@ Rectangle {
         Accessible.name: item.text
         Accessible.checked: item.selected
         Accessible.description: item.busy ? qsTr("Busy") : ""
-        ToolTip.visible: item.hovered
-        ToolTip.text: AppViewModel.shortcuts.tooltip(item.text, item.shortcutId)
-        ToolTip.delay: 400
+        HToolTip {
+            visible: item.hovered
+            text: AppViewModel.shortcuts.tooltip(item.text, item.shortcutId)
+            delay: 400
+        }
 
         background: Item {
             FocusRing {

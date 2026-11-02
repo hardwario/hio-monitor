@@ -107,14 +107,18 @@ Rectangle {
                 font: Theme.fontUi
                 highlighted: targetBox.highlightedIndex === targetItem.index
                 Accessible.description: targetItem.modelData.title
-                ToolTip.visible: targetItem.hovered
-                ToolTip.text: targetItem.modelData.title
-                ToolTip.delay: 600
+                HToolTip {
+                    visible: targetItem.hovered
+                    text: targetItem.modelData.title
+                    delay: 600
+                }
             }
-            ToolTip.visible: targetBox.hovered
-            ToolTip.text: bar.connection.canChangeTarget ? bar.connection.targetTitle
-                                                         : qsTr("Disconnect to change the target")
-            ToolTip.delay: 600
+            HToolTip {
+                visible: targetBox.hovered
+                text: bar.connection.canChangeTarget ? bar.connection.targetTitle
+                    : qsTr("Disconnect to change the target")
+                delay: 600
+            }
 
             FocusRing {
                 control: targetBox
@@ -155,8 +159,10 @@ Rectangle {
                 Accessible.role: Accessible.StatusBar
                 Accessible.name: stateLabel.text
                 onTextChanged: if (bar.tab === AppViewModel.currentTabViewModel) Accessible.announce(stateLabel.text)
-                ToolTip.visible: stateHover.hovered && stateLabel.truncated
-                ToolTip.text: stateLabel.text
+                HToolTip {
+                    visible: stateHover.hovered && stateLabel.truncated
+                    text: stateLabel.text
+                }
 
                 HoverHandler {
                     id: stateHover

@@ -7,6 +7,9 @@
 # The allow-list holds one path per line, relative to HWIO_QML_DIR ('#' starts a comment); those
 # files are not checked (only WizardDialog.qml, the single StyledText consumer, ADR-0184).
 #
+# Tooltips (ADR-0184 amendment, review R7): an attached `ToolTip.text:` and a `ToolTip { }` element
+# are errors everywhere except in HToolTip.qml (allow-listed), whose contentItem is PlainText.
+#
 # This is a line-based scanner for the formatting used in app/gui/qml (qmlformat style: one
 # property per line, elements opened with `Type {`). TextField is not checked: TextInput has no
 # textFormat and always shows plain text.
@@ -115,6 +118,12 @@ foreach(_relative IN LISTS _qml_files)
                 string(REGEX REPLACE "^.*[.]" "" _short "${_type}")
                 if(_type STREQUAL "" OR NOT _short MATCHES "^[A-Z]")
                     list(APPEND _stack "-")
+                elseif(_short STREQUAL "ToolTip")
+                    # ADR-0184 amendment (review R7): the Material ToolTip shows AutoText.
+                    message(SEND_ERROR "${_relative}:${_line_number}: a ToolTip element; use "
+                                       "HToolTip (its text is PlainText, ADR-0184)")
+                    math(EXPR _violations "${_violations} + 1")
+                    list(APPEND _stack "*")
                 elseif(_short IN_LIST _checked_types)
                     list(APPEND _stack "${_short}")
                 else()
@@ -123,6 +132,11 @@ foreach(_relative IN LISTS _qml_files)
                 list(LENGTH _stack _depth)
                 set(_format_${_depth} FALSE)
                 set(_start_${_depth} "${_line_number}")
+            elseif(_token MATCHES "^ToolTip[.]text[ \t]*:$")
+                # The attached ToolTip uses the style's shared ToolTip (AutoText, review R7).
+                message(SEND_ERROR "${_relative}:${_line_number}: the attached ToolTip.text; "
+                                   "declare an HToolTip instead (ADR-0184)")
+                math(EXPR _violations "${_violations} + 1")
             elseif(_depth GREATER 0)
                 list(GET _stack -1 _top)
                 if(NOT _top STREQUAL "-" AND NOT _top STREQUAL "*")

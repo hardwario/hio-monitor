@@ -87,9 +87,11 @@ Rectangle {
         implicitHeight: 24
         implicitWidth: Math.max(26, toggleLabel.implicitWidth + Theme.spacingS)
         padding: 0
-        ToolTip.visible: toggle.hovered
-        ToolTip.text: toggle.description
-        ToolTip.delay: 600
+        HToolTip {
+            visible: toggle.hovered
+            text: toggle.description
+            delay: 600
+        }
         Accessible.name: toggle.description
 
         contentItem: Label {
@@ -126,9 +128,11 @@ Rectangle {
         focusPolicy: Qt.StrongFocus
         implicitHeight: 24
         implicitWidth: 26
-        ToolTip.visible: chip.hovered
-        ToolTip.text: chip.description
-        ToolTip.delay: 600
+        HToolTip {
+            visible: chip.hovered
+            text: chip.description
+            delay: 600
+        }
         Accessible.role: Accessible.CheckBox
         Accessible.name: chip.description
         Accessible.checked: chip.checked

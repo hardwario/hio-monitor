@@ -11,6 +11,8 @@ ToolButton {
     property string shortcutId: ""
     property bool compact: false
     property color iconColor: control.checked ? Theme.accent : Theme.text
+    // The tooltip (tests read its text).
+    readonly property alias toolTip: tip
 
     implicitHeight: Theme.toolButtonSize
     implicitWidth: control.display === AbstractButton.IconOnly ? Theme.toolButtonSize : implicitContentWidth + leftPadding + rightPadding
@@ -23,9 +25,13 @@ ToolButton {
     icon.width: Theme.iconSize
     icon.height: Theme.iconSize
 
-    ToolTip.visible: control.hovered && control.text !== ""
-    ToolTip.text: AppViewModel.shortcuts.tooltip(control.text, control.shortcutId)
-    ToolTip.delay: 600
+    HToolTip {
+        id: tip
+
+        visible: control.hovered && control.text !== ""
+        text: AppViewModel.shortcuts.tooltip(control.text, control.shortcutId)
+        delay: 600
+    }
     Accessible.name: control.text
 
     FocusRing {

@@ -2,3 +2,5 @@
 # WizardDialog shows constant translated wizard bodies as StyledText; the contract is in
 # libs/diag/include/hwio/diag/wizard.h (bodies and linkUrl are constant, never device data).
 components/WizardDialog.qml
+# HToolTip is the app's ToolTip: its contentItem is a PlainText Text (ADR-0184 amendment).
+components/HToolTip.qml

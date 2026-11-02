@@ -125,7 +125,7 @@ TestCase {
         compare(tool.display, AbstractButton.TextBesideIcon);
         tool.compact = true;
         compare(tool.display, AbstractButton.IconOnly);
-        verify(tool.ToolTip.text.indexOf("Settings (") === 0, tool.ToolTip.text);
+        verify(tool.toolTip.text.indexOf("Settings (") === 0, tool.toolTip.text);
         compare(tool.Accessible.name, "Settings");
         waitForRendering(tool);
     }

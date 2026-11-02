@@ -41,9 +41,11 @@ Button {
     icon.width: 18
     icon.height: 18
 
-    ToolTip.visible: control.hovered && control.toolTipText !== ""
-    ToolTip.text: control.toolTipText
-    ToolTip.delay: 600
+    HToolTip {
+        visible: control.hovered && control.toolTipText !== ""
+        text: control.toolTipText
+        delay: 600
+    }
     Accessible.name: control.text !== "" ? control.text : control.toolTipText
     Accessible.description: control.toolTipText
 

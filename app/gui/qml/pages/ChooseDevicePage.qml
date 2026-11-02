@@ -87,8 +87,10 @@ Item {
                 id: helpHover
             }
 
-            ToolTip.visible: helpHover.hovered
-            ToolTip.text: qsTr("Coming soon")
+            HToolTip {
+                visible: helpHover.hovered
+                text: qsTr("Coming soon")
+            }
         }
     }
 

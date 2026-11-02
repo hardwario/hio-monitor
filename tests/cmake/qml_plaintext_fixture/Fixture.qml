@@ -1,4 +1,4 @@
-// Fixture of qml_plaintext_check_detects (ADR-0184): exactly three problems, marked BAD.
+// Fixture of qml_plaintext_check_detects (ADR-0184): exactly five problems, marked BAD.
 import QtQuick
 import QtQuick.Controls
 
@@ -37,6 +37,14 @@ Item {
         }
     }
     TextField {
+        text: root.deviceText
+    }
+    Button {
+        // BAD: the attached ToolTip renders AutoText
+        ToolTip.text: root.deviceText
+    }
+    ToolTip {
+        // BAD: a plain ToolTip element (use HToolTip)
         text: root.deviceText
     }
     function f() {

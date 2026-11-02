@@ -431,9 +431,11 @@ FlashCard {
                 Layout.fillWidth: true
                 padding: Theme.spacingXs
                 Accessible.name: recentRow.name + ", " + recentRow.typeText + ", " + recentRow.dateText
-                ToolTip.visible: recentRow.hovered
-                ToolTip.text: recentRow.detail
-                ToolTip.delay: 600
+                HToolTip {
+                    visible: recentRow.hovered
+                    text: recentRow.detail
+                    delay: 600
+                }
                 onClicked: card.source.loadRecent(recentRow.index)
 
                 contentItem: RowLayout {

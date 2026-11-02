@@ -53,7 +53,7 @@ if(APPLE)
 endif()
 
 # ADR-0184 (plan/features/0025, M-2): QML text bound to data is PlainText. The second test proves
-# that the scanner finds the three problems of its fixture.
+# that the scanner finds the five problems of its fixture.
 add_test(NAME qml_plaintext_check
     COMMAND "${CMAKE_COMMAND}" "-DHWIO_QML_DIR=${PROJECT_SOURCE_DIR}/app/gui/qml"
         "-DHWIO_QML_ALLOWLIST=${CMAKE_CURRENT_SOURCE_DIR}/qml_plaintext_allowlist.txt"
@@ -66,7 +66,7 @@ add_test(NAME qml_plaintext_check_detects
     COMMAND "${CMAKE_COMMAND}" "-DHWIO_QML_DIR=${CMAKE_CURRENT_SOURCE_DIR}/qml_plaintext_fixture"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/check_qml_plaintext.cmake")
 set_tests_properties(qml_plaintext_check_detects PROPERTIES
-    PASS_REGULAR_EXPRESSION "3 problem\\(s\\) in 1 files"
+    PASS_REGULAR_EXPRESSION "5 problem\\(s\\) in 1 files"
     LABELS "cmake")
 
 # ADR-0187 (plan/features/0025, M-5): the executables carry the hardening of HWioHardening.cmake

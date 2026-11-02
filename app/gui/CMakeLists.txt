@@ -23,6 +23,7 @@ set(HWIO_GUI_QML_FILES
     qml/components/FocusRing.qml
     qml/components/HButton.qml
     qml/components/HToolButton.qml
+    qml/components/HToolTip.qml
     qml/components/Icon.qml
     qml/components/Illustration.qml
     qml/components/PhaseStepper.qml

@@ -165,7 +165,7 @@ Rectangle {
                 id: addHover
             }
 
-            ToolTip {
+            HToolTip {
                 id: addLimitTip
 
                 objectName: "tabLimitToolTip"
