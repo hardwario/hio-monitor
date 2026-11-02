@@ -231,10 +231,17 @@ All 13 findings are fixed (decided 2026-11-02):
 | R12 | low | `clearAll` ignores the per-file history lock | take each file's lock before removing |
 | R13 | low | Timing-sensitive auth tests; no disconnect-during-delay test | relative assertions; new test |
 
+R1 doctor warning decided 2026-11-02: new `usb.world_accessible` (category Probe, wizard FirstRunSetup), message
+"Every user account on this computer can use the J-Link (USB permissions).", cause "A udev rule, usually
+/etc/udev/rules.d/99-jlink.rules from the SEGGER J-Link Software, makes the probe accessible to all accounts.",
+suggestion "Remove that rule (or its MODE=\"0666\"), install the rule shown in the setup wizard, then reconnect the
+J-Link. A J-Link Software update may install the rule again.", doctor row "Accessible to every account";
+`usb.access_denied` (Failed) takes precedence.
+
 Also decided 2026-11-02 on the implementer's own choices: the GUI "Clear history" dialog gets the body text
 "Delete the saved command history of all devices?"; `hwio console history clear` asks on a TTY and needs `--yes`
 non-interactively (like other destructive CLI commands). Accepted as implemented: "Remember commands" off also
 disables the in-session Up-arrow history; the old `99-jlink.rules` is removed only if it is world-rw; plan 0013's
 limits table is left as history (ADR-0188 rules).
 
-- [ ] R1–R13 + the two changes above, re-verified (debug, asan, tsan, tidy, qmllint, translations, format, LFS).
+- [x] R1–R13 + the two changes above, re-verified (debug, asan, tsan, tidy, qmllint, translations, format, LFS).
