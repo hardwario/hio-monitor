@@ -436,16 +436,19 @@ TEST_F(JLinkTools, ReadMemoryToFilePathRules) {
     EXPECT_FALSE(fs::exists(options.memoryDumpDirectory));
     ASSERT_TRUE(fs::create_directories(options.memoryDumpDirectory));
     // Review F5: Windows device names (any case, with an extension) and trailing dots / spaces.
-    for (const char* name : {"NUL", "nul", "nul.txt", "Con", "prn.bin", "AUX", "COM1.bin", "com9",
-                             "LPT1", "lpt5.dump", "nul .txt", "dump.", "dump.bin ", "dump. "}) {
+    for (const char* name :
+         {"CONIN$",    "conout$.txt", "COM0",  "lpt0.bin", "COM\u00b9", "lpt\u00b2.bin",
+          "COM\u00b3", "NUL",         "nul",   "nul.txt",  "Con",       "prn.bin",
+          "AUX",       "COM1.bin",    "com9",  "LPT1",     "lpt5.dump", "nul .txt",
+          "dump.",     "dump.bin ",   "dump. "}) {
         auto refused = harness.call(QStringLiteral("read_memory"),
                                     args({{"address", "0x0"}, {"to_file", name}}));
         EXPECT_EQ(refused.rpcError(), -32602) << name;
         EXPECT_EQ(refused.rpcPointer(), QStringLiteral("/arguments/to_file")) << name;
     }
-    // Not device names: no digit / digit 0 / longer stems.
+    // Not device names: no digit / a letter / longer stems.
     for (const char* name :
-         {"COM.bin", "com0.bin", "LPT10.bin", "console.bin", "nul_dump.bin", "auxiliary"}) {
+         {"COM.bin", "COMX.bin", "LPT10.bin", "console.bin", "nul_dump.bin", "auxiliary"}) {
         auto accepted = harness.call(QStringLiteral("read_memory"),
                                      args({{"address", "0x0"}, {"length", 16}, {"to_file", name}}));
         EXPECT_FALSE(accepted.isError()) << name << " " << accepted.errorCode();

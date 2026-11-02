@@ -80,9 +80,9 @@ constexpr const char* readMemoryDescription =
     "length must be multiples of width/8. Inline results have at most 65536 bytes (hex + "
     "hexdump). to_file writes the raw bytes (up to 16 MiB) to a file in the server's dump folder "
     "instead: a plain file name of at most 128 characters (no '/', '\\' or ':', no leading dot, "
-    "not a Windows device name such as NUL or COM1, no trailing dot or space); paths are refused "
-    "(mcp.to_file_not_allowed). Existing files are never overwritten (io.file_exists). The "
-    "result then has the path, the sha256 and a preview. J-Link only.";
+    "not a Windows device name such as NUL, CONIN$ or COM1, no trailing dot or space); paths are "
+    "refused (mcp.to_file_not_allowed). Existing files are never overwritten (io.file_exists). "
+    "The result then has the path, the sha256 and a preview. J-Link only.";
 
 constexpr const char* readRegistersDescription =
     "Read the core registers (R0-R15, xPSR, MSP, PSP, ...) as hex strings. The CPU must be "
@@ -144,9 +144,10 @@ constexpr qsizetype maxDumpNameLength = 128;
            !name.contains(QLatin1Char(':')) && !name.startsWith(QLatin1Char('.'));
 }
 
-// Review F5: on every OS, a bare to_file name must not be a Windows device name (CON, PRN, AUX,
-// NUL, COM1-COM9, LPT1-LPT9; case-insensitive, also with an extension or with spaces before it,
-// e.g. "nul.txt", "COM1.bin") and must not end with a dot or a space (Windows drops them).
+// Review F5 / R11: on every OS, a bare to_file name must not be a Windows device name (CON, PRN,
+// AUX, NUL, CONIN$, CONOUT$, COM0-COM9, LPT0-LPT9, COM¹²³, LPT¹²³; case-insensitive, also with an
+// extension or with spaces before it, e.g. "nul.txt", "COM1.bin") and must not end with a dot or a
+// space (Windows drops them).
 [[nodiscard]] bool isWindowsReservedName(const QString& name) {
     if (name.endsWith(QLatin1Char('.')) || name.endsWith(QLatin1Char(' '))) {
         return true;
@@ -157,13 +158,19 @@ constexpr qsizetype maxDumpNameLength = 128;
     }
     stem = stem.toUpper();
     if (stem == QStringLiteral("CON") || stem == QStringLiteral("PRN") ||
-        stem == QStringLiteral("AUX") || stem == QStringLiteral("NUL")) {
+        stem == QStringLiteral("AUX") || stem == QStringLiteral("NUL") ||
+        stem == QStringLiteral("CONIN$") || stem == QStringLiteral("CONOUT$")) {
         return true;
     }
+    // COM0-COM9, LPT0-LPT9 and the superscript digits ¹ ² ³ (review R11).
     constexpr qsizetype numberedLength = 4; // "COM1"
-    return stem.size() == numberedLength &&
-           (stem.startsWith(QStringLiteral("COM")) || stem.startsWith(QStringLiteral("LPT"))) &&
-           stem.at(3) >= QLatin1Char('1') && stem.at(3) <= QLatin1Char('9');
+    if (stem.size() != numberedLength ||
+        !(stem.startsWith(QStringLiteral("COM")) || stem.startsWith(QStringLiteral("LPT")))) {
+        return false;
+    }
+    const QChar digit = stem.at(3);
+    return (digit >= QLatin1Char('0') && digit <= QLatin1Char('9')) || digit == QChar(0x00B9) ||
+           digit == QChar(0x00B2) || digit == QChar(0x00B3);
 }
 
 [[nodiscard]] QString rangeText(std::uint32_t address, std::size_t size) {
@@ -693,8 +700,9 @@ hwio::Status addReadMemory(hwio::mcp::Registry& registry, ToolsContext& context)
                 if (isWindowsReservedName(name)) {
                     return invalid(QStringLiteral("to_file"),
                                    QStringLiteral("must not be a Windows device name (CON, PRN, "
-                                                  "AUX, NUL, COM1-COM9, LPT1-LPT9) and must not "
-                                                  "end with a dot or a space"));
+                                                  "AUX, NUL, CONIN$, CONOUT$, COM0-COM9, "
+                                                  "LPT0-LPT9) and must not end with a dot or a "
+                                                  "space"));
                 }
                 return std::nullopt;
             }});
