@@ -9,6 +9,7 @@
 #include <QString>
 #include <QStringList>
 #include <QSysInfo>
+#include <QtContainerFwd>
 #include <QtCore/qnamespace.h>
 #include <QtEnvironmentVariables>
 #include <QtSystemDetection>
