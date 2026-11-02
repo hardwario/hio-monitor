@@ -23,6 +23,7 @@
 #include <vector>
 
 #ifdef Q_OS_LINUX
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -66,6 +67,15 @@ std::optional<std::string> readAttribute(const fs::path& path) {
     return value;
 }
 
+[[maybe_unused]] bool isWorldAccessible([[maybe_unused]] const fs::path& node) {
+#ifdef Q_OS_LINUX
+    struct stat info{};
+    return ::stat(node.c_str(), &info) == 0 && (info.st_mode & (S_IROTH | S_IWOTH)) != 0;
+#else
+    return false;
+#endif
+}
+
 [[maybe_unused]] bool canReadAndWrite([[maybe_unused]] const fs::path& node) {
 #ifdef Q_OS_LINUX
     return ::access(node.c_str(), R_OK | W_OK) == 0;
@@ -79,10 +89,10 @@ std::optional<std::string> readAttribute(const fs::path& path) {
 std::vector<std::string> jlinkUdevCommands() {
     // ADR-0185: the rule file must sort before 73-seat-late.rules, which applies `uaccess`; an old
     // world-writable 99-jlink.rules (MODE="0666") is removed.
-    return {
-        std::format("echo '{}' | sudo tee {}", jlinkUdevRule, jlinkUdevRuleFile),
-        std::format("if grep -qs 'MODE=\"0666\"' {0}; then sudo rm {0}; fi", oldJLinkUdevRuleFile),
-        "sudo udevadm control --reload-rules && sudo udevadm trigger"};
+    return {std::format("echo '{}' | sudo tee {}", jlinkUdevRule, jlinkUdevRuleFile),
+            std::format("if grep -qsE 'MODE=\"0?666\"' {0}; then sudo rm {0}; fi",
+                        oldJLinkUdevRuleFile),
+            "sudo udevadm control --reload-rules && sudo udevadm trigger"};
 }
 
 Result<std::vector<UsbDeviceAccess>> checkUsbAccess([[maybe_unused]] const fs::path& sysfsRoot,
@@ -117,7 +127,8 @@ Result<std::vector<UsbDeviceAccess>> checkUsbAccess([[maybe_unused]] const fs::p
         devices.push_back(UsbDeviceAccess{.bus = *bus,
                                           .device = *number,
                                           .product = readAttribute(entry / "product").value_or(""),
-                                          .accessible = canReadAndWrite(node)});
+                                          .accessible = canReadAndWrite(node),
+                                          .worldAccessible = isWorldAccessible(node)});
     }
     std::ranges::sort(devices, [](const UsbDeviceAccess& a, const UsbDeviceAccess& b) {
         return a.bus != b.bus ? a.bus < b.bus : a.device < b.device;

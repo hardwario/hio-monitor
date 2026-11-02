@@ -46,6 +46,9 @@ struct UsbDeviceAccess {
     int device = 0;
     std::string product; // sysfs "product" ("" when absent)
     bool accessible = false;
+    // Review R1 (ADR-0185 amendment): the node is readable or writable by every account
+    // (st_mode & 0006), e.g. by SEGGER's own 99-jlink.rules with MODE="0666".
+    bool worldAccessible = false;
 };
 
 // Errors: io.read_failed when <sysfsRoot>/bus/usb/devices cannot be listed (e.g. a sandbox).

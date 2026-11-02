@@ -28,7 +28,7 @@ protected:
     [[nodiscard]] fs::path root() const { return {m_dir.path().toStdString()}; }
 
     void addDevice(const std::string& entry, const std::string& vendor, int bus, int device,
-                   bool accessible) const {
+                   bool accessible, bool world = false) const {
         const fs::path dir = root() / "sys/bus/usb/devices" / entry;
         fs::create_directories(dir);
         std::ofstream(dir / "idVendor") << vendor << "\n";
@@ -41,6 +41,10 @@ protected:
         std::ofstream(node) << "";
         fs::permissions(node, accessible ? fs::perms::owner_read | fs::perms::owner_write
                                          : fs::perms::none);
+        if (world) {
+            fs::permissions(node, fs::perms::others_read | fs::perms::others_write,
+                            fs::perm_options::add);
+        }
     }
 
 private:
@@ -67,6 +71,17 @@ TEST_F(UsbAccess, AccessibleProbe) {
     EXPECT_EQ(devices->front().product, "Test Probe");
     EXPECT_TRUE(devices->front().accessible);
     EXPECT_FALSE(hwio::diag::usbAccessDeniedError(*devices).has_value());
+}
+
+// Review R1: a world-rw node (SEGGER's MODE="0666" rule) is reported.
+TEST_F(UsbAccess, WorldAccessibleNodeIsReported) {
+    addDevice("1-2", "1366", 1, 5, true, true);
+    addDevice("1-3", "1366", 1, 6, true, false);
+    const auto devices = hwio::diag::checkUsbAccess(root() / "sys", root() / "dev");
+    ASSERT_TRUE(devices.has_value());
+    ASSERT_EQ(devices->size(), 2U);
+    EXPECT_TRUE(devices->at(0).worldAccessible);
+    EXPECT_FALSE(devices->at(1).worldAccessible);
 }
 
 TEST_F(UsbAccess, InaccessibleProbeIsUsbAccessDenied) {
@@ -109,7 +124,7 @@ TEST(UsbRule, CommandsContainTheRule) {
     // ADR-0185: before 73-seat-late.rules (uaccess); an old MODE="0666" rule is removed.
     EXPECT_NE(commands[0].find("/etc/udev/rules.d/60-hardwario-jlink.rules"), std::string::npos);
     EXPECT_EQ(commands[1],
-              "if grep -qs 'MODE=\"0666\"' /etc/udev/rules.d/99-jlink.rules; then sudo "
+              "if grep -qsE 'MODE=\"0?666\"' /etc/udev/rules.d/99-jlink.rules; then sudo "
               "rm /etc/udev/rules.d/99-jlink.rules; fi");
     EXPECT_EQ(commands[2], "sudo udevadm control --reload-rules && sudo udevadm trigger");
 }
