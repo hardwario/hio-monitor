@@ -1,6 +1,6 @@
 # 0028 — GUI feedback round 2: log file names, Save view, copy feedback, Batch help, Flash bar
 
-- **Status:** In progress (approved 2026-11-02 by Matej Strnad with the recommended option of every decision D1–D22)
+- **Status:** Done (2026-11-02; hardware checks open). Approved 2026-11-02 by Matej Strnad with the recommended option of every decision D1–D22
 - **Milestone:** GUI feedback round 2 (follow-up of [0021](0021-gui-feedback-round-1.md))
 - **Author:** Matej Strnad (with Claude)
 - **Related ADRs:** ADR-0200 … ADR-0204 (new, Accepted); amended (amendment notes accepted): ADR-0128, ADR-0055,
@@ -519,7 +519,12 @@ with `linux-debug` build + `ctest`, `clang-format` and `linux-tidy` clean.
 - [x] E1 `update_translations`; Czech for every new string (e.g. "Zkopírováno do schránky.", "Uloženo …" unchanged,
       Batch help text, the docs tooltip, "Only folders on this computer can be used." …); `check_translations` with 0
       unfinished; obsolete strings removed.
-- [ ] E2 Full verification (§ Tests and verification), screenshots, HIL; status → Done; roadmap updated.
+- [ ] E2 Full verification (§ Tests and verification), screenshots, HIL; status → Done; roadmap updated. Done by the
+      user's decision with the mock E2E below passed; still open and needing real hardware or another OS (HIL):
+      the real CHESTER boot banner text (D10 record); real RTT and BLE timing (BlueZ); flashing a different app from
+      the Flash page and reconnecting on real hardware; physically swapping two CHESTERs on one probe; Windows rename
+      while the log is open in another program (D11); native save dialogs on Linux GTK/portal, Windows and macOS; F3
+      on the reporter's OS/scaling.
 
 ## Review round 1 (2026-11-02)
 
@@ -583,6 +588,28 @@ User decisions U1–U3 are in § Decisions. Review findings (all to be fixed):
   open in Notepad++ / `Get-Content -Wait` (D11). F3 on the reporter's OS/scaling if known.
 - **Manual:** Save view on Linux (GTK and portal dialogs), Windows and macOS: Save with the prefilled name writes the
   file; second save starts in the same folder.
+
+## Mock end-to-end verification (2026-11-02)
+
+Ran the real CLI binary `hwio` and the GUI test harness (tst_gui: real `Main.qml`, ViewModels, backend) against the
+fake J-Link and fake BLE with isolated HOME/XDG. Kit: `../screenshots-demo` (`gen.py` options `--fw-name`,
+`--fw-version`, `--serial`, `--probe-sn`, `--info real|refused|silent|noident`, `--banner`; `e2e-gui.sh`, `qml-e2e/`,
+`cli-e2e/` with a pty driver and a reload variant of the fake J-Link that re-reads the scenario on each boot).
+All PASS, no bugs found.
+
+| Area | Result |
+|---|---|
+| CLI console, piped and interactive | Rename to `chester-app-clime-v3.2.0-<UTC>-<SN>.log` ~0.7 s after connect; `@ Firmware` marker; "Console file:" on stderr; `--json` `consoleFile` before `stopped`; secrets `<redacted>` in the file (silent query and the user's `info show`); explicit `--console-file` not renamed |
+| Identity changes | Firmware change after reconnect → new file with markers; device-serial-only change → "Device changed; continued in …"; empty↔non-empty serial over 3 reconnects → one file |
+| Banner fallback | App banner used when `info show` refused / silent / no fields; Zephyr OS / MCUboot / nRF Connect SDK banners rejected; `info show` wins over banner |
+| Retention | 60 pre-filled files, two concurrent processes → 50 newest kept, all live files kept, non-`.log` files ignored |
+| `ble console` | `chester-ble-clime-v3.0.0-<UTC>-<id>.log`, marker, redaction, "Console file:" line, `--json`, explicit file not renamed |
+| GUI (harness) | Open log file → renamed file (358 ms after Connected); Save view prefill `Documents/…-log.txt`, write, last folder persisted across a simulated restart, identity kept after disconnect (D14); one "Copied to clipboard." toast; Flash button right edge = form right edge at 1280 and 2560 px |
+
+Screenshots: `../screenshots-demo/out-0028-mock-e2e/` (untracked).
+
+Limits: the real `hwio-monitor` binary was only smoke-started (no way to click Connect offscreen); the native Save
+dialog was not exercised.
 
 ## Risks and open points
 
