@@ -1,6 +1,6 @@
 # 0025 — Security fixes, round 1 (review of 2026-10-27)
 
-- **Status:** In progress
+- **Status:** Done
 - **Milestone:** Security hardening (before MCP GUI / public beta)
 - **Author:** Matej Strnad
 - **Related ADRs:** ADR-0182 … ADR-0188 (new); ADR-0100, ADR-0102 (superseded in part); ADR-0072 (amended)
@@ -262,3 +262,10 @@ R1, R3 (partly), R5–R13 and both extra changes confirmed closed. Fixed now (de
 Left open: echo with a backspace correction (needs the CHESTER HIL echo check, already open).
 
 - [x] S1–S6 fixed and re-verified.
+
+## Open after Done (HIL follow-up, 2026-11-02)
+
+Marked Done by the user with these checks open: CHESTER shell echo redaction in console files (including an echo
+with a backspace correction), the `usb.world_accessible` doctor warning against a real SEGGER `99-jlink.rules`, the
+`.deb` `uaccess` rule with a seated and a non-seated user, a real-terminal OSC/C1 check of `hwio console`, the GUI
+`<img>` fw-name check, and Windows/macOS CI for the hardening flags and checks.
