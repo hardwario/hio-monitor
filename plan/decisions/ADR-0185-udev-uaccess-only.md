@@ -19,3 +19,8 @@ runs after `73-seat-late.rules`, where `uaccess` is applied, and would grant not
 
 ## Consequences
 Headless/SSH-only use needs a manual rule. ADR-0072 stays valid otherwise.
+
+## Amendment 2026-11-02
+Residual risk: SEGGER's J-Link Software installs its own `99-jlink.rules` with a world-accessible MODE, which keeps
+probes world-rw although our rule is `uaccess` only. The app does not modify the vendor's file from the package; the
+USB-access doctor check warns when a vendor-1366 device node is world-rw and offers the fix (review round 1, R1).

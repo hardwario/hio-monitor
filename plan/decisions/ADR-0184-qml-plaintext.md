@@ -19,3 +19,7 @@ whose bodies and `linkUrl` must stay constant translated strings (contract comme
 
 ## Consequences
 New QML that forgets the property fails CI. Rich text is possible only in the wizard.
+
+## Amendment 2026-11-02
+ToolTips are covered too: all tooltips use `HToolTip`, a styled ToolTip whose `contentItem` is PlainText, and
+`qml_plaintext_check` also checks `ToolTip.text` / `ToolTip { text: }` (review round 1, R7).

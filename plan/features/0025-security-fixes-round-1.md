@@ -210,3 +210,31 @@ why / what to do, translatable). New limits: `kMaxRttBuffers = 16`, MCP 1 auth f
 - `/guard:cf` with the vendor J-Link DLL: CFG only checks our indirect calls into it; the function pointers come from
   `GetProcAddress` and are valid targets — verify in Windows CI.
 - uaccess-only rule: headless/SSH users lose access they had with `0666`; documented in the wizard.
+
+## Review round 1 (independent review of 55dcfd0, 2026-11-02)
+
+All 13 findings are fixed (decided 2026-11-02):
+
+| # | Sev | Finding | Fix |
+|---|---|---|---|
+| R1 | medium | SEGGER's own `99-jlink.rules` keeps vendor-1366 nodes world-rw, so M-3 is not closed where J-Link Software is installed | USB-access doctor check flags vendor-1366 `/dev/bus/usb` nodes with `st_mode & 0006` as a warning and offers the fix; old-rule match `MODE="0?666"`; residual risk in ADR-0185; the `.deb` does not touch SEGGER's file |
+| R2 | medium | Report redaction misses `"password":"x"`, compact MCP JSON, the space form `lrw config appkey 00…`, quoted values | optional quotes around name and value; arguments after the profile's sensitive prefixes redacted (per line and inside JSON strings); tests for JSON and space forms |
+| R3 | medium | Old history entries load unfiltered and old files stay 0644 | `isRecordable` filter in `readEntries` (load and merge); chmod in `open()`; test with an old 0644 file |
+| R4 | medium | A shell echo writes sensitive input verbatim as an Out line in the console file | `matchSensitiveCommand` also on Out lines after stripping a known prompt; HIL check of CHESTER echo listed as open |
+| R5 | medium | `uicr read --force` deletes the old file before the device read | validate only in the pre-check; remove right before `open(NewOnly)` after a successful read; test |
+| R6 | low | Hardening flags do not reach miniz/replxx | apply to third-party targets too; check verifies a miniz object |
+| R7 | low | ToolTips render AutoText | `HToolTip` (PlainText contentItem) for all tooltips; check extended to ToolTip text (ADR-0184 amended) |
+| R8 | low | A failed "Clear history" is invisible | `hwio::Error` shown in the GUI |
+| R9 | low | chmod race on new history/console files | create with owner-only permissions directly |
+| R10 | low | `uicr read FILE` output not owner-only | 0600 on create |
+| R11 | low | Windows reserved-name list incomplete | add `CONIN$`, `CONOUT$`, `COM0`/`LPT0`, superscript `COM¹²³`/`LPT¹²³` |
+| R12 | low | `clearAll` ignores the per-file history lock | take each file's lock before removing |
+| R13 | low | Timing-sensitive auth tests; no disconnect-during-delay test | relative assertions; new test |
+
+Also decided 2026-11-02 on the implementer's own choices: the GUI "Clear history" dialog gets the body text
+"Delete the saved command history of all devices?"; `hwio console history clear` asks on a TTY and needs `--yes`
+non-interactively (like other destructive CLI commands). Accepted as implemented: "Remember commands" off also
+disables the in-session Up-arrow history; the old `99-jlink.rules` is removed only if it is world-rw; plan 0013's
+limits table is left as history (ADR-0188 rules).
+
+- [ ] R1–R13 + the two changes above, re-verified (debug, asan, tsan, tidy, qmllint, translations, format, LFS).
