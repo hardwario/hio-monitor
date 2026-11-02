@@ -71,7 +71,7 @@ private:
 #ifdef Q_OS_WIN
 
 TEST_F(CrashHandler, AccessViolationWritesAMinidump) {
-    for (const QString kind :
+    for (const QString& kind :
          {QStringLiteral("segv"), QStringLiteral("illegal"), QStringLiteral("div0")}) {
         const QTemporaryDir dir;
         const Crash crash = crashChild(dir, kind);

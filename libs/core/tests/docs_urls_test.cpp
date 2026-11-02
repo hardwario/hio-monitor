@@ -3,6 +3,7 @@
 #include "hwio/core/docs_urls.h"
 
 #include <QString>
+#include <QStringLiteral>
 #include <QUrl>
 
 #include <gtest/gtest.h>

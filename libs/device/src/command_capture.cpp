@@ -186,7 +186,7 @@ void CommandCapture::stop() {
     m_stopped = true;
     m_deadline.stop();
     m_silence.stop();
-    if (m_session) {
+    if (!m_session.isNull()) {
         disconnect(m_session, nullptr, this, nullptr);
         if (m_captureInstalled) {
             m_captureInstalled = false;

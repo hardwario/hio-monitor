@@ -540,7 +540,7 @@ void ConsoleViewModel::learnFor(const QString& text) {
     if (m_context.settings != nullptr && !m_context.settings->suggestions()) {
         return;
     }
-    if (!m_session || m_session->connection().state != device::ConnectionState::Connected ||
+    if (m_session.isNull() || m_session->connection().state != device::ConnectionState::Connected ||
         !m_learningStarted) {
         return; // learning starts after the attach's `info show` (the cache key)
     }

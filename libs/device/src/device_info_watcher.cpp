@@ -47,7 +47,7 @@ void DeviceInfoWatcher::onConnection(const ConnectionEvent& event) {
 }
 
 void DeviceInfoWatcher::query() {
-    if (!m_session || m_session->connection().state != ConnectionState::Connected) {
+    if (m_session.isNull() || m_session->connection().state != ConnectionState::Connected) {
         return;
     }
     if (m_session->connection().transport == Transport::JLink) {

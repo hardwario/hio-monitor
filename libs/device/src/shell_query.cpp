@@ -145,7 +145,7 @@ void ShellQueryQueue::clear() {
 ShellQueryQueue::Turn ShellQueryQueue::frontTurn() {
     using std::chrono::milliseconds;
     // Review P1: only on an idle shell, at most maxIdleWait.
-    const milliseconds busyFor = m_session ? m_session->shellBusyFor() : milliseconds(0);
+    const milliseconds busyFor = !m_session.isNull() ? m_session->shellBusyFor() : milliseconds(0);
     if (busyFor == milliseconds(0)) {
         m_waiting = false;
         return Turn::Ready;
@@ -173,7 +173,7 @@ void ShellQueryQueue::next() {
         }
         Pending item = std::move(m_pending.front());
         m_pending.pop_front();
-        if (turn == Turn::Expired || !m_session || !startQuery(item)) {
+        if (turn == Turn::Expired || m_session.isNull() || !startQuery(item)) {
             if (item.done) {
                 item.done(std::nullopt);
             }

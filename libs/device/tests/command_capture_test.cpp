@@ -23,6 +23,7 @@
 #include <QList>
 #include <QMessageLogContext>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtCore/qtmetamacros.h>

@@ -10,6 +10,7 @@
 #include <QRegularExpressionMatchIterator>
 #include <QString>
 #include <QStringList>
+#include <QStringLiteral>
 #include <QSysInfo>
 #include <QtContainerFwd>
 #include <QtCore/qnamespace.h>

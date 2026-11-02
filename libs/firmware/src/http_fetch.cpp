@@ -10,6 +10,7 @@
 #include <QNetworkRequest>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTimer>
 #include <QUrl>
 #include <QVariant>
@@ -51,7 +52,7 @@ HttpFetch::HttpFetch(QNetworkAccessManager& network, const QUrl& url, FetchLimit
         m_totalTimer.setSingleShot(true);
         m_totalTimer.setInterval(m_limits.totalTimeout);
         QObject::connect(&m_totalTimer, &QTimer::timeout, this, [this] {
-            if (m_reply && !isFinished()) {
+            if (!m_reply.isNull() && !isFinished()) {
                 m_totalTimeout = true;
                 m_reply->abort(); // finished() follows
             }
@@ -86,7 +87,7 @@ HttpFetch::HttpFetch(QNetworkAccessManager& network, const QUrl& url, FetchLimit
 }
 
 HttpFetch::~HttpFetch() {
-    if (m_reply) {
+    if (!m_reply.isNull()) {
         QObject::disconnect(m_reply, nullptr, this, nullptr);
         m_reply->abort();
         m_reply->deleteLater();
@@ -94,7 +95,7 @@ HttpFetch::~HttpFetch() {
 }
 
 void HttpFetch::onReadyRead() {
-    if (!m_reply) {
+    if (m_reply.isNull()) {
         return;
     }
     const QByteArray chunk = m_reply->readAll();
@@ -112,13 +113,13 @@ void HttpFetch::cancel() {
         return;
     }
     m_cancelled = true;
-    if (m_reply) {
+    if (!m_reply.isNull()) {
         m_reply->abort(); // finished() follows
     }
 }
 
 void HttpFetch::onFinished() {
-    if (!m_reply || isFinished()) {
+    if (m_reply.isNull() || isFinished()) {
         return;
     }
     QNetworkReply* reply = m_reply;

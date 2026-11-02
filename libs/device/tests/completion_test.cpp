@@ -12,6 +12,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QTemporaryDir>
 
 #include <gtest/gtest.h>

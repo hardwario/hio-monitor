@@ -265,6 +265,10 @@ TEST_F(FakeJLinkCli, AppInfoJsonWithTheRealChesterKeys) {
 // Plan 0028 (ADR-0200, D7): the generated console file of a piped console is named after the
 // firmware once `info show` answered; an explicit --console-file never is.
 TEST_F(FakeJLinkCli, ConsoleFileIsNamedAfterTheFirmware) {
+#ifndef __linux__
+    // Elsewhere QStandardPaths takes the system folders, not the test's XDG_DATA_HOME.
+    GTEST_SKIP() << "the default console folder is checked on Linux only";
+#endif
     useScenario(realChester);
     const RunResult result = hwio({QStringLiteral("--json"), QStringLiteral("chester"),
                                    QStringLiteral("app"), QStringLiteral("console")},

@@ -1,6 +1,7 @@
 #include "hwio/core/docs_urls.h"
 
 #include <QString>
+#include <QStringLiteral>
 #include <QStringView>
 #include <QUrl>
 

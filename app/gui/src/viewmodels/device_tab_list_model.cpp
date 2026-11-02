@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
+#include <QStringLiteral>
 #include <QVariant>
 
 #include <algorithm>

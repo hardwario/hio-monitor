@@ -64,7 +64,7 @@ std::string rateLimitDetail(const QNetworkReply& reply, int status, const std::s
 UpdateCheck::UpdateCheck(QObject* parent) : QObject(parent) {}
 
 UpdateCheck::~UpdateCheck() {
-    if (m_reply) {
+    if (!m_reply.isNull()) {
         QObject::disconnect(m_reply, nullptr, this, nullptr);
         m_reply->abort();
         m_reply->deleteLater();
@@ -97,14 +97,14 @@ void UpdateCheck::start(QNetworkAccessManager& network, const QUrl& url, const S
 }
 
 void UpdateCheck::cancel() {
-    if (m_reply) {
+    if (!m_reply.isNull()) {
         m_cancelled = true;
         m_reply->abort(); // finished() follows synchronously
     }
 }
 
 void UpdateCheck::onReadyRead() {
-    if (!m_reply || m_oversize) {
+    if (m_reply.isNull() || m_oversize) {
         return;
     }
     const QByteArray chunk = m_reply->readAll();
@@ -119,7 +119,7 @@ void UpdateCheck::onReadyRead() {
 }
 
 void UpdateCheck::onFinished() {
-    if (!m_reply) {
+    if (m_reply.isNull()) {
         return;
     }
     if (!m_cancelled && !m_oversize) {

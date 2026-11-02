@@ -446,7 +446,8 @@ QString AppViewModel::language() const {
 }
 
 QString AppViewModel::effectiveLanguage() const {
-    return m_languageManager ? m_languageManager->effectiveLanguage() : QStringLiteral("en");
+    return !m_languageManager.isNull() ? m_languageManager->effectiveLanguage()
+                                       : QStringLiteral("en");
 }
 
 void AppViewModel::setLanguage(const QString& code) {

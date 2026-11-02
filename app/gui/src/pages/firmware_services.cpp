@@ -10,6 +10,7 @@
 #include <QMetaType>
 #include <QObject>
 #include <QString>
+#include <QStringLiteral>
 #include <QtTypes>
 
 #include <array>
