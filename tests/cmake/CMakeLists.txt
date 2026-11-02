@@ -86,7 +86,7 @@ if(NOT HWIO_SANITIZERS AND (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR WIN32))
             "-DHWIO_READER=${HWIO_BINARY_READER}"
             "-DHWIO_BINARIES=${_hwio_hardened_binaries}"
             "-DHWIO_EXPECT_FORTIFY=$<IF:$<CONFIG:Release,RelWithDebInfo>,ON,OFF>"
-            "-DHWIO_ARCHIVES=$<TARGET_FILE:hwio_miniz>"
+            "-DHWIO_ARCHIVES=$<TARGET_FILE:hwio_miniz>;$<TARGET_FILE:replxx>"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/check_binary_hardening.cmake")
     set_tests_properties(binary_hardening_check PROPERTIES
         PASS_REGULAR_EXPRESSION "binary_hardening_check: [0-9]+ executables hardened"

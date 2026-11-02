@@ -4,8 +4,8 @@
 #   cmake -DHWIO_OS=Linux|Windows -DHWIO_READER=<readelf | llvm-readobj> "-DHWIO_BINARIES=a;b"
 #         [-DHWIO_EXPECT_FORTIFY=ON] ["-DHWIO_ARCHIVES=libx.a;..."] -P check_binary_hardening.cmake
 #
-# HWIO_ARCHIVES (Linux, review R6): static libraries of vendored third-party code (miniz) whose
-#   objects must be built with the stack protector (__stack_chk_fail referenced).
+# HWIO_ARCHIVES (Linux, review R6, S6): static libraries of vendored third-party code whose
+#   objects must be built with the stack protector (__stack_chk_fail referenced): miniz, replxx.
 #
 # Linux (readelf): BIND_NOW (full RELRO), a GNU_RELRO segment, PIE (ELF type DYN), a
 #   non-executable GNU_STACK, the stack protector (__stack_chk_fail) and, with
