@@ -8,7 +8,9 @@
 //     2026-10-09 12:34:56.789 @ text     connection change
 // (local time), with a header block naming the probe when the file is opened. ADR-0186: a command
 // with secret arguments (TargetProfile::sensitiveCommandPrefixes of the config's profile and
-// target) is written as "< <prefix> <redacted>"; the files are owner-only (0600 on Unix).
+// target) is written as "< <prefix> <redacted>", and so is a shell's echo of it in the output
+// (after the profile's shell prompt or a Zephyr "<name>:~$ " prompt); the files are owner-only
+// (0600 on Unix, created so).
 //
 // Default mode: one file per session (in ConsoleFileConfig::consoleFileDir when set, ADR-0156),
 // <directory>/<profile>-<target>-YYYYMMDD-HHMMSS-<sn>.log
@@ -37,6 +39,7 @@
 #include "hwio/device/console_line.h"
 #include "hwio/device/session_key.h"
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -127,8 +130,13 @@ private:
     bool m_rotationFailed = false; // explicit file: rename to P.1 failed, not retried
     std::optional<Error> m_warning;
     std::string m_buffer; // <= maxBufferedBytes (+ one line)
+    // The length of a shell prompt at the start of an echoed line (0 = none).
+    [[nodiscard]] std::size_t echoPromptLength(std::string_view text) const noexcept;
+
     // ADR-0186: input lines matching these are written redacted (the target's profile list).
     std::span<const std::string_view> m_sensitivePrefixes;
+    // Review R4: the profile's shell prompts (RTT target, BLE); "" = none.
+    std::array<std::string_view, 2> m_prompts{};
 };
 
 // Prefix of a line in the console file (" > ", " # ", " < ", " @ ").

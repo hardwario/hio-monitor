@@ -143,12 +143,31 @@ TEST_F(Sink, SensitiveInputIsRedactedAndTheFileIsOwnerOnly) {
     EXPECT_EQ(content.find("hunter2"), std::string::npos);
     EXPECT_EQ(content.find("0011aabb"), std::string::npos);
     EXPECT_NE(content.find(" < lrw config show\n"), std::string::npos);
-    // Device output is the user's session log and stays as it is.
-    EXPECT_NE(content.find(" > lrw config appkey 0011\n"), std::string::npos);
+    // An echo of the command in the output is redacted too (review R4).
+    EXPECT_NE(content.find(" > lrw config appkey <redacted>\n"), std::string::npos);
 #ifndef _WIN32
     const fs::perms perms = fs::status((*sink)->currentFile()).permissions();
     EXPECT_EQ(perms & fs::perms::all, fs::perms::owner_read | fs::perms::owner_write);
 #endif
+}
+
+// Review R4: a shell's echo of a sensitive command is redacted too (after its prompt).
+TEST_F(Sink, EchoedSensitiveCommandIsRedacted) {
+    auto sink = ConsoleFileSink::open(defaultConfig(), 801234567, "header",
+                                      std::chrono::system_clock::now());
+    ASSERT_TRUE(sink);
+    ASSERT_TRUE(
+        (*sink)->write(line(Channel::Shell, Direction::Out, "uart:~$ lte config password pw1")));
+    ASSERT_TRUE((*sink)->write(line(Channel::Shell, Direction::Out, "lrw config appkey 00ff")));
+    ASSERT_TRUE((*sink)->write(line(Channel::Shell, Direction::Out, "uart:~$ lrw config show")));
+    ASSERT_TRUE((*sink)->flush());
+    const std::string content = readAll((*sink)->currentFile());
+    EXPECT_NE(content.find(" > uart:~$ lte config password <redacted>\n"), std::string::npos)
+        << content;
+    EXPECT_NE(content.find(" > lrw config appkey <redacted>\n"), std::string::npos);
+    EXPECT_NE(content.find(" > uart:~$ lrw config show\n"), std::string::npos);
+    EXPECT_EQ(content.find("pw1"), std::string::npos);
+    EXPECT_EQ(content.find("00ff"), std::string::npos);
 }
 
 #ifndef _WIN32

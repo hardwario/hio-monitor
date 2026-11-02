@@ -15,8 +15,9 @@
 //
 // ADR-0186 (plan/features/0025): an entry that starts with a space or matches one of the sensitive
 // command prefixes of the console's target (TargetProfile::sensitiveCommandPrefixes) is never
-// stored (isRecordable). The file is owner-only (0600 on Unix, set on every save; Windows: the
-// per-user AppData ACL). Whether commands are recorded at all is the setting
+// stored (isRecordable); entries of older files that break this rule are dropped when the file is
+// read (review R3). The file is owner-only (0600 on Unix: created so, tightened on open() and on
+// every save; Windows: the per-user AppData ACL). Whether commands are recorded at all is the setting
 // rememberCommandsSetting, checked by the callers (GUI and CLI console).
 //
 // Thread safety: none; one owner thread (the CLI / GUI thread).
@@ -60,7 +61,8 @@ public:
                                            std::span<const std::string_view> sensitivePrefixes);
 
     // ADR-0186 ("Clear history"): deletes every history-*.txt file in `directory` (only those
-    // names). Errors: io.write_failed (the first file that could not be deleted; the others are
+    // names), each under its <file>.lock (waits at most lockTimeout, review R12). Errors:
+    // io.write_failed (the first file that could not be deleted or was locked; the others are
     // still tried).
     [[nodiscard]] static Status clearAll(const std::filesystem::path& directory);
 

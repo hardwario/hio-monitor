@@ -9,6 +9,7 @@
 
 #include <QByteArray>
 #include <QFile>
+#include <QFileDevice>
 #include <QIODevice>
 #include <QLockFile>
 #include <QLoggingCategory>
@@ -56,8 +57,11 @@ bool isStorable(std::string_view entry) {
            entry.find_first_of("\r\n") == std::string_view::npos;
 }
 
-// The entries stored in `file` (missing file = none). Errors: io.read_failed.
-Result<std::deque<std::string>> readEntries(const fs::path& file) {
+// The entries stored in `file` (missing file = none); entries that must not be recorded
+// (CommandHistory::isRecordable, e.g. written by an older version) are dropped (review R3).
+// Errors: io.read_failed.
+Result<std::deque<std::string>> readEntries(const fs::path& file,
+                                            std::span<const std::string_view> sensitivePrefixes) {
     std::deque<std::string> entries;
     QFile input(toQString(toUtf8(file)));
     if (!input.exists()) {
@@ -80,7 +84,7 @@ Result<std::deque<std::string>> readEntries(const fs::path& file) {
             line.chop(1);
         }
         std::string entry = line.toStdString();
-        if (isStorable(entry)) {
+        if (isStorable(entry) && CommandHistory::isRecordable(entry, sensitivePrefixes)) {
             appendEntry(entries, std::move(entry));
         }
     }
@@ -101,7 +105,11 @@ CommandHistory::CommandHistory(fs::path file, std::span<const std::string_view> 
 Result<CommandHistory> CommandHistory::open(fs::path file,
                                             std::span<const std::string_view> sensitivePrefixes) {
     CommandHistory history(std::move(file), sensitivePrefixes);
-    auto entries = readEntries(history.m_file);
+    // Review R3: a file of an older version is tightened at once (also when nothing is recorded).
+    if (QFile existing(toQString(toUtf8(history.m_file))); existing.exists()) {
+        detail::restrictToOwner(existing);
+    }
+    auto entries = readEntries(history.m_file, history.m_sensitivePrefixes);
     if (!entries) {
         return std::unexpected(std::move(entries).error());
     }
@@ -135,6 +143,15 @@ Status CommandHistory::clearAll(const fs::path& directory) {
          !ec && it != end && visited < maxDirectoryEntries; it.increment(ec), ++visited) {
         const std::string name = toUtf8(it->path().filename());
         if (!name.starts_with("history-") || !name.ends_with(".txt")) {
+            continue;
+        }
+        // Review R12: like save(), under the file's lock (another process may be merging).
+        QLockFile lock(toQString(toUtf8(it->path())) + QStringLiteral(".lock"));
+        if (!lock.tryLock(lockTimeout)) {
+            if (!failure) {
+                failure = makeError(ErrorCode::IoWriteFailed,
+                                    toUtf8(it->path()) + ": locked by another program");
+            }
             continue;
         }
         std::error_code removeError;
@@ -189,7 +206,7 @@ Status CommandHistory::save() {
             << toQString(toUtf8(m_file));
         return {};
     }
-    auto merged = readEntries(m_file);
+    auto merged = readEntries(m_file, m_sensitivePrefixes);
     if (!merged) {
         // An unreadable file is replaced by our entries rather than blocking every save.
         qCWarning(log::lcDevice).noquote() << toQString(merged.error().detail);
@@ -199,13 +216,26 @@ Status CommandHistory::save() {
         appendEntry(*merged, entry);
     }
 
+    // Review R9: QSaveFile creates its temporary file 0600 when the target exists (and then copies
+    // the target's permissions), but with the umask for a new target. A new target is therefore
+    // created empty and owner-only first, so no file of this history is ever group/world-readable.
+    if (QFile target(toQString(toUtf8(m_file))); !target.exists()) {
+        if (!target.open(QIODevice::WriteOnly | QIODevice::NewOnly,
+                         QFileDevice::ReadOwner | QFileDevice::WriteOwner) &&
+            !target.exists()) {
+            return std::unexpected(
+                makeError(ErrorCode::IoWriteFailed,
+                          toUtf8(m_file) + ": " + target.errorString().toStdString()));
+        }
+    } else {
+        detail::restrictToOwner(target);
+    }
     QSaveFile output(toQString(toUtf8(m_file)));
     if (!output.open(QIODevice::WriteOnly)) {
         return std::unexpected(makeError(
             ErrorCode::IoWriteFailed, toUtf8(m_file) + ": " + output.errorString().toStdString()));
     }
-    detail::restrictToOwner(
-        output); // ADR-0186: before the first write; the committed file keeps it
+    detail::restrictToOwner(output); // ADR-0186: the temporary file too, before any write
     for (const std::string& entry : *merged) {
         output.write(entry.data(), static_cast<qint64>(entry.size()));
         output.write("\n", 1);

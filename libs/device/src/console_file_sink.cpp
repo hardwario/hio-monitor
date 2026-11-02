@@ -14,6 +14,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
+#include <QFileDevice>
 #include <QIODevice>
 #include <QLoggingCategory>
 #include <QStandardPaths>
@@ -237,7 +238,17 @@ ConsoleFileSink::open(const ConsoleFileConfig& config, std::uint32_t probeSerial
 
 ConsoleFileSink::ConsoleFileSink(Passkey /*key*/, ConsoleFileConfig config, fs::path baseFile)
     : m_config(std::move(config)), m_base(std::move(baseFile)), m_current(m_base),
-      m_sensitivePrefixes(sensitivePrefixesOf(m_config.profileId, m_config.targetId)) {}
+      m_sensitivePrefixes(sensitivePrefixesOf(m_config.profileId, m_config.targetId)) {
+    // Review R4: the shell prompts of the profile (RTT target, BLE), stripped from echoed lines.
+    if (const DeviceProfile* profile = ProfileRegistry::find(m_config.profileId)) {
+        if (const TargetProfile* target = findTarget(*profile, m_config.targetId)) {
+            m_prompts.at(0) = target->shellPrompt;
+        }
+        if (profile->ble) {
+            m_prompts.at(1) = profile->ble->shellPrompt;
+        }
+    }
+}
 
 ConsoleFileSink::~ConsoleFileSink() {
     if (m_file && !m_buffer.empty()) {
@@ -254,7 +265,9 @@ Status ConsoleFileSink::openCurrent() {
         fs::create_directories(m_current.parent_path(), ec);
     }
     m_file = std::make_unique<QFile>(toQString(toUtf8(m_current)));
-    if (!m_file->open(QIODevice::WriteOnly | QIODevice::Append)) {
+    // Review R9: a new file is created owner-only; an existing one is tightened below.
+    if (!m_file->open(QIODevice::WriteOnly | QIODevice::Append,
+                      QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
         const QString reason = m_file->errorString();
         m_file = nullptr;
         return std::unexpected(writeFailed(m_current, reason));
@@ -334,13 +347,36 @@ Status ConsoleFileSink::append(std::string_view prefix, std::string_view text,
 }
 
 Status ConsoleFileSink::write(const ConsoleLine& line) {
-    if (line.dir == Direction::In) {
-        // ADR-0186: a command with secret arguments is written as "<prefix> <redacted>".
-        if (const auto prefix = matchSensitiveCommand(line.text, m_sensitivePrefixes)) {
-            return append(consoleFilePrefix(line), std::string(*prefix) + " <redacted>", line.time);
+    // ADR-0186: a command with secret arguments is written as "<prefix> <redacted>": the input
+    // line and (review R4) a shell's echo of it in the output, after its prompt.
+    if (line.dir == Direction::In ||
+        (line.dir == Direction::Out && line.channel == Channel::Shell)) {
+        const std::size_t promptLength =
+            line.dir == Direction::Out ? echoPromptLength(line.text) : 0;
+        const std::string_view command = std::string_view(line.text).substr(promptLength);
+        if (const auto prefix = matchSensitiveCommand(command, m_sensitivePrefixes)) {
+            return append(consoleFilePrefix(line),
+                          line.text.substr(0, promptLength) + std::string(*prefix) + " <redacted>",
+                          line.time);
         }
     }
     return append(consoleFilePrefix(line), line.text, line.time);
+}
+
+std::size_t ConsoleFileSink::echoPromptLength(std::string_view text) const noexcept {
+    for (const std::string_view prompt : m_prompts) {
+        if (!prompt.empty() && text.starts_with(prompt)) {
+            return prompt.size();
+        }
+    }
+    // A Zephyr shell prompt "<name>:~$ " (CHESTER's RTT prompt is not in the profile yet).
+    constexpr std::string_view zephyrPromptEnd = ":~$ ";
+    const std::size_t end = text.find(zephyrPromptEnd);
+    if (end != std::string_view::npos && end > 0 &&
+        text.substr(0, end).find_first_of(" \t") == std::string_view::npos) {
+        return end + zephyrPromptEnd.size();
+    }
+    return 0;
 }
 
 Status ConsoleFileSink::writeConnection(std::string_view text,

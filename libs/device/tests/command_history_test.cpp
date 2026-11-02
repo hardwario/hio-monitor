@@ -1,3 +1,4 @@
+#include "hwio/core/error.h"
 #include "hwio/device/command_history.h"
 #include "hwio/device/profile.h"
 
@@ -127,6 +128,43 @@ TEST_F(History, FileIsOwnerOnly) {
 }
 #endif
 
+#ifndef _WIN32
+// Review R3: a file of an older version (0644, with a sensitive entry) is tightened when it is
+// opened and its sensitive entries are neither offered nor written back.
+TEST_F(History, OldFileIsFilteredAndTightenedOnOpen) {
+    fs::create_directories(file().parent_path());
+    std::ofstream(file()) << "version\nlte config password hunter2\n leading space\nstatus\n";
+    fs::permissions(file(), fs::perms::owner_read | fs::perms::owner_write | fs::perms::group_read |
+                                fs::perms::others_read);
+    {
+        auto history =
+            CommandHistory::open(file(), hwio::device::sensitivePrefixesOf("chester", "app"));
+        ASSERT_TRUE(history);
+        EXPECT_EQ(fs::status(file()).permissions() & fs::perms::all,
+                  fs::perms::owner_read | fs::perms::owner_write);
+        EXPECT_EQ(history->entries(), (std::deque<std::string>{"version", "status"}));
+        history->add("uptime");
+    }
+    EXPECT_EQ(fileLines(), (std::vector<std::string>{"version", "status", "uptime"}));
+}
+#endif
+
+// Review R12: a history file whose lock another process holds is not deleted.
+TEST_F(History, ClearAllRespectsTheFileLock) {
+    const fs::path directory = file().parent_path();
+    fs::create_directories(directory);
+    std::ofstream(file()) << "x\n";
+    QLockFile lock(QString::fromStdString(file().string() + ".lock"));
+    ASSERT_TRUE(lock.tryLock(0));
+    const auto cleared = CommandHistory::clearAll(directory);
+    ASSERT_FALSE(cleared);
+    EXPECT_EQ(cleared.error().code, hwio::ErrorCode::IoWriteFailed);
+    EXPECT_TRUE(fs::exists(file()));
+    lock.unlock();
+    EXPECT_TRUE(CommandHistory::clearAll(directory));
+    EXPECT_FALSE(fs::exists(file()));
+}
+
 // ADR-0186 ("Clear history"): only history-*.txt files are deleted; clear() forgets the entries.
 TEST_F(History, ClearAllDeletesOnlyHistoryFiles) {
     const fs::path directory = file().parent_path();
@@ -134,8 +172,8 @@ TEST_F(History, ClearAllDeletesOnlyHistoryFiles) {
     for (const char* name : {"history-chester-app.txt", "history-other-x.txt"}) {
         std::ofstream(directory / name) << "x\n";
     }
-    for (const char* name : {"chester-app-20260101-000000-1.log", "history-notes.md",
-                             "my-history.txt", "history-chester-app.txt.lock"}) {
+    for (const char* name :
+         {"chester-app-20260101-000000-1.log", "history-notes.md", "my-history.txt"}) {
         std::ofstream(directory / name) << "keep\n";
     }
     auto history = CommandHistory::open(file());
@@ -147,8 +185,8 @@ TEST_F(History, ClearAllDeletesOnlyHistoryFiles) {
     EXPECT_EQ(history->pendingCount(), 0U);
     EXPECT_FALSE(fs::exists(directory / "history-chester-app.txt"));
     EXPECT_FALSE(fs::exists(directory / "history-other-x.txt"));
-    for (const char* name : {"chester-app-20260101-000000-1.log", "history-notes.md",
-                             "my-history.txt", "history-chester-app.txt.lock"}) {
+    for (const char* name :
+         {"chester-app-20260101-000000-1.log", "history-notes.md", "my-history.txt"}) {
         EXPECT_TRUE(fs::exists(directory / name)) << name;
     }
     EXPECT_TRUE(CommandHistory::clearAll(directory / "missing")); // nothing to delete
