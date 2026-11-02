@@ -261,4 +261,4 @@ R1, R3 (partly), R5–R13 and both extra changes confirmed closed. Fixed now (de
 
 Left open: echo with a backspace correction (needs the CHESTER HIL echo check, already open).
 
-- [ ] S1–S6 fixed and re-verified.
+- [x] S1–S6 fixed and re-verified.
