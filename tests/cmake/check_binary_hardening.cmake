@@ -2,7 +2,10 @@
 # hardening of cmake/HWioHardening.cmake.
 #
 #   cmake -DHWIO_OS=Linux|Windows -DHWIO_READER=<readelf | llvm-readobj> "-DHWIO_BINARIES=a;b"
-#         [-DHWIO_EXPECT_FORTIFY=ON] -P check_binary_hardening.cmake
+#         [-DHWIO_EXPECT_FORTIFY=ON] ["-DHWIO_ARCHIVES=libx.a;..."] -P check_binary_hardening.cmake
+#
+# HWIO_ARCHIVES (Linux, review R6): static libraries of vendored third-party code (miniz) whose
+#   objects must be built with the stack protector (__stack_chk_fail referenced).
 #
 # Linux (readelf): BIND_NOW (full RELRO), a GNU_RELRO segment, PIE (ELF type DYN), a
 #   non-executable GNU_STACK, the stack protector (__stack_chk_fail) and, with
@@ -72,6 +75,15 @@ foreach(_binary IN LISTS HWIO_BINARIES)
         message(FATAL_ERROR "binary_hardening_check: unsupported HWIO_OS '${HWIO_OS}'")
     endif()
 endforeach()
+
+if(HWIO_OS STREQUAL "Linux")
+    foreach(_archive IN LISTS HWIO_ARCHIVES)
+        get_filename_component(_name "${_archive}" NAME)
+        _hwio_run(_archive_symbols "${HWIO_READER}" --wide --syms "${_archive}")
+        _hwio_require("${_name}" "${_archive_symbols}" "__stack_chk_fail"
+                      "the stack protector in the vendored objects (__stack_chk_fail)")
+    endforeach()
+endif()
 
 if(_problems GREATER 0)
     message(FATAL_ERROR "binary_hardening_check: ${_problems} problem(s)")

@@ -74,6 +74,10 @@ set_target_properties(hwio_miniz PROPERTIES
     C_CLANG_TIDY ""
     SKIP_LINTING ON
     POSITION_INDEPENDENT_CODE ON)
+# ADR-0187 / review R6: the compiler hardening reaches the vendored code too.
+target_link_libraries(hwio_miniz PRIVATE hwio::hardening_flags)
+# replxx exports its targets for install(EXPORT): the flags are build-only.
+target_link_libraries(replxx PRIVATE "$<BUILD_INTERFACE:hwio_hardening_flags>")
 
 if(HWIO_BUILD_TESTS)
     # GoogleTest + GMock 1.18.0 - BSD-3-Clause - unit tests only.
