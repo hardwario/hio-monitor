@@ -166,7 +166,7 @@ jobs:
         run: |
           cmake --preset macos-package
           cmake --build --preset macos-package
-          cmake --install build/macos-package --prefix build/macos-install
+          cmake --install build/macos-package --prefix "$PWD/build/macos-install"
       - name: Signing identity (temporary keychain)
         env:
           MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
@@ -271,8 +271,8 @@ jobs:
           signing-account-name: ${{ secrets.TRUSTED_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
           files: |
-            ${{ github.workspace }}\build\windows-package\app\gui\hwio-monitor.exe
-            ${{ github.workspace }}\build\windows-package\app\cli\hwio.exe
+            ${{ github.workspace }}\build\windows-package\hwio-monitor.exe
+            ${{ github.workspace }}\build\windows-package\hwio.exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
@@ -313,7 +313,7 @@ jobs:
         shell: pwsh
         run: |
           $msi = (Get-ChildItem build/packages -Filter *.msi | Select-Object -First 1).FullName
-          foreach ($file in @("build/windows-package/app/gui/hwio-monitor.exe", "build/windows-package/app/cli/hwio.exe", $msi)) {
+          foreach ($file in @("build/windows-package/hwio-monitor.exe", "build/windows-package/hwio.exe", $msi)) {
             & signtool verify /pa /v $file
             if ($LASTEXITCODE -ne 0) { throw "signtool verify failed: $file" }
           }
@@ -322,7 +322,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force symbols | Out-Null
-          Copy-Item build/windows-package/app/gui/hwio-monitor.pdb, build/windows-package/app/cli/hwio.pdb symbols/
+          Copy-Item build/windows-package/hwio-monitor.pdb, build/windows-package/hwio.pdb symbols/
           Compress-Archive -Path symbols/* -DestinationPath "build/packages/hwio-monitor-${{ needs.gate.outputs.version }}-symbols-windows.zip"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

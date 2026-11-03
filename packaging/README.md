@@ -73,7 +73,7 @@ cmake --build build/c2204-debug && ctest --test-dir build/c2204-debug` (with `QT
 
 ```sh
 cmake --preset macos-package && cmake --build --preset macos-package
-cmake --install build/macos-package --prefix build/macos-install          # macdeployqt
+cmake --install build/macos-package --prefix "$PWD/build/macos-install"   # macdeployqt (absolute prefix)
 packaging/macos/sign-and-notarize.sh sign "build/macos-install/HARDWARIO Monitor.app" -    # ad hoc
 packaging/macos/sign-and-notarize.sh dmg  "build/macos-install/HARDWARIO Monitor.app" out.dmg -
 ```

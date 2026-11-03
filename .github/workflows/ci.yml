@@ -519,7 +519,8 @@ jobs:
       - name: Build
         run: cmake --build --preset macos-package
       - name: Install (macdeployqt)
-        run: cmake --install build/macos-package --prefix build/macos-install
+        # Absolute: Qt runs macdeployqt inside the prefix, so a relative prefix is resolved twice.
+        run: cmake --install build/macos-package --prefix "$PWD/build/macos-install"
       - name: Installed-tree self-test
         env:
           QT_QPA_PLATFORM: offscreen
@@ -608,14 +609,15 @@ jobs:
         shell: pwsh
         run: >-
           packaging/windows/sign.ps1 -DryRun -Files
-          build/windows-package/app/gui/hwio-monitor.exe,build/windows-package/app/cli/hwio.exe
+          build/windows-package/hwio-monitor.exe,build/windows-package/hwio.exe
       - name: Installed-tree self-test
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
           HWIO_NO_CRASH_HANDLER: "1"
         run: |
-          cmake --install build/windows-package --prefix build/windows-install
+          # Absolute: Qt runs windeployqt inside the prefix (as on macOS).
+          cmake --install build/windows-package --prefix "$PWD/build/windows-install"
           $json = & build/windows-install/hwio.exe --version --json
           $json
           if ($json -notmatch '"package":"msi"') { throw "package kind is not msi" }
