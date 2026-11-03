@@ -12,6 +12,8 @@ set -euo pipefail
 src="$(cd "$(dirname "$0")/../.." && pwd)"
 out="${1:-$src/build/packages}"
 mkdir -p "$out"
+# Absolute: cpack runs in the build tree.
+out="$(cd "$out" && pwd)"
 cd "$src"
 
 cmake --preset linux-package -DHWIO_PACKAGE_KIND=deb

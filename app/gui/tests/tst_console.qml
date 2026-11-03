@@ -359,12 +359,15 @@ TestCase {
         tryVerify(() => list.atYEnd && list.count === 102);
         const hbar = findAll(list.parent, "consoleHorizontalBar")[0];
         tryVerify(() => hbar.visible && hbar.height > 0);
-        waitForRendering(window.contentItem);
         const last = list.itemAtIndex(list.count - 1);
         verify(last !== null);
-        const lastBottom = last.mapToItem(window.contentItem, 0, last.height).y;
-        const barTop = hbar.mapToItem(window.contentItem, 0, 0).y;
-        verify(lastBottom <= barTop + 0.5, `last row ends at ${lastBottom}, bar starts at ${barTop}`);
+        const lastBottom = () => last.mapToItem(window.contentItem, 0, last.height).y;
+        const barTop = () => hbar.mapToItem(window.contentItem, 0, 0).y;
+        // The bar shortens the list; follow moves the end back into view through Qt.callLater
+        // (later than the next frame on the Windows runners).
+        tryVerify(() => list.atYEnd && lastBottom() <= barTop() + 0.5);
+        waitForRendering(window.contentItem);
+        verify(lastBottom() <= barTop() + 0.5, `last row ends at ${lastBottom()}, bar starts at ${barTop()}`);
         const vbar = findAll(list.parent, "consoleScrollBar")[0];
         verify(vbar.mapToItem(window.contentItem, 0, 0).x >= list.mapToItem(window.contentItem, list.width, 0).x - 0.5);
         mousePress(last, 10, last.height / 2);
