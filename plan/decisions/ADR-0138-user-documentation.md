@@ -1,6 +1,6 @@
 # ADR-0138 — User documentation lives in docs/ in the repository; docs.hardwario.com publishing decided later
 
-- **Status:** Accepted
+- **Status:** Accepted; language part superseded by ADR-0221, generated `cli.md` by ADR-0222 (location confirmed by ADR-0220)
 - **Date:** 2026-10-19
 - **Decided by:** Matej Strnad (M8 planning session)
 
