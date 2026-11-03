@@ -36,7 +36,7 @@ sign_bundle() {
     ts="$(timestamp_option "$identity")"
     # 1. Frameworks, plugins, QML plugins and any other Mach-O inside (deepest first).
     while IFS= read -r -d '' file; do
-        if file -b "$file" | grep -q "Mach-O"; then
+        if [[ "$(file -b "$file")" == *Mach-O* ]]; then
             codesign --force --sign "$identity" --options runtime "$ts" "$file"
         fi
     done < <(find "$app/Contents/Frameworks" "$app/Contents/PlugIns" "$app/Contents/Resources" \
@@ -65,8 +65,12 @@ verify_bundle() {
             echo "Unexpected entitlement in $binary (ADR-0126 allows only disable-library-validation)" >&2
             exit 1
         fi
-        if ! codesign -d --verbose=2 "$binary" 2>&1 | grep -q "flags=.*runtime"; then
+        # Captured first: with pipefail, grep -q closing the pipe early fails codesign (SIGPIPE).
+        local details
+        details="$(codesign -d --verbose=2 "$binary" 2>&1)"
+        if ! grep -q "flags=.*runtime" <<<"$details"; then
             echo "Hardened runtime not enabled: $binary" >&2
+            echo "$details" >&2
             exit 1
         fi
     done

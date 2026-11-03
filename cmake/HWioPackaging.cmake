@@ -199,7 +199,8 @@ endfunction()
 function(_hwio_install_msvc_runtime)
     # clang-cl links the MSVC STL; the redistributable DLLs come from the VS Build Tools
     # (vcvars sets VCToolsRedistDir). The MSI does not install the VC++ redistributable.
-    set(_redist "$ENV{VCToolsRedistDir}")
+    # Forward slashes: the paths end up in cmake_install.cmake, where "\P" is an escape sequence.
+    file(TO_CMAKE_PATH "$ENV{VCToolsRedistDir}" _redist)
     if(NOT _redist)
         message(FATAL_ERROR
             "HWIO_PACKAGE_KIND=msi needs the MSVC redistributable DLLs: configure from a VS developer "

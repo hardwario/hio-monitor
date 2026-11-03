@@ -287,7 +287,7 @@ jobs:
           exclude-azure-developer-cli-credential: true
           exclude-interactive-browser-credential: true
       - name: MSI
-        run: cpack --preset windows-package -B build/packages
+        run: cpack --preset windows-package -B "$PWD/build/packages"
       - name: Sign the MSI
         uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:

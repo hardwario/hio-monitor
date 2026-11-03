@@ -625,7 +625,7 @@ jobs:
           if ($gui.ExitCode -ne 0) { throw "hwio-monitor --self-test failed: $($gui.ExitCode)" }
           Get-ChildItem build/windows-install -Filter "vcruntime140*.dll"
       - name: MSI
-        run: cpack --preset windows-package -B build/packages
+        run: cpack --preset windows-package -B "$PWD/build/packages"
       - name: ICE validation
         shell: pwsh
         run: |
