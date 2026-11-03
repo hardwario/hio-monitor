@@ -1,6 +1,7 @@
 # 0029 — User documentation
 
-- **Status:** Draft
+- **Status:** Done 2026-11-03 (approved by Matej Strnad 2026-11-03; review of the EN/CS text by the user and of DE/SK/PL
+  by native speakers open)
 - **Milestone:** M8 (phase E of [0017](0017-m8-parity.md), taken out as its own plan; [0028](0028-gui-feedback-round-2.md) F7)
 - **Author:** Matej Strnad (with Claude), 2026-11-03
 - **Related ADRs:** ADR-0027, ADR-0138, ADR-0139, ADR-0203, ADR-0206, ADR-0220, ADR-0221, ADR-0222
@@ -108,13 +109,13 @@ None (documentation only).
 ## Implementation steps
 
 - [x] A1 ADRs 0220–0222; ADR-0138 status updated.
-- [ ] B1 `docs/en/*` (user pages and references), checked against the build and the code.
-- [ ] B2 `README.md`, `docs/README.md`.
-- [ ] B3 `docs/cs/*` (user reviews).
-- [ ] B4 `docs/de/*`, `docs/sk/*`, `docs/pl/*`.
-- [ ] C1 Accuracy pass (every option in `cli.md` against `--help` and back; every error id in `error.h` has an anchor
+- [x] B1 `docs/en/*` (user pages and references), checked against the build and the code.
+- [x] B2 `README.md`, `docs/README.md`.
+- [x] B3 `docs/cs/*` (user reviews).
+- [x] B4 `docs/de/*`, `docs/sk/*`, `docs/pl/*`.
+- [x] C1 Accuracy pass (every option in `cli.md` against `--help` and back; every error id in `error.h` has an anchor
       in each `troubleshooting.md`); link and anchor check; no probe names / serials; `tools/check-lfs.sh`.
-- [ ] C2 Roadmap, open question 29, 0017 phase E (moved here, generator dropped) and `packaging/RELEASE.md` (docs
+- [x] C2 Roadmap, open question 29, 0017 phase E (moved here, generator dropped) and `packaging/RELEASE.md` (docs
       check before tagging) updated; plan Done.
 
 ## Tests and verification
@@ -124,6 +125,21 @@ None (documentation only).
 - All relative links and anchors resolve (script in the scratchpad, run before the commit).
 - `tools/check-lfs.sh` passes; `grep` finds no probe model names or serial numbers.
 - The user reviews the English and Czech pages.
+
+## Verification record (2026-11-03)
+
+- Options: every `--option` of `hwio … --help` (integrated build 770a51f) appears in `docs/en/cli.md`, `mcp.md` or
+  `bluetooth.md`, and no documented option is missing from `--help`; every command of the help tree is in `cli.md`.
+- Error ids: the 88 ids of `error.h` have an anchor in each of the five `troubleshooting.md`, none extra; the English
+  and Czech texts were generated from `error.cpp` / `i18n/hwio_cs.ts`, the DE/SK/PL pages quote the English texts the
+  app shows.
+- Links: all relative links and anchors of `README.md` and `docs/**` resolve (script, 0 problems).
+- `tools/check-lfs.sh` and `--untracked` pass (no images were added); no probe model names or serial numbers.
+- Found while writing (not changed here): the GUI has no wizards, no Bluetooth and no MCP server yet (plans 0008–0010,
+  0012, 0014), so the docs describe Bluetooth and MCP through `hwio` only; the update check
+  (`libs/update/include/hwio/update/releases.h`) and Settings › About › Source code still point to
+  `hardwario/hio-monitor`, which must follow the repository move; `internal.session_limit` says "max 8" also for the
+  J-Link out-handler limit of 16.
 
 ## Risks and open points
 

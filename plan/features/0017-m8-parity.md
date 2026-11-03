@@ -126,6 +126,10 @@ this plan (new checklist item) or written into the decisions table as an accepte
 
 ### E. User documentation (ADR-0138)
 
+*Moved to plan [0029](0029-user-documentation.md) (2026-11-03): hand-written `docs/` pages in five languages, no `cli.md`
+generator and no `docs_cli_fresh` CTest (ADR-0220..0222); the `docsUrl()` anchors wait for docs.hardwario.com.*
+
+
 - `docs/` pages listed in ADR-0138; `cli.md` generated from `hio --help` per command (CTest `docs_cli_fresh` fails
   when stale); `troubleshooting.md` anchors = `hio::Error` codes (CTest: every code in the registry has an anchor).
 - `libs/core` `docsUrl(DocsTopic)` table → `https://github.com/hardwario/hio-monitor/blob/main/docs/<page>.md#<anchor>`;

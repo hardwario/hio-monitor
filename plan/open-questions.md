@@ -31,4 +31,4 @@ before the plan that depends on it is approved.
 | 26 | Drop the legacy MCP dialect (2025-11-25) once Claude, Cursor and VS Code speak 2026-07-28 (ADR-0095) | after v2.0 |
 | 27 | ~~v2 app icon~~ — **resolved**: the v1 icon is reused (0015); a later brand icon only replaces the files | — |
 | 28 | ~~Legal approval of the LGPLv3 §4 exception wording in `LICENSE` (ADR-0119)~~ — **resolved**: v2 is MIT, no exception needed (ADR-0206) | — |
-| 29 | Publishing the user docs (`docs/`, ADR-0138) on docs.hardwario.com: how and by whom — the user decides later | before v2.0.0 or after |
+| 29 | Publishing the user docs (`docs/`, ADR-0138, ADR-0220; written by plan 0029) on docs.hardwario.com: how and by whom, and then the `docsUrl()` table — the user decides later | before v2.0.0 or after |

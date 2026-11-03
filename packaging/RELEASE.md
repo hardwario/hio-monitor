@@ -26,6 +26,9 @@ it. Nothing in this repository creates tags or publishes releases by itself.
       24.04 / Debian 13 .deb, Fedora AppImage, macOS 13.3 Intel and macOS 15 Apple silicon DMG, Windows 10 22H2 and
       Windows 11 MSI (install, upgrade, downgrade refusal, uninstall, silent install, SmartScreen, J-Link with
       Defender), the crash notice after `HWIO_TEST_CRASH=1` (debug build). Results are recorded in plan 0015.
+- [ ] User docs match the release (plan 0029, ADR-0222): every command and option of `docs/en/cli.md` against
+      `hwio … --help`, every error id of `error.h` in each `docs/<lang>/troubleshooting.md`, package names and
+      minimum OS versions in `README.md` and `docs/*/install.md`.
 - [ ] Release notes draft: minimum OS versions, "Install SEGGER J-Link Software 8.00 or newer separately", the
       side-by-side period with v1 (until M8).
 
