@@ -28,9 +28,7 @@ struct Row {
 
 // The order of the About page (plan 0016).
 constexpr std::array<Row, 10> rows{{
-    {.name = QT_TRANSLATE_NOOP("hwio::gui::LicensesModel", "HARDWARIO licence"),
-     .translate = true,
-     .file = "LICENSE"},
+    {.name = "HARDWARIO Monitor (MIT)", .translate = false, .file = "LICENSE"},
     {.name = "Qt (LGPL-3.0)", .translate = false, .file = "Qt-LGPL-3.0.txt"},
     {.name = QT_TRANSLATE_NOOP("hwio::gui::LicensesModel", "Qt source code"),
      .translate = true,

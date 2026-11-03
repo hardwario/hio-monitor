@@ -1,8 +1,8 @@
-# Licence notices of the packages (ADR-0119, plan/features/0015 A4).
+# Licence notices of the packages (ADR-0119, ADR-0206, plan/features/0015 A4).
 #
 # hwio_install_licenses(<destination>) installs into <destination> (the `licenses/` directory of the
 # installed tree):
-#   LICENSE                     HARDWARIO licence (with the LGPLv3 section 4 exception, ADR-0119)
+#   LICENSE                     MIT licence of HARDWARIO Monitor (ADR-0206)
 #   Qt-LGPL-3.0.txt GPL-3.0.txt Qt's licence (LGPL-3.0) and the GPL-3.0 it references
 #   Qt-SOURCE.txt               generated: the Qt version, the URL of its exact source archive and the
 #                               written offer

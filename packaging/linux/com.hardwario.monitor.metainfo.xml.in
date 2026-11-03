@@ -5,7 +5,7 @@
 <component type="desktop-application">
   <id>com.hardwario.monitor</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>LicenseRef-proprietary=https://github.com/hardwario/hio-monitor/blob/main/LICENSE</project_license>
+  <project_license>MIT</project_license>
   <name>HARDWARIO Monitor</name>
   <summary>Console, log and flashing tool for HARDWARIO devices</summary>
   <summary xml:lang="cs">Konzole, logy a programování zařízení HARDWARIO</summary>

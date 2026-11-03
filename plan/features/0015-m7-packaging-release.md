@@ -360,6 +360,7 @@ Manual (clean VMs / machines; J-Link + CHESTER for the hardware rows):
 - **Azure Trusted Signing eligibility** for HARDWARIO a.s. (identity validation can take weeks) — check first; fall back
   to a cloud-HSM OV certificate via a new ADR.
 - **Legal sign-off on the LGPL exception** (ADR-0119) may delay the first release; engineering work is not blocked.
+  - 2026-11-03: superseded — v2 is MIT (ADR-0206), the exception and its sign-off are dropped.
 - Qt 6.8 `linux_gcc_64` needs `libxcb-cursor0` (not installed by default on some distros) → bundled in the AppImage,
   listed as a .deb dependency.
 - AppImage needs FUSE on the host unless the static runtime's fallback is used; document `--appimage-extract-and-run`.

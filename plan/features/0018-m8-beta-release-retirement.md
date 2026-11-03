@@ -63,7 +63,7 @@ None.
 
 A checklist issue "v2.0.0 release readiness" with one item per ADR-0135 criterion, each linking evidence:
 2 weeks on final RC; 0 open `rc-blocker`/`crash`; 0002 parity table complete (0017); 0015 manual matrix on the final
-RC; HIL green on the final RC tag; ADR-0119 legal sign-off; `check_translations` 0 unfinished. The user approves the
+RC; HIL green on the final RC tag; ~~ADR-0119 legal sign-off~~ (dropped: MIT, ADR-0206); `check_translations` 0 unfinished. The user approves the
 checklist before tagging `v2.0.0`.
 
 ### D. v2.0.0 release
