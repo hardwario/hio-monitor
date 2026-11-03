@@ -97,7 +97,7 @@ All design documentation lives in [`plan/`](plan/README.md). Read `plan/README.m
 
 Presets live in `CMakePresets.json` (`linux-*`, `macos-*`, `windows-*`); build trees go to `build/<preset>`,
 CPM sources to `.cpm-cache/` (both git-ignored). Qt is found via `$QT_ROOT_DIR` (CI, Qt installer) or the
-system Qt; a personal `CMakeUserPresets.json` may override it. Linux needs clang 21 (`clang++-21`).
+system Qt; a personal `CMakeUserPresets.json` may override it. Linux needs clang 21 (`clang++-21`) and lld 21 (`lld-21`, ADR-0207).
 
 ```sh
 cmake --preset linux-debug                      # configure (also: linux-release, -asan, -tsan, -coverage, -tidy)

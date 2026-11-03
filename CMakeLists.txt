@@ -26,6 +26,18 @@ if(WIN32 AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
         "not with the GNU-style clang driver.")
 endif()
 
+# ADR-0207: LLVM lld on Linux, for every target (own and third-party).
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    include(CheckLinkerFlag)
+    check_linker_flag(CXX "-fuse-ld=lld" HWIO_HAVE_LLD)
+    if(NOT HWIO_HAVE_LLD)
+        message(FATAL_ERROR
+            "HARDWARIO Monitor links with LLVM lld on Linux (ADR-0207), but -fuse-ld=lld does not "
+            "work with ${CMAKE_CXX_COMPILER}. Install lld of the same LLVM version (e.g. lld-21).")
+    endif()
+    add_link_options("-fuse-ld=lld")
+endif()
+
 # ADR-0180: Apple's libc++ (Xcode 16) still ships std::jthread / std::stop_token as experimental.
 # The flag enables them and links Apple's static libc++experimental.a (nothing extra to ship). Global,
 # so that the feature checks and every target, own or third-party, see the same library.
